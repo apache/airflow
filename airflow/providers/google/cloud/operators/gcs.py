@@ -865,7 +865,6 @@ class GCSDeleteBucketOperator(BaseOperator):
     :param bucket_name: name of the bucket which will be deleted
     :param force: false not allow to delete non empty bucket, set force=True
         allows to delete non empty bucket
-    :type: bool
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

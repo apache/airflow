@@ -40,6 +40,7 @@ The time zone is set in ``airflow.cfg``. By default it is set to UTC, but you ch
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
+
 Web UI
 ------
 
@@ -90,7 +91,11 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
 
 .. code-block:: python
 
-    dag = DAG("my_dag", start_date=datetime(2017, 1, 1), default_args={"retries": 3})
+    dag = DAG(
+        "my_dag",
+        start_date=pendulum.datetime(2017, 1, 1, tz="UTC"),
+        default_args={"retries": 3},
+    )
     op = BashOperator(task_id="dummy", bash_command="Hello World!", dag=dag)
     print(op.retries)  # 3
 
@@ -120,19 +125,21 @@ it is therefore important to make sure this setting is equal on all Airflow node
 .. note::
     For more information on setting the configuration, see :doc:`howto/set-config`
 
+.. _timezone_aware_dags:
+
 Time zone aware DAGs
 --------------------
 
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
-using ``pendulum``.
+using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
 
 .. code-block:: python
 
     import pendulum
 
-    local_tz = pendulum.timezone("Europe/Amsterdam")
-
-    dag = DAG("my_tz_dag", start_date=datetime(2016, 1, 1, tzinfo=local_tz))
+    dag = DAG("my_tz_dag", start_date=pendulum.datetime(2016, 1, 1, tz="Europe/Amsterdam"))
     op = DummyOperator(task_id="dummy", dag=dag)
     print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 
@@ -170,6 +177,6 @@ Time deltas
 Time zone aware DAGs that use ``timedelta`` or ``relativedelta`` schedules
 respect daylight savings time for the start date but do not adjust for
 daylight savings time when scheduling subsequent runs. For example, a
-DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="US/Eastern")``
+DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="UTC")``
 and a schedule interval of ``timedelta(days=1)`` will run daily at 05:00
 UTC regardless of daylight savings time.

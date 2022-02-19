@@ -28,6 +28,7 @@ from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -39,7 +40,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         client_options = {'api_endpoint': 'metastore.googleapis.com:443'}
 
         return DataprocMetastoreClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def wait_for_operation(self, timeout: Optional[float], operation: Operation):

@@ -51,7 +51,9 @@ In the following example, failures in any task call the ``task_failure_alert`` f
 
 .. code-block:: python
 
-    from datetime import datetime, timedelta
+    import datetime
+    import pendulum
+
     from airflow import DAG
     from airflow.operators.dummy import DummyOperator
 
@@ -67,8 +69,8 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     with DAG(
         dag_id="example_callback",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
-        dagrun_timeout=timedelta(minutes=60),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        dagrun_timeout=datetime.timedelta(minutes=60),
         catchup=False,
         on_success_callback=None,
         on_failure_callback=task_failure_alert,

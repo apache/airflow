@@ -26,7 +26,6 @@ from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow
 from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DagBag
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import get_executor
 
@@ -144,10 +143,7 @@ class SystemTest(TestCase, LoggingMixin):
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            dag.clear()
-        else:
-            dag.clear(dag_run_state=State.NONE)
+        dag.clear()
         try:
             dag.run(ignore_first_depends_on_past=True, verbose=True)
         except Exception:

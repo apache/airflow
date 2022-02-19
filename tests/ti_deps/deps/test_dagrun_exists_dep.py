@@ -32,7 +32,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances without dagruns should fail this dep
         """
         dag = DAG('test_dag', max_active_runs=2)
-        dagrun = DagRun(state=State.NONE)
+        dagrun = DagRun(state=State.QUEUED)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=dagrun))
         assert not DagrunRunningDep().is_met(ti=ti)
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function run_flake8() {
-    if [[ "${#@}" == "0" ]]; then
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_flake8.sh"
-    else
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_flake8.sh" "${@}"
-    fi
-}
+from datetime import datetime
+from typing import Dict, List
 
-build_images::prepare_ci_build
+from airflow import DAG
+from airflow.decorators import task
+from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
-build_images::rebuild_ci_image_if_confirmed_for_pre_commit
 
-run_flake8 "$@"
+@task
+def fetch_organizations() -> List[Dict]:
+    hook = ZendeskHook()
+    response = hook.get(
+        url="https://yourdomain.zendesk.com/api/v2/organizations.json",
+    )
+    return [org.to_dict() for org in response]
+
+
+with DAG(
+    dag_id="zendesk_custom_get_dag",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
+    fetch_organizations()

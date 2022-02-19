@@ -34,6 +34,7 @@ BackfillJobTest
 Backfills
 Banco
 BaseClient
+BaseObject
 BaseOperator
 BaseView
 BaseXCom
@@ -114,6 +115,7 @@ Deserialize
 Deserialized
 DevOps
 Dingding
+DirectRunner
 Dlp
 DlpJob
 DlpServiceClient
@@ -202,6 +204,7 @@ Jira
 JobComplete
 JobExists
 JobRunning
+JobStatus
 JobTrigger
 Json
 Jupyter
@@ -328,6 +331,7 @@ SSHTunnelForwarder
 SaaS
 Sagemaker
 Sasl
+SearchResultGenerator
 SecretManagerClient
 Seedlist
 Sendgrid
@@ -382,6 +386,7 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
+TicketAudit
 ToC
 Tooltip
 Tunables
@@ -420,6 +425,7 @@ Yandex
 Yieldr
 Zego
 Zendesk
+Zenpy
 Zsh
 Zymergen
 abc
@@ -1100,6 +1106,7 @@ personalizations
 pformat
 picklable
 pid
+pidbox
 pigcmd
 pinodb
 pinot
@@ -1248,6 +1255,7 @@ sdk
 secretRef
 secretRefs
 securable
+securecookie
 securestring
 securityManager
 seealso
@@ -1502,5 +1510,6 @@ youtrack
 youtube
 zA
 zendesk
+zenpy
 zope
 zsh

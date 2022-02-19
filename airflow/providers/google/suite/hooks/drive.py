@@ -200,7 +200,7 @@ class GoogleDriveHook(GoogleBaseHook):
         media = MediaFileUpload(local_location)
         file = (
             service.files()
-            .create(body=file_metadata, media_body=media, fields="id")
+            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
             .execute(num_retries=self.num_retries)
         )
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)

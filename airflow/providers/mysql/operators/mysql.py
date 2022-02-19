@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, U
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,7 +48,11 @@ class MySqlOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('sql', 'parameters')
-    template_fields_renderers = {'sql': 'mysql', 'parameters': 'json'}
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        'sql': 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql',
+        'parameters': 'json',
+    }
     template_ext: Sequence[str] = ('.sql', '.json')
     ui_color = '#ededed'
 

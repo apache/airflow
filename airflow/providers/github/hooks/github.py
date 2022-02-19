@@ -31,7 +31,6 @@ class GithubHook(BaseHook):
     Performs a connection to GitHub and retrieves client.
 
     :param github_conn_id: Reference to :ref:`GitHub connection id <howto/connection:github>`.
-    :type github_conn_id: str
     """
 
     conn_name_attr = 'github_conn_id'

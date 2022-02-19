@@ -1271,7 +1271,7 @@ class TestEksHook:
                                 'apiVersion': 'client.authentication.k8s.io/v1alpha1',
                                 'args': expected_args,
                                 'command': sys.executable,
-                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'fatal'}],
+                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'FATAL'}],
                                 'interactiveMode': 'Never',
                             }
                         },

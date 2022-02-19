@@ -45,3 +45,9 @@ class BeamExampleDagsSystemTest(SystemTest):
 
     def test_run_example_dag_beam_java_flink_runner(self):
         self.run_dag('example_beam_native_java_flink_runner', BEAM_DAG_FOLDER)
+
+    def test_run_example_dag_beam_go(self):
+        self.run_dag('example_beam_native_go', BEAM_DAG_FOLDER)
+
+    def test_run_example_dag_beam_go_dataflow_async(self):
+        self.run_dag('example_beam_native_go_dataflow_async', BEAM_DAG_FOLDER)
