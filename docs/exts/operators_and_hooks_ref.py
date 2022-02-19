@@ -19,8 +19,8 @@ import os
 from functools import lru_cache
 from typing import Iterable, Optional, Set
 
-import click
 import jinja2
+import rich_click as click
 from docutils import nodes
 from docutils.nodes import Element
 
