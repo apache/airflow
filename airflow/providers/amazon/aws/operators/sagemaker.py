@@ -617,11 +617,7 @@ class SageMakerDeleteModelOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use
     """
 
-    def __init__(self,
-                 *,
-                 model_name: str,
-                 aws_conn_id: str,
-                 **kwargs):
+    def __init__(self, *, model_name: str, aws_conn_id: str, **kwargs):
         super().__init__(**kwargs)
         self.model_name = model_name
         self.aws_conn_id = aws_conn_id
