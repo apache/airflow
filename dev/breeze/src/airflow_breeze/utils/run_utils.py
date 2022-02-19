@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
 import psutil
+import requests
 
 from airflow_breeze.cache import update_md5checksum_in_cache
 from airflow_breeze.console import console
@@ -45,19 +46,22 @@ def run_command(
     cwd: Optional[Path] = None,
     **kwargs,
 ):
+    workdir: str = str(cwd) if cwd else os.getcwd()
     if verbose:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
         # if we pass environment variables to execute, then
         env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
+        console.print(f"\n[blue]Working directory {workdir} [/]\n")
         # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-        console.print(f"[blue]{env_to_print} {command_to_print}[/]", soft_wrap=True)
+        console.print(f"\n[blue]{env_to_print} {command_to_print}[/]\n", soft_wrap=True)
+
     try:
         # copy existing environment variables
         cmd_env = deepcopy(os.environ)
         if env:
             # Add environment variables passed as parameters
             cmd_env.update(env)
-        return subprocess.run(cmd, check=check, env=cmd_env, cwd=cwd, **kwargs)
+        return subprocess.run(cmd, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not suppress_console_print:
             console.print("========================= OUTPUT start ============================")
@@ -141,21 +145,21 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, the_image_type: str)
 
 
 def instruct_build_image(the_image_type: str, python_version: str):
-    console.print(f'The {the_image_type} image for python version {python_version} may be outdated')
-    console.print('Please run this command at earliest convenience:')
+    console.print(f'\nThe {the_image_type} image for python version {python_version} may be outdated\n')
+    console.print('Please run this command at earliest convenience:\n')
     if the_image_type == 'CI':
         console.print(f'./Breeze2 build-ci-image --python {python_version}')
     else:
         console.print(f'./Breeze2 build-prod-image --python {python_version}')
-    console.print("If you run it via pre-commit as individual hook, you can run 'pre-commit run build'.")
+    console.print("\nIf you run it via pre-commit as individual hook, you can run 'pre-commit run build'.\n")
 
 
 def instruct_for_setup():
     CMDNAME = 'Breeze2'
-    console.print(f"You can setup autocomplete by running {CMDNAME} setup-autocomplete'")
+    console.print(f"\nYou can setup autocomplete by running {CMDNAME} setup-autocomplete'")
     console.print("  You can toggle ascii/cheatsheet by running:")
     console.print(f"      * {CMDNAME} toggle-suppress-cheatsheet")
-    console.print(f"      * {CMDNAME} toggle-suppress-asciiart")
+    console.print(f"      * {CMDNAME} toggle-suppress-asciiart\n")
 
 
 @contextlib.contextmanager
@@ -201,3 +205,19 @@ def fix_group_permissions():
         directories_to_fix = directories_to_fix_result.stdout.strip().split('\n')
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
+
+
+def get_latest_sha(repo: str, branch: str):
+    gh_url = f"https://api.github.com/repos/{repo}/commits/{branch}"
+    headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
+    resp = requests.get(gh_url, headers=headers_dict)
+    return resp.text
+
+
+def is_repo_rebased(latest_sha: str):
+    rebased = False
+    output = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
+    output = output.stdout.strip().splitlines()
+    if latest_sha in output:
+        rebased = True
+    return rebased

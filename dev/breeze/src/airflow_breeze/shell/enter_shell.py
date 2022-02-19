@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Dict
 
 import click
+from inputimeout import TimeoutOccurred, inputimeout
 
 from airflow_breeze import global_constants
 from airflow_breeze.cache import (
@@ -50,8 +51,10 @@ from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import (
     filter_out_none,
     fix_group_permissions,
+    get_latest_sha,
     instruct_build_image,
     instruct_for_setup,
+    is_repo_rebased,
     md5sum_check_if_build_is_needed,
     run_command,
 )
@@ -127,6 +130,56 @@ def construct_env_variables_docker_compose_command(shell_params: ShellBuilder) -
     return env_variables
 
 
+def build_image_if_needed_steps(verbose: bool, shell_params: ShellBuilder):
+    build_needed = md5sum_check_if_build_is_needed(shell_params.md5sum_cache_dir, shell_params.the_image_type)
+    if build_needed:
+        try:
+            user_status = inputimeout(
+                prompt='\nDo you want to build image?Press y/n/q in 5 seconds\n',
+                timeout=5,
+            )
+            if user_status == 'y':
+                latest_sha = get_latest_sha(shell_params.github_repository, shell_params.airflow_branch)
+                if is_repo_rebased(latest_sha):
+                    build_image(
+                        verbose,
+                        python_version=shell_params.python_version,
+                        upgrade_to_newer_dependencies="false",
+                    )
+                else:
+                    if click.confirm(
+                        "\nThis might take a lot of time, we think you should rebase first. \
+                            But if you really, really want - you can do it\n"
+                    ):
+                        build_image(
+                            verbose,
+                            python_version=shell_params.python_version,
+                            upgrade_to_newer_dependencies="false",
+                        )
+                    else:
+                        console.print(
+                            '\nPlease rebase your code before continuing.\
+                                Check this link to know more \
+                                     https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n'
+                        )
+                        console.print('Exiting the process')
+                        sys.exit()
+            elif user_status == 'n':
+                instruct_build_image(shell_params.the_image_type, shell_params.python_version)
+            elif user_status == 'q':
+                console.print('\nQuitting the process')
+                sys.exit()
+            else:
+                console.print('\nYou have given a wrong choice:', user_status, ' Quitting the process')
+                sys.exit()
+        except TimeoutOccurred:
+            console.print('\nTimeout. Considering your response as No\n')
+            instruct_build_image(shell_params.the_image_type, shell_params.python_version)
+        except Exception:
+            console.print('\nTerminating the process')
+            sys.exit()
+
+
 def build_image_checks(verbose: bool, shell_params: ShellBuilder):
     fix_group_permissions()
     build_ci_image_check_cache = Path(
@@ -136,26 +189,14 @@ def build_image_checks(verbose: bool, shell_params: ShellBuilder):
         console.print(f'{shell_params.the_image_type} image already built locally.')
     else:
         console.print(f'{shell_params.the_image_type} image not built locally')
+
     if not shell_params.force_build:
-        build_needed = md5sum_check_if_build_is_needed(
-            shell_params.md5sum_cache_dir, shell_params.the_image_type
-        )
-        if build_needed:
-            try:
-                if click.confirm('Do you want to build image?'):
-                    build_image(
-                        verbose,
-                        python_version=shell_params.python_version,
-                    )
-                else:
-                    instruct_build_image(shell_params.the_image_type, shell_params.python_version)
-            except Exception:
-                console.print('Terminating due to Interrupt signal')
-                sys.exit()
+        build_image_if_needed_steps(verbose, shell_params)
     else:
         build_image(
             verbose,
             python_version=shell_params.python_version,
+            upgrade_to_newer_dependencies="false",
         )
 
     instruct_for_setup()

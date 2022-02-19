@@ -122,11 +122,59 @@ def test_check_docker_compose_version_unknown(mock_console, mock_run_command):
     )
 
 
-# def test_check_docker_compose_version_low():
-#     pass
+@mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
+@mock.patch('airflow_breeze.utils.docker_command_utils.console')
+def test_check_docker_compose_version_low(mock_console, mock_run_command):
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "1.28.5"
+    check_docker_compose_version(verbose=True)
+    mock_run_command.assert_called_with(
+        ["docker-compose", "--version"],
+        verbose=True,
+        suppress_console_print=True,
+        capture_output=True,
+        text=True,
+    )
+    expected_print_calls = [
+        call(
+            'You have too old version of docker-compose: 1.28.5! \
+                At least 1.29 is needed! Please upgrade!'
+        ),
+        call(
+            'See https://docs.docker.com/compose/install/ for instructions. \
+                Make sure docker-compose you install is first on the PATH variable of yours.'
+        ),
+    ]
+    mock_console.print.assert_has_calls(expected_print_calls)
 
-# def test_check_docker_compose_version_ok():
-#     pass
 
-# def test_check_docker_compose_version_higher():
-#     pass
+@mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
+@mock.patch('airflow_breeze.utils.docker_command_utils.console')
+def test_check_docker_compose_version_ok(mock_console, mock_run_command):
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "1.29.0"
+    check_docker_compose_version(verbose=True)
+    mock_run_command.assert_called_with(
+        ["docker-compose", "--version"],
+        verbose=True,
+        suppress_console_print=True,
+        capture_output=True,
+        text=True,
+    )
+    mock_console.print.assert_called_with("Good version of docker-compose: 1.29.0")
+
+
+@mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
+@mock.patch('airflow_breeze.utils.docker_command_utils.console')
+def test_check_docker_compose_version_higher(mock_console, mock_run_command):
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "1.29.2"
+    check_docker_compose_version(verbose=True)
+    mock_run_command.assert_called_with(
+        ["docker-compose", "--version"],
+        verbose=True,
+        suppress_console_print=True,
+        capture_output=True,
+        text=True,
+    )
+    mock_console.print.assert_called_with("Good version of docker-compose: 1.29.2")

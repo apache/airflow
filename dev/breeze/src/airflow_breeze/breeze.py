@@ -32,6 +32,7 @@ from airflow_breeze.docs_generator import build_documentation
 from airflow_breeze.docs_generator.doc_builder import DocBuilder
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
     ALLOWED_INSTALL_AIRFLOW_VERSIONS,
     ALLOWED_INTEGRATIONS,
@@ -68,6 +69,7 @@ def main():
 
 
 option_verbose = click.option(
+    "-v",
     "--verbose",
     is_flag=True,
     help="Print verbose information about performed steps",
@@ -121,7 +123,6 @@ def version():
 @click.option('-L', '--build-cache-local', is_flag=True)
 @click.option('-U', '--build-cache-pulled', is_flag=True)
 @click.option('-X', '--build-cache-disabled', is_flag=True)
-@click.option('--production-image', is_flag=True)
 @click.option('--postgres-version', type=click.Choice(ALLOWED_POSTGRES_VERSIONS))
 @click.option('--mysql-version', type=click.Choice(ALLOWED_MYSQL_VERSIONS))
 @click.option('--mssql-version', type=click.Choice(ALLOWED_MSSQL_VERSIONS))
@@ -144,7 +145,6 @@ def shell(
     build_cache_local: bool,
     build_cache_pulled: bool,
     build_cache_disabled: bool,
-    production_image: bool,
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
@@ -169,7 +169,6 @@ def shell(
         build_cache_local=build_cache_local,
         build_cache_disabled=build_cache_disabled,
         build_cache_pulled=build_cache_pulled,
-        production_image=production_image,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
@@ -228,6 +227,13 @@ def shell(
 )
 @click.option('--github-repository', help='Choose repository to push/pull image.')
 @click.option('--build-cache', help='Cache option')
+@click.option('--platform', help='Builds image for the platform specified.')
+@click.option(
+    '-d',
+    '--debian-version',
+    help='Debian version used for the image.',
+    type=click.Choice(ALLOWED_DEBIAN_VERSIONS),
+)
 @click.option('--upgrade-to-newer-dependencies', is_flag=True)
 def build_ci_image(
     verbose: bool,
@@ -246,6 +252,8 @@ def build_ci_image(
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
     build_cache: Optional[str],
+    platform: Optional[str],
+    debian_version: Optional[str],
     upgrade_to_newer_dependencies: bool,
 ):
     """Builds docker CI image without entering the container."""
@@ -272,6 +280,8 @@ def build_ci_image(
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
         docker_cache=build_cache,
+        platform=platform,
+        debian_version=debian_version,
         upgrade_to_newer_dependencies=str(upgrade_to_newer_dependencies).lower(),
     )
 

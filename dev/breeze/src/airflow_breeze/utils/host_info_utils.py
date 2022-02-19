@@ -18,6 +18,18 @@ import platform
 
 from airflow_breeze.utils.run_utils import run_command
 
+# DIRECTORIES_TO_FIX=(
+#             "/files"
+#             "/root/.aws"
+#             "/root/.azure"
+#             "/root/.config/gcloud"
+#             "/root/.docker"
+#             "/opt/airflow/logs"
+#             "/opt/airflow/docs"
+#             "/opt/airflow/dags"
+#             "${AIRFLOW_SOURCE}"
+#         )
+
 
 def get_host_user_id():
     host_user_id = ''

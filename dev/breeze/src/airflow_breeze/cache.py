@@ -47,7 +47,8 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         allowed, allowed_values = check_if_values_allowed(param_name, param_value)
     if allowed or not check_allowed_values:
         print('BUILD CACHE DIR:', BUILD_CACHE_DIR)
-        Path(BUILD_CACHE_DIR, f".{param_name}").write_text(param_value)
+        cache_file = Path(BUILD_CACHE_DIR, f".{param_name}").open("w+")
+        cache_file.write(param_value)
     else:
         console.print(f'[cyan]You have sent the {param_value} for {param_name}')
         console.print(f'[cyan]Allowed value for the {param_name} are {allowed_values}')

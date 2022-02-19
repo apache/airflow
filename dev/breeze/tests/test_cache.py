@@ -20,7 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow_breeze.cache import check_if_cache_exists, check_if_values_allowed, read_from_cache_file
+from airflow_breeze.cache import (
+    check_if_cache_exists,
+    check_if_values_allowed,
+    delete_cache,
+    read_from_cache_file,
+)
 
 AIRFLOW_SOURCES = Path(__file__).parent.parent.parent.parent
 
@@ -62,6 +67,25 @@ def test_read_from_cache_file(param):
     if param_value is None:
         assert None is param_value
     else:
-        allowed, param_list = check_if_values_allowed(param + 's', param_value)
+        allowed, param_list = check_if_values_allowed(param, param_value)
         if allowed:
             assert param_value in param_list
+
+
+@mock.patch('airflow_breeze.cache.Path')
+@mock.patch('airflow_breeze.cache.check_if_cache_exists')
+def test_delete_cache_exists(mock_check_if_cache_exists, mock_path):
+    param = "MYSQL_VERSION"
+    mock_check_if_cache_exists.return_value = True
+    cache_deleted = delete_cache(param)
+    mock_path.assert_called_with(AIRFLOW_SOURCES / ".build")
+    assert cache_deleted
+
+
+@mock.patch('airflow_breeze.cache.Path')
+@mock.patch('airflow_breeze.cache.check_if_cache_exists')
+def test_delete_cache_not_exists(mock_check_if_cache_exists, mock_path):
+    param = "TEST_PARAM"
+    mock_check_if_cache_exists.return_value = False
+    cache_deleted = delete_cache(param)
+    assert not cache_deleted

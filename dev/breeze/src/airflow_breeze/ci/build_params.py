@@ -56,6 +56,8 @@ class BuildParams:
     additional_runtime_apt_command: str = ""
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
+    platform: str = "linux/amd64"
+    debian_version: str = "bullseye"
     upgrade_to_newer_dependencies: str = "true"
 
     @property
@@ -88,7 +90,7 @@ class BuildParams:
     @property
     def python_base_image(self):
         """Construct Python Base Image"""
-        return f'python:{self.python_version}-slim-buster'
+        return f'python:{self.python_version}-slim-{self.debian_version}'
 
     @property
     def airflow_ci_local_manifest_image(self):
@@ -116,8 +118,8 @@ class BuildParams:
     def docker_cache_ci_directive(self) -> List:
         docker_cache_ci_directive = []
         if self.docker_cache == "pulled":
-            docker_cache_ci_directive.append(f"--cache-from={self.airflow_ci_image_name_with_cache}")
-            # docker_cache_ci_directive.append(self.airflow_ci_image_name_with_cache)
+            docker_cache_ci_directive.append("--cache-from")
+            docker_cache_ci_directive.append(self.airflow_ci_image_name_with_cache)
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:

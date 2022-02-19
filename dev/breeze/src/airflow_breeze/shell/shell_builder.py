@@ -38,7 +38,6 @@ class ShellBuilder:
     postgres_version: str  # check in cache
     mssql_version: str  # check in cache
     mysql_version: str  # check in cache
-    production_image: bool
     force_build: bool
     extra_args: Tuple
     use_airflow_version: str = ""
@@ -137,18 +136,12 @@ class ShellBuilder:
 
     @property
     def the_image_type(self) -> str:
-        if self.production_image:
-            the_image_type = 'PROD'
-        else:
-            the_image_type = 'CI'
+        the_image_type = 'CI'
         return the_image_type
 
     @property
     def image_description(self) -> str:
-        if self.production_image:
-            image_description = 'Airflow production'
-        else:
-            image_description = 'Airflow CI'
+        image_description = 'Airflow CI'
         return image_description
 
     @property
@@ -169,21 +162,14 @@ class ShellBuilder:
 
     @property
     def sqlite_url(self) -> str:
-        if self.production_image:
-            sqlite_url = ''
-        else:
-            sqlite_url = "sqlite:////root/airflow/airflow.db"
+        sqlite_url = "sqlite:////root/airflow/airflow.db"
         return sqlite_url
 
     def print_badge_info(self):
         console.print(f'Use {self.the_image_type} image')
         console.print(f'Branch Name: {self.airflow_branch}')
-        if self.production_image:
-            console.print(f'Docker Image: {self.airflow_prod_image_name}')
-            console.print(f'Airflow source version:{self.airflow_version_for_production_image}')
-        else:
-            console.print(f'Docker Image: {self.airflow_ci_image_name_with_tag}')
-            console.print(f'Airflow source version:{self.airflow_version}')
+        console.print(f'Docker Image: {self.airflow_ci_image_name_with_tag}')
+        console.print(f'Airflow source version:{self.airflow_version}')
         console.print(f'Python Version: {self.python_version}')
         console.print(f'Backend: {self.backend} {self.backend_version}')
         console.print(f'Airflow used at runtime: {self.use_airflow_version}')
