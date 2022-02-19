@@ -15,17 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG Cycle tester"""
-from collections import defaultdict, deque
-from typing import TYPE_CHECKING, Deque, Dict
-
-from airflow.exceptions import AirflowDagCycleException
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-
-CYCLE_NEW = 0
-CYCLE_IN_PROGRESS = 1
-CYCLE_DONE = 2
 
 
 def test_cycle(dag: 'DAG') -> None:
@@ -49,33 +42,4 @@ def check_cycle(dag: 'DAG') -> None:
 
     :raises AirflowDagCycleException: If cycle is found in the DAG.
     """
-    # default of int is 0 which corresponds to CYCLE_NEW
-    visited: Dict[str, int] = defaultdict(int)
-    path_stack: Deque[str] = deque()
-    task_dict = dag.task_dict
-
-    def _check_adjacent_tasks(task_id, current_task):
-        """Returns first untraversed child task, else None if all tasks traversed."""
-        for adjacent_task in current_task.get_direct_relative_ids():
-            if visited[adjacent_task] == CYCLE_IN_PROGRESS:
-                msg = f"Cycle detected in DAG. Faulty task: {task_id}"
-                raise AirflowDagCycleException(msg)
-            elif visited[adjacent_task] == CYCLE_NEW:
-                return adjacent_task
-        return None
-
-    for dag_task_id in dag.task_dict.keys():
-        if visited[dag_task_id] == CYCLE_DONE:
-            continue
-        path_stack.append(dag_task_id)
-        while path_stack:
-            current_task_id = path_stack[-1]
-            if visited[current_task_id] == CYCLE_NEW:
-                visited[current_task_id] = CYCLE_IN_PROGRESS
-            task = task_dict[current_task_id]
-            child_to_check = _check_adjacent_tasks(current_task_id, task)
-            if not child_to_check:
-                visited[current_task_id] = CYCLE_DONE
-                path_stack.pop()
-            else:
-                path_stack.append(child_to_check)
+    dag.topological_sort(include_subdag_tasks=False)

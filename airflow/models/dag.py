@@ -61,7 +61,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
@@ -1749,7 +1749,7 @@ class DAG(LoggingMixin):
                         graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
 
             if not acyclic:
-                raise AirflowException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
 
         return tuple(graph_sorted)
 
