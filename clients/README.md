@@ -43,7 +43,7 @@ bash ./gen/go.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_GO_REP
 To generate Python client, run:
 
 ```
-bash ./gen/python.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_PYTHON_REPO_PATH/airflow-client
+bash ./gen/python.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_PYTHON_REPO_PATH/airflow_client
 ```
 
 ### JAVA
