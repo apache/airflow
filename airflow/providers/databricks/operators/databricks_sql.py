@@ -32,15 +32,29 @@ if TYPE_CHECKING:
 
 class DatabricksSqlOperator(BaseOperator):
     """
-    Executes SQL code in a Databricks SQL endpoint or Databricks cluster
+    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksSqlOperator`
 
     :param databricks_conn_id: Reference to
         :ref:`Databricks connection id<howto/connection:databricks>`
-    :param http_path:
+    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
+        If not specified, it should be either specified in the Databricks connection's extra parameters,
+        or ``sql_endpoint_name`` must be specified.
+    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
+        be provided as described above.
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'
     :param parameters: (optional) the parameters to render the SQL query with.
+    :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
+        If not specified, it could be specified in the Databricks connection's extra parameters.
+    :param output_path: optional string specifying the file to which write selected data.
+    :param output_format: format of output data if ``output_path` is specified.
+        Possible values are ``csv``, ``json``, ``jsonl``. Default is ``csv``.
+    :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
     template_fields: Sequence[str] = ('sql',)

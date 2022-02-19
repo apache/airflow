@@ -43,8 +43,10 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+    # [START howto_operator_databricks_json]
+    # Example of using the JSON parameter to initialize the operator.
     new_cluster = {
-        'spark_version': '2.1.0-db3-scala2.11',
+        'spark_version': '9.1.x-scala2.12',
         'node_type_id': 'r3.xlarge',
         'aws_attributes': {'availability': 'ON_DEMAND'},
         'num_workers': 8,
@@ -56,8 +58,7 @@ with DAG(
             'notebook_path': '/Users/airflow@example.com/PrepareData',
         },
     }
-    # [START howto_operator_databricks_json]
-    # Example of using the JSON parameter to initialize the operator.
+
     notebook_task = DatabricksSubmitRunOperator(task_id='notebook_task', json=notebook_task_params)
     # [END howto_operator_databricks_json]
 

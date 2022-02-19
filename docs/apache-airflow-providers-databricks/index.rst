@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/databricks>
-    Operators <operators>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
