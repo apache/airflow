@@ -25,7 +25,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 import sys
 import time
 from time import sleep
-from typing import Dict
+from typing import Dict, Generator
 from urllib.parse import urlparse
 
 import requests
@@ -36,6 +36,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from databricks import sql
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -556,3 +557,38 @@ class _TokenAuth(AuthBase):
     def __call__(self, r: PreparedRequest) -> PreparedRequest:
         r.headers['Authorization'] = 'Bearer ' + self.token
         return r
+
+
+class DatabricksSQLHook(BaseHook):
+    """
+    Implementation of Databricks SQL connection: <https://docs.databricks.com/dev-tools/python-sql-connector.html>
+
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    """
+    def __init__(self, databricks_conn_id:str):
+        self.databricks_conn_id = databricks_conn_id
+
+    @cached_property
+    def sql_databricks_conn(self) -> Dict:
+        """Create the SQL Databricks connection from the airflow databricks connection."""
+        connection = self.get_connection(self.databricks_conn_id)
+        return {
+            'server_hostname': connection.get_uri(),
+            'http_path': connection.get_extra().get('http_sql_path'),
+            'access_token': connection.get_password()
+        }
+
+    def execute_sql(self, sql: str) -> Generator:
+        """
+        Connect to the SQL Databricks Endpoint,
+
+        execute the given SQL statement and returns the result as generator
+        """
+        with sql.connect(server_hostname=self.sql_databricks_conn.get('server_hostname'),
+                     http_path=self.sql_databricks_conn.get('http_path'),
+                     access_token=self.sql_databricks_conn.get('access_token')) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                result = cursor.fetchall()
+                for row in result:
+                    yield row
