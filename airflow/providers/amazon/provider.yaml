@@ -229,6 +229,9 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
       - airflow.providers.amazon.aws.operators.glue_crawler
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.operators.aws_lambda
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket

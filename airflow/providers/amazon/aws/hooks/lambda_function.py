@@ -40,30 +40,31 @@ class LambdaHook(AwsBaseHook):
 
     def __init__(
         self,
-        function_name: str,
-        log_type: str = 'None',
-        qualifier: str = '$LATEST',
-        invocation_type: str = 'RequestResponse',
         *args,
         **kwargs,
     ) -> None:
-        self.function_name = function_name
-        self.log_type = log_type
-        self.invocation_type = invocation_type
-        self.qualifier = qualifier
         kwargs["client_type"] = "lambda"
         super().__init__(*args, **kwargs)
 
-    def invoke_lambda(self, payload: str) -> str:
+    def invoke_lambda(self, function_name: str, **kwargs):
         """Invoke Lambda Function"""
         response = self.conn.invoke(
-            FunctionName=self.function_name,
-            InvocationType=self.invocation_type,
-            LogType=self.log_type,
-            Payload=payload,
-            Qualifier=self.qualifier,
+            FunctionName=function_name, **{k: v for k, v in kwargs.items() if v is not None}
         )
+        return response
 
+    def create_lambda(
+        self, function_name: str, runtime: str, role: str, handler: str, code: dict, **kwargs
+    ) -> dict:
+        """Create a Lambda Function"""
+        response = self.conn.create_function(
+            FunctionName=function_name,
+            Runtime=runtime,
+            Role=role,
+            Handler=handler,
+            Code=code,
+            **{k: v for k, v in kwargs.items() if v is not None},
+        )
         return response
 
 
