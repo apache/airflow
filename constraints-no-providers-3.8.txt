@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-17T19:41:11Z
+# This constraints file was automatically generated on 2022-02-19T16:29:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -55,15 +55,15 @@ charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.0.3
+click==8.0.4
 clickclick==20.10.2
 cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.11.1
+connexion==2.11.2
 cron-descriptor==1.2.24
-croniter==1.3.1
+croniter==1.3.4
 cryptography==36.0.1
 dask==2021.6.0
 decorator==5.1.1
@@ -86,7 +86,7 @@ google-auth==2.6.0
 googleapis-common-protos==1.54.0
 graphviz==0.19.1
 greenlet==1.1.2
-grpcio==1.43.0
+grpcio==1.44.0
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
