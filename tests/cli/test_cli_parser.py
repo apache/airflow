@@ -206,7 +206,7 @@ class TestCli(TestCase):
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
-            "works only with executors that has 'supports_celery' set to True, "
+            "works only with executors that have 'supports_celery' set to True, "
             "your current executor: SequentialExecutor, does not have this attribute set to True, "
             "see help above."
         ) in stderr
