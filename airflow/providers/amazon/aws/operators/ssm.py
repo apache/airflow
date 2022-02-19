@@ -121,6 +121,9 @@ class SSMCreateParameterOperator(BaseOperator):
     def execute(self, context: 'Context'):
         hook = SSMParameterStoreHook(aws_conn_id=self.aws_conn_id)
         hook.put_parameter(
-            parameter_name=self.parameter_name, value=self.value, param_type=self.param_type, **self.parameter_kwargs
+            parameter_name=self.parameter_name,
+            value=self.value,
+            param_type=self.param_type,
+            **self.parameter_kwargs,
         )
         self.log.info('New SSM parameter: %s is created)', self.parameter_name)

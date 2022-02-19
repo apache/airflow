@@ -359,8 +359,8 @@ StatsD
 Statsd
 StorageClass
 StoredInfoType
-Stringified
 StringList
+Stringified
 Subclasses
 Subdirectory
 Submodules

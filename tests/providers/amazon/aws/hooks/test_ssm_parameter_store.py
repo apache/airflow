@@ -51,7 +51,9 @@ class TestSSMParameterStoreHook(unittest.TestCase):
     def test_create_parameter_with_wrong_data_type(self):
         hook = self.ssm
         with pytest.raises(ClientError) as e:
-            hook.put_parameter(parameter_name='testing', value='test', param_type="String", DataType="not_text")
+            hook.put_parameter(
+                parameter_name='testing', value='test', param_type="String", DataType="not_text"
+            )
         ex = e.value
         assert ex.operation_name == "PutParameter"
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 400
@@ -80,8 +82,12 @@ class TestSSMParameterStoreHook(unittest.TestCase):
         hook.put_parameter(parameter_name='/foo/name1', value='name1', param_type='String')
         hook.put_parameter(parameter_name='/foo/name2', value='name2', param_type='String')
         hook.put_parameter(parameter_name='/foo/name3', value='name3', param_type='String')
-        hook.put_parameter(parameter_name="foo", Description="A test parameter", value="bar", param_type="String")
-        hook.put_parameter(parameter_name="baz", Description="A test parameter", value="qux", param_type="String")
+        hook.put_parameter(
+            parameter_name="foo", Description="A test parameter", value="bar", param_type="String"
+        )
+        hook.put_parameter(
+            parameter_name="baz", Description="A test parameter", value="qux", param_type="String"
+        )
         response = hook.get_parameters_by_path(path='/')
         assert len(response["Parameters"]) == 2
         assert {p["Value"] for p in response["Parameters"]} == ({"bar", "qux"})
@@ -109,8 +115,12 @@ class TestSSMParameterStoreHook(unittest.TestCase):
         hook.put_parameter(parameter_name='/foo/name1', value='name1', param_type='String')
         hook.put_parameter(parameter_name='/foo/name2', value='name2', param_type='String')
         hook.put_parameter(parameter_name='/foo/name3', value='name3', param_type='String')
-        hook.put_parameter(parameter_name="foo", Description="A test parameter", value="bar", param_type="String")
-        hook.put_parameter(parameter_name="baz", Description="A test parameter", value="qux", param_type="String")
+        hook.put_parameter(
+            parameter_name="foo", Description="A test parameter", value="bar", param_type="String"
+        )
+        hook.put_parameter(
+            parameter_name="baz", Description="A test parameter", value="qux", param_type="String"
+        )
 
         filters = [{"Key": "Name", "Values": ["error"]}]
 
