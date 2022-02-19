@@ -34,7 +34,7 @@ GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
 
 try:
-    import click
+    import rich_click as click
 except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
     sys.exit(-1)
