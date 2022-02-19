@@ -2029,14 +2029,14 @@ class TestQueries(unittest.TestCase):
 
 
 class TestDagDecorator(unittest.TestCase):
+    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
-        "start_date": timezone.utcnow(),
+        "start_date": DEFAULT_DATE,
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     }
-    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
     VALUE = 42
 
     def setUp(self):

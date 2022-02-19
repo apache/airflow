@@ -40,7 +40,7 @@ try:
 except ImportError:
     skip_tls_tests = True
 
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUCCESS_COMMAND = ['airflow', 'tasks', 'run', '--help']
 FAIL_COMMAND = ['airflow', 'tasks', 'run', 'false']
 

@@ -94,14 +94,14 @@ class TestCliTasks(unittest.TestCase):
     def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
-            ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
+            ["tasks", "test", "example_python_operator", 'print_the_context', '2021-01-01']
         )
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
-        assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+        assert "'example_python_operator__print_the_context__20210101'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self):

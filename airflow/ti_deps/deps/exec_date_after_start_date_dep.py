@@ -28,7 +28,7 @@ class ExecDateAfterStartDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.start_date and ti.execution_date < ti.task.start_date:
+        if ti.task.start_date and ti.get_dagrun(session=session).execution_date < ti.task.start_date:
             yield self._failing_status(
                 reason=(
                     f"The execution date is {ti.execution_date.isoformat()} but this is before "
@@ -36,7 +36,11 @@ class ExecDateAfterStartDateDep(BaseTIDep):
                 )
             )
 
-        if ti.task.dag and ti.task.dag.start_date and ti.execution_date < ti.task.dag.start_date:
+        if (
+            ti.task.dag
+            and ti.task.dag.start_date
+            and ti.get_dagrun(session=session).execution_date < ti.task.dag.start_date
+        ):
             yield self._failing_status(
                 reason=(
                     f"The execution date is {ti.execution_date.isoformat()} but this is "

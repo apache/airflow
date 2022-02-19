@@ -54,6 +54,7 @@ RUNNING_DEPS = {
     DagTISlotsAvailableDep(),
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
+    ExecDateAfterStartDateDep(),
     TaskNotRunningDep(),
 }
 
