@@ -1060,6 +1060,7 @@ nosasl
 notificationChannels
 npm
 ntlm
+ntpd
 nullable
 num
 oauth
