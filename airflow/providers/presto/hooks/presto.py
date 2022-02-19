@@ -111,27 +111,51 @@ class PrestoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    def get_records(self, hql, parameters: Optional[dict] = None):
+    def get_records(self, sql, parameters: Optional[dict] = None, **kwargs):
         """Get a set of records from Presto"""
+        if kwargs.get('hql'):
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = kwargs.get('hql')
+
         try:
-            return super().get_records(self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
+    def get_first(self, sql: str, parameters: Optional[dict] = None, **kwargs) -> Any:
         """Returns only the first row, regardless of how many rows the query returns."""
+        if kwargs.get('hql'):
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = kwargs.get('hql')
+
         try:
-            return super().get_first(self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_pandas_df(self, hql, parameters=None, **kwargs):
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
         """Get a pandas dataframe from a sql query."""
+        if kwargs.get('hql'):
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = kwargs.get('hql')
+
         import pandas
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(hql), parameters)
+            cursor.execute(self._strip_sql(sql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise PrestoException(e)
@@ -145,13 +169,22 @@ class PrestoHook(DbApiHook):
 
     def run(
         self,
-        hql,
+        sql,
         autocommit: bool = False,
         parameters: Optional[dict] = None,
         handler: Optional[Callable] = None,
+        **kwargs
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters, handler=handler)
+        if kwargs.get('hql'):
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = kwargs.get('hql')
+
+        return super().run(sql=self._strip_sql(sql), parameters=parameters, handler=handler)
 
     def insert_rows(
         self,
