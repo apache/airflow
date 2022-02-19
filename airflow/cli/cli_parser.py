@@ -73,7 +73,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
                 if not getattr(executor_cls, "supports_celery", False):
                     message = (
-                        f"celery subcommand works only with executors that has 'supports_celery' "
+                        f"celery subcommand works only with executors that have 'supports_celery' "
                         f"set to True, your current executor: {executor}, does not have this attribute "
                         f"set to True"
                     )
