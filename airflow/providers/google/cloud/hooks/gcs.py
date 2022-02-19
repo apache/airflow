@@ -40,6 +40,7 @@ from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
@@ -155,7 +156,7 @@ class GCSHook(GoogleBaseHook):
         """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id
+                credentials=self._get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
         return self._conn
@@ -383,6 +384,7 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
+        dir: Optional[str] = None,
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -393,12 +395,13 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: The bucket to fetch from.
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
+        :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
         :return: File handler
         """
         if object_name is None:
             raise ValueError("Object name can not be empty")
         _, _, file_name = object_name.rpartition("/")
-        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+        with NamedTemporaryFile(suffix=file_name, dir=dir) as tmp_file:
             self.download(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
             tmp_file.flush()
             yield tmp_file
@@ -662,7 +665,6 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: name of the bucket which will be deleted
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
-        :type: bool
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)

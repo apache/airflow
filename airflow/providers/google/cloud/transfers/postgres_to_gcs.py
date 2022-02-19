@@ -59,7 +59,8 @@ class _PostgresServerSideCursorDecorator:
         """Fetch first row to initialize cursor description when using server side cursor."""
         if not self.initialized:
             element = self.cursor.fetchone()
-            self.rows.append(element)
+            if element is not None:
+                self.rows.append(element)
             self.initialized = True
         return self.cursor.description
 

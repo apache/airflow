@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+from google.api_core.gapic_v1.client_info import ClientInfo
 
-function run_helm_lint() {
-    kind::make_sure_kubernetes_tools_are_installed
+from airflow import version
 
-    cd "${AIRFLOW_SOURCES}/chart" || exit 1
-    helm lint . -f values.yaml
-}
+GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = 'execute_complete'
 
-run_helm_lint
+CLIENT_INFO = ClientInfo(client_library_version='airflow_v' + version.version)

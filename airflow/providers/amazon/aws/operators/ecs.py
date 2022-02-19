@@ -115,11 +115,11 @@ class EcsTaskLogFetcher(Thread):
     def run(self) -> None:
         logs_to_skip = 0
         while not self.is_stopped():
+            time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(logs_to_skip)
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
                 logs_to_skip += 1
-            time.sleep(self.fetch_interval.total_seconds())
 
     def _get_log_events(self, skip: int = 0) -> Generator:
         try:

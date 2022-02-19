@@ -43,6 +43,7 @@ Bug Fixes
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Update documentation for November 2021 provider's release (#19882)``
    * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 4.1.0
 .....

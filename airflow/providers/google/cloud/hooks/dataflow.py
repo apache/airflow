@@ -1014,7 +1014,7 @@ class DataflowHook(GoogleBaseHook):
                 DeprecationWarning,
                 stacklevel=3,
             )
-            on_new_job_id_callback(job["id"])
+            on_new_job_id_callback(cast(str, job.get("id")))
 
         if on_new_job_callback:
             on_new_job_callback(job)

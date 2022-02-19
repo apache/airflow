@@ -47,7 +47,13 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
+from tests.test_utils.db import (
+    clear_db_dags,
+    clear_db_pools,
+    clear_db_runs,
+    clear_db_xcom,
+    set_default_pool_slots,
+)
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
 
@@ -66,6 +72,7 @@ class TestBackfillJob:
     def clean_db():
         clear_db_dags()
         clear_db_runs()
+        clear_db_xcom()
         clear_db_pools()
 
     @pytest.fixture(autouse=True)
@@ -1512,13 +1519,14 @@ class TestBackfillJob:
         job.run()
         assert executor.job_id is not None
 
-    def test_mapped_dag(self, dag_maker):
+    @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
+    def test_mapped_dag(self, dag_id):
         """End-to-end test of a simple mapped dag"""
         # Use SequentialExecutor for more predictable test behaviour
         from airflow.executors.sequential_executor import SequentialExecutor
 
-        self.dagbag.process_file(str(TEST_DAGS_FOLDER / 'test_mapped_classic.py'))
-        dag = self.dagbag.get_dag('test_mapped_classic')
+        self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
+        dag = self.dagbag.get_dag(dag_id)
 
         # This needs a real executor to run, so that the `make_list` task can write out the TaskMap
 

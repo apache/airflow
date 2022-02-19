@@ -19,7 +19,7 @@
 """Add TaskMap and map_index on TaskInstance.
 
 Revision ID: e655c0453f75
-Revises: 587bdf053233
+Revises: f9da662e7089
 Create Date: 2021-12-13 22:59:41.052584
 """
 
@@ -31,7 +31,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 # Revision identifiers, used by Alembic.
 revision = "e655c0453f75"
-down_revision = "587bdf053233"
+down_revision = "f9da662e7089"
 branch_labels = None
 depends_on = None
 

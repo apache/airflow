@@ -25,6 +25,7 @@ from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
 from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -38,11 +39,11 @@ class WorkflowsHook(GoogleBaseHook):
 
     def get_workflows_client(self) -> WorkflowsClient:
         """Returns WorkflowsClient."""
-        return WorkflowsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return WorkflowsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     def get_executions_client(self) -> ExecutionsClient:
         """Returns ExecutionsClient."""
-        return ExecutionsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return ExecutionsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow(

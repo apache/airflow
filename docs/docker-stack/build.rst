@@ -633,6 +633,8 @@ where you can build the image using the packages downloaded by passing those bui
   client from the Oracle repositories.
 * (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
   client from the Microsoft repositories.
+* (Optional) ``INSTALL_POSTGRES_CLIENT="false"`` if you do not want to install ``Postgres``
+  client from the Postgres repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.

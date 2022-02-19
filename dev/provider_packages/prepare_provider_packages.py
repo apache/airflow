@@ -1974,10 +1974,14 @@ def build_provider_packages(
     try:
         provider_package_id = package_id
         with with_group(f"Prepare provider package for '{provider_package_id}'"):
-            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-            if tag_exists_for_version(provider_package_id, current_tag, verbose):
-                console.print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
-                return False
+            if version_suffix.startswith("rc") or version_suffix == "":
+                # For RC and official releases we check if the "officially released" version exists
+                # and skip the released if it was. This allows to skip packages that have not been
+                # marked for release. For "dev" suffixes, we always build all packages
+                released_tag = get_current_tag(provider_package_id, "", git_update, verbose)
+                if tag_exists_for_version(provider_package_id, released_tag, verbose):
+                    console.print(f"[yellow]The tag {released_tag} exists. Skipping the package.[/]")
+                    return False
             console.print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
             os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
             cleanup_remnants(verbose)

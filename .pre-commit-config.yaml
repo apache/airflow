@@ -25,6 +25,17 @@ repos:
     hooks:
       - id: identity
       - id: check-hooks-apply
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v2.1.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for md files
+        files:
+          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+        exclude: ^airflow/_vendor/
+        args:
+          - "--maxlevel"
+          - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.10
     hooks:
@@ -142,17 +153,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.mermaid$
         exclude: ^airflow/_vendor/
-  - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.1.0
-    hooks:
-      - id: doctoc
-        name: Add TOC for md files
-        files:
-          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
-        exclude: ^airflow/_vendor/
-        args:
-          - "--maxlevel"
-          - "2"
   - repo: https://github.com/psf/black
     rev: 21.12b0
     hooks:
@@ -232,7 +232,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D202,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
@@ -690,6 +690,15 @@ repos:
         pass_filenames: true
         files: \.github/workflows/.*\.yml$
         additional_dependencies: ['PyYAML', 'rich']
+      - id: docstring-params
+        name: Check that docstrings do not specify param types
+        entry: ./scripts/ci/pre_commit/pre_commit_docstring_param_type.py
+        language: python
+        pass_filenames: true
+        files: \.py$
+        pass_filenames: true
+        exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich']
       - id: chart-schema-lint
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py

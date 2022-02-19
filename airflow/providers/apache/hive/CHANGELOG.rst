@@ -26,6 +26,7 @@ Features
 ~~~~~~~~
 
 * ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -38,6 +39,7 @@ Features
    * ``Even more typing in operators (template_fields/ext) (#20608)``
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Add some type hints for Hive providers (#20210)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.1.0
 .....
