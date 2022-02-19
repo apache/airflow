@@ -31,16 +31,16 @@ VERSION=2.1.0
 readonly VERSION
 
 java_config=(
-     "groupId=com.apache.airflow"
+     "groupId=org.apache.airflow"
      "artifactId=airflow-client"
      "artifactVersion=${VERSION}"
      "artifactUrl=https://github.com/apache/airflow-client-java"
      "artifactDescription=Apache Airflow - OpenApi Client for Java"
 
-     "basePackage=com.apache.airflow.client"
-     "configPackage=com.apache.airflow.client.config"
-     "apiPackage=com.apache.airflow.client.api"
-     "modelPackage=com.apache.airflow.client.model"
+     "basePackage=org.apache.airflow.client"
+     "configPackage=org.apache.airflow.client.config"
+     "apiPackage=org.apache.airflow.client.api"
+     "modelPackage=org.apache.airflow.client.model"
      "dateLibrary=java8"
      "java8=true"
      "hideGenerationTimestamp=true"
