@@ -67,13 +67,5 @@ gen_client java \
     --git-repo-id airflow-client-java/airflow \
     --additional-properties "${java_config[*]}"
 
-#copying tests
-TEST_SOURCE_DIR=$(dirname $OUTPUT_DIR)"/dev/tests"
-echo "TEST_SOURCE_DIR: $TEST_SOURCE_DIR"
-
-TEST_DEST_DIR=$OUTPUT_DIR/src/test/java/com/apache/airflow/client/dev
-mkdir $TEST_DEST_DIR
-cp "$TEST_SOURCE_DIR"/* "$TEST_DEST_DIR"
-
-# run_pre_commit
+run_pre_commit
 echo "Generation successful"
