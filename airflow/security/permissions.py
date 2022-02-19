@@ -57,7 +57,6 @@ RESOURCE_XCOM = "XComs"
 # Action Constants
 ACTION_CAN_CREATE = "can_create"
 ACTION_CAN_READ = "can_read"
-ACTION_CAN_SHOW = "can_show"
 ACTION_CAN_EDIT = "can_edit"
 ACTION_CAN_DELETE = "can_delete"
 ACTION_CAN_ACCESS_MENU = "menu_access"
