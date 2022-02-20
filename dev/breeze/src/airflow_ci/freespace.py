@@ -23,7 +23,7 @@ import shlex
 import subprocess
 from typing import List
 
-import click
+import rich_click as click
 from rich.console import Console
 
 console = Console(force_terminal=True, color_system="standard", width=180)

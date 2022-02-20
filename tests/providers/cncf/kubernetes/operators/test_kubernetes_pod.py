@@ -82,8 +82,9 @@ class TestKubernetesPodOperator:
             "task_instance": task_instance,
         }
 
-    def run_pod(self, operator) -> k8s.V1Pod:
-        context = create_context(operator)
+    def run_pod(self, operator, context=None) -> k8s.V1Pod:
+        if context is None:
+            context = create_context(operator)
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
@@ -723,24 +724,29 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
-    def test_push_xcom_pod_info(self, extract_xcom, do_xcom_push):
+    def test_push_xcom_pod_info(self, mock_extract_xcom, dag_maker, do_xcom_push):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
-        extract_xcom.return_value = '{}'
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=do_xcom_push,
+        mock_extract_xcom.return_value = '{}'
+        with dag_maker():
+            KubernetesPodOperator(
+                namespace="default",
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                name="test",
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=do_xcom_push,
+            )
+            DummyOperator(task_id='task_to_pull_xcom')
+        dagrun = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+
+        pod = self.run_pod(
+            tis["task"].task,
+            context=tis["task"].get_template_context(session=dag_maker.session),
         )
-        pod = self.run_pod(k)
-        other_task = DummyOperator(task_id='task_to_pull_xcom')
-        ti = TaskInstance(task=other_task, run_id=IN_MEMORY_DAGRUN_ID)
-        ti.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
-        pod_name = ti.xcom_pull(task_ids=k.task_id, key='pod_name')
-        pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
+        pod_name = tis["task_to_pull_xcom"].xcom_pull(task_ids="task", key='pod_name')
+        pod_namespace = tis["task_to_pull_xcom"].xcom_pull(task_ids="task", key='pod_namespace')
         assert pod_name and pod_name == pod.metadata.name
         assert pod_namespace and pod_namespace == pod.metadata.namespace
 

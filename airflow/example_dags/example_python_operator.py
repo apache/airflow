@@ -23,8 +23,9 @@ virtual environment.
 import logging
 import shutil
 import time
-from datetime import datetime
 from pprint import pprint
+
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
@@ -34,7 +35,7 @@ log = logging.getLogger(__name__)
 with DAG(
     dag_id='example_python_operator',
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:

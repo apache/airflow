@@ -55,6 +55,10 @@ PARAMS = [
         ("Deployment", f"{RELEASE_NAME}-webserver"),
         ("spec.template.spec.initContainers[0]", "spec.template.spec.containers[0]"),
     ),
+    (
+        ("Deployment", f"{RELEASE_NAME}-flower"),
+        ("spec.template.spec.containers[0]",),
+    ),
 ]
 
 

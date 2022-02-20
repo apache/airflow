@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-function run_mypy() {
-    local files=()
-    if [[ "${#@}" == "0" ]]; then
-      files=(airflow tests docs)
-    else
-      files=("$@")
-    fi
-
-    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
-        --entrypoint "/usr/local/bin/dumb-init"  \
-        "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
-}
-
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_confirmed_for_pre_commit
-
-run_mypy "$@"

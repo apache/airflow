@@ -52,6 +52,7 @@ from airflow.serialization.serialized_objects import (
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
@@ -827,7 +828,7 @@ class TestStringifiedDAGs:
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
-    def test_extra_serialized_field_and_operator_links(self):
+    def test_extra_serialized_field_and_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -840,8 +841,9 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
+
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -861,6 +863,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value="dummy_value_1",
@@ -912,7 +915,7 @@ class TestStringifiedDAGs:
         )
         assert expected_err_msg in caplog.text
 
-    def test_extra_serialized_field_and_multiple_operator_links(self):
+    def test_extra_serialized_field_and_multiple_operator_links(self, dag_maker):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -925,8 +928,8 @@ class TestStringifiedDAGs:
         extra link.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
+        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
+            CustomOperator(task_id='simple_task', bash_command=["echo", "true"])
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
@@ -953,6 +956,7 @@ class TestStringifiedDAGs:
             'google',
         }
 
+        dag_maker.create_dagrun(execution_date=test_date)
         XCom.set(
             key='search_query',
             value=["dummy_value_1", "dummy_value_2"],
@@ -1174,6 +1178,24 @@ class TestStringifiedDAGs:
         SerializedDAG._json_schema.validate(blob, _schema=load_dag_schema_dict()['definitions']['operator'])
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
         assert serialized_op.downstream_task_ids == {'foo'}
+
+    def test_task_resources(self):
+        """
+        Test task resources serialization/deserialization.
+        """
+        from airflow.operators.dummy import DummyOperator
+
+        execution_date = datetime(2020, 1, 1)
+        task_id = 'task1'
+        with DAG("test_task_resources", start_date=execution_date) as dag:
+            task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+
+        SerializedDAG.validate_schema(SerializedDAG.to_dict(dag))
+
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        deserialized_task = json_dag.get_task(task_id)
+        assert deserialized_task.resources == task.resources
+        assert isinstance(deserialized_task.resources, Resources)
 
     def test_task_group_serialization(self):
         """
@@ -1659,6 +1681,26 @@ def test_mapped_operator_xcomarg_serde():
     xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
+def test_task_resources_serde():
+    """
+    Test task resources serialization/deserialization.
+    """
+    from airflow.operators.dummy import DummyOperator
+
+    execution_date = datetime(2020, 1, 1)
+    task_id = 'task1'
+    with DAG("test_task_resources", start_date=execution_date) as _:
+        task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+
+    serialized = SerializedBaseOperator._serialize(task)
+    assert serialized['resources'] == {
+        "cpus": {"name": "CPU", "qty": 0.1, "units_str": "core(s)"},
+        "disk": {"name": "Disk", "qty": 512, "units_str": "MB"},
+        "gpus": {"name": "GPU", "qty": 0, "units_str": "gpu(s)"},
+        "ram": {"name": "RAM", "qty": 2048, "units_str": "MB"},
+    }
 
 
 def test_mapped_decorator_serde():

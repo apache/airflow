@@ -59,6 +59,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -340,6 +341,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("max_active_tis_per_dag")
 
     @property
+    def resources(self) -> Optional[Resources]:
+        return self.partial_kwargs.get("resources")
+
+    @property
     def on_execute_callback(self) -> Optional[TaskStateChangeCallback]:
         return self.partial_kwargs.get("on_execute_callback")
 
@@ -362,6 +367,14 @@ class MappedOperator(AbstractOperator):
     @property
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("run_as_user", {})
+
+    @property
+    def inlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("inlets", None)
+
+    @property
+    def outlets(self) -> Optional[Any]:
+        return self.partial_kwargs.get("outlets", None)
 
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""
