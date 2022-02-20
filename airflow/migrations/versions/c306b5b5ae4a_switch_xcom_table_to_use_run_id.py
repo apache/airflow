@@ -38,15 +38,6 @@ depends_on = None
 
 metadata = MetaData()
 
-dagrun = Table(
-    "dag_run",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("dag_id", StringID(), nullable=False),
-    Column("run_id", StringID(), nullable=False),
-    Column("execution_date", TIMESTAMP, nullable=False),
-)
-
 
 def _get_new_xcom_columns() -> Sequence[Column]:
     return [
@@ -71,6 +62,17 @@ def _get_old_xcom_columns() -> Sequence[Column]:
     ]
 
 
+def _get_dagrun_table() -> Table:
+    return Table(
+        "dag_run",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("dag_id", StringID(), nullable=False),
+        Column("run_id", StringID(), nullable=False),
+        Column("execution_date", TIMESTAMP, nullable=False),
+    )
+
+
 def upgrade():
     """Switch XCom table to use run_id.
 
@@ -81,6 +83,7 @@ def upgrade():
     op.create_table("__airflow_tmp_xcom", *_get_new_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_old_xcom_columns())
+    dagrun = _get_dagrun_table()
     query = select(
         [
             dagrun.c.id,
@@ -117,6 +120,7 @@ def downgrade():
     op.create_table("__airflow_tmp_xcom", *_get_old_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_new_xcom_columns())
+    dagrun = _get_dagrun_table()
     query = select(
         [
             xcom.c.key,

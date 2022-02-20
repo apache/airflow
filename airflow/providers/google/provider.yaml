@@ -845,6 +845,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetListLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
+  - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
   - airflow.providers.google.common.links.storage.StorageLink
 
 additional-extras:

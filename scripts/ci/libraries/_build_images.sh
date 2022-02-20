@@ -98,7 +98,7 @@ function build_images::reconfirm_rebuilding_if_not_rebased() {
          echo
          echo "${COLOR_YELLOW}It is STRONGLY RECOMMENDED that you rebase your code first!${COLOR_RESET}"
          echo
-         "${AIRFLOW_SOURCES}/confirm" "You are really sure you want to rebuild ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
+         "${AIRFLOW_SOURCES}/scripts/tools/confirm" "You are really sure you want to rebuild ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
          RES=$?
     fi
 }
@@ -135,7 +135,7 @@ function build_images::confirm_rebuilding_on_modified_files() {
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
     # shellcheck disable=SC2094
-    "${AIRFLOW_SOURCES}/confirm" "PULL & BUILD the image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    "${AIRFLOW_SOURCES}/scripts/tools/confirm" "PULL & BUILD the image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
     RES=$?
     if [[ ${RES} == "0" ]]; then
         build_images::reconfirm_rebuilding_if_not_rebased
@@ -633,6 +633,7 @@ function build_images::build_prod_images() {
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
+        --build-arg INSTALL_POSTGRES_CLIENT="${INSTALL_POSTGRES_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \

@@ -354,7 +354,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False)
+    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))

@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -588,6 +589,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "environment",
     )
     ui_color = "#0273d4"
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -638,6 +640,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -723,6 +726,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -760,6 +764,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         job = self.hook.start_flex_template(
             body=self.body,

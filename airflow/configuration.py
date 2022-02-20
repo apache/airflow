@@ -220,6 +220,8 @@ class AirflowConfigParser(ConfigParser):
         ("scheduler", "file_parsing_sort_mode"): ["modified_time", "random_seeded_by_host", "alphabetical"],
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
+        # celery_logging_level can be empty, which uses logging_level as fallback
+        ("logging", "celery_logging_level"): _available_logging_levels + [''],
     }
 
     upgraded_values: Dict[Tuple[str, str], str]
