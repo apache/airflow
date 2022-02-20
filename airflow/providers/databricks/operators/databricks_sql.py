@@ -70,7 +70,7 @@ class DatabricksSqlOperator(BaseOperator):
         sql_endpoint_name: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         session_configuration=None,
-        do_xcom_push: bool = True,
+        do_xcom_push: bool = False,
         output_path: Optional[str] = None,
         output_format: str = 'csv',
         csv_params: Optional[Dict[str, Any]] = None,

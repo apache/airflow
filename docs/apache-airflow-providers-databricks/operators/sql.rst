@@ -58,7 +58,7 @@ Operator executes given SQL queries against configured endpoint.  There are 3 wa
    * - csv_params: dict[str, any]
      - Optional dictionary with parameters to customize Python CSV writer.
    * - do_xcom_push: boolean
-     - whether we should push query results (last query if multiple queries are provided) to xcom. Default: true
+     - whether we should push query results (last query if multiple queries are provided) to xcom. Default: false
 
 Examples
 --------
