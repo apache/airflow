@@ -115,16 +115,16 @@ class TestBaseRdsSensor:
         assert self.base_operator.hook.__class__.__name__ == 'RdsHook'
 
     def test_check_item_true(self):
-        self.base_operator._describe_item = lambda: [{'Status': 'available'}]
+        self.base_operator._describe_db_snapshot = lambda _: [{'Status': 'available'}]
         self.base_operator.target_statuses = ['available', 'created']
 
-        assert self.base_operator._check_item()
+        assert self.base_operator._check_item(item_type='instance_snapshot', item_name='')
 
     def test_check_item_false(self):
-        self.base_operator._describe_item = lambda: [{'Status': 'creating'}]
+        self.base_operator._describe_db_snapshot = lambda _: [{'Status': 'creating'}]
         self.base_operator.target_statuses = ['available', 'created']
 
-        assert not self.base_operator._check_item()
+        assert not self.base_operator._check_item(item_type='instance_snapshot', item_name='')
 
 
 @pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')

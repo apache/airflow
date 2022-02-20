@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from botocore.exceptions import ClientError
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.sensors.base import BaseSensorOperator
@@ -39,14 +40,36 @@ class RdsBaseSensor(BaseSensorOperator):
         self.target_statuses: List[str] = []
         super().__init__(*args, **kwargs)
 
-    def _describe_item(self, **kwargs) -> list:
-        """Returns information about target item: snapshot or task"""
-        raise NotImplementedError
+    def _describe_db_snapshot(self, db_snapshot_identifier):
+        """Returns information about target item: snapshot"""
+        db_snapshots = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=db_snapshot_identifier)
+        return db_snapshots['DBSnapshots']
 
-    def _check_item(self, **kwargs) -> bool:
+    def _describe_db_cluster_snapshot(self, db_snapshot_identifier):
+        """Returns information about target item: snapshot"""
+        db_cluster_snapshots = self.hook.conn.describe_db_cluster_snapshots(
+            DBClusterSnapshotIdentifier=db_snapshot_identifier,
+        )
+        return db_cluster_snapshots['DBClusterSnapshots']
+
+    def _describe_export_task(self, export_task_identifier) -> list:
+        """Returns information about target item: export task"""
+        response = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=export_task_identifier)
+        return response['ExportTasks']
+
+    def _check_item(self, item_type: str, item_name: str) -> bool:
         """Get certain item from `_describe_item()` and check it status"""
+        if item_type == 'instance_snapshot':
+            describe_item = self._describe_db_snapshot
+        elif item_type == 'cluster_snapshot':
+            describe_item = self._describe_db_cluster_snapshot
+        elif item_type == 'export_task':
+            describe_item = self._describe_export_task
+        else:
+            raise AirflowException(f"Method for {item_type} is not implemented")
+
         try:
-            item = self._describe_item()
+            item = describe_item(item_name)
         except ClientError:
             return False
         else:
@@ -62,17 +85,11 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         :ref:`howto/operator:RdsSnapshotExistenceSensor`
 
     :param db_type: Type of the DB - either "instance" or "cluster"
-    :type db_type: RDSDbType
-    :param db_identifier: The identifier of the instance or cluster that you want to create the snapshot of
-    :type db_identifier: str
     :param db_snapshot_identifier: The identifier for the DB snapshot
-    :type db_snapshot_identifier: str
     :param target_statuses: Target status of snapshot
-    :type target_statuses: List[str]
     """
 
     template_fields: Sequence[str] = (
-        'db_identifier',
         'db_snapshot_identifier',
         'target_status',
     )
@@ -81,7 +98,6 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         self,
         *,
         db_type: str,
-        db_identifier: str,
         db_snapshot_identifier: str,
         target_statuses: Optional[List[str]] = None,
         aws_conn_id: str = "aws_conn_id",
@@ -89,32 +105,17 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_type = RdsDbType(db_type)
-        self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
         self.target_statuses = target_statuses or ['available']
-
-    def _describe_item(self, **kwargs) -> list:
-        """Returns snapshot info"""
-        if self.db_type.value == "instance":
-            db_snapshots = self.hook.conn.describe_db_snapshots(
-                DBInstanceIdentifier=self.db_identifier,
-                DBSnapshotIdentifier=self.db_snapshot_identifier,
-                **kwargs,
-            )
-            return db_snapshots['DBSnapshots']
-        else:
-            db_cluster_snapshots = self.hook.conn.describe_db_cluster_snapshots(
-                DBClusterIdentifier=self.db_identifier,
-                DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
-                **kwargs,
-            )
-            return db_cluster_snapshots['DBClusterSnapshots']
 
     def poke(self, context: 'Context'):
         self.log.info(
             'Poking for statuses : %s\nfor snapshot %s', self.target_statuses, self.db_snapshot_identifier
         )
-        return self._check_item()
+        if self.db_type.value == "instance":
+            return self._check_item(item_type='instance_snapshot', item_name=self.db_snapshot_identifier)
+        else:
+            return self._check_item(item_type='cluster_snapshot', item_name=self.db_snapshot_identifier)
 
 
 class RdsExportTaskExistenceSensor(RdsBaseSensor):
@@ -126,16 +127,11 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         :ref:`howto/operator:RdsExportTaskExistenceSensor`
 
     :param export_task_identifier: A unique identifier for the snapshot export task.
-    :type export_task_identifier: str
-    :param source_arn: The Amazon Resource Name (ARN) of the snapshot to export to Amazon S3.
-    :type source_arn: str
     :param target_statuses: Target status of export task
-    :type target_statuses: List[str]
     """
 
     template_fields: Sequence[str] = (
         'export_task_identifier',
-        'source_arn',
         'target_status',
     )
 
@@ -143,7 +139,6 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         self,
         *,
         export_task_identifier: str,
-        source_arn: str,
         target_statuses: Optional[List[str]] = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -151,21 +146,13 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
 
         self.export_task_identifier = export_task_identifier
-        self.source_arn = source_arn
         self.target_statuses = target_statuses or ['available']
-
-    def _describe_item(self, **kwargs) -> list:
-        response = self.hook.conn.describe_export_tasks(
-            ExportTaskIdentifier=self.export_task_identifier,
-            SourceArn=self.source_arn,
-        )
-        return response['ExportTasks']
 
     def poke(self, context: 'Context'):
         self.log.info(
             'Poking for statuses : %s\nfor export task %s', self.target_statuses, self.export_task_identifier
         )
-        return self._check_item()
+        return self._check_item(item_type='export_task', item_name=self.export_task_identifier)
 
 
 __all__ = [
