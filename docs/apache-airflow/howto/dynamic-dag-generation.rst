@@ -106,7 +106,7 @@ the meta-data file in your DAG easily. The location of the file to read can be f
 
 
 Dynamic DAGs with ``globals()``
-.......................
+...............................
 You can dynamically generate DAGs by working with ``globals()``.
 As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
 
