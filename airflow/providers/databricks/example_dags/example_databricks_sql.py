@@ -34,7 +34,10 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
+from airflow.providers.databricks.operators.databricks_sql import (
+    DatabricksCopyIntoOperator,
+    DatabricksSqlOperator,
+)
 
 with DAG(
     dag_id='example_databricks_sql_operator',
@@ -93,4 +96,18 @@ with DAG(
     )
     # [END howto_operator_databricks_sql_multiple_file]
 
-    (create >> create_file >> select >> select_into_file)
+    # [START howto_operator_databricks_copy_into]
+    # Example of importing data using COPY_INTO SQL command
+    import_csv = DatabricksCopyIntoOperator(
+        task_id='import_csv',
+        databricks_conn_id=connection_id,
+        sql_endpoint_name=sql_endpoint_name,
+        table_name="my_table",
+        file_format="CSV",
+        file_location="abfss://container@account.dfs.core.windows.net/my-data/csv",
+        format_options={'header': 'true'},
+        force_copy=True,
+    )
+    # [END howto_operator_databricks_copy_into]
+
+    (create >> create_file >> import_csv >> select >> select_into_file)

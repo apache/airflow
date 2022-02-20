@@ -19,7 +19,7 @@
 
 
 DatabricksSqlOperator
-===========================
+=====================
 
 Use the :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` to execute SQL
 on a `Databricks SQL endpoint  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or a
