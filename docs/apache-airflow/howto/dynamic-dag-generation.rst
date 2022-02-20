@@ -116,12 +116,8 @@ As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
     from airflow.decorators import dag, task
 
     configs = {
-        "config1": {
-            "message": "first DAG will receive this message"
-        },
-        "config2": {
-            "message": "second DAG will receive this message"
-        },
+        "config1": {"message": "first DAG will receive this message"},
+        "config2": {"message": "second DAG will receive this message"},
     }
 
     for config_name, config in configs.items():
