@@ -32,7 +32,8 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
     You can invoke a function synchronously (and wait for the response),
     or asynchronously.
     To invoke a function asynchronously,
-    set InvocationType to `Event`.
+    set `invocation_type` to `Event`. For more details,
+    review the boto3 Lambda invoke docs.
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
     :param payload: The JSON string that you want to provide to your Lambda function as input.
@@ -57,12 +58,12 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.FunctionName = function_name
-        self.Payload = payload
-        self.LogType = log_type
-        self.Qualifier = qualifier
-        self.InvocationType = invocation_type
-        self.ClientContext = client_context
+        self.function_name = function_name
+        self.payload = payload
+        self.log_type = log_type
+        self.qualifier = qualifier
+        self.invocation_type = invocation_type
+        self.client_context = client_context
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context'):
@@ -73,49 +74,30 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         """
         hook = LambdaHook(aws_conn_id=self.aws_conn_id)
         success_status_codes = [200, 202, 204]
-        self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.FunctionName, self.Payload)
+        self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
         try:
             response = hook.invoke_lambda(
-                function_name=self.FunctionName,
-                **{
-                    key: self.__dict__[key]
-                    for key in self.__dict__
-                    if (
-                        key
-                        in [
-                            "Payload",
-                            "LogType",
-                            "Qualifier",
-                            "InvocationType",
-                            "ClientContext",
-                        ]
-                        and self.__dict__[key] is not None
-                    )
-                },
+                function_name=self.function_name,
+                invocation_type=self.invocation_type,
+                log_type=self.log_type,
+                client_context=self.client_context,
+                payload=self.payload,
+                qualifier=self.qualifier,
             )
-            self.log.info("Lambda response metadata: %s", json.dumps(response.get("ResponseMetadata")))
+            self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
         except Exception as e:
             self.log.error(e)
             raise e
         if response.get("StatusCode") not in success_status_codes:
-            self.log.error(
-                'Lambda function invocation failed: %s', json.dumps(response.get("ResponseMetadata"))
-            )
             raise ValueError('Lambda function did not execute', json.dumps(response.get("ResponseMetadata")))
         if "FunctionError" in response:
-            self.log.error(
-                'Lambda function execution resulted in error: %s',
-                json.dumps(response.get("ResponseMetadata")),
-            )
             error_payload_stream = response.get("Payload")
             error_payload = error_payload_stream.read().decode()
             raise ValueError(
                 'Lambda function execution resulted in error',
                 {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": error_payload},
             )
-        self.log.info(
-            'Lambda function invocation succeeded: %s', json.dumps(response.get("ResponseMetadata"))
-        )
+        self.log.info('Lambda function invocation succeeded: %r', response.get("ResponseMetadata"))
         payload_stream = response.get("Payload")
         payload = payload_stream.read().decode()
         return payload

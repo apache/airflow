@@ -41,9 +41,9 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
             aws_conn_id="aws_conn_test",
         )
         assert lambda_operator.task_id == "test"
-        assert lambda_operator.FunctionName == "test"
-        assert lambda_operator.Payload == json.dumps({"TestInput": "Testdata"})
-        assert lambda_operator.LogType == "None"
+        assert lambda_operator.function_name == "test"
+        assert lambda_operator.payload == json.dumps({"TestInput": "Testdata"})
+        assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
     def create_zip(self, body):
@@ -96,12 +96,12 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
 
     def test_invoke_lambda(self):
         self.create_lambda_function('test')
+        test_event_input = {"TestInput": "Testdata"}
         lambda_invoke_function = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="test",
             log_type='None',
-            payload=json.dumps({"TestInput": "Testdata"}),
+            payload=json.dumps(test_event_input),
         )
         value = lambda_invoke_function.execute(None)
-        print(f"value: {value}")
-        assert json.dumps(json.loads(value)) == json.dumps({"TestInput": "Testdata"})
+        assert json.dumps(json.loads(value)) == json.dumps(test_event_input)
