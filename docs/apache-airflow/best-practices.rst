@@ -491,7 +491,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     import pytest
 
-    from airflow.utils.state import DagRunState, State
+    from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
@@ -526,7 +526,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)
         ti.run(ignore_ti_state=True)
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
         # Assert something related to tasks results.
 
 
