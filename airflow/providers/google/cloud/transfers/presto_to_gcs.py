@@ -150,12 +150,12 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
 
     type_map = {
         "BOOLEAN": "BOOL",
-        "TINYINT": "INT64",
-        "SMALLINT": "INT64",
-        "INTEGER": "INT64",
-        "BIGINT": "INT64",
-        "REAL": "FLOAT64",
-        "DOUBLE": "FLOAT64",
+        "TINYINT": "INTEGER",
+        "SMALLINT": "INTEGER",
+        "INTEGER": "INTEGER",
+        "BIGINT": "INTEGER",
+        "REAL": "FLOAT",
+        "DOUBLE": "FLOAT",
         "DECIMAL": "NUMERIC",
         "VARCHAR": "STRING",
         "CHAR": "STRING",
