@@ -491,7 +491,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     import pytest
 
-    from airflow.utils.state import DagRunState
+    from airflow.utils.state import DagRunState, State
     from airflow.utils.types import DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
