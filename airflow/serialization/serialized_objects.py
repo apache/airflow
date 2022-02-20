@@ -50,6 +50,7 @@ from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
+from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
@@ -323,6 +324,8 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
             return SerializedDAG.serialize_dag(var)
+        elif isinstance(var, Resources):
+            return var.to_dict()
         elif isinstance(var, MappedOperator):
             return SerializedBaseOperator.serialize_mapped_operator(var)
         elif isinstance(var, BaseOperator):
@@ -732,6 +735,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
+            elif k == "resources":
+                v = Resources.from_dict(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":

@@ -52,6 +52,7 @@ from airflow.serialization.serialized_objects import (
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
@@ -1178,6 +1179,24 @@ class TestStringifiedDAGs:
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
         assert serialized_op.downstream_task_ids == {'foo'}
 
+    def test_task_resources(self):
+        """
+        Test task resources serialization/deserialization.
+        """
+        from airflow.operators.dummy import DummyOperator
+
+        execution_date = datetime(2020, 1, 1)
+        task_id = 'task1'
+        with DAG("test_task_resources", start_date=execution_date) as dag:
+            task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+
+        SerializedDAG.validate_schema(SerializedDAG.to_dict(dag))
+
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        deserialized_task = json_dag.get_task(task_id)
+        assert deserialized_task.resources == task.resources
+        assert isinstance(deserialized_task.resources, Resources)
+
     def test_task_group_serialization(self):
         """
         Test TaskGroup serialization/deserialization.
@@ -1662,6 +1681,26 @@ def test_mapped_operator_xcomarg_serde():
     xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
+def test_task_resources_serde():
+    """
+    Test task resources serialization/deserialization.
+    """
+    from airflow.operators.dummy import DummyOperator
+
+    execution_date = datetime(2020, 1, 1)
+    task_id = 'task1'
+    with DAG("test_task_resources", start_date=execution_date) as _:
+        task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+
+    serialized = SerializedBaseOperator._serialize(task)
+    assert serialized['resources'] == {
+        "cpus": {"name": "CPU", "qty": 0.1, "units_str": "core(s)"},
+        "disk": {"name": "Disk", "qty": 512, "units_str": "MB"},
+        "gpus": {"name": "GPU", "qty": 0, "units_str": "gpu(s)"},
+        "ram": {"name": "RAM", "qty": 2048, "units_str": "MB"},
+    }
 
 
 def test_mapped_decorator_serde():
