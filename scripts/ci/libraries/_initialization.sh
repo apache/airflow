@@ -83,9 +83,9 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
-    # until we have support for ARM images, we set docker default platform to AMD
+    # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+    export PLATFORM=${PLATFORM:="linux/amd64"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
