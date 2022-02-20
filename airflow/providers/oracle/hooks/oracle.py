@@ -339,3 +339,16 @@ class OracleHook(DbApiHook):
         )
 
         return result
+
+    def test_connection(self):
+        """Tests the connection by executing a select 1 from dual query"""
+        status, message = False, ''
+        try:
+            if self.get_first("select 1 from dual"):
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message
