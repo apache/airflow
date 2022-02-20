@@ -18,6 +18,8 @@
 
 import unittest
 
+import pytest
+
 from airflow.utils.weight_rule import WeightRule
 
 
@@ -27,3 +29,6 @@ class TestWeightRule(unittest.TestCase):
         assert WeightRule.is_valid(WeightRule.UPSTREAM)
         assert WeightRule.is_valid(WeightRule.ABSOLUTE)
         assert len(WeightRule.all_weight_rules()) == 3
+
+        with pytest.raises(ValueError):
+            WeightRule("NOT_EXIST_WEIGHT_RULE")
