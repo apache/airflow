@@ -26,56 +26,12 @@ from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
+from airflow.providers.google.cloud.links.vertex_ai import VertexAIModelLink, VertexAITrainingPipelinesLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
-VERTEX_AI_MODEL_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
-)
-VERTEX_AI_TRAINING_PIPELINES_LINK = VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
-
-
-class VertexAIModelLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Model link"""
-
-    name = "Vertex AI Model"
-
-    def get_link(self, operator, dttm):
-        model_conf = XCom.get_one(
-            key='model_conf', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_MODEL_LINK.format(
-                region=model_conf["region"],
-                model_id=model_conf["model_id"],
-                project_id=model_conf["project_id"],
-            )
-            if model_conf
-            else ""
-        )
-
-
-class VertexAITrainingPipelinesLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Training Pipelines link"""
-
-    name = "Vertex AI Training Pipelines"
-
-    def get_link(self, operator, dttm):
-        project_id = XCom.get_one(
-            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_TRAINING_PIPELINES_LINK.format(
-                project_id=project_id,
-            )
-            if project_id
-            else ""
-        )
 
 
 class CustomTrainingJobBaseOperator(BaseOperator):
@@ -465,7 +421,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         super().__init__(**kwargs)
         self.command = command
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -523,15 +479,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
     def on_kill(self) -> None:
@@ -819,7 +767,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -878,15 +826,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
     def on_kill(self) -> None:
@@ -1176,7 +1116,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.requirements = requirements
         self.script_path = script_path
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1235,15 +1175,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
 
         result = Model.to_dict(model)
         model_id = self.hook.extract_model_id(result)
-        self.xcom_push(
-            context,
-            key="model_conf",
-            value={
-                "model_id": model_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         return result
 
     def on_kill(self) -> None:
@@ -1308,7 +1240,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1428,7 +1360,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1445,5 +1377,5 @@ class ListCustomTrainingJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.xcom_push(context, key="project_id", value=self.project_id)
+        VertexAITrainingPipelinesLink.persist(context=context, task_instance=self)
         return [TrainingPipeline.to_dict(result) for result in results]
