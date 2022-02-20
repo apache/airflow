@@ -145,13 +145,20 @@ class TestBaseRdsOperator:
         assert self.op.hook.__class__.__name__ == 'RdsHook'
 
     def test_await_termination_error(self):
-        self.op._describe_item = lambda: [{'Status': 'error'}]
+        self.op._describe_db_snapshot = lambda _: [{'Status': 'error'}]
         with pytest.raises(AirflowException):
-            self.op._await_status(wait_statuses=['wait'], error_statuses=['error'])
+            self.op._await_status(
+                item_type='instance_snapshot',
+                item_name='',
+                wait_statuses=['wait'],
+                error_statuses=['error'],
+            )
 
     def test_await_termination_ok(self):
-        self.op._describe_item = lambda: [{'Status': 'ok'}]
-        self.op._await_status(wait_statuses=['wait'], ok_statuses=['ok'])
+        self.op._describe_db_snapshot = lambda _: [{'Status': 'ok'}]
+        self.op._await_status(
+            item_type='instance_snapshot', item_name='', wait_statuses=['wait'], ok_statuses=['ok']
+        )
 
 
 @pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
