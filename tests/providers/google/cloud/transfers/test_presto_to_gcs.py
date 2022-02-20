@@ -42,7 +42,7 @@ CSV_LINES = [
     b"44,mock_row_content_3\r\n",
 ]
 SCHEMA_FILENAME = "schema_test.json"
-SCHEMA_JSON = b'[{"name": "some_num", "type": "INT64"}, {"name": "some_str", "type": "STRING"}]'
+SCHEMA_JSON = b'[{"name": "some_num", "type": "INTEGER"}, {"name": "some_str", "type": "STRING"}]'
 
 
 @pytest.mark.integration("presto")
