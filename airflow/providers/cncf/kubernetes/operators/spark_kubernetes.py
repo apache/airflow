@@ -34,7 +34,6 @@ class SparkKubernetesOperator(BaseOperator):
 
     :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
         path to a '.yaml' file or a YAML string.
-    :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
