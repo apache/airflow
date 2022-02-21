@@ -354,7 +354,7 @@ class AirflowConfigParser(ConfigParser):
     def _update_env_var(self, section, name, new_value):
         env_var = self._env_var_name(section, name)
         # If the config comes from environment, set it there so that any subprocesses keep the same override!
-        if os.environ.get(env_var):
+        if env_var in os.environ:
             os.environ[env_var] = new_value
             return
         if not self.has_section(section):
