@@ -110,10 +110,10 @@ class TrinoHook(DbApiHook):
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None):
         """Get a set of records from Trino
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
@@ -137,10 +137,10 @@ class TrinoHook(DbApiHook):
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns.
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
@@ -166,10 +166,10 @@ class TrinoHook(DbApiHook):
         self, sql: str = "", parameters: Optional[dict] = None, **kwargs
     ):  # type: ignore[override]
         """Get a pandas dataframe from a sql query.
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_pandas_df(
@@ -214,7 +214,6 @@ class TrinoHook(DbApiHook):
         handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
-        ...
 
     @overload
     def run(

@@ -115,10 +115,10 @@ class PrestoHook(DbApiHook):
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None):
         """Get a set of records from Presto
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
@@ -142,10 +142,10 @@ class PrestoHook(DbApiHook):
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns.
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
@@ -169,10 +169,10 @@ class PrestoHook(DbApiHook):
     @overload
     def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
         """Get a pandas dataframe from a sql query.
+
         :param sql: SQL statement to be executed.
         :param parameters: The parameters to render the SQL query with.
         """
-        ...
 
     @overload
     def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
@@ -213,7 +213,6 @@ class PrestoHook(DbApiHook):
         handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
-        ...
 
     @overload
     def run(
