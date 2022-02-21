@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import itertools
 import os
 import warnings
 from collections import defaultdict
@@ -45,6 +46,7 @@ from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -649,7 +651,7 @@ class DagRun(Base, LoggingMixin):
 
     def _get_ready_tis(
         self,
-        scheduleable_tasks: List[TI],
+        schedulable_tis: List[TI],
         finished_tis: List[TI],
         session: Session,
     ) -> Tuple[List[TI], bool]:
@@ -657,19 +659,41 @@ class DagRun(Base, LoggingMixin):
         ready_tis: List[TI] = []
         changed_tis = False
 
-        if not scheduleable_tasks:
+        if not schedulable_tis:
             return ready_tis, changed_tis
 
+        # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
+        # `schedulable_tis` in place and have the `for` loop pick them up
+        expanded_tis: List[TI] = []
+
         # Check dependencies
-        for st in scheduleable_tasks:
-            old_state = st.state
-            if st.are_dependencies_met(
+        for schedulable in itertools.chain(schedulable_tis, expanded_tis):
+
+            # Expansion of last resort! This is ideally handled in the mini-scheduler in LocalTaskJob, but if
+            # for any reason it wasn't, we need to expand it now
+            if schedulable.map_index < 0 and schedulable.task.is_mapped:
+                # HACK. This needs a better way, one that copes with multiple upstreams!
+                for ti in finished_tis:
+                    if schedulable.task_id in ti.task.downstream_task_ids:
+                        upstream = ti
+
+                        assert isinstance(schedulable.task, MappedOperator)
+                        new_tis = schedulable.task.expand_mapped_task(upstream, session=session)
+                        if schedulable.state == TaskInstanceState.SKIPPED:
+                            # Task is now skipped (likely cos upstream returned 0 tasks
+                            continue
+                        assert new_tis[0] is schedulable
+                        expanded_tis.extend(new_tis[1:])
+                        break
+
+            old_state = schedulable.state
+            if schedulable.are_dependencies_met(
                 dep_context=DepContext(flag_upstream_failed=True, finished_tis=finished_tis),
                 session=session,
             ):
-                ready_tis.append(st)
+                ready_tis.append(schedulable)
             else:
-                old_states[st.key] = old_state
+                old_states[schedulable.key] = old_state
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states.keys())

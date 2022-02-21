@@ -27,6 +27,9 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -913,8 +916,33 @@ def test_expand_mapped_task_instance(dag_maker, session):
     indices = (
         session.query(TI.map_index)
         .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TI.insert_mapping)
+        .order_by(TI.map_index)
         .all()
     )
 
     assert indices == [0, 1, 2]
+
+
+def test_ti_scheduling_mapped_zero_length(dag_maker, session):
+    with dag_maker(session=session):
+        task = BaseOperator(task_id='task_1')
+        mapped = MockOperator.partial(task_id='task_2').map(arg2=XComArg(task))
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    ti1.state = TaskInstanceState.SUCCESS
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id=ti1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
+    )
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    indices = (
+        session.query(TI.map_index, TI.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+        .all()
+    )
+
+    assert indices == [(-1, TaskInstanceState.SKIPPED)]
