@@ -17,7 +17,7 @@
 # under the License.
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, overload
 
 import trino
 from trino.exceptions import DatabaseError
@@ -107,8 +107,20 @@ class TrinoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
+    @overload
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
+        """Get a set of records from Trino
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+        ...
+
+    @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
-        """Get a set of records from Trino"""
+        ...
+
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql=None):
+        """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
                 "The hql parameter has been deprecated. You should pass the sql parameter.",
@@ -122,8 +134,20 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
+    @overload
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
+        """Returns only the first row, regardless of how many rows the query returns.
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+        ...
+
+    @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
-        """Returns only the first row, regardless of how many rows the query returns."""
+        ...
+
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql=None) -> Any:
+        """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
                 "The hql parameter has been deprecated. You should pass the sql parameter.",
@@ -137,10 +161,26 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
+    @overload
+    def get_pandas_df(
+        self, sql: str = "", parameters: Optional[dict] = None, **kwargs
+    ):  # type: ignore[override]
+        """Get a pandas dataframe from a sql query.
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+        ...
+
+    @overload
     def get_pandas_df(
         self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
     ):  # type: ignore[override]
-        """Get a pandas dataframe from a sql query."""
+        ...
+
+    def get_pandas_df(
+        self, sql: str = "", parameters: Optional[dict] = None, hql=None, **kwargs
+    ):  # type: ignore[override]
+        """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
                 "The hql parameter has been deprecated. You should pass the sql parameter.",
@@ -165,6 +205,18 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
+    @overload
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+    ) -> None:
+        """Execute the statement against Trino. Can be used to create views."""
+        ...
+
+    @overload
     def run(
         self,
         sql: str = "",
@@ -173,7 +225,17 @@ class TrinoHook(DbApiHook):
         handler: Optional[Callable] = None,
         hql: str = "",
     ) -> None:
-        """Execute the statement against Trino. Can be used to create views."""
+        ...
+
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+        hql=None,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
                 "The hql parameter has been deprecated. You should pass the sql parameter.",
