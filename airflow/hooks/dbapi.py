@@ -347,8 +347,6 @@ class DbApiHook(BaseHook):
         """
         raise NotImplementedError()
 
-    # TODO: Merge this implementation back to DbApiHook when dropping
-    # support for Airflow 2.2.
     def test_connection(self):
         """Tests the connection using db-specific query"""
         status, message = False, ''
