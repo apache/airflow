@@ -67,6 +67,8 @@ class DbApiHook(BaseHook):
     supports_autocommit = False
     # Override with the object that exposes the connect method
     connector = None  # type: Optional[ConnectorProtocol]
+    # Override with db-specific query to check connection
+    _test_connection_sql = "select 1"
 
     def __init__(self, *args, schema: Optional[str] = None, **kwargs):
         super().__init__()
@@ -345,11 +347,13 @@ class DbApiHook(BaseHook):
         """
         raise NotImplementedError()
 
+    # TODO: Merge this implementation back to DbApiHook when dropping
+    # support for Airflow 2.2.
     def test_connection(self):
-        """Tests the connection by executing a select 1 query"""
+        """Tests the connection using db-specific query"""
         status, message = False, ''
         try:
-            if self.get_first("select 1"):
+            if self.get_first(self._test_connection_sql):
                 status = True
                 message = 'Connection successfully tested'
         except Exception as e:
