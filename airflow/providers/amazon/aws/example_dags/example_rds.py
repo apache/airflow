@@ -133,7 +133,6 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
     snapshot_sensor = RdsSnapshotExistenceSensor(
         task_id='snapshot_sensor',
         db_type='instance',
-        db_identifier='auth-db',
         db_snapshot_identifier='auth-db-snap-{{ ds }}',
         target_statuses=['available'],
         aws_conn_id='aws_default',
@@ -145,7 +144,6 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
     export_sensor = RdsExportTaskExistenceSensor(
         task_id='export_sensor',
         export_task_identifier='export-auth-db-snap-{{ ds }}',
-        source_arn='arn:aws:rds:es-east-1::auth-db-snap-{{ ds }}',
         aws_conn_id='aws_default',
         hook_params={'region_name': 'us-east-1'},
     )

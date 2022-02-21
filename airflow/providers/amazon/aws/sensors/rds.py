@@ -40,40 +40,29 @@ class RdsBaseSensor(BaseSensorOperator):
         self.target_statuses: List[str] = []
         super().__init__(*args, **kwargs)
 
-    def _describe_db_snapshot(self, db_snapshot_identifier):
-        """Returns information about target item: snapshot"""
-        db_snapshots = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=db_snapshot_identifier)
-        return db_snapshots['DBSnapshots']
+    def _describe_item(self, item_type: str, item_name: str) -> list:
 
-    def _describe_db_cluster_snapshot(self, db_snapshot_identifier):
-        """Returns information about target item: snapshot"""
-        db_cluster_snapshots = self.hook.conn.describe_db_cluster_snapshots(
-            DBClusterSnapshotIdentifier=db_snapshot_identifier,
-        )
-        return db_cluster_snapshots['DBClusterSnapshots']
-
-    def _describe_export_task(self, export_task_identifier) -> list:
-        """Returns information about target item: export task"""
-        response = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=export_task_identifier)
-        return response['ExportTasks']
-
-    def _check_item(self, item_type: str, item_name: str) -> bool:
-        """Get certain item from `_describe_item()` and check it status"""
         if item_type == 'instance_snapshot':
-            describe_item = self._describe_db_snapshot
+            db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
+            return db_snaps['DBSnapshots']
         elif item_type == 'cluster_snapshot':
-            describe_item = self._describe_db_cluster_snapshot
+            cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
+            return cl_snaps['DBClusterSnapshots']
         elif item_type == 'export_task':
-            describe_item = self._describe_export_task
+            exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
+            return exports['ExportTasks']
         else:
             raise AirflowException(f"Method for {item_type} is not implemented")
 
+    def _check_item(self, item_type: str, item_name: str) -> bool:
+        """Get certain item from `_describe_item()` and check its status"""
+
         try:
-            item = describe_item(item_name)
+            items = self._describe_item(item_type, item_name)
         except ClientError:
             return False
         else:
-            return bool(item) and any(map(lambda s: item[0]['Status'] == s, self.target_statuses))
+            return bool(items) and any(map(lambda s: items[0]['Status'] == s, self.target_statuses))
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):

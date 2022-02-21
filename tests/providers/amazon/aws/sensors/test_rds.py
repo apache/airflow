@@ -17,6 +17,7 @@
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
@@ -98,33 +99,37 @@ def _start_export_task(hook: RdsHook):
 
 class TestBaseRdsSensor:
     dag = None
-    base_operator = None
+    base_sensor = None
 
     @classmethod
     def setup_class(cls):
         cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
-        cls.base_operator = RdsBaseSensor(task_id='test_task', aws_conn_id='aws_default', dag=cls.dag)
+        cls.base_sensor = RdsBaseSensor(task_id='test_task', aws_conn_id='aws_default', dag=cls.dag)
 
     @classmethod
     def teardown_class(cls):
         del cls.dag
-        del cls.base_operator
+        del cls.base_sensor
 
     def test_hook_attribute(self):
-        assert hasattr(self.base_operator, 'hook')
-        assert self.base_operator.hook.__class__.__name__ == 'RdsHook'
+        assert hasattr(self.base_sensor, 'hook')
+        assert self.base_sensor.hook.__class__.__name__ == 'RdsHook'
+
+    def test_describe_item_wrong_type(self):
+        with pytest.raises(AirflowException):
+            self.base_sensor._describe_item('database', 'auth-db')
 
     def test_check_item_true(self):
-        self.base_operator._describe_db_snapshot = lambda _: [{'Status': 'available'}]
-        self.base_operator.target_statuses = ['available', 'created']
+        self.base_sensor._describe_item = lambda item_type, item_name: [{'Status': 'available'}]
+        self.base_sensor.target_statuses = ['available', 'created']
 
-        assert self.base_operator._check_item(item_type='instance_snapshot', item_name='')
+        assert self.base_sensor._check_item(item_type='instance_snapshot', item_name='')
 
     def test_check_item_false(self):
-        self.base_operator._describe_db_snapshot = lambda _: [{'Status': 'creating'}]
-        self.base_operator.target_statuses = ['available', 'created']
+        self.base_sensor._describe_item = lambda item_type, item_name: [{'Status': 'creating'}]
+        self.base_sensor.target_statuses = ['available', 'created']
 
-        assert not self.base_operator._check_item(item_type='instance_snapshot', item_name='')
+        assert not self.base_sensor._check_item(item_type='instance_snapshot', item_name='')
 
 
 @pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
@@ -146,7 +151,6 @@ class TestRdsSnapshotExistenceSensor:
             task_id='test_instance_snap_true',
             db_type='instance',
             db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
-            db_identifier=DB_INSTANCE_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -158,7 +162,6 @@ class TestRdsSnapshotExistenceSensor:
             task_id='test_instance_snap_false',
             db_type='instance',
             db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
-            db_identifier=DB_INSTANCE_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -171,7 +174,6 @@ class TestRdsSnapshotExistenceSensor:
             task_id='test_cluster_snap_true',
             db_type='cluster',
             db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
-            db_identifier=DB_CLUSTER_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -183,7 +185,6 @@ class TestRdsSnapshotExistenceSensor:
             task_id='test_cluster_snap_false',
             db_type='cluster',
             db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
-            db_identifier=DB_CLUSTER_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -209,7 +210,6 @@ class TestRdsExportTaskExistenceSensor:
         op = RdsExportTaskExistenceSensor(
             task_id='export_task_true',
             export_task_identifier=EXPORT_TASK_NAME,
-            source_arn=EXPORT_TASK_SOURCE,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -221,7 +221,6 @@ class TestRdsExportTaskExistenceSensor:
         op = RdsExportTaskExistenceSensor(
             task_id='export_task_false',
             export_task_identifier=EXPORT_TASK_NAME,
-            source_arn=EXPORT_TASK_SOURCE,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
