@@ -319,7 +319,6 @@ class BaseExecutor(LoggingMixin):
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
-
         :param request: Callback request to be executed.
         """
         if not self.callback_sink:
