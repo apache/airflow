@@ -1378,6 +1378,7 @@ taskinstance
 taskmixin
 tblproperties
 tcp
+teardown
 templatable
 templateable
 templated
