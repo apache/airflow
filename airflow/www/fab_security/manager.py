@@ -216,6 +216,7 @@ class BaseSecurityManager:
         # Role Mapping
         app.config.setdefault("AUTH_ROLES_MAPPING", {})
         app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
+        app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
@@ -323,9 +324,19 @@ class BaseSecurityManager:
         return _roles
 
     @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
+    @property
     def get_url_for_registeruser(self):
         """Gets the URL for Register User"""
         return url_for(f"{self.registeruser_view.endpoint}.{self.registeruser_view.default_view}")
+
+    @property
+    def get_user_datamodel(self):
+        """Gets the User data model"""
+        return self.user_view.datamodel
 
     @property
     def get_register_user_datamodel(self):
@@ -336,6 +347,10 @@ class BaseSecurityManager:
     def builtin_roles(self):
         """Get the builtin roles"""
         return self._builtin_roles
+
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
     @property
     def auth_type(self):

@@ -18,9 +18,11 @@
 
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
 
+import datetime
 import os
-from datetime import datetime, timedelta
 from textwrap import dedent
+
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
@@ -58,9 +60,9 @@ def print_env_vars(test_mode=None):
 with DAG(
     "example_passing_params_via_test_command",
     schedule_interval='*/1 * * * *',
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    dagrun_timeout=timedelta(minutes=4),
+    dagrun_timeout=datetime.timedelta(minutes=4),
     tags=['example'],
 ) as dag:
     run_this = my_py_command(params={"miff": "agg"})

@@ -18,6 +18,8 @@
 
 import unittest
 
+import pytest
+
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -35,3 +37,6 @@ class TestTriggerRule(unittest.TestCase):
         assert TriggerRule.is_valid(TriggerRule.ALWAYS)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
         assert len(TriggerRule.all_triggers()) == 11
+
+        with pytest.raises(ValueError):
+            TriggerRule("NOT_EXIST_TRIGGER_RULE")
