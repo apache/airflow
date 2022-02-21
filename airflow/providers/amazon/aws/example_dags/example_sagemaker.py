@@ -32,7 +32,6 @@ training_job_name = 'sample_training'
 image_uri = environ.get('ECR_IMAGE_URI', '123456789012.dkr.ecr.us-east-1.amazonaws.com/repo_name')
 s3_bucket = environ.get('BUCKET_NAME', 'test-airflow-12345')
 role = environ.get('SAGEMAKER_ROLE_ARN', 'arn:aws:iam::123456789012:role/role_name')
-args = {"owner": "airflow"}
 
 sagemaker_processing_job_config = {
     "ProcessingJobName": "sample_processing_job",
@@ -150,9 +149,7 @@ with DAG(
     "sample_sagemaker_dag",
     schedule_interval=None,
     start_date=datetime(2022, 2, 21),
-    default_args=args,
-    concurrency=1,
-    max_active_runs=1,
+    catchup=False,
 ) as dag:
     sagemaker_processing_task = SageMakerProcessingOperator(
         config=sagemaker_processing_job_config,
