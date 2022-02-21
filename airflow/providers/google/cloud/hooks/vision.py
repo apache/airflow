@@ -20,6 +20,8 @@ import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+from airflow.providers.google.common.consts import CLIENT_INFO
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
@@ -146,9 +148,7 @@ class CloudVisionHook(GoogleBaseHook):
         :rtype: google.cloud.vision_v1.ProductSearchClient
         """
         if not self._client:
-            self._client = ProductSearchClient(
-                credentials=self._get_credentials(), client_info=self.client_info
-            )
+            self._client = ProductSearchClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property

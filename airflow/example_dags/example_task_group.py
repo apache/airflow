@@ -17,7 +17,7 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the TaskGroup."""
-from datetime import datetime
+import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -26,7 +26,10 @@ from airflow.utils.task_group import TaskGroup
 
 # [START howto_task_group]
 with DAG(
-    dag_id="example_task_group", start_date=datetime(2021, 1, 1), catchup=False, tags=["example"]
+    dag_id="example_task_group",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
 ) as dag:
     start = DummyOperator(task_id="start")
 

@@ -25,7 +25,7 @@ import textwrap
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, cast
 
-import click
+import rich_click as click
 from github import Github, UnknownObjectException
 from github.Milestone import Milestone
 from github.PullRequest import PullRequest

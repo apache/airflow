@@ -164,6 +164,96 @@ If you wish to delete a Custom Training Job you can use
     :start-after: [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_custom_training_job_operator]
 
+Creating an AutoML Training Jobs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Google Vertex AI Auto ML training jobs you have five operators
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
+Each of them will wait for the operation to complete. The results of each operator will be a model
+which was trained by user using these operators.
+
+How to run AutoML Forecasting Training Job
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
+
+Before start running this Job you must prepare and create ``TimeSeries`` dataset. After that you should
+put dataset id to ``dataset_id`` parameter in operator.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
+
+How to run AutoML Image Training Job
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
+
+Before start running this Job you must prepare and create ``Image`` dataset. After that you should
+put dataset id to ``dataset_id`` parameter in operator.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
+
+How to run AutoML Tabular Training Job
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
+
+Before start running this Job you must prepare and create ``Tabular`` dataset. After that you should
+put dataset id to ``dataset_id`` parameter in operator.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
+
+How to run AutoML Text Training Job
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+
+Before start running this Job you must prepare and create ``Text`` dataset. After that you should
+put dataset id to ``dataset_id`` parameter in operator.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
+
+How to run AutoML Video Training Job
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
+
+Before start running this Job you must prepare and create ``Video`` dataset. After that you should
+put dataset id to ``dataset_id`` parameter in operator.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
+
+You can get a list of AutoML Training Jobs using
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
+
+If you wish to delete a Auto ML Training Job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.DeleteAutoMLTrainingJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
+
 Reference
 ^^^^^^^^^
 

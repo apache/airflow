@@ -113,6 +113,7 @@ with DAG(
             ),
         )
 
+        # [START create_hive]
         load_to_hive = HiveOperator(
             task_id=f"load_{channel}_to_hive",
             hql=(
@@ -121,6 +122,7 @@ with DAG(
                 f"PARTITION(dt='{dt}')"
             ),
         )
+        # [END create_hive]
 
         analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql
 

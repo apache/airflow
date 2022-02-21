@@ -80,6 +80,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Zip files in the DAGs folder can no longer have a `.py` extension
+
+It was previously possible to have any extension for zip files in the DAGs folder. Now `.py` files are going to be loaded as modules without checking whether it is a zip file, as it leads to less IO. If a `.py` file in the DAGs folder is a zip compressed file, parsing it will fail with an exception.
+
 ### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
 
 When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
@@ -133,6 +137,18 @@ A new `log_template` table is introduced to solve this problem. This table is sy
 ### `airflow.models.base.Operator` is removed
 
 Previously, there was an empty class `airflow.models.base.Operator` for “type hinting”. This class was never really useful for anything (everything it did could be done better with `airflow.models.baseoperator.BaseOperator`), and has been removed. If you are relying on the class’s existence, use `BaseOperator` (for concrete operators), `airflow.models.abstractoperator.AbstractOperator` (the base class of both `BaseOperator` and the AIP-42 `MappedOperator`), or `airflow.models.operator.Operator` (a union type `BaseOperator | MappedOperator` for type annotation).
+
+### XCom now define `run_id` instead of `execution_date`
+
+As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the `execution_date` columns on XCom has been removed from the database, and replaced by an [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) field at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` column instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+
+### `auth_backends` replaces `auth_backend` configuration setting
+
+Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
+
+This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
 
 ## Airflow 2.2.3
 
@@ -229,7 +245,7 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     concurrency=3,
 )
@@ -240,7 +256,7 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     max_active_tasks=3,
 )
@@ -3313,7 +3329,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from airflow.models.dag import DAG
 >>> from airflow.operators.dummy import DummyOperator
 >>>
->>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
+>>> dag = DAG('simple_dag', start_date=pendulum.datetime(2017, 9, 1, tz="UTC"))
 >>>
 >>> task = DummyOperator(task_id='task_1', dag=dag)
 >>>

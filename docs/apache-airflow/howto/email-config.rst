@@ -118,8 +118,9 @@ Follow the steps below to enable it:
       [email]
       email_backend = airflow.providers.amazon.aws.utils.emailer.send_email
       email_conn_id = aws_default
+      from_email = From email <email@example.com>
+
+Note that for SES, you must configure from_email to the valid email that can send messages from SES.
 
 3. Create a connection called ``aws_default``, or choose a custom connection
    name and set it in ``email_conn_id``. The type of connection should be ``Amazon Web Services``.
-
-4. Configure sender's email address in your ``airflow.cfg`` by setting ``from_email`` in the ``[email]`` section.

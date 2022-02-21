@@ -625,7 +625,7 @@ class DagRun(Base, LoggingMixin):
         dag = self.get_dag()
         for ti in tis:
             try:
-                ti.task = dag.get_task(ti.task_id)  # type: ignore[assignment]  # TODO: Fix task: Operator
+                ti.task = dag.get_task(ti.task_id)
             except TaskNotFound:
                 self.log.warning(
                     "Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id

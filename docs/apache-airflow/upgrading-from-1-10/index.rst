@@ -339,6 +339,11 @@ the only supported UI.
     this via any configuration mechanism. The 1.10.15 bridge-release modifies this feature
     to use randomly generated secret keys instead of an insecure default and may break existing
     deployments that rely on the default.
+    The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+    generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+    that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+    "forbidden" errors when the logs are accessed.
+
 
 The ``flask-oauthlib`` has been replaced with ``authlib`` because ``flask-oauthlib`` has
 been deprecated in favor of ``authlib``.

@@ -232,6 +232,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/install_airflow_dependencies_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
+        "scripts/docker/install_postgres.sh"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
@@ -400,6 +401,8 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # by default install mssql client
     export INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT:="true"}
+    # by default install postgres client
+    export INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 

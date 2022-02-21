@@ -84,8 +84,10 @@ class FileTaskHandler(logging.Handler):
             return render_template_to_string(self.filename_jinja_template, context)
         elif self.filename_template:
             dag_run = ti.get_dagrun()
+            dag = ti.task.dag
+            assert dag is not None  # For Mypy.
             try:
-                data_interval: Tuple[datetime, datetime] = ti.task.dag.get_run_data_interval(dag_run)
+                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
@@ -205,8 +207,9 @@ class FileTaskHandler(logging.Handler):
                 if response.status_code == 403:
                     log += (
                         "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have"
-                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                        "schedulers, webservers and workers) have "
+                        "the same 'secret_key' configured in 'webserver' section and "
+                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
                     )
                     log += (
                         "*** See more at https://airflow.apache.org/docs/apache-airflow/"
