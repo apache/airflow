@@ -49,6 +49,7 @@ class LambdaHook(AwsBaseHook):
 
     def invoke_lambda(
         self,
+        *,
         function_name: str,
         invocation_type: Optional[str] = None,
         log_type: Optional[str] = None,
@@ -70,6 +71,7 @@ class LambdaHook(AwsBaseHook):
 
     def create_lambda(
         self,
+        *,
         function_name: str,
         runtime: str,
         role: str,
