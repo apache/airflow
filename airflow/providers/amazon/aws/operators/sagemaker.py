@@ -611,10 +611,13 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
 
 class SageMakerDeleteModelOperator(BaseOperator):
-    """Deletes a SageMaker model. This operator returns True if model was present
-    and deleted else return False if Model was not present
-    :param model_name: The name of Sagemaker Model
-    :param aws_conn_id: The AWS connection ID to use
+    """Deletes a SageMaker model.
+
+    This operator returns True if model was present and deleted else return False if Model was not present.
+
+    :param model_name: The name of Sagemaker Model (templated).
+    :param aws_conn_id: The AWS connection ID to use.
+
     """
 
     def __init__(self, *, model_name: str, aws_conn_id: str, **kwargs):
