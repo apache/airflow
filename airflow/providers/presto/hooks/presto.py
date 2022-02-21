@@ -124,7 +124,7 @@ class PrestoHook(DbApiHook):
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
 
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql=None):
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -151,7 +151,7 @@ class PrestoHook(DbApiHook):
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
 
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql=None) -> Any:
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -178,7 +178,7 @@ class PrestoHook(DbApiHook):
     def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
         """:sphinx-autoapi-skip:"""
 
-    def get_pandas_df(self, sql: str = "", parameters=None, hql=None, **kwargs):
+    def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -231,7 +231,7 @@ class PrestoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[dict] = None,
         handler: Optional[Callable] = None,
-        hql=None,
+        hql: str = "",
     ) -> None:
         """:sphinx-autoapi-skip:"""
         if hql:

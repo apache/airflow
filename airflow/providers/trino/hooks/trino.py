@@ -119,7 +119,7 @@ class TrinoHook(DbApiHook):
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
 
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql=None):
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -146,7 +146,7 @@ class TrinoHook(DbApiHook):
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
 
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql=None) -> Any:
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -178,7 +178,7 @@ class TrinoHook(DbApiHook):
         """:sphinx-autoapi-skip:"""
 
     def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, hql=None, **kwargs
+        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
     ):  # type: ignore[override]
         """:sphinx-autoapi-skip:"""
         if hql:
@@ -232,7 +232,7 @@ class TrinoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[dict] = None,
         handler: Optional[Callable] = None,
-        hql=None,
+        hql: str = "",
     ) -> None:
         """:sphinx-autoapi-skip:"""
         if hql:
