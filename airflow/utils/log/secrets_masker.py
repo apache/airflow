@@ -147,8 +147,8 @@ class SecretsMasker(logging.Filter):
         return frozenset(record.__dict__).difference({'msg', 'args'})
 
     def _redact_exception_with_context(self, exception):
-        # In case, when exception has "read only" properties, we need
-        # to catch an AttributeError to log properly
+        # Exception class may not be modifiable (e.g. declared by an
+        # extension module such as JDBC).
         try:
             exception.args = (self.redact(v) for v in exception.args)
         except AttributeError:
