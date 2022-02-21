@@ -117,7 +117,7 @@ class TrinoHook(DbApiHook):
 
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql=None):
         """:sphinx-autoapi-skip:"""
@@ -144,7 +144,7 @@ class TrinoHook(DbApiHook):
 
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql=None) -> Any:
         """:sphinx-autoapi-skip:"""
@@ -175,7 +175,7 @@ class TrinoHook(DbApiHook):
     def get_pandas_df(
         self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
     ):  # type: ignore[override]
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_pandas_df(
         self, sql: str = "", parameters: Optional[dict] = None, hql=None, **kwargs
@@ -224,7 +224,7 @@ class TrinoHook(DbApiHook):
         handler: Optional[Callable] = None,
         hql: str = "",
     ) -> None:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def run(
         self,

@@ -122,7 +122,7 @@ class PrestoHook(DbApiHook):
 
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql=None):
         """:sphinx-autoapi-skip:"""
@@ -149,7 +149,7 @@ class PrestoHook(DbApiHook):
 
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql=None) -> Any:
         """:sphinx-autoapi-skip:"""
@@ -176,7 +176,7 @@ class PrestoHook(DbApiHook):
 
     @overload
     def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def get_pandas_df(self, sql: str = "", parameters=None, hql=None, **kwargs):
         """:sphinx-autoapi-skip:"""
@@ -223,7 +223,7 @@ class PrestoHook(DbApiHook):
         handler: Optional[Callable] = None,
         hql: str = "",
     ) -> None:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     def run(
         self,
