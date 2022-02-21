@@ -27,7 +27,7 @@ class PipeCallbackSink(BaseCallbackSink):
     """
     Class for sending callbacks to DagProcessor using pipe.
 
-    It is used when DagProcessor if not executed in standalone mode.
+    It is used when DagProcessor is not executed in standalone mode.
     """
 
     def __init__(self, get_sink_pipe: Callable[[], MultiprocessingConnection]):
