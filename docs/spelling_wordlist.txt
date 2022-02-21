@@ -1339,6 +1339,7 @@ taskflow
 taskinstance
 tblproperties
 tcp
+teardown
 templatable
 templateable
 templated
