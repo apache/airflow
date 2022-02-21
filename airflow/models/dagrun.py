@@ -388,6 +388,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
+        execution_date = execution_date.astimezone(tz=timezone.TIMEZONE)
         return f"{run_type}__{execution_date.isoformat()}"
 
     @provide_session
