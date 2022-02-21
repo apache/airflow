@@ -46,16 +46,17 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
-    def create_zip(self, body):
+    @staticmethod
+    def create_zip(body):
         code = body
         zip_output = io.BytesIO()
-        zip_file = zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED)
-        zip_file.writestr("lambda_function.py", code)
-        zip_file.close()
+        with zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr("lambda_function.py", code)
         zip_output.seek(0)
         return zip_output.read()
 
-    def create_iam_role(self, role_name: str):
+    @staticmethod
+    def create_iam_role(role_name: str):
         iam = AwsBaseHook("aws_conn_test", client_type="iam")
         resp = iam.conn.create_role(
             RoleName=role_name,
@@ -75,13 +76,14 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
         )
         return resp["Role"]["Arn"]
 
-    def create_lambda_function(self, function_name: str):
+    @staticmethod
+    def create_lambda_function(function_name: str):
         code = """def handler(event, context):
             return event
         """
         role_name = "LambdaRole"
-        role_arn = self.create_iam_role(role_name)
-        zipped_code = self.create_zip(code)
+        role_arn = TestAwsLambdaInvokeFunctionOperator.create_iam_role(role_name)
+        zipped_code = TestAwsLambdaInvokeFunctionOperator.create_zip(code)
         lambda_client = LambdaHook(aws_conn_id="aws_conn_test")
         resp = lambda_client.create_lambda(
             function_name=function_name,

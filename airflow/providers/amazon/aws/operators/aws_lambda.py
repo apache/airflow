@@ -75,19 +75,15 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         hook = LambdaHook(aws_conn_id=self.aws_conn_id)
         success_status_codes = [200, 202, 204]
         self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
-        try:
-            response = hook.invoke_lambda(
-                function_name=self.function_name,
-                invocation_type=self.invocation_type,
-                log_type=self.log_type,
-                client_context=self.client_context,
-                payload=self.payload,
-                qualifier=self.qualifier,
-            )
-            self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
-        except Exception as e:
-            self.log.error(e)
-            raise e
+        response = hook.invoke_lambda(
+            function_name=self.function_name,
+            invocation_type=self.invocation_type,
+            log_type=self.log_type,
+            client_context=self.client_context,
+            payload=self.payload,
+            qualifier=self.qualifier,
+        )
+        self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
         if response.get("StatusCode") not in success_status_codes:
             raise ValueError('Lambda function did not execute', json.dumps(response.get("ResponseMetadata")))
         if "FunctionError" in response:
