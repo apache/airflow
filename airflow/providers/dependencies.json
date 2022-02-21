@@ -84,5 +84,8 @@
   ],
   "snowflake": [
     "slack"
+  ],
+  "trino": [
+    "google"
   ]
 }
