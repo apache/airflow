@@ -144,8 +144,12 @@ class TestBaseRdsOperator:
         assert hasattr(self.op, 'hook')
         assert self.op.hook.__class__.__name__ == 'RdsHook'
 
-    def test_await_termination_error(self):
-        self.op._describe_db_snapshot = lambda _: [{'Status': 'error'}]
+    def test_describe_item_wrong_type(self):
+        with pytest.raises(AirflowException):
+            self.op._describe_item('database', 'auth-db')
+
+    def test_await_status_error(self):
+        self.op._describe_item = lambda item_type, item_name: [{'Status': 'error'}]
         with pytest.raises(AirflowException):
             self.op._await_status(
                 item_type='instance_snapshot',
@@ -154,8 +158,8 @@ class TestBaseRdsOperator:
                 error_statuses=['error'],
             )
 
-    def test_await_termination_ok(self):
-        self.op._describe_db_snapshot = lambda _: [{'Status': 'ok'}]
+    def test_await_status_ok(self):
+        self.op._describe_item = lambda item_type, item_name: [{'Status': 'ok'}]
         self.op._await_status(
             item_type='instance_snapshot', item_name='', wait_statuses=['wait'], ok_statuses=['ok']
         )
@@ -297,7 +301,7 @@ class TestRdsDeleteDbSnapshotOperator:
             self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
     @mock_rds2
-    def test_db_delete_cluster_snapshot(self):
+    def test_delete_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
 
@@ -433,7 +437,7 @@ class TestRdsDeleteEventSubscriptionOperator:
         del cls.hook
 
     @mock_rds2
-    def test_create_event_subscription(self):
+    def test_delete_event_subscription(self):
         _create_event_subscription(self.hook)
 
         delete_subscription_operator = RdsDeleteEventSubscriptionOperator(

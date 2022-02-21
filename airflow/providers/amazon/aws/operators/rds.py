@@ -42,29 +42,24 @@ class RdsBaseOperator(BaseOperator):
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
         super().__init__(*args, **kwargs)
 
-        self._wait_interval = 60  # seconds
+        self._await_interval = 60  # seconds
 
-    def _describe_db_snapshot(self, db_snapshot_identifier):
-        """Returns information about target item: snapshot"""
-        db_snapshots = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=db_snapshot_identifier)
-        return db_snapshots['DBSnapshots']
+    def _describe_item(self, item_type: str, item_name: str) -> list:
 
-    def _describe_db_cluster_snapshot(self, db_snapshot_identifier):
-        """Returns information about target item: snapshot"""
-        db_cluster_snapshots = self.hook.conn.describe_db_cluster_snapshots(
-            DBClusterSnapshotIdentifier=db_snapshot_identifier,
-        )
-        return db_cluster_snapshots['DBClusterSnapshots']
-
-    def _describe_export_task(self, export_task_identifier) -> list:
-        """Returns information about target item: export task"""
-        response = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=export_task_identifier)
-        return response['ExportTasks']
-
-    def _describe_event_subscription(self, subscription_name):
-        """Returns information about target item: event subscription"""
-        response = self.hook.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
-        return response['EventSubscriptionsList']
+        if item_type == 'instance_snapshot':
+            db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
+            return db_snaps['DBSnapshots']
+        elif item_type == 'cluster_snapshot':
+            cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
+            return cl_snaps['DBClusterSnapshots']
+        elif item_type == 'export_task':
+            exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
+            return exports['ExportTasks']
+        elif item_type == 'event_subscription':
+            subscriptions = self.hook.conn.describe_event_subscriptions(SubscriptionName=item_name)
+            return subscriptions['EventSubscriptionsList']
+        else:
+            raise AirflowException(f"Method for {item_type} is not implemented")
 
     def _await_status(
         self,
@@ -73,42 +68,30 @@ class RdsBaseOperator(BaseOperator):
         wait_statuses: Optional[List[str]] = None,
         ok_statuses: Optional[List[str]] = None,
         error_statuses: Optional[List[str]] = None,
-    ) -> list:
+    ) -> None:
         """
         Continuously gets item description from `_describe_item()` and waits until:
         - status is in `wait_statuses`
         - status not in `ok_statuses` and `error_statuses`
-        - `_describe_item()` returns non-empty list
         """
-        if item_type == 'instance_snapshot':
-            describe_item = self._describe_db_snapshot
-        elif item_type == 'cluster_snapshot':
-            describe_item = self._describe_db_cluster_snapshot
-        elif item_type == 'export_task':
-            describe_item = self._describe_export_task
-        elif item_type == 'event_subscription':
-            describe_item = self._describe_event_subscription
-        else:
-            raise AirflowException(f"Method for {item_type} is not implemented")
-
         while True:
-            items = describe_item(item_name)
+            items = self._describe_item(item_type, item_name)
 
             if len(items) == 0:
-                break
-            elif len(items) > 1:
-                raise AirflowException(f"There is more than one item with the same identifier: {items}")
+                raise AirflowException(f"There is no {item_type} with identifier {item_name}")
+            if len(items) > 1:
+                raise AirflowException(f"There are {len(items)} {item_type} with identifier {item_name}")
 
             if wait_statuses and items[0]['Status'] in wait_statuses:
                 continue
             elif ok_statuses and items[0]['Status'] in ok_statuses:
                 break
             elif error_statuses and items[0]['Status'] in error_statuses:
-                raise AirflowException(f"Item has error status: {items}")
+                raise AirflowException(f"Item has error status ({error_statuses}): {items[0]}")
 
-            time.sleep(self._wait_interval)
+            time.sleep(self._await_interval)
 
-        return items
+        return None
 
     def execute(self, context: 'Context') -> str:
         """Different implementations for snapshots, tasks and events"""
@@ -333,13 +316,11 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
                 DBSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_instance_snap, default=str)
-            self._await_status('instance_snapshot', self.db_snapshot_identifier, wait_statuses=['deleting'])
         else:
             delete_cluster_snap = self.hook.conn.delete_db_cluster_snapshot(
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_cluster_snap, default=str)
-            self._await_status('cluster_snapshot', self.db_snapshot_identifier, wait_statuses=['deleting'])
 
         return delete_response
 
@@ -564,7 +545,6 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
         delete_subscription = self.hook.conn.delete_event_subscription(
             SubscriptionName=self.subscription_name,
         )
-        self._await_status('event_subscription', self.subscription_name, wait_statuses=['deleting'])
 
         return json.dumps(delete_subscription, default=str)
 
