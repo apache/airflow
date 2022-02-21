@@ -1207,7 +1207,7 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = copy.copy(dag.get_task(task_id).unmap())
+        task = dag.get_task(task_id).prepare_for_execution()
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1230,6 +1230,8 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+        else:
+            task = ti.task
 
         title = "Rendered Template"
         html_dict = {}
