@@ -73,7 +73,7 @@ class _TableConfig:
     warn_if_missing: bool = False
 
     def __lt__(self, other):
-        return self.orm_model.__tablename__ < self.orm_model.__tablename__
+        return self.orm_model.__tablename__ < other.orm_model.__tablename__
 
     @property
     def readable_config(self):
