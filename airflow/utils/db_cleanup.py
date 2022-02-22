@@ -131,7 +131,7 @@ def _print_entities(*, query: "Query", print_rows=False):
     max_rows_to_print = 100
     if num_entities > 0:
         print(f"Printing first {max_rows_to_print} rows.")
-    logger.debug("print entities query: " + str(query))
+    logger.debug("print entities query: %s", query)
     for entry in query.limit(max_rows_to_print):
         print(entry.__dict__)
 
