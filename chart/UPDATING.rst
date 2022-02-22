@@ -35,6 +35,15 @@ assists users migrating to a new version.
 
 Run ``helm repo update`` before upgrading the chart to the latest version.
 
+
+Airflow Helm Chart 1.5.0
+------------------------
+
+Default Airflow image is updated to ``2.2.4``
+"""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.2.4``, previously it was ``2.2.3``.
+
 Airflow Helm Chart 1.4.0
 ------------------------
 
