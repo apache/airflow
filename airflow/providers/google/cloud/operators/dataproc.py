@@ -36,112 +36,23 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataproc import (
+    DATAPROC_BATCH_LINK,
+    DATAPROC_BATCHES_LINK,
+    DATAPROC_CLUSTER_LINK,
+    DATAPROC_JOB_LOG_LINK,
+    DATAPROC_WORKFLOW_LINK,
+    DATAPROC_WORKFLOW_TEMPLATE_LINK,
+    DataprocLink,
+    DataprocListLink,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
-DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{resource}?region={region}&project={project_id}"
-DATAPROC_CLUSTER_LINK = (
-    DATAPROC_BASE_LINK + "/clusters/{resource}/monitoring?region={region}&project={project_id}"
-)
-DATAPROC_WORKFLOW_TEMPLATE_LINK = (
-    DATAPROC_BASE_LINK + "/workflows/templates/{region}/{resource}?project={project_id}"
-)
-DATAPROC_WORKFLOW_LINK = DATAPROC_BASE_LINK + "/workflows/instances/{region}/{resource}?project={project_id}"
-DATAPROC_BATCH_LINK = DATAPROC_BASE_LINK + "/batches/{region}/{resource}/monitoring?project={project_id}"
-DATAPROC_BATCHES_LINK = DATAPROC_BASE_LINK + "/batches?project={project_id}"
-
-
-class DataprocLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc resource link"""
-
-    name = "Dataproc resource"
-    key = "conf"
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance: Union[
-            "DataprocJobBaseOperator",
-            "DataprocSubmitPigJobOperator",
-            "DataprocSubmitJobOperator",
-            "DataprocCreateClusterOperator",
-            "DataprocScaleClusterOperator",
-            "DataprocUpdateClusterOperator",
-            "DataprocCreateWorkflowTemplateOperator",
-            "DataprocInstantiateWorkflowTemplateOperator",
-            "DataprocInstantiateInlineWorkflowTemplateOperator",
-            "DataprocCreateBatchOperator",
-            "DataprocGetBatchOperator",
-        ],
-        url: str,
-        resource: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocLink.key,
-            value={
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-                "url": url,
-                "resource": resource,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            key=DataprocLink.key, dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            conf["url"].format(
-                region=conf["region"], project_id=conf["project_id"], resource=conf["resource"]
-            )
-            if conf
-            else ""
-        )
-
-
-class DataprocListLink(BaseOperatorLink):
-    """Helper class for constructing list of Dataproc resources link"""
-
-    name = "Dataproc resources"
-    key = "list_conf"
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance: "DataprocListBatchesOperator",
-        url: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocListLink.key,
-            value={
-                "project_id": task_instance.project_id,
-                "url": url,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        list_conf = XCom.get_one(
-            key=DataprocListLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return (
-            list_conf["url"].format(
-                project_id=list_conf["project_id"],
-            )
-            if list_conf
-            else ""
-        )
 
 
 class ClusterGenerator:

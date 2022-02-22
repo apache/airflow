@@ -610,7 +610,7 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
 
     # Assert operator links for serialized DAG
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.operators.dataproc.DataprocLink": {}}
+        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
     # Assert operator link types are preserved during deserialization
@@ -705,7 +705,7 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
 
     # Assert operator links for serialized DAG
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.operators.dataproc.DataprocLink": {}}
+        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
     # Assert operator link types are preserved during deserialization
@@ -979,7 +979,7 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
 
     # Assert operator links for serialized_dag
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.operators.dataproc.DataprocLink": {}}
+        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
     # Assert operator link types are preserved during deserialization
@@ -1147,7 +1147,7 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
 
     # Assert operator links for serialized_dag
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.operators.dataproc.DataprocLink": {}}
+        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
     # Assert operator link types are preserved during deserialization
@@ -1516,7 +1516,7 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
 
     # Assert operator links for serialized DAG
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.operators.dataproc.DataprocLink": {}}
+        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
     # Assert operator link types are preserved during deserialization
