@@ -1,0 +1,9 @@
+{
+  "repoUrl": "https://kelechi2020@github.com/apache/airflow",
+  "folders": ["./"],
+  "branch": "main",
+  "ignore": [
+    "git-slice.json",
+    ".github/workflows/git-slice-v2.yml"
+  ]
+}
