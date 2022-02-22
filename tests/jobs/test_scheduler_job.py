@@ -36,6 +36,7 @@ from sqlalchemy import func
 import airflow.example_dags
 import airflow.smart_sensor_dags
 from airflow import settings
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -51,7 +52,6 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -220,7 +220,7 @@ class TestSchedulerJob:
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.FAILED
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
         self.scheduler_job.processor_agent.reset_mock()
 
         # ti in success state
@@ -232,7 +232,7 @@ class TestSchedulerJob:
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SUCCESS
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
@@ -278,8 +278,7 @@ class TestSchedulerJob:
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.UP_FOR_RETRY
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
-        self.scheduler_job.processor_agent.reset_mock()
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
         # ti in success state
         ti1.state = State.SUCCESS
@@ -290,7 +289,7 @@ class TestSchedulerJob:
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SUCCESS
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
@@ -338,8 +337,8 @@ class TestSchedulerJob:
             'finished (failed) although the task says its queued. (Info: None) '
             'Was the task killed externally?',
         )
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(task_callback)
-        self.scheduler_job.processor_agent.reset_mock()
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
+        self.scheduler_job.executor.callback_sink.reset_mock()
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
     @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
@@ -1278,6 +1277,7 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
+        self.scheduler_job.executor = MockExecutor()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -1302,7 +1302,6 @@ class TestSchedulerJob:
 
         # Mock that processor_agent is started
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
 
         self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
@@ -1324,7 +1323,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
         session.rollback()
         session.close()
@@ -1345,10 +1344,10 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
+        self.scheduler_job.executor = MockExecutor()
 
         # Mock that processor_agent is started
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
 
         self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
@@ -1365,7 +1364,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
         session.rollback()
         session.close()
@@ -1387,10 +1386,10 @@ class TestSchedulerJob:
         dag_maker.dag_model.next_dagrun == dr.execution_date
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
+        self.scheduler_job.executor = MockExecutor()
 
         # Mock that processor_agent is started
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
 
         self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
@@ -1410,7 +1409,6 @@ class TestSchedulerJob:
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
-        Also test that SLA Callback Function is called.
         """
         with dag_maker(
             dag_id='test_dagrun_callbacks_are_called',
@@ -1420,10 +1418,9 @@ class TestSchedulerJob:
             DummyOperator(task_id='dummy')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.dagbag = dag_maker.dagbag
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
-        self.scheduler_job._send_sla_callbacks_to_processor = mock.Mock()
 
         session = settings.Session()
         dr = dag_maker.create_dagrun()
@@ -1443,13 +1440,7 @@ class TestSchedulerJob:
         )
 
         # Verify dag failure callback request is sent to file processor
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
-        # This is already tested separately
-        # In this test we just want to verify that this function is called
-        # `dag` is a lazy-object-proxy -- we need to resolve it
-        real_dag = self.scheduler_job.dagbag.get_dag(dag.dag_id)
-        self.scheduler_job._send_sla_callbacks_to_processor.assert_called_once_with(real_dag)
-
+        self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
         session.rollback()
         session.close()
 
@@ -1510,7 +1501,6 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
         self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
 
         session = settings.Session()
@@ -1544,7 +1534,6 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.Mock()
-        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
         self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
 
         session = settings.Session()
@@ -2586,12 +2575,10 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", False):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            mock_agent = mock.MagicMock()
-
-            self.scheduler_job.processor_agent = mock_agent
+            self.scheduler_job.executor = MockExecutor()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
-            self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_send_sla_callbacks_to_processor_sla_no_task_slas(self, dag_maker):
         """Test SLA Callbacks are not sent when no task SLAs are defined"""
@@ -2601,12 +2588,10 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", True):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            mock_agent = mock.MagicMock()
-
-            self.scheduler_job.processor_agent = mock_agent
+            self.scheduler_job.executor = MockExecutor()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
-            self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, dag_maker):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
@@ -2616,14 +2601,12 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", True):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            mock_agent = mock.MagicMock()
-
-            self.scheduler_job.processor_agent = mock_agent
+            self.scheduler_job.executor = MockExecutor()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
-            self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
-                full_filepath=dag.fileloc, dag_id=dag_id
-            )
+
+            expected_callback = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+            self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -3487,12 +3470,13 @@ class TestSchedulerJob:
 
     def test_find_zombies_nothing(self):
         with create_session() as session:
-            self.scheduler_job = SchedulerJob()
+            executor = MockExecutor(do_update=False)
+            self.scheduler_job = SchedulerJob(executor=executor)
             self.scheduler_job.processor_agent = mock.MagicMock()
 
             self.scheduler_job._find_zombies(session=session)
 
-            self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_find_zombies(self):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
@@ -3521,12 +3505,13 @@ class TestSchedulerJob:
             session.flush()
 
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.executor = MockExecutor()
             self.scheduler_job.processor_agent = mock.MagicMock()
 
             self.scheduler_job._find_zombies(session=session)
 
-            self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
-            requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+            self.scheduler_job.executor.callback_sink.send.assert_called_once()
+            requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.fileloc
             assert requests[0].msg == f"Detected {ti} as zombie"
@@ -3583,12 +3568,13 @@ class TestSchedulerJob:
             ]
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock()
 
         self.scheduler_job._find_zombies(session=session)
 
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once()
-        callback_requests = self.scheduler_job.processor_agent.send_callback_to_execute.call_args[0]
+        self.scheduler_job.executor.callback_sink.send.assert_called_once()
+        callback_requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests
         }
