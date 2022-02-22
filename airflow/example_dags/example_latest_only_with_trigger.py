@@ -20,7 +20,9 @@ Example LatestOnlyOperator and TriggerRule interactions
 """
 
 # [START example]
-import datetime as dt
+import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
@@ -29,8 +31,8 @@ from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id='latest_only_with_trigger',
-    schedule_interval=dt.timedelta(hours=4),
-    start_date=dt.datetime(2021, 1, 1),
+    schedule_interval=datetime.timedelta(hours=4),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example3'],
 ) as dag:

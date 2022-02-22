@@ -107,8 +107,7 @@ class LocalTaskJob(BaseJob):
             # Unmap the task _after_ it has forked/execed. (This is a bit of a kludge, but if we unmap before
             # fork, then the "run_raw_task" command will see the mapping index and an Non-mapped task and
             # fail)
-            if self.task_instance.task.is_mapped:
-                self.task_instance.task = self.task_instance.task.unmap()
+            self.task_instance.task = self.task_instance.task.unmap()
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 

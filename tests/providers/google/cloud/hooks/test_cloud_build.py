@@ -23,9 +23,10 @@ functions in CloudBuildHook
 
 
 import unittest
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 PROJECT_ID = "cloud-build-project"
@@ -60,17 +61,11 @@ class TestCloudBuildHook(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @patch(
-        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.client_info",
-        new_callable=PropertyMock,
-    )
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_credentials")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
-    def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.hook._client == result
 

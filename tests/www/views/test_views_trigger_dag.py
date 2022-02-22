@@ -135,6 +135,10 @@ def test_trigger_dag_form(admin_client):
         ("http://google.com", "/home"),
         ("36539'%3balert(1)%2f%2f166", "/home"),
         (
+            '"><script>alert(99)</script><a href="',
+            "&#34;&gt;&lt;script&gt;alert(99)&lt;/script&gt;&lt;a href=&#34;",
+        ),
+        (
             "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
             "/home",
         ),
@@ -146,12 +150,7 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
     test_dag_id = "example_bash_operator"
 
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
-    check_content_in_response(
-        '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
-            expected_origin
-        ),
-        resp,
-    )
+    check_content_in_response(f'<a class="btn" href="{expected_origin}">Cancel</a>', resp)
 
 
 @pytest.mark.parametrize(

@@ -265,7 +265,7 @@ class BackfillJob(BaseJob):
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
                 for node in ti.task.mapped_dependants():
                     assert isinstance(node, MappedOperator)
-                    yield node, ti.run_id, node.expand_mapped_task(ti, session)
+                    yield node, ti.run_id, node.expand_mapped_task(ti.run_id, session=session)
 
     @provide_session
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):

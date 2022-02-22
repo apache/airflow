@@ -19,14 +19,17 @@
 """
 Example DAG demonstrating the usage of labels with different branches.
 """
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.edgemodifier import Label
 
 with DAG(
-    "example_branch_labels", schedule_interval="@daily", start_date=datetime(2021, 1, 1), catchup=False
+    "example_branch_labels",
+    schedule_interval="@daily",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
 ) as dag:
     ingest = DummyOperator(task_id="ingest")
     analyse = DummyOperator(task_id="analyze")

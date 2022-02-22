@@ -48,7 +48,9 @@ from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
+from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
@@ -117,7 +119,10 @@ def encode_timezone(var: Timezone) -> Union[str, int]:
         return var.offset
     if isinstance(var, Timezone):
         return var.name
-    raise ValueError(f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}")
+    raise ValueError(
+        f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}. "
+        f"See {get_docs_url('timezone.html#time-zone-aware-dags')}"
+    )
 
 
 def decode_timezone(var: Union[str, int]) -> Timezone:
@@ -319,6 +324,8 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
             return SerializedDAG.serialize_dag(var)
+        elif isinstance(var, Resources):
+            return var.to_dict()
         elif isinstance(var, MappedOperator):
             return SerializedBaseOperator.serialize_mapped_operator(var)
         elif isinstance(var, BaseOperator):
@@ -593,9 +600,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
             serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
         with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["partial_op_kwargs"]
+            op_kwargs = serialized_op["mapped_op_kwargs"]
             assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["partial_op_kwargs"] = op_kwargs[Encoding.VAR]
+            serialized_op["mapped_op_kwargs"] = op_kwargs[Encoding.VAR]
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -728,6 +735,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
+            elif k == "resources":
+                v = Resources.from_dict(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
@@ -754,7 +763,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
                 if op_kwargs is not None:
                     v["op_kwargs"] = op_kwargs
-            elif k == "partial_op_kwargs":
+            elif k == "mapped_op_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)

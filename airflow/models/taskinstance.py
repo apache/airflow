@@ -122,7 +122,6 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
@@ -355,7 +354,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False)
+    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -423,11 +422,7 @@ class TaskInstance(Base, LoggingMixin):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    # TODO: Investigate TaskInstance's lifecycle and call stack to determine
-    # when self.task is guaranteed to be unmapped, and when it may be mapped.
-    # Add 'assert isinstance(self.task, BaseOperator) to methods accordingly,
-    # and change this to 'task: Operator' instead.
-    task: "BaseOperator"  # Not always set...
+    task: "Operator"  # Not always set...
 
     def __init__(
         self,
@@ -806,7 +801,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
-        self.task = task  # type: ignore[assignment]  # TODO: Fix task: Operator
+        self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
@@ -828,7 +823,7 @@ class TaskInstance(Base, LoggingMixin):
         XCom.clear(
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.execution_date,
+            run_id=self.run_id,
             session=session,
         )
 
@@ -1316,11 +1311,6 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
-        if self.task.is_mapped:
-            raise RuntimeError(
-                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
-                'expanded already!'
-            )
         self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
@@ -1397,7 +1387,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{self.dag_id}.{self.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1424,6 +1414,8 @@ class TaskInstance(Base, LoggingMixin):
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
         with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
+            # Set the validated/merged params on the task object.
+            self.task.params = context['params']
 
             self.render_templates(context=context)
             RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
@@ -1658,12 +1650,12 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
-        task = self.task
-        task_copy = task.prepare_for_execution()
-        self.task = task_copy
+        from airflow.models.baseoperator import BaseOperator
 
+        self.task = self.task.prepare_for_execution()
         self.render_templates()
-        task_copy.dry_run()
+        assert isinstance(self.task, BaseOperator)  # For Mypy.
+        self.task.dry_run()
 
     @provide_session
     def _handle_reschedule(
@@ -1740,9 +1732,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task
-        if task.is_mapped:
-            task = task.unmap()
+        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
@@ -1836,7 +1826,7 @@ class TaskInstance(Base, LoggingMixin):
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        validated_params = task.params = params.validate()
+        validated_params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1990,24 +1980,25 @@ class TaskInstance(Base, LoggingMixin):
         return Context(context)  # type: ignore
 
     @provide_session
-    def get_rendered_template_fields(self, session=NEW_SESSION):
+    def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
         """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
+            task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
-        else:
-            try:
-                self.render_templates()
-            except (TemplateAssertionError, UndefinedError) as e:
-                raise AirflowException(
-                    "Webserver does not have access to User-defined Macros or Filters "
-                    "when Dag Serialization is enabled. Hence for the task that have not yet "
-                    "started running, please use 'airflow tasks render' for debugging the "
-                    "rendering of template_fields."
-                ) from e
+            self.task = task
+        try:
+            self.render_templates()
+        except (TemplateAssertionError, UndefinedError) as e:
+            raise AirflowException(
+                "Webserver does not have access to User-defined Macros or Filters "
+                "when Dag Serialization is enabled. Hence for the task that have not yet "
+                "started running, please use 'airflow tasks render' for debugging the "
+                "rendering of template_fields."
+            ) from e
 
     @provide_session
     def get_rendered_k8s_spec(self, session=NEW_SESSION):
@@ -2029,11 +2020,16 @@ class TaskInstance(Base, LoggingMixin):
             params.update(dag_run.conf)
 
     def render_templates(self, context: Optional[Context] = None) -> None:
-        """Render templates in the operator fields."""
+        """Render templates in the operator fields.
+
+        If the task was originally mapped, this may replace ``self.task`` with
+        the unmapped, fully rendered BaseOperator.
+        """
         if not context:
             context = self.get_template_context()
-
-        self.task.render_template_fields(context)
+        task = self.task.render_template_fields(context)
+        if task is not None:
+            self.task = task
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""

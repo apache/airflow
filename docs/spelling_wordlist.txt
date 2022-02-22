@@ -1060,6 +1060,7 @@ nosasl
 notificationChannels
 npm
 ntlm
+ntpd
 nullable
 num
 oauth
@@ -1255,6 +1256,7 @@ sdk
 secretRef
 secretRefs
 securable
+securecookie
 securestring
 securityManager
 seealso
@@ -1376,6 +1378,7 @@ taskinstance
 taskmixin
 tblproperties
 tcp
+teardown
 templatable
 templateable
 templated

@@ -23,7 +23,6 @@ from unittest import mock
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
-from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
@@ -57,10 +56,6 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         ):
             self.hook = BiqQueryDataTransferServiceHook()
             self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
-
-    def test_version_information(self):
-        expected_version = "airflow_v" + version
-        assert expected_version == self.hook.client_info.client_library_version
 
     def test_disable_auto_scheduling(self):
         expected = deepcopy(TRANSFER_CONFIG)

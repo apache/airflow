@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    PrestoTransferOperator types <operators/transfer/gcs_to_presto>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/presto/index>
@@ -32,6 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/presto/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-presto/>
     Installing from sources <installing-providers-from-sources>
 
