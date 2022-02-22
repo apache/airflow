@@ -1253,18 +1253,18 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         end_date: Optional[datetime] = None,
         session: Session = None,
     ) -> List[TaskInstance]:
-        """
-        Get a set of task instance related to this task for a specific date
-        range.
-        """
+        """Get task instances related to this task for a specific date range."""
+        from airflow.models import DagRun
+
         end_date = end_date or timezone.utcnow()
         return (
             session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
             .filter(TaskInstance.dag_id == self.dag_id)
             .filter(TaskInstance.task_id == self.task_id)
-            .filter(TaskInstance.execution_date >= start_date)
-            .filter(TaskInstance.execution_date <= end_date)
-            .order_by(TaskInstance.execution_date)
+            .filter(DagRun.execution_date >= start_date)
+            .filter(DagRun.execution_date <= end_date)
+            .order_by(DagRun.execution_date)
             .all()
         )
 
