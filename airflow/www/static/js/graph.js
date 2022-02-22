@@ -59,10 +59,8 @@ const stateFocusMap = {
   no_status: false,
 };
 
-const isFinal = () => {
+const checkRunState = () => {
   const states = Object.values(taskInstances).map((ti) => ti.state);
-
-  // end refresh if all states are final
   return !states.some((state) => (
     ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1));
 };
@@ -375,7 +373,8 @@ function handleRefresh() {
           updateNodesStates(taskInstances);
 
           // end refresh if all states are final
-          if (isFinal()) {
+          const isFinal = checkRunState();
+          if (isFinal) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
           }
@@ -418,7 +417,8 @@ $('#auto_refresh').change(() => {
 
 function initRefresh() {
   const isDisabled = localStorage.getItem('disableAutoRefresh');
-  $('#auto_refresh').prop('checked', !(isDisabled || isFinal()));
+  const isFinal = checkRunState();
+  $('#auto_refresh').prop('checked', !(isDisabled || isFinal));
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }
@@ -477,15 +477,15 @@ function groupTooltip(node, tis) {
 // Initiating the tooltips
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
-    const node = g.node(nodeId);
-    const { elem } = node;
-    const taskId = nodeId;
+    const { elem } = g.node(nodeId);
 
     if (elem) {
       const classes = `node enter ${getNodeState(nodeId, tis)}`;
       elem.setAttribute('class', classes);
       elem.setAttribute('data-toggle', 'tooltip');
 
+      const taskId = nodeId;
+      const node = g.node(nodeId);
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
