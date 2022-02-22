@@ -81,7 +81,7 @@ def upgrade():
     replace the existing XCom table.
     """
     conn = op.get_bind()
-    is_sqlite = bool(conn.dialect.name == "sqlite")
+    is_sqlite = conn.dialect.name == "sqlite"
 
     op.create_table("__airflow_tmp_xcom", *_get_new_xcom_columns())
 
