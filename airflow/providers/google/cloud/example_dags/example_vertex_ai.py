@@ -75,6 +75,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
     ListEndpointsOperator,
     UndeployModelOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
+    CreateHyperparameterTuningJobOperator,
+    DeleteHyperparameterTuningJobOperator,
+    GetHyperparameterTuningJobOperator,
+    ListHyperparameterTuningJobOperator,
+)
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -603,3 +609,76 @@ with models.DAG(
 
     create_endpoint >> deploy_model >> undeploy_model >> delete_endpoint
     list_endpoints
+
+with models.DAG(
+    "example_gcp_vertex_ai_hyperparameter_tuning_job",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as hyperparameter_tuning_job_dag:
+    # [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
+    create_hyperparameter_tuning_job = CreateHyperparameterTuningJobOperator(
+        task_id="create_hyperparameter_tuning_job",
+        staging_bucket=STAGING_BUCKET,
+        display_name=f"horses-humans-hyptertune-{DISPLAY_NAME}",
+        worker_pool_specs=[
+            {
+                "machine_spec": {
+                    "machine_type": MACHINE_TYPE,
+                    "accelerator_type": ACCELERATOR_TYPE,
+                    "accelerator_count": ACCELERATOR_COUNT,
+                },
+                "replica_count": REPLICA_COUNT,
+                "container_spec": {
+                    "image_uri": f"gcr.io/{PROJECT_ID}/horse-human:hypertune",
+                },
+            }
+        ],
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+        parameter_spec={
+            'learning_rate': aiplatform.hyperparameter_tuning.DoubleParameterSpec(
+                min=0.01, max=1, scale='log'
+            ),
+            'momentum': aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale='linear'),
+            'num_neurons': aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
+                values=[64, 128, 512], scale='linear'
+            ),
+        },
+        metric_spec={
+            'accuracy': 'maximize',
+        },
+        max_trial_count=15,
+        parallel_trial_count=3,
+    )
+    # [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
+
+    # [START how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
+    get_hyperparameter_tuning_job = GetHyperparameterTuningJobOperator(
+        task_id="get_hyperparameter_tuning_job",
+        project_id=PROJECT_ID,
+        region=REGION,
+        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+    )
+    # [END how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
+    delete_hyperparameter_tuning_job = DeleteHyperparameterTuningJobOperator(
+        task_id="delete_hyperparameter_tuning_job",
+        project_id=PROJECT_ID,
+        region=REGION,
+        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+    )
+    # [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
+
+    # [START how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
+    list_hyperparameter_tuning_job = ListHyperparameterTuningJobOperator(
+        task_id="list_hyperparameter_tuning_job",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
+
+    create_hyperparameter_tuning_job >> get_hyperparameter_tuning_job >> delete_hyperparameter_tuning_job
+    list_hyperparameter_tuning_job

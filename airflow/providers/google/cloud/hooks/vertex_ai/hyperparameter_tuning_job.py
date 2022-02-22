@@ -114,6 +114,11 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             staging_bucket=staging_bucket,
         )
 
+    @staticmethod
+    def extract_hyperparameter_tuning_job_id(obj: Dict) -> str:
+        """Returns unique id of the hyperparameter_tuning_job."""
+        return obj["name"].rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -158,7 +163,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         tensorboard: Optional[str] = None,
         sync: bool = True,
         # END: run param
-    ) -> None:
+    ) -> HyperparameterTuningJob:
         """
         Create a HyperparameterTuningJob.
 
@@ -279,6 +284,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             sync=sync,
         )
         self._hyperparameter_tuning_job.wait()
+        return self._hyperparameter_tuning_job
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_hyperparameter_tuning_job(

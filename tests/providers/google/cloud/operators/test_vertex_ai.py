@@ -56,6 +56,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
     ListEndpointsOperator,
     UndeployModelOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
+    CreateHyperparameterTuningJobOperator,
+    DeleteHyperparameterTuningJobOperator,
+    GetHyperparameterTuningJobOperator,
+    ListHyperparameterTuningJobOperator,
+)
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 TIMEOUT = 120
@@ -144,6 +150,7 @@ TEST_DEPLOYED_MODEL = {
     },
 }
 TEST_DEPLOYED_MODEL_ID = "test_deployed_model_id"
+TEST_HYPERPARAMETER_TUNING_JOB_ID = "test_hyperparameter_tuning_job_id"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -1267,6 +1274,151 @@ class TestVertexAIUndeployModelOperator:
             endpoint=TEST_ENDPOINT_ID,
             deployed_model_id=TEST_DEPLOYED_MODEL_ID,
             traffic_split=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAICreateHyperparameterTuningJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = CreateHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            worker_pool_specs=[],
+            sync=False,
+            parameter_spec={},
+            metric_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.create_hyperparameter_tuning_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            metric_spec={},
+            parameter_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+            worker_pool_specs=[],
+            base_output_dir=None,
+            custom_job_labels=None,
+            custom_job_encryption_spec_key_name=None,
+            staging_bucket=STAGING_BUCKET,
+            max_failed_trial_count=0,
+            search_algorithm=None,
+            measurement_selection="best",
+            hyperparameter_tuning_job_labels=None,
+            hyperparameter_tuning_job_encryption_spec_key_name=None,
+            service_account=None,
+            network=None,
+            timeout=None,
+            restart_job_on_worker_restart=False,
+            enable_web_access=False,
+            tensorboard=None,
+            sync=False,
+        )
+
+
+class TestVertexAIGetHyperparameterTuningJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = GetHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            hyperparameter_tuning_job_id=TEST_HYPERPARAMETER_TUNING_JOB_ID,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.get_hyperparameter_tuning_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestVertexAIDeleteHyperparameterTuningJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            hyperparameter_tuning_job_id=TEST_HYPERPARAMETER_TUNING_JOB_ID,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.delete_hyperparameter_tuning_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestVertexAIListHyperparameterTuningJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_execute(self, mock_hook):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+
+        op = ListHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.list_hyperparameter_tuning_jobs.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            read_mask=read_mask,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

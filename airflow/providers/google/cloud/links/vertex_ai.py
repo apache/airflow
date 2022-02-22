@@ -26,11 +26,17 @@ VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
 )
+VERTEX_AI_TRAINING_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{region}/training/{training_id}/cpu?project={project_id}"
+)
 VERTEX_AI_TRAINING_PIPELINES_LINK = VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
 VERTEX_AI_DATASET_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/datasets/{dataset_id}/analyze?project={project_id}"
 )
 VERTEX_AI_DATASET_LIST_LINK = VERTEX_AI_BASE_LINK + "/datasets?project={project_id}"
+VERTEX_AI_HYPERPARAMETER_TUNING_JOB_LIST_LINK = (
+    VERTEX_AI_BASE_LINK + "/training/hyperparameter-tuning-jobs?project={project_id}"
+)
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -51,6 +57,30 @@ class VertexAIModelLink(BaseGoogleLink):
             key=VertexAIModelLink.key,
             value={
                 "model_id": model_id,
+                "region": task_instance.region,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAITrainingLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Training link"""
+
+    name = "Vertex AI Training"
+    key = "training_conf"
+    format_str = VERTEX_AI_TRAINING_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+        training_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAITrainingLink.key,
+            value={
+                "training_id": training_id,
                 "region": task_instance.region,
                 "project_id": task_instance.project_id,
             },
@@ -113,6 +143,27 @@ class VertexAIDatasetListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=VertexAIDatasetListLink.key,
+            value={
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI HyperparameterTuningJobs Link"""
+
+    name = "Hyperparameter Tuning Job List"
+    key = "hyperparameter_tuning_jobs_conf"
+    format_str = VERTEX_AI_HYPERPARAMETER_TUNING_JOB_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIHyperparameterTuningJobListLink.key,
             value={
                 "project_id": task_instance.project_id,
             },

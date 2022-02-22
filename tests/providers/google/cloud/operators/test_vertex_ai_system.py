@@ -51,3 +51,7 @@ class VertexAIExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def test_run_endpoint_example_dag(self):
         self.run_dag(dag_id="example_gcp_vertex_ai_endpoint", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_hyperparameter_tuning_job_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_hyperparameter_tuning_job", dag_folder=CLOUD_DAG_FOLDER)
