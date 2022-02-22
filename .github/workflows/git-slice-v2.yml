@@ -1,0 +1,81 @@
+name: GitSlice v2 CI
+
+on: 
+  push:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      commitMessage:
+        description: 'Commit message for the client?'
+        required: true
+      overide:
+        description: 'Overide pervious push (force push)? (false/true)'
+        default: 'false'
+        required: false
+      branch:
+        description: 'Which branch should be pushed to the client?'
+        required: true
+      pushPr:
+        description: 'Create a PR with the same title and body on the client side? (false/true)'
+        required: false
+
+env:
+  GIT_SLICE_DEFAULT_BRANCH: ${{ secrets.SLICE_DEFAULT_BRANCH }}
+  UPSTREAM_GIT_USERNAME: ${{ secrets.USERNAME }}
+  SLICE_GIT_USERNAME: ${{ secrets.USERNAME }}
+  SLICE_GIT_EMAIL: ${{ secrets.EMAIL }}
+  UPSTREAM_GIT_TOKEN: ${{ secrets.PASSWORD }}
+
+jobs:
+  gitslice-pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Git Slice Pull
+        uses: GitStartHQ/actions/GitSlicePull@git-slice
+        with:
+          upstream_git_email: gitstart@users.noreply.github.com
+          upstream_git_username: ${{ env.UPSTREAM_GIT_USERNAME }}
+          upstream_git_token: ${{ env.UPSTREAM_GIT_TOKEN }}
+          slice_default_branch: ${{ env.GIT_SLICE_DEFAULT_BRANCH }}
+  gitslice-push:
+    needs: gitslice-pull
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITSLICE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --global user.email ${{ env.SLICE_GIT_EMAIL }}
+          git config --global user.name  ${{ env.SLICE_GIT_USERNAME }}
+          git config --global pull.rebase true
+          
+      - name: Merge main/master
+        run: |
+          git fetch -f
+          git branch
+          git checkout ${{ github.event.inputs.branch }}
+          git pull origin ${{ github.event.inputs.branch }}
+          git merge origin/${{ env.GIT_SLICE_DEFAULT_BRANCH }}
+          git push origin ${{ github.event.inputs.branch }}
+          git status
+             
+      - name: Git Slice Push
+        uses: GitStartHQ/actions/GitSlicePush@git-slice
+        with:
+          upstream_git_email: gitstart@users.noreply.github.com
+          upstream_git_username: ${{ env.UPSTREAM_GIT_USERNAME }}
+          upstream_git_token: ${{ env.UPSTREAM_GIT_TOKEN }}
+          slice_default_branch: ${{ env.GIT_SLICE_DEFAULT_BRANCH }}
+          custom_commit_message: ${{ github.event.inputs.commitMessage }}
+          slice_branch_to_push: ${{ github.event.inputs.branch }}
+          push_pr: ${{ github.event.inputs.pushPr }}
+          overide_previous_push: ${{ github.event.inputs.overide }}
