@@ -2496,6 +2496,10 @@ components:
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
           nullable: true
+        rendered_fields:
+          type: object
+          description: |
+            JSON object describing rendered fields.
 
     TaskInstanceCollection:
       type: object
