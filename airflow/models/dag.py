@@ -572,7 +572,9 @@ class DAG(LoggingMixin):
             warnings.warn(message, category=DeprecationWarning, stacklevel=2)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return utils_date_range(start_date=start_date, num=num, delta=self.normalized_schedule_interval)
+                return utils_date_range(
+                    start_date=start_date, num=num, delta=self.normalized_schedule_interval
+                )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
         if end_date is None:
