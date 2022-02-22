@@ -20,7 +20,6 @@
 # Allowed values for the commands & flags used
 # The values here should be synchronized with the ones in
 # the ./scripts/ci/libraries/_initialization.sh and it is verified
-# by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
 _breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
@@ -79,8 +78,6 @@ airflow-providers-available
 airflow-provider-yaml-files-ok
 autoflake
 base-operator
-bats-tests
-bats-in-container-tests
 black
 blacken-docs
 boring-cyborg
@@ -100,6 +97,7 @@ check-xml
 daysago-import-check
 debug-statements
 detect-private-key
+docstring-params
 doctoc
 dont-use-safe-filter
 end-of-file-fixer

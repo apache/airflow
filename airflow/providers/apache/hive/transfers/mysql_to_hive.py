@@ -70,6 +70,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'mysql'}
     ui_color = '#a0e08c'
 
     def __init__(

@@ -43,7 +43,7 @@ How package/modules loading in Python works
 
 The list of directories from which Python tries to load the module is given
 by the variable ``sys.path``. Python really tries to
-`intelligently determine the contents of <https://stackoverflow.com/a/38403654>`_
+`intelligently determine the contents <https://stackoverflow.com/a/38403654>`_
 of this variable, including depending on the operating system and how Python
 is installed and which Python version is used.
 
@@ -240,7 +240,7 @@ Below is the sample output of the ``airflow info`` command:
 
     Paths info
     airflow_home    | /root/airflow
-    system_path     | /opt/bats/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    system_path     | /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/
                     | local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/files/dags:/root/airflow/conf
                     | ig:/root/airflow/plugins

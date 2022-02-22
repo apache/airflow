@@ -113,9 +113,9 @@ def _get_ti(
 ) -> TaskInstance:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     if task.is_mapped:
-        if map_index == -1:
+        if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
-    elif map_index != -1:
+    elif map_index >= 0:
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run = _get_dag_run(
         dag=task.dag,
@@ -317,11 +317,11 @@ def task_run(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
+    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
     # behind multiple open sleeping connections while heartbeating, which could
     # easily exceed the database connection limit when
     # processing hundreds of simultaneous tasks.
-    settings.configure_orm(disable_connection_pool=True)
+    settings.reconfigure_orm(disable_connection_pool=True)
 
     if args.pickle:
         print(f'Loading pickle id: {args.pickle}')

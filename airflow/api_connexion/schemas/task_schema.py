@@ -26,7 +26,7 @@ from airflow.api_connexion.schemas.common_schema import (
     WeightRuleField,
 )
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.operator import Operator
 
 
 class TaskSchema(Schema):
@@ -73,7 +73,7 @@ class TaskSchema(Schema):
 class TaskCollection(NamedTuple):
     """List of Tasks with metadata"""
 
-    tasks: List[BaseOperator]
+    tasks: List[Operator]
     total_entries: int
 
 

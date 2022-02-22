@@ -253,7 +253,7 @@ function breeze::initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/scripts/tools/confirm" "Proceeding with the initialization"
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
@@ -329,7 +329,7 @@ function breeze::initialize_virtualenv() {
 function breeze::setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo
-    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/scripts/tools/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
@@ -1097,6 +1097,11 @@ function breeze::parse_arguments() {
             echo "Install MsSQL client: ${INSTALL_MSSQL_CLIENT}"
             shift
             ;;
+        --disable-postgres-client-installation)
+            export INSTALL_POSTGRES_CLIENT="false"
+            echo "Install Postgres client: ${INSTALL_POSTGRES_CLIENT}"
+            shift
+            ;;
         --constraints-location)
             export AIRFLOW_CONSTRAINTS_LOCATION="${2}"
             echo "Constraints location: ${AIRFLOW_CONSTRAINTS_LOCATION}"
@@ -1142,7 +1147,6 @@ function breeze::parse_arguments() {
             echo "behaviour as in the CI environment."
             echo
             export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
-            export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
             export SKIP_BUILDING_PROD_IMAGE="true"
             export SKIP_CHECK_REMOTE_IMAGE="true"
@@ -3604,8 +3608,6 @@ set +u
 breeze::parse_arguments "${@}"
 
 breeze::print_header_line
-
-build_images::forget_last_answer
 
 breeze::check_and_save_all_params
 

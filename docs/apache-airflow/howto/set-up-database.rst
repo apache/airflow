@@ -169,6 +169,24 @@ the database configuration to load your change. See
 `The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
 in the Postgres documentation to learn more.
 
+.. warning::
+
+   When you use SQLAlchemy 1.4.0+, you need ot use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
+   SQLAlchemy 1.4.0+ results in:
+
+   .. code-block::
+
+      >       raise exc.NoSuchModuleError(
+                  "Can't load plugin: %s:%s" % (self.group, name)
+              )
+      E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+
+   If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+   1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
+
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
 .. code-block:: text

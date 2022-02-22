@@ -81,7 +81,6 @@ labelPRBasedOnFilePath:
     - Dockerfile.ci
     - BREEZE.rst
     - breeze-complete
-    - confirm
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -252,4 +251,3 @@ checkUpToDate:
     - airflow/migrations/*
     - airflow/migrations/**/*
     - airflow/alembic.ini
-    - airflow/**/*.py

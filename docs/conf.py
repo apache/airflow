@@ -583,7 +583,7 @@ autodoc_mock_imports = [
     'tenacity',
     'vertica_python',
     'winrm',
-    'zdesk',
+    'zenpy',
 ]
 
 # The default options for autodoc directives. They are applied to all autodoc directives automatically.

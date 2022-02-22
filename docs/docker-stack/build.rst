@@ -537,12 +537,20 @@ described below but here is an example of rather complex command to customize th
 based on example in `this comment <https://github.com/apache/airflow/issues/8605#issuecomment-690065621>`_:
 
 In case you need to use your custom PyPI package indexes, you can also customize PYPI sources used during
-image build by adding a ``docker-context-files``/``pip.conf`` file when building the image.
+image build by adding a ``docker-context-files/pip.conf`` file when building the image.
 This ``pip.conf`` will not be committed to the repository (it is added to ``.gitignore``) and it will not be
 present in the final production image. It is added and used only in the build segment of the image.
 Therefore this ``pip.conf`` file can safely contain list of package indexes you want to use,
 usernames and passwords used for authentication. More details about ``pip.conf`` file can be found in the
 `pip configuration <https://pip.pypa.io/en/stable/topics/configuration/>`_.
+
+If you used the ``.piprc`` before (some older versions of ``pip`` used it for customization), you can put it
+in the ``docker-context-files/.piprc`` file and it will be automatically copied to ``HOME`` directory
+of the ``airflow`` user.
+
+Note, that those customizations are only available in the ``build`` segment of the Airflow image and they
+are not present in the ``final`` image. If you wish to extend the final image and add custom ``.piprc`` and
+``pip.conf``, you should add them in your own Dockerfile used to extend the Airflow image.
 
 Such customizations are independent of the way how airflow is installed.
 
@@ -625,6 +633,8 @@ where you can build the image using the packages downloaded by passing those bui
   client from the Oracle repositories.
 * (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
   client from the Microsoft repositories.
+* (Optional) ``INSTALL_POSTGRES_CLIENT="false"`` if you do not want to install ``Postgres``
+  client from the Postgres repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.

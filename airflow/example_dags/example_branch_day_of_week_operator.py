@@ -19,7 +19,7 @@
 """
 Example DAG demonstrating the usage of BranchDayOfWeekOperator.
 """
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
@@ -27,7 +27,7 @@ from airflow.operators.weekday import BranchDayOfWeekOperator
 
 with DAG(
     dag_id="example_weekday_branch_operator",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
     schedule_interval="@daily",

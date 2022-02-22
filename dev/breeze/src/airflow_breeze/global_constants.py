@@ -24,7 +24,6 @@ AIRFLOW_SOURCES = ""
 FORCE_PULL_IMAGES = False
 CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
 FORCE_BUILD_IMAGES = False
-# LAST_FORCE_ANSWER_FILE = f"{BUILD_CACHE_DIR}/last_force_answer.sh"
 FORCE_ANSWER_TO_QUESTION = ""
 SKIP_CHECK_REMOTE_IMAGE = False
 PUSH_PYTHON_BASE_IMAGE = False
@@ -40,12 +39,9 @@ ALLOWED_STATIC_CHECKS = [
     "airflow-providers-available",
     "airflow-provider-yaml-files-ok",
     "base-operator",
-    "bats-tests",
-    "bats-in-container-tests",
     "black",
     "blacken-docs",
     "boring-cyborg",
-    "build",
     "build-providers-dependencies",
     "chart-schema-lint",
     "capitalized-breeze",
@@ -206,3 +202,6 @@ def get_available_packages() -> List[str]:
     docs_path_content = Path(get_airflow_sources_root(), 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
     return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+
+
+EXTRA_STATIC_CHECK_OPTIONS = "--show-diff-on-failure"

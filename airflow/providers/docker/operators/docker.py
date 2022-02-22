@@ -35,6 +35,15 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def stringify(line: Union[str, bytes]):
+    """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
+    decode_method = getattr(line, 'decode', None)
+    if decode_method:
+        return decode_method(encoding='utf-8', errors='surrogateescape')
+    else:
+        return line
+
+
 class DockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
@@ -222,7 +231,7 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config(),
         )
 
-    def _run_image(self) -> Optional[str]:
+    def _run_image(self) -> Optional[Union[List[str], str]]:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
@@ -245,7 +254,9 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> Optional[str]:
+    def _run_image_with_mounts(
+        self, target_mounts, add_tmp_variable: bool
+    ) -> Optional[Union[List[str], str]]:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
@@ -275,32 +286,40 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
-        lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container['Id'])
 
-            line = ''
-            res_lines = []
-            return_value = None
-            for line in lines:
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                line = line.strip()
-                res_lines.append(line)
-                self.log.info(line)
+            log_lines = []
+            for log_chunk in logstream:
+                log_chunk = stringify(log_chunk).strip()
+                log_lines.append(log_chunk)
+                self.log.info("%s", log_chunk)
+
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                res_lines = "\n".join(res_lines)
-                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-            if self.retrieve_output and not return_value:
-                return_value = self._attempt_to_retrieve_result()
-            ret = None
+                joined_log_lines = "\n".join(log_lines)
+                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
+
             if self.retrieve_output:
-                ret = return_value
+                return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                ret = self._get_return_value_from_logs(res_lines, line)
-            return ret
+                log_parameters = {
+                    'container': self.container['Id'],
+                    'stdout': True,
+                    'stderr': True,
+                    'stream': True,
+                }
+                try:
+                    if self.xcom_all:
+                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                    else:
+                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
+                        return lines[-1] if lines else None
+                except StopIteration:
+                    # handle the case when there is not a single line to iterate on
+                    return None
+            return None
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])
@@ -326,13 +345,9 @@ class DockerOperator(BaseOperator):
             return lib.loads(file.read())
 
         try:
-            return_value = copy_from_docker(self.container['Id'], self.retrieve_output_path)
-            return return_value
+            return copy_from_docker(self.container['Id'], self.retrieve_output_path)
         except APIError:
             return None
-
-    def _get_return_value_from_logs(self, res_lines, line):
-        return res_lines if self.xcom_all else line
 
     def execute(self, context: 'Context') -> Optional[str]:
         self.cli = self._get_cli()

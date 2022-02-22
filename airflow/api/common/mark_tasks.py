@@ -27,6 +27,7 @@ from sqlalchemy.orm.session import Session as SASession
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import Operator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
@@ -78,7 +79,7 @@ def _create_dagruns(
 @provide_session
 def set_state(
     *,
-    tasks: Iterable[BaseOperator],
+    tasks: Iterable[Operator],
     dag_run_id: Optional[str] = None,
     execution_date: Optional[datetime] = None,
     upstream: bool = False,
@@ -242,7 +243,7 @@ def verify_dagruns(
     commit: bool,
     state: DagRunState,
     session: SASession,
-    current_task: BaseOperator,
+    current_task: Operator,
 ):
     """Verifies integrity of dag_runs.
 
@@ -485,6 +486,7 @@ def set_dag_run_state_to_running(
 
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking
+    :param run_id: the id of the DagRun
     :param commit: commit DAG and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,

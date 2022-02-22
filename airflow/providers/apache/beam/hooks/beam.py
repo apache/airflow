@@ -17,6 +17,7 @@
 # under the License.
 """This module contains a Apache Beam Hook."""
 import json
+import os
 import select
 import shlex
 import subprocess
@@ -26,6 +27,7 @@ from typing import Callable, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.google.go_module_utils import init_module, install_dependencies
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
@@ -80,12 +82,14 @@ class BeamCommandRunner(LoggingMixin):
     :param cmd: Parts of the command to be run in subprocess
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id
+    :param working_directory: Working directory
     """
 
     def __init__(
         self,
         cmd: List[str],
         process_line_callback: Optional[Callable[[str], None]] = None,
+        working_directory: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
@@ -94,6 +98,7 @@ class BeamCommandRunner(LoggingMixin):
 
         self._proc = subprocess.Popen(
             cmd,
+            cwd=working_directory,
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -169,6 +174,7 @@ class BeamHook(BaseHook):
         variables: dict,
         command_prefix: List[str],
         process_line_callback: Optional[Callable[[str], None]] = None,
+        working_directory: Optional[str] = None,
     ) -> None:
         cmd = command_prefix + [
             f"--runner={self.runner}",
@@ -178,6 +184,7 @@ class BeamHook(BaseHook):
         cmd_runner = BeamCommandRunner(
             cmd=cmd,
             process_line_callback=process_line_callback,
+            working_directory=working_directory,
         )
         cmd_runner.wait_for_done()
 
@@ -195,6 +202,7 @@ class BeamHook(BaseHook):
         Starts Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
+        :param py_file: Path to the python file to execute.
         :param py_options: Additional options.
         :param py_interpreter: Python version of the Apache Beam pipeline.
             If None, this defaults to the python3.
@@ -210,7 +218,8 @@ class BeamHook(BaseHook):
             See virtualenv documentation for more information.
 
             This option is only relevant if the ``py_requirements`` parameter is not None.
-        :param on_new_job_id_callback: Callback called when the job ID is known.
+        :param process_line_callback: (optional) Callback that can be used to process each line of
+            the stdout and stderr file descriptors.
         """
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
@@ -265,6 +274,8 @@ class BeamHook(BaseHook):
         :param variables: Variables passed to the job.
         :param jar: Name of the jar for the pipeline
         :param job_class: Name of the java class for the pipeline.
+        :param process_line_callback: (optional) Callback that can be used to process each line of
+            the stdout and stderr file descriptors.
         """
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
@@ -274,4 +285,42 @@ class BeamHook(BaseHook):
             variables=variables,
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
+        )
+
+    def start_go_pipeline(
+        self,
+        variables: dict,
+        go_file: str,
+        process_line_callback: Optional[Callable[[str], None]] = None,
+        should_init_module: bool = False,
+    ) -> None:
+        """
+        Starts Apache Beam Go pipeline.
+
+        :param variables: Variables passed to the job.
+        :param go_file: Path to the Go file with your beam pipeline.
+        :param go_file:
+        :param process_line_callback: (optional) Callback that can be used to process each line of
+            the stdout and stderr file descriptors.
+        :param should_init_module: If False (default), will just execute a `go run` command. If True, will
+            init a module and dependencies with a ``go mod init`` and ``go mod tidy``, useful when pulling
+            source with GCSHook.
+        :return:
+        """
+        if "labels" in variables:
+            variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
+
+        working_directory = os.path.dirname(go_file)
+        basename = os.path.basename(go_file)
+
+        if should_init_module:
+            init_module("main", working_directory)
+            install_dependencies(working_directory)
+
+        command_prefix = ["go", "run", basename]
+        self._start_pipeline(
+            variables=variables,
+            command_prefix=command_prefix,
+            process_line_callback=process_line_callback,
+            working_directory=working_directory,
         )

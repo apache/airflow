@@ -36,6 +36,7 @@ RUN DOWNLOAD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/goo
        --additional-components alpha beta kubectl \
        --quiet \
     && rm -rf "${TMP_DIR}" \
+    && rm -rf "${GCLOUD_HOME}/.install/.backup/" \
     && gcloud --version
 
 USER ${AIRFLOW_UID}

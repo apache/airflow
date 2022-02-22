@@ -29,6 +29,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
 )
 from googleapiclient.discovery import Resource
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -95,7 +96,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(
-                credentials=self._get_credentials(), client_info=self.client_info
+                credentials=self._get_credentials(), client_info=CLIENT_INFO
             )
         return self._conn
 
@@ -260,7 +261,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         if self.location:
             project = f"{project}/locations/{self.location}"
 
-        name = "f{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
+        name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
             request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )

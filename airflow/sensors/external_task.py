@@ -40,6 +40,8 @@ class ExternalTaskSensorLink(BaseOperatorLink):
     name = 'External DAG'
 
     def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        operator.render_template_fields(ti.get_template_context())
         query = {"dag_id": operator.external_dag_id, "execution_date": dttm.isoformat()}
         return build_airflow_url_with_query(query)
 
@@ -215,6 +217,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         TI = TaskInstance
         DR = DagRun
+        if not dttm_filter:
+            return 0
+
         if self.external_task_ids:
             count = (
                 session.query(func.count())  # .count() is inefficient

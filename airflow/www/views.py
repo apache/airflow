@@ -491,6 +491,31 @@ def dag_edges(dag):
     return result
 
 
+def get_task_stats_from_query(qry):
+    """
+    Return a dict of the task quantity, grouped by dag id and task status.
+
+    :param qry: The data in the format (<dag id>, <task state>, <is dag running>, <task count>),
+        ordered by <dag id> and <is dag running>
+    """
+    data = {}
+    last_dag_id = None
+    has_running_dags = False
+    for dag_id, state, is_dag_running, count in qry:
+        if last_dag_id != dag_id:
+            last_dag_id = dag_id
+            has_running_dags = False
+        elif not is_dag_running and has_running_dags:
+            continue
+
+        if is_dag_running:
+            has_running_dags = True
+        if dag_id not in data:
+            data[dag_id] = {}
+        data[dag_id][state] = count
+    return data
+
+
 ######################################################################################
 #                                    Error handlers
 ######################################################################################
@@ -714,8 +739,7 @@ class Airflow(AirflowBaseView):
                 .limit(dags_per_page)
                 .all()
             )
-
-            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
+            user_permissions = g.user.perms
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
                 permissions.ACTION_CAN_CREATE,
@@ -923,7 +947,9 @@ class Airflow(AirflowBaseView):
 
         # Select all task_instances from active dag_runs.
         running_task_instance_query_result = session.query(
-            TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state')
+            TaskInstance.dag_id.label('dag_id'),
+            TaskInstance.state.label('state'),
+            sqla.literal(True).label('is_dag_running'),
         ).join(
             running_dag_run_query_result,
             and_(
@@ -947,7 +973,11 @@ class Airflow(AirflowBaseView):
             # Select all task_instances from active dag_runs.
             # If no dag_run is active, return task instances from most recent dag_run.
             last_task_instance_query_result = (
-                session.query(TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state'))
+                session.query(
+                    TaskInstance.dag_id.label('dag_id'),
+                    TaskInstance.state.label('state'),
+                    sqla.literal(False).label('is_dag_running'),
+                )
                 .join(TaskInstance.dag_run)
                 .join(
                     last_dag_run,
@@ -964,18 +994,25 @@ class Airflow(AirflowBaseView):
         else:
             final_task_instance_query_result = running_task_instance_query_result.subquery('final_ti')
 
-        qry = session.query(
-            final_task_instance_query_result.c.dag_id,
-            final_task_instance_query_result.c.state,
-            sqla.func.count(),
-        ).group_by(final_task_instance_query_result.c.dag_id, final_task_instance_query_result.c.state)
+        qry = (
+            session.query(
+                final_task_instance_query_result.c.dag_id,
+                final_task_instance_query_result.c.state,
+                final_task_instance_query_result.c.is_dag_running,
+                sqla.func.count(),
+            )
+            .group_by(
+                final_task_instance_query_result.c.dag_id,
+                final_task_instance_query_result.c.state,
+                final_task_instance_query_result.c.is_dag_running,
+            )
+            .order_by(
+                final_task_instance_query_result.c.dag_id,
+                final_task_instance_query_result.c.is_dag_running.desc(),
+            )
+        )
 
-        data = {}
-        for dag_id, state, count in qry:
-            if dag_id not in data:
-                data[dag_id] = {}
-            data[dag_id][state] = count
-
+        data = get_task_stats_from_query(qry)
         payload = {}
         for dag_id in filter_dag_ids:
             payload[dag_id] = []
@@ -1054,15 +1091,24 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         ]
     )
+    def legacy_code(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.code', **request.args))
+
+    @expose('/dags/<string:dag_id>/code')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+        ]
+    )
     @provide_session
-    def code(self, session=None):
+    def code(self, dag_id, session=None):
         """Dag Code."""
         all_errors = ""
         dag_orm = None
-        dag_id = None
 
         try:
-            dag_id = request.args.get('dag_id')
             dag_orm = DagModel.get_dagmodel(dag_id, session=session)
             code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
             html_code = Markup(highlight(code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
@@ -1095,10 +1141,20 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         ]
     )
+    def legacy_dag_details(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.dag_details', **request.args))
+
+    @expose('/dags/<string:dag_id>/details')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
     @provide_session
-    def dag_details(self, session=None):
+    def dag_details(self, dag_id, session=None):
         """Get Dag details."""
-        dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -1149,9 +1205,9 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
 
         logging.info("Retrieving rendered templates.")
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = copy.copy(dag.get_task(task_id))
+        task = dag.get_task(task_id).prepare_for_execution()
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1174,6 +1230,8 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+        else:
+            task = ti.task
 
         title = "Rendered Template"
         html_dict = {}
@@ -1377,7 +1435,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+        dttm = timezone.parse(execution_date) if execution_date else None
         form = DateTimeForm(data={'execution_date': dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -1626,12 +1684,11 @@ class Airflow(AirflowBaseView):
         """Runs Task Instance."""
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
+        dag_run_id = request.form.get('dag_run_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
-        execution_date = request.form.get('execution_date')
-        execution_date = timezone.parse(execution_date)
         ignore_all_deps = request.form.get('ignore_all_deps') == "true"
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
@@ -1642,7 +1699,7 @@ class Airflow(AirflowBaseView):
             flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
-        dag_run = dag.get_dagrun(execution_date=execution_date)
+        dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id)
         if not ti:
             flash(
@@ -2302,6 +2359,34 @@ class Airflow(AirflowBaseView):
             State.SUCCESS,
         )
 
+    @expose('/dags/<string:dag_id>')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped
+    @action_logging
+    def dag(self, dag_id):
+        """Redirect to default DAG view."""
+        return redirect(url_for('Airflow.grid', dag_id=dag_id, **request.args))
+
+    @expose('/legacy_tree')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped
+    @action_logging
+    def legacy_tree(self):
+        """Redirect to the replacement - grid view."""
+        return redirect(url_for('Airflow.grid', **request.args))
+
     @expose('/tree')
     @auth.has_access(
         [
@@ -2312,10 +2397,23 @@ class Airflow(AirflowBaseView):
     )
     @gzipped
     @action_logging
+    def tree(self):
+        """Redirect to the replacement - grid view. Kept for backwards compatibility."""
+        return redirect(url_for('Airflow.grid', **request.args))
+
+    @expose('/dags/<string:dag_id>/grid')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped
+    @action_logging
     @provide_session
-    def tree(self, session=None):
-        """Get Dag as tree."""
-        dag_id = request.args.get('dag_id')
+    def grid(self, dag_id, session=None):
+        """Get Dag's grid view."""
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
@@ -2400,8 +2498,21 @@ class Airflow(AirflowBaseView):
     )
     @gzipped
     @action_logging
+    def legacy_calendar(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.calendar', **request.args))
+
+    @expose('/dags/<string:dag_id>/calendar')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @gzipped
+    @action_logging
     @provide_session
-    def calendar(self, session=None):
+    def calendar(self, dag_id, session=None):
         """Get DAG runs as calendar"""
 
         def _convert_to_date(session, column):
@@ -2411,7 +2522,6 @@ class Airflow(AirflowBaseView):
             else:
                 return func.date(column)
 
-        dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
@@ -2477,10 +2587,23 @@ class Airflow(AirflowBaseView):
     )
     @gzipped
     @action_logging
+    def legacy_graph(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.graph', **request.args))
+
+    @expose('/dags/<string:dag_id>/graph')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped
+    @action_logging
     @provide_session
-    def graph(self, session=None):
+    def graph(self, dag_id, session=None):
         """Get DAG as Graph."""
-        dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
@@ -2570,11 +2693,22 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    def legacy_duration(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.duration', **request.args))
+
+    @expose('/dags/<string:dag_id>/duration')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
     @provide_session
-    def duration(self, session=None):
+    def duration(self, dag_id, session=None):
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        dag_id = request.args.get('dag_id')
         dag_model = DagModel.get_dagmodel(dag_id)
 
         dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
@@ -2712,11 +2846,22 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    def legacy_tries(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.tries', **request.args))
+
+    @expose('/dags/<string:dag_id>/tries')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
     @provide_session
-    def tries(self, session=None):
+    def tries(self, dag_id, session=None):
         """Shows all tries."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         base_date = request.args.get('base_date')
@@ -2789,11 +2934,22 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    def legacy_landing_times(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.landing_times', **request.args))
+
+    @expose('/dags/<string:dag_id>/landing-times')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
     @provide_session
-    def landing_times(self, session=None):
+    def landing_times(self, dag_id, session=None):
         """Shows landing times."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        dag_id = request.args.get('dag_id')
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         base_date = request.args.get('base_date')
@@ -2894,10 +3050,21 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    def legacy_gantt(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.gantt', **request.args))
+
+    @expose('/dags/<string:dag_id>/gantt')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
     @provide_session
-    def gantt(self, session=None):
+    def gantt(self, dag_id, session=None):
         """Show GANTT chart."""
-        dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -3136,6 +3303,41 @@ class Airflow(AirflowBaseView):
         """
         return send_from_directory(current_app.static_folder, 'robots.txt')
 
+    @expose('/audit_log')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        ]
+    )
+    @provide_session
+    def audit_log(self, session=None):
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        included_events = conf.get('webserver', 'audit_view_included_events', fallback=None)
+        excluded_events = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
+
+        query = session.query(Log).filter(Log.dag_id == dag_id)
+        if included_events:
+            included_events = {event.strip() for event in included_events.split(',')}
+            query = query.filter(Log.event.in_(included_events))
+        elif excluded_events:
+            excluded_events = {event.strip() for event in excluded_events.split(',')}
+            query = query.filter(Log.event.notin_(excluded_events))
+
+        dag_audit_logs = query.all()
+
+        content = self.render_template(
+            'airflow/dag_audit_log.html',
+            dag=dag,
+            root=request.args.get('root'),
+            dag_id=dag_id,
+            dag_logs=dag_audit_logs,
+            page_size=PAGE_SIZE,
+        )
+        return content
+
 
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
@@ -3216,7 +3418,7 @@ class DagFilter(BaseFilter):
     """Filter using DagIDs"""
 
     def apply(self, query, func):
-        if current_app.appbuilder.sm.has_all_dags_access():
+        if current_app.appbuilder.sm.has_all_dags_access(g.user):
             return query
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
@@ -3355,19 +3557,14 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    label_columns = {
-        'execution_date': 'Logical Date',
-    }
-
-    search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    base_order = ('execution_date', 'desc')
+    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    base_order = ('dagrun_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
@@ -3382,12 +3579,24 @@ class XComModelView(AirflowModelView):
     def pre_add(self, item):
         """Pre add hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
     def pre_update(self, item):
         """Pre update hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
 
 def lazy_add_provider_discovered_options_to_connection_form():
@@ -4035,6 +4244,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'action_set_success': 'edit',
     }
     base_permissions = [
+        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
@@ -4114,6 +4324,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_muldelete(self, items: List[DagRun]):
         """Multiple delete."""
         self.datamodel.delete_all(items)
@@ -4122,12 +4333,14 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_queued', "Set state to 'queued'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_queued(self, drs: List[DagRun]):
         """Set state to queued."""
         return self._set_dag_runs_to_active_state(drs, State.QUEUED)
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_running(self, drs: List[DagRun]):
         """Set state to running."""
         return self._set_dag_runs_to_active_state(drs, State.RUNNING)
@@ -4157,6 +4370,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_set_failed(self, drs: List[DagRun], session=None):
         """Set state to failed."""
         try:
@@ -4181,6 +4395,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_set_success(self, drs: List[DagRun], session=None):
         """Set state to success."""
         try:
@@ -4200,6 +4415,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('clear', "Clear the state", "All task instances would be cleared, are you sure?", single=False)
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_clear(self, drs: List[DagRun], session=None):
         """Clears the state."""
         try:
@@ -4379,6 +4595,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
@@ -4488,6 +4705,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
+    @action_logging
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
@@ -4509,6 +4727,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
@@ -4528,6 +4747,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_running(self, tis):
         """Set state to 'running'"""
         self.set_task_instance_state(tis, State.RUNNING)
@@ -4536,6 +4756,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_failed', "Set state to 'failed'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_failed(self, tis):
         """Set state to 'failed'"""
         self.set_task_instance_state(tis, State.FAILED)
@@ -4544,6 +4765,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_success', "Set state to 'success'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_success(self, tis):
         """Set state to 'success'"""
         self.set_task_instance_state(tis, State.SUCCESS)
@@ -4552,6 +4774,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_retry', "Set state to 'up_for_retry'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
@@ -4560,6 +4783,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     @action('set_skipped', "Set state to 'skipped'", '', single=False)
     @action_has_dag_edit_access
+    @action_logging
     def action_set_skipped(self, tis):
         """Set state to skipped."""
         self.set_task_instance_state(tis, TaskInstanceState.SKIPPED)
@@ -4920,3 +5144,28 @@ class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]

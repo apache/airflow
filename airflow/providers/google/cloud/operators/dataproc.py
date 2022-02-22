@@ -36,8 +36,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.taskinstance import TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
@@ -59,8 +58,9 @@ class DataprocJobLink(BaseOperatorLink):
     name = "Dataproc Job"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_conf = ti.xcom_pull(task_ids=operator.task_id, key="job_conf")
+        job_conf = XCom.get_one(
+            key="job_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             DATAPROC_JOB_LOG_LINK.format(
                 job_id=job_conf["job_id"],
@@ -78,8 +78,9 @@ class DataprocClusterLink(BaseOperatorLink):
     name = "Dataproc Cluster"
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        cluster_conf = ti.xcom_pull(task_ids=operator.task_id, key="cluster_conf")
+        cluster_conf = XCom.get_one(
+            key="cluster_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+        )
         return (
             DATAPROC_CLUSTER_LINK.format(
                 cluster_name=cluster_conf["cluster_name"],
@@ -1230,6 +1231,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         'impersonation_chain',
     )
     template_ext = ('.q',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
 
@@ -2032,12 +2034,12 @@ class DataprocCreateBatchOperator(BaseOperator):
     """
     Creates a batch workload.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-    :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :param batch: Required. The batch to create.
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to. (templated)
+    :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
+    :param batch: Required. The batch to create. (templated)
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
         of the batch's resource name.
-        This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+        This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -2059,6 +2061,7 @@ class DataprocCreateBatchOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         'project_id',
+        'batch',
         'batch_id',
         'region',
         'impersonation_chain',

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 from contextlib import closing
 from copy import deepcopy
@@ -139,7 +138,7 @@ class PostgresHook(DbApiHook):
 
     def get_uri(self) -> str:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
-        uri = super().get_uri()
+        uri = super().get_uri().replace("postgres://", "postgresql://")
         if conn.extra_dejson.get('client_encoding', False):
             charset = conn.extra_dejson["client_encoding"]
             return f"{uri}?client_encoding={charset}"

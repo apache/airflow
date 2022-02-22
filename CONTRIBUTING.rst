@@ -198,7 +198,7 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments/>`__.
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`__.
 
 
 The local env's instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
@@ -609,13 +609,13 @@ apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, a
 apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
 cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
 devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
-http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
-qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
-snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs,
-winrm, yandex, zendesk
+facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
+hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb,
+microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
+openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto,
+qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
+slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv,
+webhdfs, winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -686,6 +686,7 @@ hashicorp                  google
 microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
 postgres                   amazon
+presto                     google
 salesforce                 tableau
 sftp                       ssh
 slack                      http
@@ -1256,10 +1257,24 @@ How to rebase PR
 ================
 
 A lot of people are unfamiliar with the rebase workflow in Git, but we think it is an excellent workflow,
-providing a better alternative to the merge workflow. We've therefore written a short guide for those who would like to learn it.
+providing a better alternative to the merge workflow. We've therefore written a short guide for those who
+would like to learn it.
 
-As opposed to the merge workflow, the rebase workflow allows us to
-clearly separate your changes from the changes of others. It puts the responsibility of rebasing on the
+
+As of February 2022, GitHub introduced the capability of "Update with Rebase" which make it easy to perform
+rebase straight in the GitHub UI, so in cases when there are no conflicts, rebasing to latest version
+of ``main`` can be done very easily following the instructions
+`in the GitHub blog <https://github.blog/changelog/2022-02-03-more-ways-to-keep-your-pull-request-branch-up-to-date/>`_
+
+.. image:: images/rebase.png
+    :align: center
+    :alt: Update PR with rebase
+
+However, when you have conflicts, sometimes you will have to perform rebase manually, and resolve the
+conflicts, and remainder of the section describes how to approach it.
+
+As opposed to the merge workflow, the rebase workflow allows us to clearly separate your changes from the
+changes of others. It puts the responsibility of rebasing on the
 author of the change. It also produces a "single-line" series of commits on the main branch. This
 makes it easier to understand what was going on and to find reasons for problems (it is especially
 useful for "bisecting" when looking for a commit that introduced some bugs).
@@ -1423,7 +1438,7 @@ We are using certain prefixes for email subjects for different purposes. Start y
 Voting is governed by the rules described in `Voting <https://www.apache.org/foundation/voting.html>`_
 
 We are all devoting our time for community as individuals who except for being active in Apache Airflow have
-families, daily jobs, right for vacation. Sometimes we are in different time zones or simply are
+families, daily jobs, right for vacation. Sometimes we are in different timezones or simply are
 busy with day-to-day duties that our response time might be delayed. For us it's crucial
 to remember to respect each other in the project with no formal structure.
 There are no managers, departments, most of us is autonomous in our opinions, decisions.
@@ -1452,23 +1467,21 @@ this is for the sake of maintainability.
 
 Here are a few rules that are important to keep in mind when you enter our community:
 
- * Do not be afraid to ask questions
- * The communication is asynchronous - do not expect immediate answers, ping others on slack
-   (#development channel) if blocked
- * There is a #newbie-questions channel in slack as a safe place to ask questions
- * You can ask one of the committers to be a mentor for you, committers can guide within the community
- * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
- * It’s your responsibility as an author to take your PR from start-to-end including leading communication
-   in the PR
- * It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-   it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
- * Be considerate to the high code quality/test coverage requirements for Apache Airflow
- * If in doubt - ask the community for their opinion or propose to vote at the devlist
- * Discussions should concern subject matters - judge or criticise the merit but never criticise people
- * It’s OK to express your own emotions while communicating - it helps other people to understand you
- * Be considerate for feelings of others. Tell about how you feel not what you think of others
-
-
+* Do not be afraid to ask questions
+* The communication is asynchronous - do not expect immediate answers, ping others on slack
+  (#development channel) if blocked
+* There is a #newbie-questions channel in slack as a safe place to ask questions
+* You can ask one of the committers to be a mentor for you, committers can guide within the community
+* You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+* It’s your responsibility as an author to take your PR from start-to-end including leading communication
+  in the PR
+* It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+  it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+* Be considerate to the high code quality/test coverage requirements for Apache Airflow
+* If in doubt - ask the community for their opinion or propose to vote at the devlist
+* Discussions should concern subject matters - judge or criticise the merit but never criticise people
+* It’s OK to express your own emotions while communicating - it helps other people to understand you
+* Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Commit Policy
 =============

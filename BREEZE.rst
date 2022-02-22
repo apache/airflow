@@ -2183,18 +2183,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
-                 autoflake base-operator bats-tests bats-in-container-tests black blacken-docs
-                 boring-cyborg build build-providers-dependencies chart-schema-lint
-                 capitalized-breeze changelog-duplicates check-apache-license check-builtin-literals
+                 autoflake base-operator black blacken-docs boring-cyborg build
+                 build-providers-dependencies chart-schema-lint capitalized-breeze
+                 changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
-                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
-                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
-                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-changelogs providers-init-file
+                 debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
+                 end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
+                 identity incorrect-use-of-LoggingMixin insert-license isort json-schema
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
+                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
+                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
+                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
                  providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace

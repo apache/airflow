@@ -23,7 +23,7 @@ from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils import timezone
@@ -42,10 +42,10 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def setUp(self):
         self.dag = DAG(
@@ -58,10 +58,10 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self.branch_3 = None
 
     def tearDown(self):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def _assert_task_ids_match_states(self, dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""

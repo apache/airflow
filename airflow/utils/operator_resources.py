@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -50,6 +51,8 @@ class Resource:
         self._qty = qty
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
@@ -72,6 +75,13 @@ class Resource:
         execution of the operator.
         """
         return self._qty
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'qty': self.qty,
+            'units_str': self.units_str,
+        }
 
 
 class CpuResource(Resource):
@@ -126,7 +136,27 @@ class Resources:
         self.gpus = GpuResource(gpus)
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
         return str(self.__dict__)
+
+    def to_dict(self):
+        return {
+            'cpus': self.cpus.to_dict(),
+            'ram': self.ram.to_dict(),
+            'disk': self.disk.to_dict(),
+            'gpus': self.gpus.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, resources_dict: Dict):
+        """Create resources from resources dict"""
+        cpus = resources_dict['cpus']['qty']
+        ram = resources_dict['ram']['qty']
+        disk = resources_dict['disk']['qty']
+        gpus = resources_dict['gpus']['qty']
+
+        return cls(cpus=cpus, ram=ram, disk=disk, gpus=gpus)

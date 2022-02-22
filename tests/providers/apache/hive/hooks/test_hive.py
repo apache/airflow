@@ -456,7 +456,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert self.hook.check_for_partition(self.database, self.table, partition)
 
-        metastore.get_partitions_by_filter(self.database, self.table, partition, 1)
+        metastore.get_partitions_by_filter(
+            self.database, self.table, partition, HiveMetastoreHook.MAX_PART_COUNT
+        )
 
         # Check for non-existent partition.
         missing_partition = f"{self.partition_by}='{self.next_day}'"
@@ -464,7 +466,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert not self.hook.check_for_partition(self.database, self.table, missing_partition)
 
-        metastore.get_partitions_by_filter.assert_called_with(self.database, self.table, missing_partition, 1)
+        metastore.get_partitions_by_filter.assert_called_with(
+            self.database, self.table, missing_partition, HiveMetastoreHook.MAX_PART_COUNT
+        )
 
     def test_check_for_named_partition(self):
 
