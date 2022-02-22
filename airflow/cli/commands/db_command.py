@@ -104,13 +104,6 @@ def check(_):
     db.check()
 
 
-@cli_utils.action_cli(check_db=False)
-def clean(args):
-    """Upgrades the metadata database"""
-    print(f"DB: {settings.engine.url!r}")
-    db.upgradedb()
-
-
 # lazily imported by CLI parser for `help` command
 all_tables = sorted(config_dict)
 
