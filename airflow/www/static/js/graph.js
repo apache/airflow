@@ -82,32 +82,22 @@ const render = dagreD3.render();
 const svg = d3.select('#graph-svg');
 let innerSvg = d3.select('#graph-svg g');
 
-const updateNodes = (node, instances) => {
-  const value = {
-    ...node.value,
-    label: tasks[node.id] && tasks[node.id].is_mapped
-      ? `${node.value.label} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
-      : node.value.label,
-  };
+// We modify the label of task map nodes to include the brackets and a count of mapped tasks
+// returns true if at least one node is changed
+const updateNodeLabels = (node, instances) => {
+  let haveLabelsChanged = false;
+  const label = tasks[node.id] && tasks[node.id].is_mapped
+    ? `${node.id} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
+    : node.value.label;
 
-  if (g.node(node.id)) {
-    g.node(node.id).label = value.label;
+  if (g.node(node.id) && g.node(node.id).label !== label) {
+    g.node(node.id).label = label;
+    haveLabelsChanged = true;
   }
 
-  if (node.children) {
-    return {
-      ...node,
-      value,
-      children: node.children.map((n) => updateNodes(n, instances)),
-    };
-  }
-  return {
-    ...node,
-    value,
-  };
+  if (node.children) return node.children.some((n) => updateNodeLabels(n, instances));
+  return haveLabelsChanged;
 };
-
-let updatedNodes = updateNodes(nodes, taskInstances);
 
 // Remove the node with this nodeId from g.
 function removeNode(nodeId) {
@@ -399,14 +389,15 @@ function handleRefresh() {
           taskInstances = JSON.parse(tis);
           updateNodesStates(taskInstances);
 
+          // Only redraw the graph if labels have changed
+          const haveLabelsChanged = updateNodeLabels(nodes, taskInstances);
+          if (haveLabelsChanged) draw();
+
           // end refresh if all states are final
           const isFinal = checkRunState();
           if (isFinal) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
-            if (JSON.stringify(nodes) !== JSON.stringify(updateNodes)) {
-              draw();
-            }
           }
         }
         prevTis = tis;
@@ -506,7 +497,6 @@ function groupTooltip(node, tis) {
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
 function updateNodesStates(tis) {
-  updatedNodes = updateNodes(nodes, tis);
   g.nodes().forEach((nodeId) => {
     const node = g.node(nodeId);
     const { elem } = node;
@@ -745,12 +735,13 @@ const focusNodeId = localStorage.getItem(focusedGroupKey(dagId));
 const expandedGroups = getSavedGroups(dagId);
 
 // Always expand the root node
-expandGroup(null, updatedNodes);
+expandGroup(null, nodes);
 
 // Expand the node that were previously expanded
-expandSavedGroups(expandedGroups, updatedNodes);
+expandSavedGroups(expandedGroups, nodes);
 
 // Draw once after all groups have been expanded
+updateNodeLabels(nodes, taskInstances);
 draw();
 
 // Restore focus (if available)
