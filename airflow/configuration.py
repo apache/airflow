@@ -303,12 +303,11 @@ class AirflowConfigParser(ConfigParser):
         elif old_value.find('airflow.api.auth.backend.session') == -1:
             new_value = old_value + "\nairflow.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
-            self._create_future_warning(
-                name="auth_backends",
-                section="api",
-                current_value=old_value,
-                new_value=new_value,
-                version="3.0",
+            warnings.warn(
+                'The auth_backends setting in [api] has had airflow.api.auth.backend.session added '
+                'in the running config, which is needed by the UI. Please update your config before '
+                'Apache Airflow 3.0.',
+                FutureWarning,
             )
 
     def _validate_enums(self):
