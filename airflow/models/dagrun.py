@@ -675,10 +675,9 @@ class DagRun(Base, LoggingMixin):
                 # HACK. This needs a better way, one that copes with multiple upstreams!
                 for ti in finished_tis:
                     if schedulable.task_id in ti.task.downstream_task_ids:
-                        upstream = ti
 
                         assert isinstance(schedulable.task, MappedOperator)
-                        new_tis = schedulable.task.expand_mapped_task(upstream, session=session)
+                        new_tis = schedulable.task.expand_mapped_task(self.run_id, session=session)
                         if schedulable.state == TaskInstanceState.SKIPPED:
                             # Task is now skipped (likely cos upstream returned 0 tasks
                             continue
