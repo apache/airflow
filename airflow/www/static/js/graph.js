@@ -82,6 +82,33 @@ const render = dagreD3.render();
 const svg = d3.select('#graph-svg');
 let innerSvg = d3.select('#graph-svg g');
 
+const updateNodes = (node, instances) => {
+  const value = {
+    ...node.value,
+    label: tasks[node.id] && tasks[node.id].is_mapped
+      ? `${node.value.label} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
+      : node.value.label,
+  };
+
+  if (g.node(node.id)) {
+    g.node(node.id).label = value.label;
+  }
+
+  if (node.children) {
+    return {
+      ...node,
+      value,
+      children: node.children.map((n) => updateNodes(n, instances)),
+    };
+  }
+  return {
+    ...node,
+    value,
+  };
+};
+
+let updatedNodes = updateNodes(nodes, taskInstances);
+
 // Remove the node with this nodeId from g.
 function removeNode(nodeId) {
   if (g.hasNode(nodeId)) {
@@ -377,6 +404,9 @@ function handleRefresh() {
           if (isFinal) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
+            if (JSON.stringify(nodes) !== JSON.stringify(updateNodes)) {
+              draw();
+            }
           }
         }
         prevTis = tis;
@@ -476,15 +506,17 @@ function groupTooltip(node, tis) {
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
 function updateNodesStates(tis) {
+  updatedNodes = updateNodes(nodes, tis);
   g.nodes().forEach((nodeId) => {
-    const { elem } = g.node(nodeId);
+    const node = g.node(nodeId);
+    const { elem } = node;
+    const taskId = nodeId;
+
     if (elem) {
       const classes = `node enter ${getNodeState(nodeId, tis)}`;
       elem.setAttribute('class', classes);
       elem.setAttribute('data-toggle', 'tooltip');
 
-      const taskId = nodeId;
-      const node = g.node(nodeId);
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
@@ -713,10 +745,10 @@ const focusNodeId = localStorage.getItem(focusedGroupKey(dagId));
 const expandedGroups = getSavedGroups(dagId);
 
 // Always expand the root node
-expandGroup(null, nodes);
+expandGroup(null, updatedNodes);
 
 // Expand the node that were previously expanded
-expandSavedGroups(expandedGroups, nodes);
+expandSavedGroups(expandedGroups, updatedNodes);
 
 // Draw once after all groups have been expanded
 draw();

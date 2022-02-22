@@ -69,12 +69,44 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
   }
+  if (ti.mapped_states) {
+    const STATES = [
+      ['success', 0],
+      ['failed', 0],
+      ['upstream_failed', 0],
+      ['up_for_retry', 0],
+      ['up_for_reschedule', 0],
+      ['running', 0],
+      ['deferred', 0],
+      ['sensing', 0],
+      ['queued', 0],
+      ['scheduled', 0],
+      ['skipped', 0],
+      ['no_status', 0],
+    ];
+    const numMap = new Map(STATES);
+    ti.mapped_states.forEach((s) => {
+      const stateKey = s || 'no_status';
+      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+    });
+    tt += `<strong>${escapeHtml(ti.mapped_states.length)} Tasks Mapped</strong><br />`;
+    numMap.forEach((key, val) => {
+      if (key > 0) {
+        tt += `<span style="margin-left: 15px">${escapeHtml(val)}: ${escapeHtml(key)}</span><br />`;
+      }
+    });
+    tt += '<br />';
+  }
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
   tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
+  }
+  // Show mapped index for specific child instance, but not for a summary instance
+  if (ti.map_index >= 0 && !ti.mapped_states) {
+    tt += `Map Index: ${escapeHtml(ti.map_index)}<br>`;
   }
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;

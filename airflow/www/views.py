@@ -2648,12 +2648,16 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        task_instances = {
+            ti.task_id: wwwutils.get_instance_with_map(ti, session)
+            for ti in dag.get_task_instances(dttm, dttm)
+        }
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
                 'extra_links': t.extra_links,
+                'is_mapped': t.is_mapped,
             }
             for t in dag.tasks
         }
@@ -3244,7 +3248,11 @@ class Airflow(AirflowBaseView):
         else:
             return "Error: Invalid execution_date"
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        with create_session() as session:
+            task_instances = {
+                ti.task_id: wwwutils.get_instance_with_map(ti, session)
+                for ti in dag.get_task_instances(dttm, dttm)
+            }
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
