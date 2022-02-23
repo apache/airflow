@@ -167,6 +167,8 @@ integrations:
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
     logo: /integration-logos/aws/AWS-Lambda_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/lambda.rst
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
