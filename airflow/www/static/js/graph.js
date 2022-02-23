@@ -24,7 +24,7 @@
   autoRefreshInterval, moment, convertSecsToHumanReadable
 */
 
-import getMetaValue from './meta_value';
+import { getMetaValue, finalStatesMap } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 import { callModal } from './dag';
@@ -446,20 +446,7 @@ function initRefresh() {
 
 // Generate tooltip for a group node
 function groupTooltip(node, tis) {
-  const numMap = new Map([
-    ['success', 0],
-    ['failed', 0],
-    ['upstream_failed', 0],
-    ['up_for_retry', 0],
-    ['up_for_reschedule', 0],
-    ['running', 0],
-    ['deferred', 0],
-    ['sensing', 0],
-    ['queued', 0],
-    ['scheduled', 0],
-    ['skipped', 0],
-    ['no_status', 0],
-  ]);
+  const numMap = finalStatesMap();
 
   let minStart;
   let maxEnd;

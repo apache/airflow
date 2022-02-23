@@ -23,6 +23,7 @@
 import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime_utils';
 import { dagTZ } from './dag';
+import { finalStatesMap } from './utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
@@ -70,21 +71,7 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
   }
   if (ti.mapped_states) {
-    const STATES = [
-      ['success', 0],
-      ['failed', 0],
-      ['upstream_failed', 0],
-      ['up_for_retry', 0],
-      ['up_for_reschedule', 0],
-      ['running', 0],
-      ['deferred', 0],
-      ['sensing', 0],
-      ['queued', 0],
-      ['scheduled', 0],
-      ['skipped', 0],
-      ['no_status', 0],
-    ];
-    const numMap = new Map(STATES);
+    const numMap = finalStatesMap();
     ti.mapped_states.forEach((s) => {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);

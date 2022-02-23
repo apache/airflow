@@ -23,21 +23,7 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
 import { formatDateTime, getDuration, formatDuration } from '../datetime_utils';
-
-const STATES = [
-  ['success', 0],
-  ['failed', 0],
-  ['upstream_failed', 0],
-  ['up_for_retry', 0],
-  ['up_for_reschedule', 0],
-  ['running', 0],
-  ['deferred', 0],
-  ['sensing', 0],
-  ['queued', 0],
-  ['scheduled', 0],
-  ['skipped', 0],
-  ['no_status', 0],
-];
+import { finalStatesMap } from '../utils';
 
 const InstanceTooltip = ({
   group,
@@ -50,7 +36,7 @@ const InstanceTooltip = ({
   const mapSummary = [];
 
   if (isGroup) {
-    const numMap = new Map(STATES);
+    const numMap = finalStatesMap();
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -73,7 +59,7 @@ const InstanceTooltip = ({
   }
 
   if (group.isMapped && mappedStates) {
-    const numMap = new Map(STATES);
+    const numMap = finalStatesMap();
     mappedStates.forEach((s) => {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);

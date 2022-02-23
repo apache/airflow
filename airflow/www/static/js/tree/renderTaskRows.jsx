@@ -34,7 +34,7 @@ import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import useTreeData from './useTreeData';
 import StatusBox from './StatusBox';
 
-import getMetaValue from '../meta_value';
+import { getMetaValue } from '../utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
