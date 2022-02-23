@@ -219,6 +219,7 @@ Json
 Jupyter
 KEDA
 KYLIN
+Kafka
 Kalibrr
 Kamil
 Kerberized
@@ -981,6 +982,7 @@ json
 jthomas
 jupyter
 jupytercmd
+kafka
 keepalive
 keepalives
 kerberized

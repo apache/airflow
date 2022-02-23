@@ -45,6 +45,7 @@ const Docs: React.FC = () => {
     { path: 'apache-druid', name: 'Apache Druid' },
     { path: 'apache-hdfs', name: 'Apache HDFS' },
     { path: 'apache-hive', name: 'Apache Hive' },
+    { path: 'apache-kafka', name: 'Apache Kafka' },
     { path: 'apache-kylin', name: 'Apache Kylin' },
     { path: 'apache-livy', name: 'Apache Livy' },
     { path: 'apache-pig', name: 'Apache Pig' },

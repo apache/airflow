@@ -32,6 +32,7 @@ body:
         - apache-druid
         - apache-hdfs
         - apache-hive
+        - apache-kafka
         - apache-kylin
         - apache-livy
         - apache-pig
