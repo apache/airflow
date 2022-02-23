@@ -186,7 +186,7 @@ class Trigger(Base):
         trigger_ids_query = (
             session.query(cls.id)
             # notin_ doesn't find NULL rows
-            .filter(or_(cls.triggerer_id.notin_(alive_triggerer_ids), cls.triggerer_id.is_(None)))
+            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
             .limit(capacity)
             .all()
         )
