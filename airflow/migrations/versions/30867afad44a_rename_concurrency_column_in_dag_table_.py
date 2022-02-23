@@ -36,6 +36,11 @@ depends_on = None
 
 def upgrade():
     """Apply Rename concurrency column in dag table to max_active_tasks"""
+    conn = op.get_bind()
+    is_sqlite = bool(conn.dialect.name == "sqlite")
+
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=off")
     with op.batch_alter_table('dag') as batch_op:
         batch_op.alter_column(
             'concurrency',
@@ -43,6 +48,8 @@ def upgrade():
             type_=sa.Integer(),
             nullable=False,
         )
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=on")
 
 
 def downgrade():
