@@ -2160,7 +2160,7 @@ class Airflow(AirflowBaseView):
         dag_run: Optional[DagRun] = (
             session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
         )
-        redirect_url = redirect_url = get_safe_url(request.values.get('redirect_url'))
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         if dag_run is None:
             flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
