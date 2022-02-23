@@ -898,7 +898,7 @@ At this point we release an official package:
 
     ```shell script
     git tag -f -s "constraints-latest" -m "Latest constraints set to Apache Airflow ${VERSION}"
-    git push origin tag "constraints-latest"
+    git push -f origin tag "constraints-latest"
     ```
 
 - Push Tag for the final version
