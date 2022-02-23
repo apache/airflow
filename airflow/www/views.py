@@ -4685,7 +4685,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         """Only show indices of mapped tasks"""
         map_index = self.get('map_index')
         if map_index < 0:
-            return ' '
+            return Markup("&nbsp;")
         return None
 
     formatters_columns = {
