@@ -127,13 +127,14 @@ class BigQueryToBigQueryOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_copy(
-            source_project_dataset_tables=self.source_project_dataset_tables,
-            destination_project_dataset_table=self.destination_project_dataset_table,
-            write_disposition=self.write_disposition,
-            create_disposition=self.create_disposition,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration,
-        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            hook.run_copy(
+                source_project_dataset_tables=self.source_project_dataset_tables,
+                destination_project_dataset_table=self.destination_project_dataset_table,
+                write_disposition=self.write_disposition,
+                create_disposition=self.create_disposition,
+                labels=self.labels,
+                encryption_configuration=self.encryption_configuration,
+            )
