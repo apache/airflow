@@ -89,10 +89,13 @@ class OSSHook(BaseHook):
     conn_type = 'oss'
     hook_name = 'OSS'
 
-    def __init__(self, region, oss_conn_id='oss_default', *args, **kwargs) -> None:
+    def __init__(self, region=None, oss_conn_id='oss_default', *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
-        self.region = region
+        if region == None:
+            self.region = self.get_default_region()
+        else:
+            self.region = region
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> "Connection":
@@ -269,6 +272,40 @@ class OSSHook(BaseHook):
             self.log.error(e)
             raise AirflowException(f"Errors when create bucket: {bucket_name}")
 
+    def append_string(self, bucket_name, content, bucket_key, pos):
+        self.log.info("Write oss bucket key: " + bucket_key)
+        self.log.info("Write oss bucket pos: " + str(pos))
+        try:
+            self.get_bucket(bucket_name).append_object(bucket_key, pos, content)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(f"Errors when append string for object: {bucket_key}")
+
+    def read_key(self, bucket_name, bucket_key):
+        self.log.info("Read oss key: " + bucket_key)
+        try:
+            self.get_bucket(bucket_name).get_object(bucket_key).read().decode("utf-8")
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(f"Errors when read bucket object: {bucket_key}")
+
+    def head_key(self, bucket_name, bucket_key):
+        self.log.info("Head Object oss key: " + bucket_key)
+        try:
+            self.get_bucket(bucket_name).head_object(bucket_key)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(f"Errors when head bucket object: {bucket_key}")
+
+    def key_exist(self, bucket_name, bucket_key):
+        # full_path = None
+        self.log.info("Looking up oss bucket {} for bucket key {} ...".format(bucket_name, bucket_key))
+        try:
+            self.get_bucket(bucket_name).object_exists(bucket_key)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(f"Errors when check bucket object existence: {bucket_key}")
+
     def get_credential(self) -> oss2.auth.Auth:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get('auth_type', None)
@@ -285,3 +322,18 @@ class OSSHook(BaseHook):
             return oss2.Auth(oss_access_key_id, oss_access_key_secret)
         else:
             raise Exception("Unsupported auth_type: " + auth_type)
+
+    def get_default_region(self) -> str:
+        extra_config = self.oss_conn.extra_dejson
+        auth_type = extra_config.get('auth_type', None)
+        if not auth_type:
+            raise Exception("No auth_type specified in extra_config. ")
+
+        if auth_type == 'AK':
+            default_region = extra_config.get('region', None)
+            if not default_region:
+                raise Exception("No region is specified for connection: " + self.oss_conn_id)
+        else:
+            raise Exception("Unsupported auth_type: " + auth_type)
+
+        return default_region

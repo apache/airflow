@@ -57,3 +57,6 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook
     connection-type: oss
+
+logging:
+  - airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler
