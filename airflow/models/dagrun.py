@@ -608,12 +608,13 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
                 self.dag_hash,
             )
+            session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
 
         session.merge(self)
-        session.flush()
+        # We do not flush here for performance reasons(It increases queries count by +20)
 
         return schedulable_tis, callback
 
