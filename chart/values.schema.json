@@ -2003,6 +2003,45 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "command": {
+                    "description": "Command to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "--",
+                        "-r",
+                        "{{ .Values.webserver.defaultUser.role }}",
+                        "-u",
+                        "{{ .Values.webserver.defaultUser.username }}",
+                        "-e",
+                        "{{ .Values.webserver.defaultUser.email }}",
+                        "-f",
+                        "{{ .Values.webserver.defaultUser.firstName }}",
+                        "-l",
+                        "{{ .Values.webserver.defaultUser.lastName }}",
+                        "-p",
+                        "{{ .Values.webserver.defaultUser.password }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the create user job pod.",
                     "type": "object",
@@ -2138,6 +2177,32 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "command": {
+                    "description": "Command to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\" }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod.",
                     "type": "object",
