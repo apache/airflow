@@ -252,7 +252,7 @@
                     </div>
                     {% endif %}
                     {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
-                    <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG" aria-label="Delete DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_delete }}">
+                    <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}" onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG" aria-label="Delete DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_delete }}">
                       <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
                     </a>
                   </div>
