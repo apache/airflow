@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module took inspiration from the community maintenance dag
+(https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
+"""
 
 import logging
 from contextlib import AbstractContextManager
@@ -34,6 +38,7 @@ from airflow.models import (
     ImportError,
     Log,
     RenderedTaskInstanceFields,
+    SensorInstance,
     SlaMiss,
     TaskFail,
     TaskInstance,
@@ -102,6 +107,9 @@ config_list: List[_TableConfig] = [
     _TableConfig(
         orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date
     ),
+    _TableConfig(
+        orm_model=SensorInstance, recency_column=SensorInstance.updated_at
+    ),  # TODO: add FK to task instance / dag so we can remove here
     _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp),
     _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date),
     _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date),

@@ -15,12 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from contextlib import suppress
+from importlib import import_module
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
 from pytest import param
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
@@ -195,6 +199,48 @@ class TestDBCleanup:
                 assert len(session.query(TaskInstance).all()) == expected_remaining
             else:
                 raise Exception("unexpected")
+
+    def test_no_models_missing(self):
+        """
+        1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
+        or documented in the exclusion list in this test.
+        2. Verify that no table is enabled for db cleanup and also in exclusion list.
+        """
+        import pkgutil
+
+        proj_root = Path(__file__).parent.parent.parent
+        mods = list(
+            f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules([proj_root / 'airflow/models'])
+        )
+
+        all_models = {}
+        for mod_name in mods:
+            mod = import_module(mod_name)
+
+            for table_name, class_ in mod.__dict__.items():
+                if isinstance(class_, DeclarativeMeta):
+                    full_obj_path = f"{class_.__module__}.{class_.__name__}"
+                    with suppress(AttributeError):
+                        all_models.update({class_.__tablename__: class_})
+        exclusion_list = {
+            'variable',  # leave alone
+            'trigger',  # self-maintaining
+            'task_map',  # TODO: add datetime column to TaskMap so we can include it here
+            'serialized_dag',  # handled through FK to Dag
+            'log_template',  # not a significant source of data; age not indicative of staleness
+            'dag_tag',  # not a significant source of data; age not indicative of staleness,
+            'dag_pickle',  # unsure of consequences
+            'dag_code',  # self-maintaining
+            'connection',  # leave alone
+            'slot_pool',  # leave alone
+        }
+
+        from airflow.utils.db_cleanup import config_dict
+
+        print(f"all_models={set(all_models)}")
+        print(f"excl+conf={exclusion_list.union(config_dict)}")
+        assert set(all_models) - exclusion_list.union(config_dict) == set()
+        assert exclusion_list.isdisjoint(config_dict)
 
 
 def create_tis(base_date, num_tis, external_trigger=False):
