@@ -26,6 +26,7 @@ from zipfile import ZipFile
 import pytest
 
 from airflow import settings
+from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
@@ -33,7 +34,6 @@ from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State

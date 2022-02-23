@@ -19,6 +19,8 @@ import sys
 from collections import OrderedDict
 from typing import Any, Counter, Dict, List, Optional, Set, Tuple, Union
 
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -58,6 +60,7 @@ class BaseExecutor(LoggingMixin):
     """
 
     job_id: Union[None, int, str] = None
+    callback_sink: Optional[BaseCallbackSink] = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -336,3 +339,14 @@ class BaseExecutor(LoggingMixin):
             len(self.event_buffer),
             "\n\t".join(map(repr, self.event_buffer.items())),
         )
+
+    def send_callback(self, request: CallbackRequest) -> None:
+        """Sends callback for execution.
+
+        Provides a default implementation which sends the callback to the `callback_sink` object.
+
+        :param request: Callback request to be executed.
+        """
+        if not self.callback_sink:
+            raise ValueError("Callback sink is not ready.")
+        self.callback_sink.send(request)

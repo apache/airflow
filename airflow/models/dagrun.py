@@ -43,6 +43,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -52,7 +53,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.utils import callback_requests, timezone
+from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -487,7 +488,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def update_state(
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
-    ) -> Tuple[List[TI], Optional[callback_requests.DagCallbackRequest]]:
+    ) -> Tuple[List[TI], Optional[DagCallbackRequest]]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -499,7 +500,7 @@ class DagRun(Base, LoggingMixin):
             needs to be executed
         """
         # Callback to execute in case of Task Failures
-        callback: Optional[callback_requests.DagCallbackRequest] = None
+        callback: Optional[DagCallbackRequest] = None
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
@@ -535,7 +536,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             elif dag.has_on_failure_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
@@ -550,7 +551,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             elif dag.has_on_success_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
@@ -571,7 +572,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             elif dag.has_on_failure_callback:
-                callback = callback_requests.DagCallbackRequest(
+                callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
@@ -675,10 +676,9 @@ class DagRun(Base, LoggingMixin):
                 # HACK. This needs a better way, one that copes with multiple upstreams!
                 for ti in finished_tis:
                     if schedulable.task_id in ti.task.downstream_task_ids:
-                        upstream = ti
 
                         assert isinstance(schedulable.task, MappedOperator)
-                        new_tis = schedulable.task.expand_mapped_task(upstream, session=session)
+                        new_tis = schedulable.task.expand_mapped_task(self.run_id, session=session)
                         if schedulable.state == TaskInstanceState.SKIPPED:
                             # Task is now skipped (likely cos upstream returned 0 tasks
                             continue
