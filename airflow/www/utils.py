@@ -45,7 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import AirflowJsonEncoder
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -78,21 +78,21 @@ def get_instance_with_map(task_instance, session):
 
 def get_mapped_summary(parent_instance, task_instances):
     priority = [
-        'failed',
-        'upstream_failed',
-        'up_for_retry',
-        'up_for_reschedule',
-        'queued',
-        'scheduled',
-        'deferred',
-        'sensing',
-        'running',
-        'shutdown',
-        'restarting',
-        'removed',
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.SENSING,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.SHUTDOWN,
+        TaskInstanceState.RESTARTING,
+        TaskInstanceState.REMOVED,
         'no_status',
-        'success',
-        'skipped',
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.SKIPPED,
     ]
 
     mapped_states = [ti.state for ti in task_instances]
