@@ -194,7 +194,7 @@ class PgbouncerTest(unittest.TestCase):
         assert {
             "name": "pgbouncer-stats",
             "secret": {"secretName": "pgbouncer-stats-secret"},
-        } == jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_pgbouncer_resources_are_configurable(self):
         docs = render_chart(
