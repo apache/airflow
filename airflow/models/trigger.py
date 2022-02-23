@@ -175,7 +175,7 @@ class Trigger(Base):
         alive_triggerer_ids = [
             row[0]
             for row in session.query(BaseJob.id).filter(
-                BaseJob.end_date == None,  # noqa: E711
+                BaseJob.end_date.is_(None),
                 BaseJob.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
                 BaseJob.job_type == "TriggererJob",
             )
@@ -185,7 +185,8 @@ class Trigger(Base):
         # up to `capacity` of those to us.
         trigger_ids_query = (
             session.query(cls.id)
-            .filter(or_(cls.triggerer_id.notin_(alive_triggerer_ids), cls.triggerer_id == None))  # noqa: E711
+            # notin_ doesn't find NULL rows
+            .filter(or_(cls.triggerer_id.notin_(alive_triggerer_ids), cls.triggerer_id.is_(None)))
             .limit(capacity)
             .all()
         )
