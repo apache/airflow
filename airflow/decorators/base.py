@@ -62,7 +62,7 @@ from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MapArgument
+    from airflow.models.mappedoperator import Mappable
 
 
 def validate_python_callable(python_callable: Any) -> None:
@@ -291,18 +291,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "map" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "apply" or value is NOTSET or isinstance(value, get_mappable_types()):
                 continue
-            type_name = type(value).__name__
-            raise ValueError(f"map() got an unexpected type {type_name!r} for keyword argument {arg_name!r}")
+            tname = type(value).__name__
+            raise ValueError(f"apply() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def map(self, **map_kwargs: "MapArgument") -> XComArg:
-        self._validate_arg_names("map", map_kwargs)
+    def apply(self, **map_kwargs: "Mappable") -> XComArg:
+        self._validate_arg_names("apply", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
 
         partial_kwargs = self.kwargs.copy()
@@ -385,7 +385,7 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: Dict[str, "MapArgument"]
+    mapped_op_kwargs: Dict[str, "Mappable"]
 
     @classmethod
     @cache
@@ -401,7 +401,7 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
 
-    def _get_expansion_kwargs(self) -> Dict[str, "MapArgument"]:
+    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
 
         Different from classic operators, a decorated (taskflow) operator's
@@ -458,7 +458,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def map(self, **kwargs: "MapArgument") -> XComArg:
+    def apply(self, **kwargs: "Mappable") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":
