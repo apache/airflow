@@ -304,11 +304,6 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 
-### Additional notes on Python version requirements
-
-* Previous versions [require](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
-  when using Python 3.
-
 ## Approach to dependencies of Airflow
 
 Airflow has a lot of dependencies - direct and transitive, also Airflow is both - library and application,
