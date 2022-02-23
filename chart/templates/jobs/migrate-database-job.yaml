@@ -82,11 +82,11 @@ spec:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          # Support running against 1.10.x and 2.x
-          {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
-          args: ["bash", "-c", "airflow db upgrade"]
-          {{- else }}
-          args: ["bash", "-c", "airflow upgradedb"]
+          {{- if .Values.migrateDatabaseJob.command }}
+          command: {{ tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.migrateDatabaseJob.args }}
+          args: {{ tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
           {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
