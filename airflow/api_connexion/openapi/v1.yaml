@@ -2497,9 +2497,11 @@ components:
           $ref: '#/components/schemas/SLAMiss'
           nullable: true
         rendered_fields:
-          type: object
           description: |
             JSON object describing rendered fields.
+
+            *New in version 2.3.0*
+          type: object
 
     TaskInstanceCollection:
       type: object
