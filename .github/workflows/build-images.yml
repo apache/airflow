@@ -43,7 +43,6 @@ env:
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -149,20 +148,19 @@ jobs:
               echo "::set-output name=cacheDirective::pulled"
           fi
 
-          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" && "$BUILD_IMAGES_OVERRIDE" != "false" ]]; then
+          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
               echo "::set-output name=image-build::true"
           else
               echo "::set-output name=image-build::false"
           fi
         env:
           SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
-          BUILD_IMAGES_OVERRIDE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE }}
 
   build-ci-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build CI images ${{matrix.python-version}}"
+    name: "Build CI image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     strategy:
@@ -188,7 +186,7 @@ jobs:
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -198,6 +196,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -228,16 +229,16 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
+      - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   build-prod-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build PROD images ${{matrix.python-version}}"
+    name: "Build PROD image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
     strategy:
@@ -265,7 +266,7 @@ jobs:
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -275,6 +276,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -305,15 +309,13 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step (so GITHUB_REGISTRY_PULL_IMAGE_TAG needs to be overridden)
+      - name: "Pull CI image for PROD ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
         env:
-          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
           GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
+      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   cancel-on-ci-build:
