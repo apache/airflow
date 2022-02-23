@@ -219,7 +219,6 @@ class TestDBCleanup:
 
             for table_name, class_ in mod.__dict__.items():
                 if isinstance(class_, DeclarativeMeta):
-                    full_obj_path = f"{class_.__module__}.{class_.__name__}"
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
