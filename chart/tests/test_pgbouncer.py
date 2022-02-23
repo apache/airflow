@@ -180,7 +180,7 @@ class PgbouncerTest(unittest.TestCase):
         assert {
             "name": "pgbouncer-stats",
             "secret": {"secretName": "TEST-PGBOUNCER-STATS-pgbouncer-stats"},
-        } == jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_stats_existing_secret(self):
         docs = render_chart(
