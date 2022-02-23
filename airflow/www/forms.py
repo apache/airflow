@@ -186,3 +186,11 @@ class ConnectionForm(DynamicForm):
     password = PasswordField(lazy_gettext('Password'), widget=BS3PasswordFieldWidget())
     port = IntegerField(lazy_gettext('Port'), validators=[Optional()], widget=BS3TextFieldWidget())
     extra = TextAreaField(lazy_gettext('Extra'), widget=BS3TextAreaFieldWidget())
+    is_pinned = SelectField(
+        lazy_gettext('Pin at Top'),
+        choices=(
+            (True, "Yes"),
+            (False, "No"),
+        ),
+        widget=Select2Widget(),
+    )

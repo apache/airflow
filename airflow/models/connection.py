@@ -98,6 +98,7 @@ class Connection(Base, LoggingMixin):
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    is_pinned = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', Text())
 
     def __init__(
@@ -112,6 +113,7 @@ class Connection(Base, LoggingMixin):
         port: Optional[int] = None,
         extra: Optional[Union[str, dict]] = None,
         uri: Optional[str] = None,
+        is_pinned: Optional[bool] = False
     ):
         super().__init__()
         self.conn_id = conn_id
@@ -139,6 +141,7 @@ class Connection(Base, LoggingMixin):
 
         if self.password:
             mask_secret(self.password)
+        self.is_pinned = is_pinned
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
