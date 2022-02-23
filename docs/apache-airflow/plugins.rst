@@ -27,7 +27,7 @@ features to its core by simply dropping files in your
 The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
-To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
+To troubleshoot issues with plugins, you can use the ``airflow plugins`` command.
 This command dumps information about loaded plugins.
 
 .. versionchanged:: 2.0
