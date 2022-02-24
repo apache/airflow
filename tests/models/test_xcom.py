@@ -25,7 +25,7 @@ import pytest
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstanceKey
-from airflow.models.xcom import IN_MEMORY_DAGRUN_ID, XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
+from airflow.models.xcom import IN_MEMORY_RUN_ID, XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -202,7 +202,7 @@ class TestXCom:
             key=XCOM_RETURN_KEY,
             dag_id="test_dag",
             task_id="test_task",
-            run_id=IN_MEMORY_DAGRUN_ID,
+            run_id=IN_MEMORY_RUN_ID,
         )
 
         XCom = resolve_xcom_backend()
@@ -244,7 +244,7 @@ class TestXCom:
             key=XCOM_RETURN_KEY,
             dag_id="test_dag",
             task_id="test_task",
-            run_id=IN_MEMORY_DAGRUN_ID,
+            run_id=IN_MEMORY_RUN_ID,
         )
         expected = {**kwargs, 'run_id': -1}
         XCom = resolve_xcom_backend()
