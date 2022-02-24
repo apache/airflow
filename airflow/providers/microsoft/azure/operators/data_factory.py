@@ -26,6 +26,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -34,13 +35,23 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
 
     name = "Monitor Pipeline Run"
 
-    def get_link(self, operator, dttm):
-        run_id = XCom.get_one(
-            key="run_id",
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm=None,
+        *,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            run_id = XCom.get_one(key="run_id", ti_key=ti_key)
+        else:
+            assert dttm
+            run_id = XCom.get_one(
+                key="run_id",
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
 
         conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
         subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]

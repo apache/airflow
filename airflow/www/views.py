@@ -31,7 +31,7 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -140,6 +140,9 @@ LINECHART_X_AXIS_TICKFORMAT = (
     "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
     "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
 )
+
+if TYPE_CHECKING:
+    from airflow.models.abstractoperator import AbstractOperator
 
 
 def truncate_task_duration(task_duration):
@@ -3180,7 +3183,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def extra_links(self):
+    @provide_session
+    def extra_links(self, session: "Session" = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
@@ -3216,9 +3220,24 @@ class Airflow(AirflowBaseView):
             response.status_code = 404
             return response
 
-        task = dag.get_task(task_id)
+        task: "AbstractOperator" = dag.get_task(task_id)
+
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                models.TaskInstance.dag_id == dag_id,
+                models.TaskInstance.task_id == task_id,
+                models.TaskInstance.execution_date == dttm,
+            )
+            .options(joinedload(TaskInstance.dag_run))
+            .first()
+        )
+        if not ti:
+            response = jsonify({'url': None, 'error': 'Task Instances not found'})
+            response.status_code = 404
+            return response
         try:
-            url = task.get_extra_links(dttm, link_name)
+            url = task.get_extra_links(ti, link_name)
         except ValueError as err:
             response = jsonify({'url': None, 'error': str(err)})
             response.status_code = 404
