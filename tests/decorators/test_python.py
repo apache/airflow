@@ -477,22 +477,59 @@ class TestAirflowTaskDecorator:
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
 
 
-def test_mapped_decorator() -> None:
+def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
-    def double(number: int):
-        return number * 2
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
-        doubled_0 = double.map(number=literal)
-        doubled_1 = double.map(number=literal)
+    with pytest.raises(ValueError) as ctx:
+        print_info.partial(run_id="hi")
+    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    assert isinstance(doubled_0, XComArg)
-    assert isinstance(doubled_0.operator, DecoratedMappedOperator)
-    assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_op_kwargs == {"number": literal}
+    with pytest.raises(ValueError) as ctx:
+        print_info.map(run_id=["hi", "there"])
+    assert str(ctx.value) == "cannot call map() on task context variable 'run_id'"
 
-    assert doubled_1.operator.task_id == "double__1"
+
+def test_mapped_decorator_wrong_argument() -> None:
+    @task_decorator
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
+
+    with pytest.raises(TypeError) as ct:
+        print_info.partial(wrong_name="hi")
+    assert str(ct.value) == "partial() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(TypeError) as ct:
+        print_info.map(wrong_name=["hi", "there"])
+    assert str(ct.value) == "map() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(ValueError) as cv:
+        print_info.map(message="hi")
+    assert str(cv.value) == "map() got an unexpected type 'str' for keyword argument 'message'"
+
+
+def test_mapped_decorator():
+    @task_decorator
+    def print_info(m1: str, m2: str, run_id: str = "") -> None:
+        print(f"{run_id}: {m1} {m2}")
+
+    @task_decorator
+    def print_everything(**kwargs) -> None:
+        print(kwargs)
+
+    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+        t0 = print_info.map(m1=["a", "b"], m2={"foo": "bar"})
+        t1 = print_info.partial(m1="hi").map(m2=[1, 2, 3])
+        t2 = print_everything.partial(whatever="123").map(any_key=[1, 2], works=t1)
+
+    assert isinstance(t2, XComArg)
+    assert isinstance(t2.operator, DecoratedMappedOperator)
+    assert t2.operator.task_id == "print_everything"
+    assert t2.operator.mapped_op_kwargs == {"any_key": [1, 2], "works": t1}
+
+    assert t0.operator.task_id == "print_info"
+    assert t1.operator.task_id == "print_info__1"
 
 
 def test_mapped_decorator_invalid_args() -> None:
