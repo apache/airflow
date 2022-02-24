@@ -261,7 +261,7 @@ def partial(
     partial_kwargs.setdefault("outlets", outlets)
     partial_kwargs.setdefault("resources", resources)
 
-    # Post-process arguments. Should be kept in sync with _TaskDecorator.map().
+    # Post-process arguments. Should be kept in sync with _TaskDecorator.apply().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
         raise TypeError("unexpected argument: task_concurrency")
     if partial_kwargs["wait_for_downstream"]:
@@ -671,7 +671,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
         if not _airflow_map_validation and isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs).map()
+            return cls.partial(dag=dag, task_group=task_group, **kwargs).apply()
         return super().__new__(cls)
 
     def __init__(
