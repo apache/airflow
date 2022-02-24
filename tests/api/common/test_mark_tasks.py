@@ -19,6 +19,7 @@
 from datetime import timedelta
 
 import pytest
+import datetime
 from sqlalchemy.orm import eagerload
 
 from airflow import models
@@ -32,7 +33,6 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -58,7 +58,7 @@ class TestMarkTasks:
         cls.dag1 = dagbag.get_dag('miscellaneous_test_dag')
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
-        cls.execution_dates = [days_ago(2), days_ago(1)]
+        cls.execution_dates = [datetime.datetime(2022, 1, 1), datetime.datetime(2022, 1, 1)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
             start_date3,
@@ -425,7 +425,7 @@ class TestMarkDAGRun:
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
-        cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+        cls.execution_dates = [datetime.datetime(2022, 1, 1), datetime.datetime(2022, 1, 1), datetime.datetime(2022, 1, 1)]
 
     def setup_method(self):
         clear_db_runs()

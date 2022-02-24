@@ -41,7 +41,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -1532,8 +1531,8 @@ class TestBackfillJob:
 
         job = BackfillJob(
             dag=dag,
-            start_date=days_ago(1),
-            end_date=days_ago(1),
+            start_date= datetime.datetime(2022,1,1),
+            end_date=datetime.datetime(2022,1,1),
             donot_pickle=True,
             executor=SequentialExecutor(),
         )

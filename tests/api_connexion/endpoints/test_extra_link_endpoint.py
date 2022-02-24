@@ -29,7 +29,6 @@ from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 from airflow.security import permissions
-from airflow.utils.dates import days_ago
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
@@ -95,7 +94,7 @@ class TestGetExtraLinks:
         with DAG(
             dag_id="TEST_DAG_ID",
             default_args=dict(
-                start_date=days_ago(2),
+                start_date=datetime.datetime(2022, 1, 1),
             ),
         ) as dag:
             BigQueryExecuteQueryOperator(task_id="TEST_SINGLE_QUERY", sql="SELECT 1")

@@ -22,11 +22,11 @@ from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.utils.dates import days_ago
+import datetime
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(3),
+    'start_date': datetime.datetime(2022,1,1),
 }
 
 dag = DAG(
