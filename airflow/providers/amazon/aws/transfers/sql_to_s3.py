@@ -71,7 +71,7 @@ class SqlToS3Operator(BaseOperator):
                 You can specify this argument if you want to use a different
                 CA cert bundle than the one used by botocore.
     :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
-    :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()``, ``DataFrame.to_json()`` or ``DataFrame.to_csv()``.
+    :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
     """
 
     template_fields: Sequence[str] = (
@@ -113,7 +113,7 @@ class SqlToS3Operator(BaseOperator):
 
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException('The argument path_or_buf is not allowed, please remove it')
-        
+
         self.file_format = getattr(FILE_FORMAT, file_format.upper(), None)
 
         if self.file_format is None:
