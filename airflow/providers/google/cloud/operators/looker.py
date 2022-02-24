@@ -83,6 +83,9 @@ class LookerStartPdtBuildOperator(BaseOperator):
 
         self.materialization_id = resp.materialization_id
 
+        # materialization_id shouldn't be None, ensure mypy about that
+        assert self.materialization_id is not None
+
         self.log.info("PDT materialization job submitted successfully. Job id: %s.", self.materialization_id)
 
         if not self.asynchronous:

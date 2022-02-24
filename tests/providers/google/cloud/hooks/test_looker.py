@@ -30,6 +30,7 @@ JOB_ID = "test-id"
 TASK_ID = "test-task-id"
 MODEL = "test_model"
 VIEW = "test_view"
+SOURCE = 'airflow'
 
 CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 
@@ -71,8 +72,7 @@ class TestLookerHook(unittest.TestCase):
         mock_sdk.assert_called_once_with()
 
         # assert sdk.check_pdt_build called once
-        # TODO: uncomment once looker sdk 22.2 is released
-        # mock_sdk.return_value.check_pdt_build.assert_called_once_with(materialization_id=JOB_ID)
+        mock_sdk.return_value.check_pdt_build.assert_called_once_with(materialization_id=JOB_ID)
 
     @mock.patch(HOOK_PATH.format("get_looker_sdk"))
     def test_start_pdt_build(self, mock_sdk):
@@ -89,11 +89,11 @@ class TestLookerHook(unittest.TestCase):
         mock_sdk.assert_called_once_with()
 
         # assert sdk.start_pdt_build called once
-        # TODO: uncomment once looker sdk 22.2 is released
-        # mock_sdk.return_value.start_pdt_build.assert_called_once_with(
-        #     model=MODEL,
-        #     view=VIEW,
-        # )
+        mock_sdk.return_value.start_pdt_build.assert_called_once_with(
+            model_name=MODEL,
+            view_name=VIEW,
+            source=SOURCE,
+        )
 
     @mock.patch(HOOK_PATH.format("get_looker_sdk"))
     def test_stop_pdt_build(self, mock_sdk):
@@ -104,5 +104,7 @@ class TestLookerHook(unittest.TestCase):
         mock_sdk.assert_called_once_with()
 
         # assert sdk.stop_pdt_build called once
-        # TODO: uncomment once looker sdk 22.2 is released
-        # mock_sdk.return_value.stop_pdt_build.assert_called_once_with(materialization_id=JOB_ID)
+        mock_sdk.return_value.stop_pdt_build.assert_called_once_with(
+            materialization_id=JOB_ID,
+            source=SOURCE,
+        )

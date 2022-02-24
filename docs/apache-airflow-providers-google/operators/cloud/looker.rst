@@ -39,7 +39,7 @@ To use these operators, you must do a few things:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-Communication between Airflow and Looker is done via `Looker API 4.0 <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
+Communication between Airflow and Looker is done via `Looker API <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
 To facilitate the API communication Looker operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
 Before calling API, Looker SDK needs to authenticate itself using your Looker API credentials.
 

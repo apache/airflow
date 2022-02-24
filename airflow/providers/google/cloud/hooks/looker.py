@@ -23,11 +23,7 @@ import time
 from enum import Enum
 from typing import Dict, Optional
 
-# TODO: Temporary import for Looker API response stub, remove once looker sdk 22.2 released
-import attr
 from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
-# TODO: Temporary import for Looker API response stub, remove once looker sdk 22.2 released
-from looker_sdk.rtl.model import Model
 from looker_sdk.sdk.api40 import methods as methods40
 from packaging.version import parse as parse_version
 
@@ -35,26 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.version import version
-
-# TODO: uncomment once looker sdk 22.2 released
-# from looker_sdk.sdk.api40.models import MaterializePDT
-
-
-@attr.s(auto_attribs=True, init=False)
-class MaterializePDT(Model):
-    """
-    TODO: Temporary API response stub. Use Looker API class once looker sdk 22.2 released.
-    Attributes:
-    materialization_id: The ID of the enqueued materialization job, if any
-    resp_text: The string response
-    """
-
-    materialization_id: str
-    resp_text: Optional[str] = None
-
-    def __init__(self, *, materialization_id: str, resp_text: Optional[str] = None):
-        self.materialization_id = materialization_id
-        self.resp_text = resp_text
 
 
 class LookerHook(BaseHook):
@@ -73,7 +49,7 @@ class LookerHook(BaseHook):
         model: str,
         view: str,
         query_params: Optional[Dict] = None,
-    ) -> MaterializePDT:
+    ):
         """
         Submits a PDT materialization job to Looker.
 
@@ -89,13 +65,11 @@ class LookerHook(BaseHook):
         if parse_version(looker_ver) < parse_version("22.2.0"):
             raise AirflowException(f'This API requires Looker version 22.2+. Found: {looker_ver}.')
 
-        # TODO: Temporary API response stub. Use Looker API once looker sdk 22.2 released.
-        resp = MaterializePDT(materialization_id='366', resp_text=None)
         # unpack query_params dict into kwargs (if not None)
-        # if query_params:
-        #     resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source, **query_params)
-        # else:
-        #     resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source)
+        if query_params:
+            resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source, **query_params)
+        else:
+            resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source)
 
         self.log.info("Start PDT build response: '%s'.", resp)
 
@@ -104,7 +78,7 @@ class LookerHook(BaseHook):
     def check_pdt_build(
         self,
         materialization_id: str,
-    ) -> MaterializePDT:
+    ):
         """
         Gets the PDT materialization job status from Looker.
 
@@ -112,15 +86,8 @@ class LookerHook(BaseHook):
         """
         self.log.info("Requesting PDT materialization job status. Job id: %s.", materialization_id)
 
-        # TODO: Temporary API response stub. Use Looker API once looker sdk 22.2 released.
-        resp = MaterializePDT(
-            materialization_id='366',
-            resp_text='{"status":"running","runtime":null,'
-            '"message":"Materialize 100m_sum_aggregate_sdt, ",'
-            '"task_slug":"f522424e00f0039a8c8f2d53d773f310"}',
-        )
-        sdk = self.get_looker_sdk()  # NOQA
-        # resp = sdk.check_pdt_build(materialization_id=materialization_id)
+        sdk = self.get_looker_sdk()
+        resp = sdk.check_pdt_build(materialization_id=materialization_id)
 
         self.log.info("Check PDT build response: '%s'.", resp)
         return resp
@@ -148,7 +115,7 @@ class LookerHook(BaseHook):
     def stop_pdt_build(
         self,
         materialization_id: str,
-    ) -> MaterializePDT:
+    ):
         """
         Starts a PDT materialization job cancellation request.
 
@@ -157,15 +124,8 @@ class LookerHook(BaseHook):
         self.log.info("Stopping PDT materialization. Job id: %s.", materialization_id)
         self.log.debug("PDT materialization job source: '%s'.", self.source)
 
-        # TODO: Temporary API response stub. Use Looker API once looker sdk 22.2 released.
-        resp = MaterializePDT(
-            materialization_id='366',
-            resp_text='{"success":true,"connection":"incremental_pdts_test",'
-            '"statusment":"KILL 810852",'
-            '"task_slug":"6bad8184f94407134251be8fd18af834"}',
-        )
-        sdk = self.get_looker_sdk()  # NOQA
-        # resp = sdk.stop_pdt_build(materialization_id=materialization_id, source=self.source)
+        sdk = self.get_looker_sdk()
+        resp = sdk.stop_pdt_build(materialization_id=materialization_id, source=self.source)
 
         self.log.info("Stop PDT build response: '%s'.", resp)
         return resp
