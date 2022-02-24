@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import DAG
-from airflow.utils.dates import days_ago
+import datetime
 
-args = {'owner': 'airflow', 'retries': 3, 'start_date': days_ago(2)}
+args = {'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022,1,1)}
 
 tree_dag = DAG(
     dag_id='test_tree_view',
