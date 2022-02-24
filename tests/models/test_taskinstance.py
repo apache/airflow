@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import operator
 import os
 import signal
 import urllib
@@ -2288,7 +2289,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComTypePushed) as ctx:
@@ -2311,7 +2312,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComLengthPushed) as ctx:
@@ -2340,7 +2341,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
@@ -2353,3 +2354,141 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert task_map.map_index == -1
         assert task_map.length == expected_length
         assert task_map.keys == expected_keys
+
+
+class TestMappedTaskInstanceReceiveValue:
+    @pytest.mark.parametrize(
+        "literal, expected_outputs",
+        [
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
+        ],
+    )
+    def test_map_literal(self, literal, expected_outputs, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="literal", session=session) as dag:
+
+            @dag.task
+            def show(value):
+                outputs.append(value)
+
+            show.apply(value=literal)
+
+        dag_run = dag_maker.create_dagrun()
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(literal)
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs
+
+    @pytest.mark.parametrize(
+        "upstream_return, expected_outputs",
+        [
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
+        ],
+    )
+    def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="xcom", session=session) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                outputs.append(value)
+
+            show.apply(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag.get_task("emit"))
+        emit_ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(upstream_return)
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs
+
+    def test_map_product(self, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="product", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def emit_letters():
+                return {"a": "x", "b": "y", "c": "z"}
+
+            @dag.task
+            def show(number, letter):
+                outputs.append((number, letter))
+
+            show.apply(number=emit_numbers(), letter=emit_letters())
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ["emit_numbers", "emit_letters"]:
+            ti = dag_run.get_task_instance(task_id, session=session)
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [
+            (1, ("a", "x")),
+            (1, ("b", "y")),
+            (1, ("c", "z")),
+            (2, ("a", "x")),
+            (2, ("b", "y")),
+            (2, ("c", "z")),
+        ]
+
+    def test_map_product_same(self, dag_maker, session):
+        """Test a mapped task can refer to the same source multiple times."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            emit_task = emit_numbers()
+            show.apply(a=emit_task, b=emit_task)
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("emit_numbers", session=session)
+        ti.refresh_from_task(dag.get_task("emit_numbers"))
+        ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 4
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]

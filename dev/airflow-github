@@ -25,6 +25,8 @@ import sys
 from collections import Counter, defaultdict
 from typing import List, Optional
 
+import git
+import rich_click as click
 from github import Github
 from github.Issue import Issue
 from github.PullRequest import PullRequest
@@ -33,17 +35,6 @@ GIT_COMMIT_FIELDS = ['id', 'author_name', 'author_email', 'date', 'subject', 'bo
 GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
 
-try:
-    import click
-except ImportError:
-    print("Could not find the click library. Run 'sudo pip install click' to install.")
-    sys.exit(-1)
-
-try:
-    import git
-except ImportError:
-    print("Could not import git. Run 'sudo pip install gitpython' to install")
-    sys.exit(-1)
 
 STATUS_COLOR_MAP = {
     'Closed': 'green',
@@ -147,7 +138,6 @@ def is_core_commit(files: List[str]) -> bool:
         # dev/release/testing
         "breeze",
         "codecov.yml",
-        "confirm",
         "pytest.ini",
         "kubernetes_tests/",
         ".github/",

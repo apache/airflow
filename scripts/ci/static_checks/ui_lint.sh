@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-MOUNT_ALL_LOCAL_SOURCES="false"
+export MOUNT_ALL_LOCAL_SOURCES="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"

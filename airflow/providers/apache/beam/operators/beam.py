@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
@@ -236,6 +237,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -301,7 +303,13 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         py_system_site_packages=self.py_system_site_packages,
                         process_line_callback=process_line_callback,
                     )
-
+                DataflowJobLink.persist(
+                    self,
+                    context,
+                    self.dataflow_config.project_id,
+                    self.dataflow_config.location,
+                    self.dataflow_job_id,
+                )
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,
@@ -368,6 +376,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
     )
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
+
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -452,6 +462,13 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                             if self.dataflow_config.multiple_jobs
                             else False
                         )
+                        DataflowJobLink.persist(
+                            self,
+                            context,
+                            self.dataflow_config.project_id,
+                            self.dataflow_config.location,
+                            self.dataflow_job_id,
+                        )
                         self.dataflow_hook.wait_for_done(
                             job_name=dataflow_job_name,
                             location=self.dataflow_config.location,
@@ -505,6 +522,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     ]
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -565,6 +583,14 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         process_line_callback=process_line_callback,
                         should_init_module=self.should_init_go_module,
                     )
+
+                DataflowJobLink.persist(
+                    self,
+                    context,
+                    self.dataflow_config.project_id,
+                    self.dataflow_config.location,
+                    self.dataflow_job_id,
+                )
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,

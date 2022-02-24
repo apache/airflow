@@ -253,7 +253,7 @@ function breeze::initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/scripts/tools/confirm" "Proceeding with the initialization"
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
@@ -329,7 +329,7 @@ function breeze::initialize_virtualenv() {
 function breeze::setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo
-    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/scripts/tools/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
@@ -499,6 +499,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               Platform:               ${PLATFORM}
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -508,6 +509,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE_WITH_TAG}
+                               Platform:               ${PLATFORM}
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -530,6 +532,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
+   Platform:                ${PLATFORM}
 EOF
         else
             cat <<EOF
@@ -538,6 +541,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
+   Platform:                ${PLATFORM}
 
 EOF
         fi
@@ -628,6 +632,7 @@ export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+export PLATFORM="${PLATFORM}"
 export SSH_PORT="${SSH_PORT}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
@@ -814,6 +819,12 @@ function breeze::parse_arguments() {
         -b | --backend)
             export BACKEND="${2}"
             echo "Backend: ${BACKEND}"
+            echo
+            shift 2
+            ;;
+        ---platform)
+            export PLATFORM="${2}"
+            echo "Backend: ${PLATFORM}"
             echo
             shift 2
             ;;
@@ -1095,6 +1106,11 @@ function breeze::parse_arguments() {
         --disable-mssql-client-installation)
             export INSTALL_MSSQL_CLIENT="false"
             echo "Install MsSQL client: ${INSTALL_MSSQL_CLIENT}"
+            shift
+            ;;
+        --disable-postgres-client-installation)
+            export INSTALL_POSTGRES_CLIENT="false"
+            echo "Install Postgres client: ${INSTALL_POSTGRES_CLIENT}"
             shift
             ;;
         --constraints-location)
@@ -1531,6 +1547,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_BACKENDS=$(echo "${_breeze_allowed_backends=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_BACKENDS
+
+    FORMATTED_PLATFORMS=$(echo "${_breeze_allowed_platforms=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_PLATFORMS
 
     FORMATTED_STATIC_CHECKS=$(echo "${_breeze_allowed_static_checks=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2232,6 +2252,14 @@ function breeze::flag_airflow_variants() {
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
+
+--platform PLATFORM
+        Builds image for the platform specified.
+
+        One of:
+
+${FORMATTED_PLATFORMS}
+
 "
 }
 
@@ -3086,6 +3114,7 @@ function breeze::check_and_save_all_params() {
     fi
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
+    parameters::check_and_save_allowed_param "PLATFORM" "platform" "--platform"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"

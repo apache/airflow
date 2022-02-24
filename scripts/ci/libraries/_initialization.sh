@@ -83,9 +83,9 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
-    # until we have support for ARM images, we set docker default platform to AMD
+    # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+    export PLATFORM=${PLATFORM:="linux/amd64"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
@@ -232,6 +232,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/install_airflow_dependencies_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
+        "scripts/docker/install_postgres.sh"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
@@ -400,6 +401,8 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # by default install mssql client
     export INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT:="true"}
+    # by default install postgres client
+    export INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 

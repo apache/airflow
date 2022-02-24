@@ -1,3 +1,75 @@
+Airflow 2.2.4, 2022-02-22
+-------------------------
+
+Bug Fixes
+"""""""""
+
+- Adding missing login provider related methods from Flask-Appbuilder (#21294)
+- Fix slow DAG deletion due to missing ``dag_id`` index for job table (#20282)
+- Add a session backend to store session data in the database (#21478)
+- Show task status only for running dags or only for the last finished dag (#21352)
+- Use compat data interval shim in log handlers (#21289)
+- Fix mismatch in generated run_id and logical date of DAG run (#18707)
+- Fix TriggerDagRunOperator extra link (#19410)
+- Add possibility to create user in the Remote User mode (#19963)
+- Avoid deadlock when rescheduling task (#21362)
+- Fix the incorrect scheduling time for the first run of dag (#21011)
+- Fix Scheduler crash when executing task instances of missing DAG (#20349)
+- Deferred tasks does not cancel when DAG is marked fail (#20649)
+- Removed duplicated dag_run join in ``Dag.get_task_instances()`` (#20591)
+- Avoid unintentional data loss when deleting DAGs (#20758)
+- Fix session usage in ``/rendered-k8s`` view (#21006)
+- Fix ``airflow dags backfill --reset-dagruns`` errors when run twice (#21062)
+- Do not set ``TaskInstance.max_tries`` in ``refresh_from_task`` (#21018)
+- Don't require dag_id in body in dagrun REST API endpoint (#21024)
+- Add Roles from Azure OAUTH Response in internal Security Manager (#20707)
+- Allow Viewing DagRuns and TIs if a user has DAG "read" perms (#20663)
+- Fix running ``airflow dags test <dag_id> <execution_dt>`` results in error when run twice (#21031)
+- Switch to non-vendored latest connexion library (#20910)
+- Bump flask-appbuilder to ``>=3.3.4`` (#20628)
+- upgrade celery to ``5.2.3`` (#19703)
+- Bump croniter from ``<1.1`` to ``<1.2`` (#20489)
+- Avoid calling ``DAG.following_schedule()`` for ``TaskInstance.get_template_context()`` (#20486)
+- Fix(standalone): Remove hardcoded Webserver port (#20429)
+- Remove unnecssary logging in experimental API (#20356)
+- Un-ignore DeprecationWarning (#20322)
+- Deepcopying Kubernetes Secrets attributes causing issues (#20318)
+- Fix(dag-dependencies): fix arrow styling (#20303)
+- Adds retry on taskinstance retrieval lock (#20030)
+- Correctly send timing metrics when using dogstatsd (fix schedule_delay metric) (#19973)
+- Enhance ``multiple_outputs`` inference of dict typing (#19608)
+- Fixing ses email backend (#18042)
+- Pin Markupsafe until we are able to upgrade Flask/Jinja (#21664)
+
+Doc only changes
+""""""""""""""""
+
+- Added explaining concept of logical date in DAG run docs (#21433)
+- Add note about Variable precedence with env vars (#21568)
+- Update error docs to include before_send option (#21275)
+- Augment xcom docs (#20755)
+- Add documentation and release policy on "latest" constraints (#21093)
+- Add a link to the DAG model in the Python API reference (#21060)
+- Added an enum param example (#20841)
+- Compare taskgroup and subdag (#20700)
+- Add note about reserved ``params`` keyword (#20640)
+- Improve documentation on ``Params`` (#20567)
+- Fix typo in MySQL Database creation code (Set up DB docs)  (#20102)
+- Add requirements.txt description (#20048)
+- Clean up ``default_args`` usage in docs (#19803)
+- Add docker-compose explanation to conn localhost (#19076)
+- Update CSV ingest code for tutorial (#18960)
+- Adds Pendulum 1.x -> 2.x upgrade documentation (#18955)
+- Clean up dynamic `start_date` values from docs (#19607)
+- Docs for multiple pool slots (#20257)
+- Update upgrading.rst with detailed code example of how to resolve post-upgrade warning (#19993)
+
+Misc
+""""
+
+- Deprecate some functions in the experimental API (#19931)
+- Deprecate smart sensors (#20151)
+
 Airflow 2.2.3, 2021-12-21
 -------------------------
 

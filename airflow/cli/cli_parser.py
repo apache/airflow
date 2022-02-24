@@ -224,6 +224,26 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO,
 )
 
+# DB args
+ARG_VERSION_RANGE = Arg(
+    ("-r", "--range"),
+    help="Version range(start:end) for offline sql generation. Example: '2.0.2:2.2.3'",
+    default=None,
+)
+ARG_REVISION_RANGE = Arg(
+    ('--revision-range',),
+    help=(
+        "Migration revision range(start:end) to use for offline sql generation. "
+        "Example: 'a13f7613ad25:7b2661a43ba3'"
+    ),
+    default=None,
+)
+ARG_REVISION_RANGE = Arg(
+    ('--revision-range',),
+    help='Revision range(start:end) to use for offline sql generation',
+    default=None,
+)
+
 # list_dag_runs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
@@ -799,7 +819,7 @@ ARG_INCLUDE_DAGS = Arg(
 # triggerer
 ARG_CAPACITY = Arg(
     ("--capacity",),
-    type=str,
+    type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
@@ -1274,7 +1294,7 @@ DB_COMMANDS = (
         name='upgrade',
         help="Upgrade the metadata database to latest version",
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-        args=(),
+        args=(ARG_VERSION_RANGE, ARG_REVISION_RANGE),
     ),
     ActionCommand(
         name='shell',
