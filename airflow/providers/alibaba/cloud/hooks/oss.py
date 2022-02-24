@@ -89,7 +89,7 @@ class OSSHook(BaseHook):
     conn_type = 'oss'
     hook_name = 'OSS'
 
-    def __init__(self, region=None, oss_conn_id='oss_default', *args, **kwargs) -> None:
+    def __init__(self, region: Optional[str] = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
         if region == None:
@@ -120,6 +120,7 @@ class OSSHook(BaseHook):
 
         return bucket_name, key
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def object_exists(self, key: str, bucket_name: Optional[str] = None) -> bool:
         """
@@ -148,6 +149,7 @@ class OSSHook(BaseHook):
         auth = self.get_credential()
         return oss2.Bucket(auth, 'http://oss-' + self.region + '.aliyuncs.com', bucket_name)
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def load_string(self, key: str, content: str, bucket_name: Optional[str] = None) -> None:
         """
@@ -162,6 +164,7 @@ class OSSHook(BaseHook):
         except Exception as e:
             raise AirflowException(f"Errors: {e}")
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def upload_local_file(
         self,
@@ -181,6 +184,7 @@ class OSSHook(BaseHook):
         except Exception as e:
             raise AirflowException(f"Errors when upload file: {e}")
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def download_file(
         self,
@@ -204,6 +208,7 @@ class OSSHook(BaseHook):
             return None
         return local_file
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def delete_object(
         self,
@@ -222,6 +227,7 @@ class OSSHook(BaseHook):
             self.log.error(e)
             raise AirflowException(f"Errors when deleting: {key}")
 
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def delete_objects(
         self,
@@ -272,39 +278,73 @@ class OSSHook(BaseHook):
             self.log.error(e)
             raise AirflowException(f"Errors when create bucket: {bucket_name}")
 
-    def append_string(self, bucket_name, content, bucket_key, pos):
-        self.log.info("Write oss bucket key: " + bucket_key)
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def append_string(self, bucket_name: Optional[str], content: str, key: str, pos: int):
+        """
+        Append string to a remote existing file
+
+        :param bucket_name: the name of the bucket
+        :param content: content to be appended
+        :param key: oss bucket key
+        :param pos: position of the existing file where the content will be appended
+        """
+        self.log.info("Write oss bucket key: " + key)
         self.log.info("Write oss bucket pos: " + str(pos))
         try:
-            self.get_bucket(bucket_name).append_object(bucket_key, pos, content)
+            self.get_bucket(bucket_name).append_object(key, pos, content)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when append string for object: {bucket_key}")
+            raise AirflowException(f"Errors when append string for object: {key}")
 
-    def read_key(self, bucket_name, bucket_key):
-        self.log.info("Read oss key: " + bucket_key)
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def read_key(self, bucket_name: Optional[str], key: str) -> str:
+        """
+        Read oss remote object content with the specified key
+
+        :param bucket_name: the name of the bucket
+        :param key: oss bucket key
+        """
+        self.log.info("Read oss key: " + key)
         try:
-            self.get_bucket(bucket_name).get_object(bucket_key).read().decode("utf-8")
+            return self.get_bucket(bucket_name).get_object(key).read().decode("utf-8")
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when read bucket object: {bucket_key}")
+            raise AirflowException(f"Errors when read bucket object: {key}")
 
-    def head_key(self, bucket_name, bucket_key):
-        self.log.info("Head Object oss key: " + bucket_key)
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def head_key(self, bucket_name: Optional[str], key: str) -> oss2.models.HeadObjectResult:
+        """
+        Get meta info of the specified remote object
+
+        :param bucket_name: the name of the bucket
+        :param key: oss bucket key
+        """
+        self.log.info("Head Object oss key: " + key)
         try:
-            self.get_bucket(bucket_name).head_object(bucket_key)
+            return self.get_bucket(bucket_name).head_object(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when head bucket object: {bucket_key}")
+            raise AirflowException(f"Errors when head bucket object: {key}")
 
-    def key_exist(self, bucket_name, bucket_key):
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def key_exist(self, bucket_name: Optional[str], key: str) -> bool:
+        """
+        Find out whether the specified key exists in the oss remote storage
+
+        :param bucket_name: the name of the bucket
+        :param key: oss bucket key
+        """
         # full_path = None
-        self.log.info("Looking up oss bucket {} for bucket key {} ...".format(bucket_name, bucket_key))
+        self.log.info(f"Looking up oss bucket {bucket_name} for bucket key {key} ...")
         try:
-            self.get_bucket(bucket_name).object_exists(bucket_key)
+            return self.get_bucket(bucket_name).object_exists(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when check bucket object existence: {bucket_key}")
+            raise AirflowException(f"Errors when check bucket object existence: {key}")
 
     def get_credential(self) -> oss2.auth.Auth:
         extra_config = self.oss_conn.extra_dejson
