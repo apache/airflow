@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import Mock
 
 from airflow.models.dagrun import DagRun
-from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
+from airflow.ti_deps.deps.dagrun_backfill_dep import DagRunNotBackfillDep
 from airflow.utils.types import DagRunType
 
 
@@ -34,7 +34,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun.run_id = "anything"
         dagrun.run_type = DagRunType.BACKFILL_JOB
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        assert not DagrunIdDep().is_met(ti=ti)
+        assert not DagRunNotBackfillDep().is_met(ti=ti)
 
     def test_dagrun_id_is_not_backfill(self):
         """
@@ -43,9 +43,9 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun = DagRun()
         dagrun.run_type = 'custom_type'
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        assert DagrunIdDep().is_met(ti=ti)
+        assert DagRunNotBackfillDep().is_met(ti=ti)
 
         dagrun = DagRun()
         dagrun.run_id = None
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        assert DagrunIdDep().is_met(ti=ti)
+        assert DagRunNotBackfillDep().is_met(ti=ti)
