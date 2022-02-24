@@ -482,6 +482,7 @@ function build_images::build_ci_image() {
     docker_v "${BUILD_COMMAND[@]}" \
         "${extra_docker_ci_flags[@]}" \
         --pull \
+        --platform "${PLATFORM}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
@@ -630,6 +631,7 @@ function build_images::build_prod_images() {
     docker_v "${BUILD_COMMAND[@]}" \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --pull \
+        --platform "${PLATFORM}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
