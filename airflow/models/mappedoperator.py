@@ -111,7 +111,7 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
             if isinstance(value, get_mappable_types()):
                 continue
             type_name = type(value).__name__
-            error = f"{op.__name__}.map() got unexpected type {type_name!r} for keyword argument {name}"
+            error = f"{op.__name__}.map() got an unexpected type {type_name!r} for keyword argument {name}"
             raise ValueError(error)
         if not unknown_args:
             return  # If we have no args left ot check: stop looking at the MRO chian.
