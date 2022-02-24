@@ -37,7 +37,7 @@ class DagRunNotBackfillDep(BaseTIDep):
         :param ti: the task instance to get the dependency status for
         :param session: database session
         :param dep_context: the context for which this dependency should be evaluated for
-        :return: True if DagRun ID is valid for scheduling from scheduler.
+        :return: True if DagRun is valid for scheduling from scheduler.
         """
         dagrun = ti.get_dagrun(session)
 
