@@ -25,56 +25,12 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
+from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
-VERTEX_AI_DATASET_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/datasets/{dataset_id}/analyze?project={project_id}"
-)
-VERTEX_AI_DATASET_LIST_LINK = VERTEX_AI_BASE_LINK + "/datasets?project={project_id}"
-
-
-class VertexAIDatasetLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Dataset link"""
-
-    name = "Dataset"
-
-    def get_link(self, operator, dttm):
-        dataset_conf = XCom.get_one(
-            key='dataset_conf', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_DATASET_LINK.format(
-                region=dataset_conf["region"],
-                dataset_id=dataset_conf["dataset_id"],
-                project_id=dataset_conf["project_id"],
-            )
-            if dataset_conf
-            else ""
-        )
-
-
-class VertexAIDatasetListLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Datasets Link"""
-
-    name = "Dataset List"
-
-    def get_link(self, operator, dttm):
-        project_id = XCom.get_one(
-            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_DATASET_LIST_LINK.format(
-                project_id=project_id,
-            )
-            if project_id
-            else ""
-        )
 
 
 class CreateDatasetOperator(BaseOperator):
@@ -130,7 +86,7 @@ class CreateDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -153,15 +109,7 @@ class CreateDatasetOperator(BaseOperator):
         self.log.info("Dataset was created. Dataset id: %s", dataset_id)
 
         self.xcom_push(context, key="dataset_id", value=dataset_id)
-        self.xcom_push(
-            context,
-            key="dataset_conf",
-            value={
-                "dataset_id": dataset_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=dataset_id)
         return dataset
 
 
@@ -219,7 +167,7 @@ class GetDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -237,15 +185,7 @@ class GetDatasetOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.xcom_push(
-                context,
-                key="dataset_conf",
-                value={
-                    "dataset_id": self.dataset_id,
-                    "project_id": self.project_id,
-                    "region": self.region,
-                },
-            )
+            VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=self.dataset_id)
             self.log.info("Dataset was gotten.")
             return Dataset.to_dict(dataset_obj)
         except NotFound:
@@ -303,7 +243,7 @@ class DeleteDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -380,7 +320,7 @@ class ExportDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -456,7 +396,7 @@ class ImportDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -542,7 +482,7 @@ class ListDatasetsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -560,11 +500,7 @@ class ListDatasetsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.xcom_push(
-            context,
-            key="project_id",
-            value=self.project_id,
-        )
+        VertexAIDatasetListLink.persist(context=context, task_instance=self)
         return [Dataset.to_dict(result) for result in results]
 
 
@@ -625,7 +561,7 @@ class UpdateDatasetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: "Context"):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

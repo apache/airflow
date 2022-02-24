@@ -207,8 +207,9 @@ class FileTaskHandler(logging.Handler):
                 if response.status_code == 403:
                     log += (
                         "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have"
-                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                        "schedulers, webservers and workers) have "
+                        "the same 'secret_key' configured in 'webserver' section and "
+                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
                     )
                     log += (
                         "*** See more at https://airflow.apache.org/docs/apache-airflow/"

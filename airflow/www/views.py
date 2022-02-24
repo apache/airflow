@@ -1207,7 +1207,7 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = copy.copy(dag.get_task(task_id).unmap())
+        task = dag.get_task(task_id).prepare_for_execution()
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1230,6 +1230,8 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+        else:
+            task = ti.task
 
         title = "Rendered Template"
         html_dict = {}
@@ -3555,19 +3557,14 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    label_columns = {
-        'execution_date': 'Logical Date',
-    }
-
-    search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    base_order = ('execution_date', 'desc')
+    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    base_order = ('dagrun_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
@@ -3582,12 +3579,24 @@ class XComModelView(AirflowModelView):
     def pre_add(self, item):
         """Pre add hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
     def pre_update(self, item):
         """Pre update hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
 
 def lazy_add_provider_discovered_options_to_connection_form():

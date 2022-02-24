@@ -30,6 +30,9 @@ function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
+    fi
 
     # shellcheck disable=SC2206
     local pip_flags=(

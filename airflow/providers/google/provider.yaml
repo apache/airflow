@@ -482,6 +482,7 @@ operators:
     python-modules:
       - airflow.providers.google.cloud.operators.vertex_ai.dataset
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
+      - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
 
 sensors:
   - integration-name: Google BigQuery
@@ -683,6 +684,7 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.vertex_ai.dataset
       - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
+      - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
 
 transfers:
   - source-integration-name: Presto
@@ -714,6 +716,10 @@ transfers:
   - source-integration-name: Apache Cassandra
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.cassandra_to_gcs
+  - source-integration-name: Google Calendar
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/calendar_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.calendar_to_gcs
   - source-integration-name: Google Spreadsheet
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sheets_to_gcs.rst
@@ -831,16 +837,17 @@ extra-links:
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
-  - airflow.providers.google.cloud.operators.dataproc.DataprocJobLink
-  - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
-  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAIModelLink
-  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
-  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetLink
-  - airflow.providers.google.cloud.operators.vertex_ai.dataset.VertexAIDatasetListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAITrainingPipelinesLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetListLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
+  - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
   - airflow.providers.google.common.links.storage.StorageLink
 
 additional-extras:

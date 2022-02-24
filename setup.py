@@ -264,7 +264,7 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
-    'click>=7.1',
+    'click>=8.0',
     'sphinx>=4.4.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
@@ -592,7 +592,7 @@ devel_only = [
     'black',
     'blinker',
     'bowler',
-    'click>=7.1',
+    'click>=8.0',
     'coverage',
     'filelock',
     'flake8>=3.6.0',
@@ -633,6 +633,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'rich_click',
     'semver',
     'twine',
     'wheel',

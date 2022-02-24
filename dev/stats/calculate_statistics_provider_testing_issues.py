@@ -23,7 +23,7 @@ import textwrap
 from pathlib import Path
 from typing import List, Set, Tuple
 
-import click
+import rich_click as click
 from attr import dataclass
 from github import Github
 from github.Issue import Issue

@@ -202,7 +202,7 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].conf, {"foo": "bar"}
+            assert dagruns[0].conf == {"foo": "bar"}
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self):
         """Test passing a conf that is not JSON Serializable raise error."""
@@ -228,7 +228,7 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].conf, {"foo": TEST_DAG_ID}
+            assert dagruns[0].conf == {"foo": TEST_DAG_ID}
 
     def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
