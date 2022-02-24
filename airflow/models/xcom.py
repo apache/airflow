@@ -59,7 +59,7 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dagrun_id = Column(Integer(), nullable=False, primary_key=True)
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
@@ -163,7 +163,7 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
             try:
-                dagrun_id, run_id = (
+                dag_run_id, run_id = (
                     session.query(DagRun.id, DagRun.run_id)
                     .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
                     .one()
@@ -171,10 +171,10 @@ class BaseXCom(Base, LoggingMixin):
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
         elif run_id == IN_MEMORY_RUN_ID:
-            dagrun_id = -1
+            dag_run_id = -1
         else:
-            dagrun_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
-            if dagrun_id is None:
+            dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+            if dag_run_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
         value = cls.serialize_value(
@@ -182,7 +182,7 @@ class BaseXCom(Base, LoggingMixin):
             key=key,
             task_id=task_id,
             dag_id=dag_id,
-            run_id=dagrun_id,
+            run_id=dag_run_id,
         )
 
         # Remove duplicate XComs and insert a new one.
@@ -193,7 +193,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.dag_id == dag_id,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
-            dagrun_id=dagrun_id,
+            dag_run_id=dag_run_id,
             key=key,
             value=value,
             run_id=run_id,

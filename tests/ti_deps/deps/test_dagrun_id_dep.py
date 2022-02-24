@@ -26,9 +26,9 @@ from airflow.utils.types import DagRunType
 
 
 class TestDagrunRunningDep(unittest.TestCase):
-    def test_dagrun_id_is_backfill(self):
+    def test_run_id_is_backfill(self):
         """
-        Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.
+        Task instances whose run_id is a backfill dagrun run_id should fail this dep.
         """
         dagrun = DagRun()
         dagrun.run_id = "anything"
@@ -36,9 +36,9 @@ class TestDagrunRunningDep(unittest.TestCase):
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         assert not DagRunNotBackfillDep().is_met(ti=ti)
 
-    def test_dagrun_id_is_not_backfill(self):
+    def test_run_id_is_not_backfill(self):
         """
-        Task instances whose dagrun ID is not a backfill dagrun ID should pass this dep.
+        Task instances whose run_id is not a backfill run_id should pass this dep.
         """
         dagrun = DagRun()
         dagrun.run_type = 'custom_type'

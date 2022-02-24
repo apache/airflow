@@ -3592,7 +3592,7 @@ class XComModelView(AirflowModelView):
 
     search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
     list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    base_order = ('dagrun_id', 'desc')
+    base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
