@@ -133,7 +133,7 @@ A new `log_template` table is introduced to solve this problem. This table is sy
 
 In order to support Dynamic Task Mapping the default templates for per-task instance logging has changed. If your config contains the old default values they will be upgraded-in-place.
 
-If you are happy with the new config values you should _remove_ the setting in `airflow.cfg` and let the default value be used. Old default values were:
+If you are happy with the new config values you should *remove* the setting in `airflow.cfg` and let the default value be used. Old default values were:
 
 
 - `[core] log_filename_template`: `{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log`
