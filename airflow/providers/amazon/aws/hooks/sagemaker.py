@@ -910,17 +910,12 @@ class SageMakerHook(AwsBaseHook):
             raise
 
     def delete_model(self, model_name: str):
-        """Delete Sagemaker model
-        :param model_name: (optional) name of the model
-        :return: True if Model exists and deleted else return False
+        """Delete SageMaker model
+
+        :param model_name: name of the model
         """
         try:
             self.get_conn().delete_model(ModelName=model_name)
-            return True
-        except ClientError as client_error:
-            if client_error.response['Error']['Code'] in ['ValidationException']:
-                self.log.error("The model does not exist, error: %s", client_error)
-                return False
         except Exception as general_error:
             self.log.error("Failed to delete model, error: %s", general_error)
             raise

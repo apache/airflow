@@ -610,24 +610,23 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 )
 
 
-class SageMakerDeleteModelOperator(BaseOperator):
+class SageMakerDeleteModelOperator(SageMakerBaseOperator):
     """Deletes a SageMaker model.
 
-    This operator returns True if model was present and deleted else return False if Model was not present.
+    This operator deletes the Model entry created in SageMaker.
 
-    :param model_name: The name of Sagemaker Model (templated).
+    :param config: The configuration necessary to delete the model.
+
+        For details of the configuration parameter see :py:meth:`SageMaker.Client.delete_model`
     :param aws_conn_id: The AWS connection ID to use.
-
     """
 
-    def __init__(self, *, model_name: str, aws_conn_id: str, **kwargs):
-        super().__init__(**kwargs)
-        self.model_name = model_name
+    def __init__(self, *, config, aws_conn_id: str, **kwargs):
+        super().__init__(config=config, **kwargs)
         self.aws_conn_id = aws_conn_id
+        self.config = config
 
     def execute(self, context: 'Context') -> Any:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
-        delete_model_response = sagemaker_hook.delete_model(model_name=self.model_name)
-        if delete_model_response:
-            self.log.info("Model %s deleted Successfully.", self.model_name)
-        return delete_model_response
+        sagemaker_hook.delete_model(model_name=self.config['ModelName'])
+        self.log.info(f"Model {self.config['ModelName']} deleted Successfully.")

@@ -27,20 +27,20 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerTransformOperator,
 )
 
-model_name = "sample_model"
-training_job_name = 'sample_training'
-image_uri = environ.get('ECR_IMAGE_URI', '123456789012.dkr.ecr.us-east-1.amazonaws.com/repo_name')
-s3_bucket = environ.get('BUCKET_NAME', 'test-airflow-12345')
-role = environ.get('SAGEMAKER_ROLE_ARN', 'arn:aws:iam::123456789012:role/role_name')
+MODEL_NAME = "sample_model"
+TRAINING_JOB_NAME = "sample_training"
+IMAGE_URI = environ.get("ECR_IMAGE_URI", "123456789012.dkr.ecr.us-east-1.amazonaws.com/repo_name")
+S3_BUCKET = environ.get("BUCKET_NAME", "test-airflow-12345")
+ROLE = environ.get("SAGEMAKER_ROLE_ARN", "arn:aws:iam::123456789012:role/role_name")
 
-sagemaker_processing_job_config = {
+SAGEMAKER_PROCESSING_JOB_CONFIG = {
     "ProcessingJobName": "sample_processing_job",
     "ProcessingInputs": [
         {
             "InputName": "input",
             "AppManaged": False,
             "S3Input": {
-                "S3Uri": f"s3://{s3_bucket}/preprocessing/input/",
+                "S3Uri": f"s3://{S3_BUCKET}/preprocessing/input/",
                 "LocalPath": "/opt/ml/processing/input/",
                 "S3DataType": "S3Prefix",
                 "S3InputMode": "File",
@@ -54,7 +54,7 @@ sagemaker_processing_job_config = {
             {
                 "OutputName": "output",
                 "S3Output": {
-                    "S3Uri": f"s3://{s3_bucket}/preprocessing/output/",
+                    "S3Uri": f"s3://{S3_BUCKET}/preprocessing/output/",
                     "LocalPath": "/opt/ml/processing/output/",
                     "S3UploadMode": "EndOfJob",
                 },
@@ -71,15 +71,15 @@ sagemaker_processing_job_config = {
     },
     "StoppingCondition": {"MaxRuntimeInSeconds": 3600},
     "AppSpecification": {
-        "ImageUri": f"{image_uri}",
+        "ImageUri": f"{IMAGE_URI}",
         "ContainerEntrypoint": ["python3", "./preprocessing.py"],
     },
-    "RoleArn": f"{role}",
+    "RoleArn": f"{ROLE}",
 }
 
-sagemaker_training_job_config = {
+SAGEMAKER_TRAINING_JOB_CONFIG = {
     "AlgorithmSpecification": {
-        "TrainingImage": f"{image_uri}",
+        "TrainingImage": f"{IMAGE_URI}",
         "TrainingInputMode": "File",
     },
     "InputDataConfig": [
@@ -88,7 +88,7 @@ sagemaker_training_job_config = {
             "DataSource": {
                 "S3DataSource": {
                     "S3DataType": "S3Prefix",
-                    "S3Uri": f"s3://{s3_bucket}/config/",
+                    "S3Uri": f"s3://{S3_BUCKET}/config/",
                     "S3DataDistributionType": "FullyReplicated",
                 }
             },
@@ -98,7 +98,7 @@ sagemaker_training_job_config = {
     ],
     "OutputDataConfig": {
         "KmsKeyId": "",
-        "S3OutputPath": f"s3://{s3_bucket}/training/",
+        "S3OutputPath": f"s3://{S3_BUCKET}/training/",
     },
     "ResourceConfig": {
         "InstanceType": "ml.m5.large",
@@ -106,41 +106,41 @@ sagemaker_training_job_config = {
         "VolumeSizeInGB": 5,
     },
     "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
-    "RoleArn": f"{role}",
+    "RoleArn": f"{ROLE}",
     "EnableNetworkIsolation": False,
     "EnableInterContainerTrafficEncryption": False,
     "EnableManagedSpotTraining": False,
-    "TrainingJobName": training_job_name,
+    "TrainingJobName": TRAINING_JOB_NAME,
 }
 
-sagemaker_create_model_config = {
-    "ModelName": model_name,
+SAGEMAKER_CREATE_MODEL_CONFIG = {
+    "ModelName": MODEL_NAME,
     "Containers": [
         {
-            "Image": f"{image_uri}",
+            "Image": f"{IMAGE_URI}",
             "Mode": "SingleModel",
-            "ModelDataUrl": f"s3://{s3_bucket}/training/{training_job_name}/output/model.tar.gz",
+            "ModelDataUrl": f"s3://{S3_BUCKET}/training/{TRAINING_JOB_NAME}/output/model.tar.gz",
         }
     ],
-    "ExecutionRoleArn": f"{role}",
+    "ExecutionRoleArn": f"{ROLE}",
     "EnableNetworkIsolation": False,
 }
 
-sagemaker_inference_config = {
+SAGEMAKER_INFERENCE_CONFIG = {
     "TransformJobName": "sample_transform_job",
-    "ModelName": model_name,
+    "ModelName": MODEL_NAME,
     "TransformInput": {
         "DataSource": {
             "S3DataSource": {
                 "S3DataType": "S3Prefix",
-                "S3Uri": f"s3://{s3_bucket}/config/config_date.yml",
+                "S3Uri": f"s3://{S3_BUCKET}/config/config_date.yml",
             }
         },
         "ContentType": "application/x-yaml",
         "CompressionType": "None",
         "SplitType": "None",
     },
-    "TransformOutput": {"S3OutputPath": f"s3://{s3_bucket}/inferencing/output/"},
+    "TransformOutput": {"S3OutputPath": f"s3://{S3_BUCKET}/inferencing/output/"},
     "TransformResources": {"InstanceType": "ml.m5.large", "InstanceCount": 1},
 }
 
@@ -152,28 +152,26 @@ with DAG(
     catchup=False,
 ) as dag:
     sagemaker_processing_task = SageMakerProcessingOperator(
-        config=sagemaker_processing_job_config,
+        config=SAGEMAKER_PROCESSING_JOB_CONFIG,
         aws_conn_id="aws_default",
         task_id="sagemaker_preprocessing_task",
     )
 
     training_task = SageMakerTrainingOperator(
-        config=sagemaker_training_job_config, aws_conn_id="aws_default", task_id="sagemaker_training_task"
+        config=SAGEMAKER_TRAINING_JOB_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_training_task"
     )
 
-    model_delete_task = SageMakerDeleteModelOperator(
-        task_id="sagemaker_delete_model_task",
-        model_name=model_name,
-        aws_conn_id="aws_default",
-        dag=dag,
-    )
     model_create_task = SageMakerModelOperator(
-        config=sagemaker_create_model_config, aws_conn_id="aws_default", task_id="sagemaker_create_model_task"
+        config=SAGEMAKER_CREATE_MODEL_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_create_model_task"
     )
 
     inference_task = SageMakerTransformOperator(
-        config=sagemaker_inference_config, aws_conn_id="aws_default", task_id="sagemaker_inference_task"
+        config=SAGEMAKER_INFERENCE_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_inference_task"
     )
 
-    sagemaker_processing_task >> training_task >> model_delete_task >> model_create_task >> inference_task
+    model_delete_task = SageMakerDeleteModelOperator(
+        task_id="sagemaker_delete_model_task", config={'ModelName': MODEL_NAME}, aws_conn_id="aws_default"
+    )
+
+    sagemaker_processing_task >> training_task >> model_create_task >> inference_task >> model_delete_task
     # [END howto_operator_sagemaker]

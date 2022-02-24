@@ -70,13 +70,14 @@ class TestSageMakerModelOperator(unittest.TestCase):
 
 class TestSageMakerDeleteModelOperator(unittest.TestCase):
     def setUp(self):
+        delete_model_params = {'ModelName': 'test'}
         self.sagemaker = SageMakerDeleteModelOperator(
-            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', model_name='test'
+            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=delete_model_params
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'delete_model')
-    def test_model_delete(self, mock_model, mock_client):
-        mock_model.return_value = True
+    def test_execute(self, delete_model, mock_client):
+        delete_model.return_value = None
         self.sagemaker.execute(None)
-        mock_model.assert_called_once_with(model_name='test')
+        delete_model.assert_called_once_with(model_name='test')

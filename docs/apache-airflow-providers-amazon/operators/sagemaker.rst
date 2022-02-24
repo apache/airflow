@@ -16,7 +16,7 @@
     under the License.
 
 
-Amazon Sagemaker Operators
+Amazon SageMaker Operators
 ========================================
 
 Prerequisite Tasks
@@ -27,8 +27,8 @@ Prerequisite Tasks
 Overview
 --------
 
-Airflow to Amazon Sagemaker integration provides several operators to create and interact with
-Sagemaker Jobs.
+Airflow to Amazon SageMaker integration provides several operators to create and interact with
+SageMaker Jobs.
 
   - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteModelOperator`
   - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator`
@@ -37,26 +37,21 @@ Sagemaker Jobs.
   - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`
   - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator`
 
-One example_dag is provided which showcases some of these operators in action.
-
- - example_sagemaker.py
-
---------------------------------------------------------------
-
 Purpose
 """""""
 
 This example DAG ``example_sagemaker.py`` uses ``SageMakerProcessingOperator``, ``SageMakerTrainingOperator``,
 ``SageMakerModelOperator``, ``SageMakerDeleteModelOperator`` and ``SageMakerTransformOperator`` to
-create Sagemaker processing job, run the training job,
-generate the models artifact in s3, delete the model in case
-the model with same name exist, create the model,
-and run Sagemaker Batch inference.
+create SageMaker processing job, run the training job,
+generate the models artifact in s3, create the model,
+, run SageMaker Batch inference and delete the model from SageMaker.
 
 Defining tasks
 """"""""""""""
 
-In the following code we create a Sagemaker processing, training, batch transform job
+In the following code we create a SageMaker processing,
+training, Sagemaker Model, batch transform job and
+then delete the model.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
     :language: python
