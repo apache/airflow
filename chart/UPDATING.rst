@@ -59,6 +59,12 @@ The default Airflow image that is used with the Chart is now ``2.2.3``, previous
 
 The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
 
+Removed ``config.api``
+""""""""""""""""""""""
+
+This section configured the authentication backend for the Airflow API but used the same values as the Airflow default setting, which made it unnecessary to
+declare the same again.
+
 Fixed precedence of ``nodeSelector``, ``affinity`` and ``tolerations`` params
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
