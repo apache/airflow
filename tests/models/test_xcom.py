@@ -24,6 +24,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.models.xcom import IN_MEMORY_DAGRUN_ID, XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
@@ -95,9 +96,11 @@ class TestXCom:
             XCom.set(
                 key="xcom_test3",
                 value={"key": "value"},
-                dag_id=dag_run.dag_id,
-                task_id="test_task3",
-                run_id=dag_run.run_id,
+                ti_key=TaskInstanceKey(
+                    dag_id=dag_run.dag_id,
+                    task_id="test_task3",
+                    run_id=dag_run.run_id,
+                ),
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
@@ -115,9 +118,11 @@ class TestXCom:
             XCom.set(
                 key="xcom_test3",
                 value={"key": "value"},
-                dag_id=dag_run.dag_id,
-                task_id="test_task3",
-                run_id=dag_run.run_id,
+                ti_key=TaskInstanceKey(
+                    dag_id=dag_run.dag_id,
+                    task_id="test_task3",
+                    run_id=dag_run.run_id,
+                ),
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
@@ -140,9 +145,11 @@ class TestXCom:
             XCom.set(
                 key="xcom_test3",
                 value=PickleRce(),
-                dag_id=dag_run.dag_id,
-                task_id="test_task3",
-                run_id=dag_run.run_id,
+                ti_key=TaskInstanceKey(
+                    dag_id=dag_run.dag_id,
+                    task_id="test_task3",
+                    run_id=dag_run.run_id,
+                ),
                 session=session,
             )
 
@@ -166,9 +173,11 @@ class TestXCom:
         XCom.set(
             key=XCOM_RETURN_KEY,
             value={"key": "value"},
-            dag_id=dag_run.dag_id,
-            task_id="test_task",
-            run_id=dag_run.run_id,
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id="test_task",
+                run_id=dag_run.run_id,
+            ),
             session=session,
         )
 
@@ -206,7 +215,11 @@ class TestXCom:
         )
 
         XCom = resolve_xcom_backend()
-        XCom.set(**kwargs)
+        XCom.set(
+            key=XCOM_RETURN_KEY,
+            value=kwargs['value'],
+            ti_key=TaskInstanceKey("test_dag", run_id=IN_MEMORY_DAGRUN_ID, task_id="test_tesk"),
+        )
         serialize_watcher.assert_called_once_with(value=kwargs['value'])
 
     @conf_vars({("core", "enable_xcom_pickling"): 'False'})
@@ -220,13 +233,13 @@ class TestXCom:
 
         class CurrentSignatureXCom(BaseXCom):
             @staticmethod
-            def serialize_value(
+            def serialize_value(  # type: ignore[override]
                 value,
                 key=None,
                 dag_id=None,
                 task_id=None,
                 run_id=None,
-                mapping_index: int = -1,
+                map_index: int = -1,
             ):
                 serialize_watcher(
                     value=value,
@@ -239,16 +252,22 @@ class TestXCom:
 
         get_import.return_value = CurrentSignatureXCom
 
-        kwargs = dict(
+        expected = dict(
             value={"my_xcom_key": "my_xcom_value"},
             key=XCOM_RETURN_KEY,
             dag_id="test_dag",
             task_id="test_task",
             run_id=IN_MEMORY_DAGRUN_ID,
         )
-        expected = {**kwargs, 'run_id': -1}
         XCom = resolve_xcom_backend()
-        XCom.set(**kwargs)
+
+        XCom.set(
+            value=expected['value'],
+            key=expected['key'],
+            ti_key=TaskInstanceKey(
+                dag_id=expected['dag_id'], task_id=expected['task_id'], run_id=expected['run_id']
+            ),
+        )
         serialize_watcher.assert_called_once_with(**expected)
 
 
@@ -269,9 +288,11 @@ def push_simple_json_xcom(session):
         return XCom.set(
             key=key,
             value=value,
-            dag_id=dag_run.dag_id,
-            task_id=task_id,
-            run_id=dag_run.run_id,
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id=task_id,
+                run_id=dag_run.run_id,
+            ),
             session=session,
         )
 
@@ -461,9 +482,11 @@ class TestXComSet:
         XCom.set(
             key="xcom_1",
             value={"key": "value"},
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            run_id=dag_run.run_id,
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                run_id=dag_run.run_id,
+            ),
             session=session,
         )
         stored_xcoms = session.query(XCom).all()
@@ -500,9 +523,11 @@ class TestXComSet:
         XCom.set(
             key="xcom_1",
             value={"key2": "value2"},
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            run_id=dag_run.run_id,
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                run_id=dag_run.run_id,
+            ),
             session=session,
         )
         assert session.query(XCom).one().value == {"key2": "value2"}
@@ -532,9 +557,11 @@ class TestXComClear:
     def test_xcom_clear(self, session, dag_run):
         assert session.query(XCom).count() == 1
         XCom.clear(
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            run_id=dag_run.run_id,
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                run_id=dag_run.run_id,
+            ),
             session=session,
         )
         assert session.query(XCom).count() == 0
@@ -554,9 +581,11 @@ class TestXComClear:
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_run(self, session, dag_run):
         XCom.clear(
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            run_id="different_run",
+            ti_key=TaskInstanceKey(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                run_id="different_run",
+            ),
             session=session,
         )
         assert session.query(XCom).count() == 1

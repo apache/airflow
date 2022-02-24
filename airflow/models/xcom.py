@@ -50,6 +50,9 @@ XCOM_RETURN_KEY = 'return_value'
 # run without storing it in the database.
 IN_MEMORY_DAGRUN_ID = "__airflow_in_memory_dagrun__"
 
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
 
 class BaseXCom(Base, LoggingMixin):
     """Base class for XCom objects."""
@@ -108,10 +111,7 @@ class BaseXCom(Base, LoggingMixin):
         key: str,
         value: Any,
         *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int = -1,
+        ti_key: Union["TaskInstance", "TaskInstanceKey"],
         session: Session = NEW_SESSION,
     ) -> None:
         """Store an XCom value.
@@ -121,10 +121,7 @@ class BaseXCom(Base, LoggingMixin):
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
-        :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
-        :param map_index: Index of mapped task.
+        :param ti_key: The TaskInstance key to store against
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -148,23 +145,25 @@ class BaseXCom(Base, LoggingMixin):
         cls,
         key: str,
         value: Any,
-        task_id: str,
-        dag_id: str,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
         execution_date: Optional[datetime.datetime] = None,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
-        map_index: int = -1,
+        ti_key: Union[None, "TaskInstance", "TaskInstanceKey"] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstanceKey
 
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+        if not exactly_one(execution_date is not None, ti_key is not None):
+            raise ValueError("Exactly one of ti_key or execution_date must be passed")
 
-        if run_id is None:
-            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
+        if ti_key is None:
+            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'ti_key' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
+            if task_id is None or dag_id is None:
+                raise ValueError("Both task_id and dag_id must be passed along with execution_date")
             try:
                 dagrun_id, run_id = (
                     session.query(DagRun.id, DagRun.run_id)
@@ -173,38 +172,35 @@ class BaseXCom(Base, LoggingMixin):
                 )
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
-        elif run_id == IN_MEMORY_DAGRUN_ID:
+            ti_key = TaskInstanceKey(dag_id=dag_id, task_id=task_id, run_id=run_id)
+
+        if ti_key.run_id == IN_MEMORY_DAGRUN_ID:
             dagrun_id = -1
         else:
-            dagrun_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+            dagrun_id = (
+                session.query(DagRun.id).filter_by(dag_id=ti_key.dag_id, run_id=ti_key.run_id).scalar()
+            )
             if dagrun_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
-        value = cls.serialize_value(
-            value=value,
-            key=key,
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=dagrun_id,
-            map_index=map_index,
-        )
+        value = cls.serialize_value(value=value, key=key, ti_key=ti_key)
 
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
             cls.key == key,
-            cls.run_id == run_id,
-            cls.task_id == task_id,
-            cls.dag_id == dag_id,
-            cls.map_index == map_index,
+            cls.run_id == ti_key.run_id,
+            cls.task_id == ti_key.task_id,
+            cls.dag_id == ti_key.dag_id,
+            cls.map_index == ti_key.map_index,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dagrun_id=dagrun_id,
             key=key,
             value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
+            run_id=ti_key.run_id,
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            map_index=ti_key.map_index,
         )
         session.add(new)
         session.flush()
@@ -443,36 +439,30 @@ class BaseXCom(Base, LoggingMixin):
     @classmethod
     def clear(
         cls,
-        *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int = -1,
-        session: Optional[Session] = None,
-    ) -> None:
-        """Clear all XCom data from the database for the given task instance.
-
-        A deprecated form of this function accepts ``execution_date`` instead of
-        ``run_id``. The two arguments are mutually exclusive.
-
-        :param dag_id: ID of DAG to clear the XCom for.
-        :param task_id: ID of task to clear the XCom for.
-        :param run_id: ID of DAG run to clear the XCom for.
-        :param map_index: Index of mapped task to clear the XCom for.
-        :param session: Database session. If not given, a new session will be
-            created for this function.
-        """
-
-    @overload
-    @classmethod
-    def clear(
-        cls,
         execution_date: pendulum.DateTime,
         dag_id: str,
         task_id: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """:sphinx-autoapi-skip:"""
+
+    @overload
+    @classmethod
+    def clear(
+        cls,
+        *,
+        ti_key: Union["TaskInstance", "TaskInstanceKey"],
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """Clear all XCom data from the database for the given task instance.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param ti_key: The TaskInstance key to store clear data for
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
 
     @classmethod
     @provide_session
@@ -483,36 +473,37 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[str] = None,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
-        map_index: int = -1,
+        ti_key: Union[None, "TaskInstance", "TaskInstanceKey"] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
-        from airflow.models import DagRun
+        from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstanceKey
 
         # Given the historic order of this function (execution_date was first argument) to add a new optional
         # param we need to add default values for everything :(
-        if dag_id is None:
-            raise TypeError("clear() missing required argument: dag_id")
-        if task_id is None:
-            raise TypeError("clear() missing required argument: task_id")
 
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+        if not exactly_one(execution_date is not None, ti_key is not None):
+            raise ValueError("Exactly one of ti_key or execution_date must be passed")
 
-        if execution_date is not None:
+        if not ti_key:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
+            if dag_id is None:
+                raise TypeError("clear() missing required argument when passing execution_date: dag_id")
+            if task_id is None:
+                raise TypeError("clear() missing required argument when passing execution_date: task_id")
             run_id = (
                 session.query(DagRun.run_id)
                 .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
                 .scalar()
             )
+            ti_key = TaskInstanceKey(dag_id=dag_id, task_id=task_id, run_id=run_id)
 
         query = session.query(cls).filter(
-            cls.dag_id == dag_id,
-            cls.task_id == task_id,
-            cls.run_id == run_id,
-            cls.map_index == map_index,
+            cls.dag_id == ti_key.dag_id,
+            cls.task_id == ti_key.task_id,
+            cls.run_id == ti_key.run_id,
+            cls.map_index == ti_key.map_index,
         )
         return query.delete()
 
@@ -521,10 +512,7 @@ class BaseXCom(Base, LoggingMixin):
         value: Any,
         *,
         key=None,
-        task_id=None,
-        dag_id=None,
-        run_id=None,
-        map_index: int = -1,
+        ti_key: Union[None, "TaskInstance", "TaskInstanceKey"] = None,
     ):
         """Serialize XCom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):
@@ -579,8 +567,8 @@ def _patch_outdated_serializer(clazz, params):
     old_serializer = clazz.serialize_value
 
     @wraps(old_serializer)
-    def _shim(**kwargs):
-        kwargs = {k: kwargs.get(k) for k in params}
+    def _shim(ti_key, **kwargs):
+        kwargs = {k: kwargs.get(k) or getattr(ti_key, k) for k in params}
         warnings.warn(
             f"Method `serialize_value` in XCom backend {XCom.__name__} is using outdated signature and"
             f"must be updated to accept all params in `BaseXCom.set` except `session`. Support will be "

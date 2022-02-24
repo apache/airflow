@@ -820,12 +820,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         self.log.debug("Clearing XCom data")
-        XCom.clear(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            session=session,
-        )
+        XCom.clear(ti_key=self.key, session=session)
 
     @property
     def key(self) -> TaskInstanceKey:
@@ -2178,10 +2173,7 @@ class TaskInstance(Base, LoggingMixin):
         XCom.set(
             key=key,
             value=value,
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            map_index=self.map_index,
+            ti_key=self.key,
             session=session,
         )
 
