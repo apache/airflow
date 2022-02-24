@@ -1613,7 +1613,7 @@ class DAG(LoggingMixin):
         *,
         task_id: str,
         execution_date: Optional[datetime] = None,
-        dag_run_id: Optional[str] = None,
+        run_id: Optional[str] = None,
         state: TaskInstanceState,
         upstream: bool = False,
         downstream: bool = False,
@@ -1628,7 +1628,7 @@ class DAG(LoggingMixin):
 
         :param task_id: Task ID of the TaskInstance
         :param execution_date: Execution date of the TaskInstance
-        :param dag_run_id: The run_id of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
         :param upstream: Include all upstream tasks of the given task_id
         :param downstream: Include all downstream tasks of the given task_id
@@ -1638,12 +1638,12 @@ class DAG(LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        if not exactly_one(execution_date, dag_run_id):
-            raise ValueError("Exactly one of execution_date or dag_run_id must be provided")
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
 
         if execution_date is None:
             dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == dag_run_id, DagRun.dag_id == self.dag_id).one()
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
             )  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
         else:
@@ -1655,7 +1655,7 @@ class DAG(LoggingMixin):
         altered = set_state(
             tasks=[task],
             execution_date=execution_date,
-            dag_run_id=dag_run_id,
+            run_id=run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
