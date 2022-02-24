@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from chart.tests.helm_template_generator import render_chart
 
@@ -168,3 +169,102 @@ class CreateUserJobTest(unittest.TestCase):
         assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
+
+    @parameterized.expand(
+        [
+            ("1.10.14", "airflow create_user"),
+            ("2.0.2", "airflow users create"),
+        ],
+    )
+    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert [
+            "bash",
+            "-c",
+            f"exec \\\n{expected_arg} \"$@\"",
+            "--",
+            "-r",
+            "Admin",
+            "-u",
+            "admin",
+            "-e",
+            "admin@example.com",
+            "-f",
+            "admin",
+            "-l",
+            "user",
+            "-p",
+            "admin",
+        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"createUserJob": {"command": command, "args": args}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_default_user_overrides(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "defaultUser": {
+                        "role": "SomeRole",
+                        "username": "jdoe",
+                        "email": "jdoe@example.com",
+                        "firstName": "John",
+                        "lastName": "Doe",
+                        "password": "whereisjane?",
+                    }
+                }
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert [
+            "bash",
+            "-c",
+            "exec \\\nairflow users create \"$@\"",
+            "--",
+            "-r",
+            "SomeRole",
+            "-u",
+            "jdoe",
+            "-e",
+            "jdoe@example.com",
+            "-f",
+            "John",
+            "-l",
+            "Doe",
+            "-p",
+            "whereisjane?",
+        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])

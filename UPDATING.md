@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.4](#airflow-224)
 - [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
 - [Airflow 2.2.1](#airflow-221)
@@ -122,12 +123,6 @@ datetime_param("{{ params.a }} | {{ params.b }}")
 
 Note the use of `set` and `datetime` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
 
-### Smart sensors deprecated
-
-Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
-
-See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
-
 ### Task log templates are now read from the metadatabase instead of `airflow.cfg`
 
 Previously, a task’s log is dynamically rendered from the `[core] log_filename_template` and `[elasticsearch] log_id_template` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
@@ -149,6 +144,18 @@ Note that Airflow’s metadatabase definition on both the database and ORM level
 Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
 
 This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
+
+### `auth_backends` includes session
+
+To allow the Airflow UI to use the API, the previous default authorization backend `airflow.api.auth.backend.deny_all` is changed to `airflow.api.auth.backend.session`, and this is automatically added to the list of API authorization backends if a non-default value is set.
+
+## Airflow 2.2.4
+
+### Smart sensors deprecated
+
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
+
+See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
 ## Airflow 2.2.3
 

@@ -82,6 +82,7 @@ REVISION_HEADS_MAP = {
     "2.2.1": "7b2661a43ba3",
     "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
+    "2.2.4": "587bdf053233",
 }
 
 
@@ -654,19 +655,12 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
-    with EnvironmentContext(
-        config,
-        script_,
-    ) as env, settings.engine.connect() as connection:
-        env.configure(connection)
+    with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
         db_heads = None
         for ticker in range(timeout):
-            source_heads = set(script_.get_heads())
+            source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
             if source_heads == db_heads:
                 return
@@ -678,27 +672,33 @@ def check_migrations(timeout):
         )
 
 
-def _get_script_dir_and_config():
-    """Get config and script directory"""
+@contextlib.contextmanager
+def _configured_alembic_environment():
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    return script_, config
 
-
-def check_and_run_migrations():
-    """Check and run migrations if necessary. Only use in a tty"""
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
     with EnvironmentContext(
         config,
         script_,
     ) as env, settings.engine.connect() as connection:
+
+        alembic_logger = logging.getLogger('alembic')
+        level = alembic_logger.level
+        alembic_logger.setLevel(logging.WARNING)
         env.configure(connection)
+        alembic_logger.setLevel(level)
+
+        yield env
+
+
+def check_and_run_migrations():
+    """Check and run migrations if necessary. Only use in a tty"""
+    with _configured_alembic_environment() as env:
         context = env.get_context()
-        source_heads = set(script_.get_heads())
+        source_heads = set(env.script.get_heads())
         db_heads = set(context.get_current_heads())
         db_command = None
         command_name = None
