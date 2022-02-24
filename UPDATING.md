@@ -145,6 +145,10 @@ Previously, only one backend was used to authorize use of the REST API. In 2.3 t
 
 This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
 
+### `auth_backends` includes session
+
+To allow the Airflow UI to use the API, the previous default authorization backend `airflow.api.auth.backend.deny_all` is changed to `airflow.api.auth.backend.session`, and this is automatically added to the list of API authorization backends if a non-default value is set.
+
 ## Airflow 2.2.4
 
 ### Smart sensors deprecated

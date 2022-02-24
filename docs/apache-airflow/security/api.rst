@@ -22,12 +22,12 @@ API Authentication
 ------------------
 
 Authentication for the API is handled separately to the Web Authentication. The default is to
-deny all requests:
+check the user session:
 
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.deny_all
+    auth_backends = airflow.api.auth.backend.session
 
 .. versionchanged:: 1.10.11
 

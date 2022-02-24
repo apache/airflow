@@ -40,7 +40,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-    :param: location: BigQuery Transfer Service location for regional transfers.
+    :param location: BigQuery Transfer Service location for regional transfers.
     :param authorization_code: authorization code to use with this transfer configuration.
         This is required if new credentials are needed.
     :param retry: A retry object used to retry requests. If `None` is
@@ -123,7 +123,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :param transfer_config_id: Id of transfer config to be used.
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :param: location: BigQuery Transfer Service location for regional transfers.
+    :param location: BigQuery Transfer Service location for regional transfers.
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :param timeout: The amount of time, in seconds, to wait for the request to
@@ -205,7 +205,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :param: location: BigQuery Transfer Service location for regional transfers.
+    :param location: BigQuery Transfer Service location for regional transfers.
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :param timeout: The amount of time, in seconds, to wait for the request to
