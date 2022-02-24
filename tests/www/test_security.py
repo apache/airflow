@@ -776,31 +776,25 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         security_manager.prefixed_dag_id("hello")
 
 
-def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms):
-    username = 'dag_permission_user'
-    role_name = 'dag_permission_role'
-    parent_dag_name = "parent_dag"
+def test_access_dag_with_dot_in_id(
+    app, security_manager, assert_user_has_dag_perms, assert_user_does_not_have_dag_perms
+):
+    username = "dag_permission_user"
+    role_name = "dag_permission_role"
+    dag_name = "test"
     with app.app_context():
         mock_roles = [
             {
-                'role': role_name,
-                'perms': [
-                    (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
-                    (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
+                "role": role_name,
+                "perms": [
+                    (permissions.ACTION_CAN_READ, f"{permissions.RESOURCE_DAG_PREFIX}{dag_name}"),
+                    (permissions.ACTION_CAN_EDIT, f"{permissions.RESOURCE_DAG_PREFIX}{dag_name}"),
                 ],
             }
         ]
-        with create_user_scope(
-            app,
-            username=username,
-            role_name=role_name,
-        ) as user:
+        with create_user_scope(app, username=username, role_name=role_name) as user:
             security_manager.bulk_sync_roles(mock_roles)
-            security_manager._sync_dag_view_permissions(
-                parent_dag_name, access_control={role_name: READ_WRITE}
-            )
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
-            assert_user_has_dag_perms(
-                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
-            )
+            security_manager._sync_dag_view_permissions(dag_name, access_control={role_name: READ_WRITE})
+            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_name, user=user)
+            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=f"{dag_name}.a", user=user)
+            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=f"{dag_name}.a.b.c", user=user)
