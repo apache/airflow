@@ -76,15 +76,26 @@ _OPERATOR_EXTRA_LINKS: Set[str] = {
 
 
 @cache
-def get_operator_extra_links():
-    """
-    Returns operator extra links - both the ones that are built in and the ones that come from
-    the providers.
+def get_operator_extra_links() -> Set[str]:
+    """Get the operator extra links.
 
-    :return: set of extra links
+    This includes both the built-in ones, and those come from the providers.
     """
     _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
     return _OPERATOR_EXTRA_LINKS
+
+
+@cache
+def _get_default_mapped_partial() -> Dict[str, Any]:
+    """Get default partial kwargs in a mapped operator.
+
+    This is used to simplify a serialized mapped operator by excluding default
+    values supplied in the implementation from the serialized dict. Since those
+    are defaults, they are automatically supplied on de-serialization, so we
+    don't need to store them.
+    """
+    default_partial_kwargs = BaseOperator.partial(task_id="_").apply().partial_kwargs
+    return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> Dict[str, Any]:
@@ -580,9 +591,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Simplify partial_kwargs by comparing it to the most barebone object.
         # Remove all entries that are simply default values.
-        default_partial = cls._serialize(BaseOperator.partial(task_id="_").map().partial_kwargs)[Encoding.VAR]
         serialized_partial = serialized_op["partial_kwargs"]
-        for k, default in default_partial.items():
+        for k, default in _get_default_mapped_partial().items():
             try:
                 v = serialized_partial[k]
             except KeyError:

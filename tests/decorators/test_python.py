@@ -487,8 +487,8 @@ def test_mapped_decorator_shadow_context() -> None:
     assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
     with pytest.raises(ValueError) as ctx:
-        print_info.map(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call map() on task context variable 'run_id'"
+        print_info.apply(run_id=["hi", "there"])
+    assert str(ctx.value) == "cannot call apply() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -501,12 +501,12 @@ def test_mapped_decorator_wrong_argument() -> None:
     assert str(ct.value) == "partial() got an unexpected keyword argument 'wrong_name'"
 
     with pytest.raises(TypeError) as ct:
-        print_info.map(wrong_name=["hi", "there"])
-    assert str(ct.value) == "map() got an unexpected keyword argument 'wrong_name'"
+        print_info.apply(wrong_name=["hi", "there"])
+    assert str(ct.value) == "apply() got an unexpected keyword argument 'wrong_name'"
 
     with pytest.raises(ValueError) as cv:
-        print_info.map(message="hi")
-    assert str(cv.value) == "map() got an unexpected type 'str' for keyword argument 'message'"
+        print_info.apply(message="hi")
+    assert str(cv.value) == "apply() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():
@@ -519,9 +519,9 @@ def test_mapped_decorator():
         print(kwargs)
 
     with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
-        t0 = print_info.map(m1=["a", "b"], m2={"foo": "bar"})
-        t1 = print_info.partial(m1="hi").map(m2=[1, 2, 3])
-        t2 = print_everything.partial(whatever="123").map(any_key=[1, 2], works=t1)
+        t0 = print_info.apply(m1=["a", "b"], m2={"foo": "bar"})
+        t1 = print_info.partial(m1="hi").apply(m2=[1, 2, 3])
+        t2 = print_everything.partial(whatever="123").apply(any_key=[1, 2], works=t1)
 
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
@@ -542,9 +542,9 @@ def test_mapped_decorator_invalid_args() -> None:
     with pytest.raises(TypeError, match="arguments 'other', 'b'"):
         double.partial(other=[1], b=['a'])
     with pytest.raises(TypeError, match="argument 'other'"):
-        double.map(number=literal, other=[1])
+        double.apply(number=literal, other=[1])
     with pytest.raises(ValueError, match="argument 'number'"):
-        double.map(number=1)  # type: ignore[arg-type]
+        double.apply(number=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:
@@ -555,9 +555,9 @@ def test_partial_mapped_decorator() -> None:
     literal = [1, 2, 3]
 
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        quadrupled = product.partial(multiple=3).map(number=literal)
-        doubled = product.partial(multiple=2).map(number=literal)
-        trippled = product.partial(multiple=3).map(number=literal)
+        quadrupled = product.partial(multiple=3).apply(number=literal)
+        doubled = product.partial(multiple=2).apply(number=literal)
+        trippled = product.partial(multiple=3).apply(number=literal)
 
         product.partial(multiple=2)  # No operator is actually created.
 
@@ -589,7 +589,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).map(arg2=task1())
+        task2.partial(arg1=1).apply(arg2=task1())
 
     unmapped = dag.get_task("task2").unmap()
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
@@ -606,7 +606,7 @@ def test_mapped_decorator_converts_partial_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
+        task2.partial(arg1=1).apply(arg2=task1.apply(arg=[1, 2]))
 
     mapped_task2 = dag.get_task("task2")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)

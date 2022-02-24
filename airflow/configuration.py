@@ -218,6 +218,13 @@ class AirflowConfigParser(ConfigParser):
                 '3.0',
             ),
         },
+        'elasticsearch': {
+            'log_id_template': (
+                re.compile('^' + re.escape('{dag_id}-{task_id}-{run_id}-{try_number}') + '$'),
+                '{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}',
+                3.0,
+            )
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']

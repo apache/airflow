@@ -30,6 +30,7 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.mappedoperator import Mappable
 
 F = TypeVar("F", bound=Callable)
 R = TypeVar("R")
@@ -83,8 +84,8 @@ class TaskGroupDecorator(Generic[R]):
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
 
-    def map(self, **kwargs) -> Union[R, TaskGroup]:
-        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).map(**kwargs)
+    def apply(self, **kwargs) -> Union[R, TaskGroup]:
+        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).apply(**kwargs)
 
 
 @attr.define
@@ -106,12 +107,16 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
         return tg
 
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
-        if self.partial_kwargs:
-            raise RuntimeError("Already a partial task group")
+        duplicated_keys = [k for k in kwargs if k in self.partial_kwargs]
+        if len(duplicated_keys) == 1:
+            raise ValueError(f"Cannot overwrite partial argument: {duplicated_keys[0]!r}")
+        elif duplicated_keys:
+            joined = ", ".join(repr(k) for k in duplicated_keys)
+            raise ValueError(f"Cannot overwrite partial arguments: {joined}")
         self.partial_kwargs.update(kwargs)
         return self
 
-    def map(self, **kwargs) -> Union[R, TaskGroup]:
+    def apply(self, **kwargs) -> Union[R, TaskGroup]:
         if self.mapped_kwargs:
             raise RuntimeError("Already a mapped task group")
         self.mapped_kwargs = kwargs
@@ -145,7 +150,7 @@ class Group(Generic[F]):
     function: F
 
     # Return value should match F's return type, but that's impossible to declare.
-    def map(self, **kwargs: Any) -> Any:
+    def apply(self, **kwargs: "Mappable") -> Any:
         ...
 
     def partial(self, **kwargs: Any) -> "Group[F]":
