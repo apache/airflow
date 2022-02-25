@@ -341,7 +341,6 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
-
         if not isinstance(default_args, Dict) and default_args is not None:
             raise TypeError("default_args must be a dictionary")
         else:
