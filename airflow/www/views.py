@@ -4607,6 +4607,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'dag_id',
         'task_id',
         'run_id',
+        'map_index',
         'dag_run.execution_date',
         'operator',
         'start_date',
@@ -4680,10 +4681,18 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             return td_format(timedelta(seconds=duration))
         return None
 
+    def format_map_index(self):
+        """Only show indices of mapped tasks"""
+        map_index = self.get('map_index')
+        if map_index < 0:
+            return Markup("&nbsp;")
+        return None
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
         'run_id': wwwutils.dag_run_link,
+        'map_index': format_map_index,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
         'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),
