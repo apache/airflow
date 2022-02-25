@@ -19,7 +19,6 @@ import collections.abc
 import functools
 import inspect
 import re
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -52,17 +51,18 @@ from airflow.models.mappedoperator import (
     ValidationSource,
     create_mocked_kwargs,
     get_mappable_types,
+    prevent_duplicates,
 )
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import Protocol
 from airflow.utils import timezone
-from airflow.utils.context import Context
+from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MapArgument
+    from airflow.models.mappedoperator import Mappable
 
 
 def validate_python_callable(python_callable: Any) -> None:
@@ -227,25 +227,12 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     :meta private:
     """
 
-    function: Function = attr.ib(validator=attr.validators.is_callable())
+    function: Function = attr.ib()
     operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
-
-    @cached_property
-    def function_signature(self):
-        return inspect.signature(self.function)
-
-    @cached_property
-    def function_arg_names(self) -> Set[str]:
-        return set(self.function_signature.parameters)
-
-    @function.validator
-    def _validate_function(self, _, f):
-        if 'self' in self.function_arg_names:
-            raise TypeError(f'@{self.decorator_name} does not support methods')
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
@@ -253,19 +240,12 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
         except Exception:  # Can't evaluate retrurn type.
             return False
-
-        # Get the non-subscripted type. The ``__origin__`` attribute is not
-        # stable until 3.7, but we need to use ``__extra__`` instead.
-        # TODO: Remove the ``__extra__`` branch when support for Python 3.6 is
-        # dropped in Airflow 2.3.
-        if sys.version_info < (3, 7):
-            ttype = getattr(return_type, "__extra__", return_type)
-        else:
-            ttype = getattr(return_type, "__origin__", return_type)
-
+        ttype = getattr(return_type, "__origin__", return_type)
         return ttype == dict or ttype == Dict
 
     def __attrs_post_init__(self):
+        if "self" in self.function_signature.parameters:
+            raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault('task_id', self.function.__name__)
 
     def __call__(self, *args, **kwargs) -> XComArg:
@@ -280,22 +260,50 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
-    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
-        kwargs_left = kwargs.copy()
-        for arg_name in self.function_arg_names:
-            value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "map" or value is NOTSET or isinstance(value, get_mappable_types()):
-                continue
-            raise ValueError(f"{func} got unexpected value{type(value)!r} for keyword argument {arg_name!r}")
+    @cached_property
+    def function_signature(self):
+        return inspect.signature(self.function)
 
+    @cached_property
+    def _function_is_vararg(self):
+        return any(
+            v.kind == inspect.Parameter.VAR_KEYWORD for v in self.function_signature.parameters.values()
+        )
+
+    @cached_property
+    def _mappable_function_argument_names(self) -> Set[str]:
+        """Arguments that can be mapped against."""
+        return set(self.function_signature.parameters)
+
+    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
+        # Ensure that context variables are not shadowed.
+        context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
+        if len(context_keys_being_mapped) == 1:
+            (name,) = context_keys_being_mapped
+            raise ValueError(f"cannot call {func}() on task context variable {name!r}")
+        elif context_keys_being_mapped:
+            names = ", ".join(repr(n) for n in context_keys_being_mapped)
+            raise ValueError(f"cannot call {func}() on task context variables {names}")
+
+        # Ensure that all arguments passed in are accounted for.
+        if self._function_is_vararg:
+            return
+        kwargs_left = kwargs.copy()
+        for arg_name in self._mappable_function_argument_names:
+            value = kwargs_left.pop(arg_name, NOTSET)
+            if func != "apply" or value is NOTSET or isinstance(value, get_mappable_types()):
+                continue
+            tname = type(value).__name__
+            raise ValueError(f"apply() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
         if len(kwargs_left) == 1:
-            raise TypeError(f"{func} got unexpected keyword argument {next(iter(kwargs_left))!r}")
+            raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
-            raise TypeError(f"{func} got unexpected keyword arguments {names}")
+            raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def map(self, **kwargs: "MapArgument") -> XComArg:
-        self._validate_arg_names("map", kwargs)
+    def apply(self, **map_kwargs: "Mappable") -> XComArg:
+        self._validate_arg_names("apply", map_kwargs)
+        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
 
         partial_kwargs = self.kwargs.copy()
 
@@ -345,7 +353,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            mapped_op_kwargs=kwargs,
+            mapped_op_kwargs=map_kwargs,
         )
         return XComArg(operator=operator)
 
@@ -377,7 +385,7 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: Dict[str, "MapArgument"]
+    mapped_op_kwargs: Dict[str, "Mappable"]
 
     @classmethod
     @cache
@@ -393,7 +401,7 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
 
-    def _get_expansion_kwargs(self) -> Dict[str, "MapArgument"]:
+    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
 
         Different from classic operators, a decorated (taskflow) operator's
@@ -450,7 +458,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def map(self, **kwargs: "MapArgument") -> XComArg:
+    def apply(self, **kwargs: "Mappable") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":

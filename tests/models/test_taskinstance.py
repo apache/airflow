@@ -2289,7 +2289,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComTypePushed) as ctx:
@@ -2312,7 +2312,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComLengthPushed) as ctx:
@@ -2341,7 +2341,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
@@ -2373,7 +2373,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.map(value=literal)
+            show.apply(value=literal)
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
@@ -2405,7 +2405,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.map(value=emit())
+            show.apply(value=emit())
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
@@ -2438,7 +2438,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(number, letter):
                 outputs.append((number, letter))
 
-            show.map(number=emit_numbers(), letter=emit_letters())
+            show.apply(number=emit_numbers(), letter=emit_letters())
 
         dag_run = dag_maker.create_dagrun()
         for task_id in ["emit_numbers", "emit_letters"]:
@@ -2477,7 +2477,7 @@ class TestMappedTaskInstanceReceiveValue:
                 outputs.append((a, b))
 
             emit_task = emit_numbers()
-            show.map(a=emit_task, b=emit_task)
+            show.apply(a=emit_task, b=emit_task)
 
         dag_run = dag_maker.create_dagrun()
         ti = dag_run.get_task_instance("emit_numbers", session=session)

@@ -82,6 +82,7 @@ REVISION_HEADS_MAP = {
     "2.2.1": "7b2661a43ba3",
     "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
+    "2.2.4": "587bdf053233",
 }
 
 
@@ -747,24 +748,41 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
-
-    def check_templates(filename, elasticsearch_id):
-        stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
-
-        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
-            session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
-
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
-    pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
-    if pre_upgrade_filename is not None:
-        check_templates(pre_upgrade_filename, elasticsearch_id)
-        session.flush()
+    pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
+    pre_upgrade_elasticsearch_id = conf.upgraded_values.get(
+        ("elasticsearch", "log_id_template"), elasticsearch_id
+    )
 
-    check_templates(filename, elasticsearch_id)
+    if pre_upgrade_filename != filename or pre_upgrade_elasticsearch_id != elasticsearch_id:
+        # The previous non-upgraded value likely won't be the _latest_ value (as after we've recorded the
+        # recorded the upgraded value it will be second-to-newest), so we'll have to just search which is okay
+        # as this is a table with a tiny number of rows
+        row = (
+            session.query(LogTemplate.id)
+            .filter(
+                or_(
+                    LogTemplate.filename == pre_upgrade_filename,
+                    LogTemplate.elasticsearch_id == pre_upgrade_elasticsearch_id,
+                )
+            )
+            .order_by(LogTemplate.id.desc())
+            .first()
+        )
+        if not row:
+            session.add(
+                LogTemplate(filename=pre_upgrade_filename, elasticsearch_id=pre_upgrade_elasticsearch_id)
+            )
+            session.flush()
+
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+    if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+        session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
