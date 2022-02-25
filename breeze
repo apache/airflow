@@ -499,6 +499,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               Platform:               ${PLATFORM}
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -508,6 +509,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE_WITH_TAG}
+                               Platform:               ${PLATFORM}
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -530,6 +532,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
+   Platform:                ${PLATFORM}
 EOF
         else
             cat <<EOF
@@ -538,6 +541,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
+   Platform:                ${PLATFORM}
 
 EOF
         fi
@@ -628,6 +632,7 @@ export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+export PLATFORM="${PLATFORM}"
 export SSH_PORT="${SSH_PORT}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
@@ -814,6 +819,12 @@ function breeze::parse_arguments() {
         -b | --backend)
             export BACKEND="${2}"
             echo "Backend: ${BACKEND}"
+            echo
+            shift 2
+            ;;
+        ---platform)
+            export PLATFORM="${2}"
+            echo "Backend: ${PLATFORM}"
             echo
             shift 2
             ;;
@@ -1537,6 +1548,10 @@ function breeze::prepare_formatted_versions() {
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_BACKENDS
 
+    FORMATTED_PLATFORMS=$(echo "${_breeze_allowed_platforms=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_PLATFORMS
+
     FORMATTED_STATIC_CHECKS=$(echo "${_breeze_allowed_static_checks=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_STATIC_CHECKS
@@ -2237,6 +2252,14 @@ function breeze::flag_airflow_variants() {
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
+
+--platform PLATFORM
+        Builds image for the platform specified.
+
+        One of:
+
+${FORMATTED_PLATFORMS}
+
 "
 }
 
@@ -3091,6 +3114,7 @@ function breeze::check_and_save_all_params() {
     fi
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
+    parameters::check_and_save_allowed_param "PLATFORM" "platform" "--platform"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"

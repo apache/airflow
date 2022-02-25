@@ -74,8 +74,8 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
             # Ignore comments
             continue
 
-        var_parts: List[str] = line.split("=", 2)
-        if len(var_parts) != 2:
+        key, sep, value = line.partition("=")
+        if not sep:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
@@ -84,8 +84,7 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
             )
             continue
 
-        key, value = var_parts
-        if not key:
+        if not value:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,

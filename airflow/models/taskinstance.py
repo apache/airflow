@@ -1929,6 +1929,9 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
+        # NOTE: If you add anything to this dict, make sure to also update the
+        # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
+        # airflow/utils/context.py!
         context = {
             'conf': conf,
             'dag': dag,
