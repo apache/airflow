@@ -202,6 +202,7 @@ amazon = [
     'redshift_connector>=2.0.888',
     'sqlalchemy_redshift>=0.8.6',
     pandas_requirement,
+    'mypy-boto3-rds>=1.21.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
