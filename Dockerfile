@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.2.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.3.1
+ARG AIRFLOW_PIP_VERSION=22.0.3
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 

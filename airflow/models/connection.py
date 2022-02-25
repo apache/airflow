@@ -173,6 +173,12 @@ class Connection(Base, LoggingMixin):
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
+        if '_' in self.conn_type:
+            self.log.warning(
+                f"Connection schemes (type: {str(self.conn_type)}) "
+                f"shall not contain '_' according to RFC3986."
+            )
+
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
 
         authority_block = ''
