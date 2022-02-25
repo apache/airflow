@@ -1126,7 +1126,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=None,
+            run_id=None,
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
@@ -1175,7 +1175,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=run_id,
+            run_id=run_id,
             execution_date=None,
             future=True,
             past=True,
