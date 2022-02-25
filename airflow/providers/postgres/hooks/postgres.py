@@ -137,11 +137,11 @@ class PostgresHook(DbApiHook):
                     conn.commit()
 
     def get_uri(self) -> str:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        """
+        Extract the URI from the connection.
+        :return: the extracted uri.
+        """
         uri = super().get_uri().replace("postgres://", "postgresql://")
-        if conn.extra_dejson.get('client_encoding', False):
-            charset = conn.extra_dejson["client_encoding"]
-            return f"{uri}?client_encoding={charset}"
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
