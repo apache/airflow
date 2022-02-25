@@ -135,7 +135,10 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     if task_group:
-        dag_args.update(task_group.default_args)
+        if not isinstance(task_group.default_args, Dict) and task_group.default_args is not None:
+            raise TypeError("default_args must be a dictionary")
+        else:
+            dag_args.update(task_group.default_args)
     return dag_args, dag_params
 
 
@@ -147,9 +150,12 @@ def _merge_defaults(
 ) -> Tuple[dict, ParamsDict]:
     if task_params:
         dag_params.update(task_params)
-    with contextlib.suppress(KeyError):
-        dag_params.update(task_default_args.pop("params"))
-    dag_args.update(task_default_args)
+    if not isinstance(task_default_args, Dict) and task_default_args is not None:
+        raise TypeError("default_args must be a dictionary")
+    else:
+        dag_args.update(task_default_args)
+        with contextlib.suppress(KeyError):
+            dag_params.update(task_default_args.pop("params"))
     return dag_args, dag_params
 
 
