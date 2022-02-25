@@ -76,7 +76,7 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
-    tt += `<strong>${escapeHtml(ti.mapped_states.length)} Tasks Mapped</strong><br />`;
+    tt += `<strong>${escapeHtml(ti.mapped_states.length)} ${ti.mapped_states.length === 1 ? 'Task' : 'Tasks'} Mapped</strong><br />`;
     numMap.forEach((key, val) => {
       if (key > 0) {
         tt += `<span style="margin-left: 15px">${escapeHtml(val)}: ${escapeHtml(key)}</span><br />`;

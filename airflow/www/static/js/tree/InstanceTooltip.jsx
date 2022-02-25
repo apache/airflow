@@ -103,7 +103,8 @@ const InstanceTooltip = ({
           <Text as="strong">
             {mappedStates.length}
             {' '}
-            Tasks Mapped
+            {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+            Mapped
           </Text>
           {mapSummary}
         </>
