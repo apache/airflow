@@ -134,9 +134,31 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+        if self.extra:
+            self._validate_extra(self.extra, self.conn_id)
 
         if self.password:
             mask_secret(self.password)
+
+    @staticmethod
+    def _validate_extra(extra, conn_id):
+        try:
+            _extra_parsed = json.loads(extra)
+            if not isinstance(_extra_parsed, dict):
+                warnings.warn(
+                    "Encountered JSON value in `extra` which does not parse as a dictionary in "
+                    f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
+                    "representation of a python dict.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+        except json.JSONDecodeError:
+            warnings.warn(
+                f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
+                "non-JSON `extra` will be removed in Airflow 3.0",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     @reconstructor
     def on_db_load(self):

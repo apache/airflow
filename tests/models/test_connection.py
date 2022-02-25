@@ -682,3 +682,11 @@ class TestConnection(unittest.TestCase):
         res = conn.test_connection()
         assert res[0] is False
         assert res[1] == "Hook FTPHook doesn't implement or inherit test_connection method"
+
+    def test_extra_warnings_non_json(self):
+        with pytest.warns(DeprecationWarning, match='non-JSON'):
+            Connection(conn_id='test_extra', conn_type='none', extra='hi')
+
+    def test_extra_warnings_non_dict_json(self):
+        with pytest.warns(DeprecationWarning, match='not parse as a dictionary'):
+            Connection(conn_id='test_extra', conn_type='none', extra='"hi"')
