@@ -36,14 +36,10 @@ class MongoSensor(BaseSensorOperator):
     ...                            task_id="mongo_sensor")
 
     :param collection: Target MongoDB collection.
-    :type collection: str
     :param query: The query to find the target document.
-    :type query: dict
     :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
-    :type mongo_conn_id: str
     :param mongo_db: Target MongoDB name.
-    :type mongo_db: str
     """
 
     template_fields: Sequence[str] = ('collection', 'query')

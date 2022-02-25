@@ -26,7 +26,7 @@ from watchtower import CloudWatchLogHandler
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.utils.log.cloudwatch_task_handler import CloudwatchTaskHandler
+from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars

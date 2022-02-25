@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -42,7 +43,6 @@ class OracleHook(DbApiHook):
 
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         used for Oracle credentials.
-    :type oracle_conn_id: str
     """
 
     conn_name_attr = 'oracle_conn_id'
@@ -88,6 +88,7 @@ class OracleHook(DbApiHook):
         conn_config = {'user': conn.login, 'password': conn.password}
         sid = conn.extra_dejson.get('sid')
         mod = conn.extra_dejson.get('module')
+        schema = conn.schema
 
         service_name = conn.extra_dejson.get('service_name')
         port = conn.port if conn.port else 1521
@@ -101,8 +102,16 @@ class OracleHook(DbApiHook):
                 dsn = conn.host
                 if conn.port is not None:
                     dsn += ":" + str(conn.port)
-                if service_name or conn.schema:
-                    dsn += "/" + (service_name or conn.schema)
+                if service_name:
+                    dsn += "/" + service_name
+                elif conn.schema:
+                    warnings.warn(
+                        """Using conn.schema to pass the Oracle Service Name is deprecated.
+                        Please use conn.extra.service_name instead.""",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    dsn += "/" + conn.schema
             conn_config['dsn'] = dsn
 
         if 'encoding' in conn.extra_dejson:
@@ -147,6 +156,13 @@ class OracleHook(DbApiHook):
         if mod is not None:
             conn.module = mod
 
+        # if Connection.schema is defined, set schema after connecting successfully
+        # cannot be part of conn_config
+        # https://cx-oracle.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
+        # Only set schema when not using conn.schema as Service Name
+        if schema and service_name:
+            conn.current_schema = schema
+
         return conn
 
     def insert_rows(
@@ -170,17 +186,12 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table
-        :type target_fields: iterable of str
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
-        :type commit_every: int
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
@@ -235,15 +246,11 @@ class OracleHook(DbApiHook):
 
         :param table: target Oracle table, use dot notation to target a
             specific database
-        :type table: str
         :param rows: the rows to insert into the table
-        :type rows: iterable of tuples
         :param target_fields: the names of the columns to fill in the table, default None.
             If None, each rows should have some order as table columns name
-        :type target_fields: iterable of str Or None
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
-        :type commit_every: int
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")

@@ -43,15 +43,12 @@ class S3CreateBucketOperator(BaseOperator):
         :ref:`howto/operator:S3CreateBucketOperator`
 
     :param bucket_name: This is bucket name you want to create
-    :type bucket_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     :param region_name: AWS region_name. If not specified fetched from connection.
-    :type region_name: Optional[str]
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -88,15 +85,12 @@ class S3DeleteBucketOperator(BaseOperator):
         :ref:`howto/operator:S3DeleteBucketOperator`
 
     :param bucket_name: This is bucket name you want to delete
-    :type bucket_name: str
     :param force_delete: Forcibly delete all objects in the bucket before deleting the bucket
-    :type force_delete: bool
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -131,13 +125,11 @@ class S3GetBucketTaggingOperator(BaseOperator):
         :ref:`howto/operator:S3GetBucketTaggingOperator`
 
     :param bucket_name: This is bucket name you want to reference
-    :type bucket_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -167,20 +159,16 @@ class S3PutBucketTaggingOperator(BaseOperator):
         :ref:`howto/operator:S3PutBucketTaggingOperator`
 
     :param bucket_name: The name of the bucket to add tags to.
-    :type bucket_name: str
     :param key: The key portion of the key/value pair for a tag to be added.
         If a key is provided, a value must be provided as well.
-    :type key: str
     :param value: The value portion of the key/value pair for a tag to be added.
         If a value is provided, a key must be provided as well.
     :param tag_set: A List of key/value pairs.
-    :type tag_set: List[Dict[str, str]]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then the default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -224,13 +212,11 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
         :ref:`howto/operator:S3DeleteBucketTaggingOperator`
 
     :param bucket_name: This is the name of the bucket to delete tags from.
-    :type bucket_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: Optional[str]
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -263,23 +249,17 @@ class S3CopyObjectOperator(BaseOperator):
         It can be either full s3:// style url or relative path from root level.
 
         When it's specified as a full s3:// url, please omit source_bucket_name.
-    :type source_bucket_key: str
     :param dest_bucket_key: The key of the object to copy to. (templated)
 
         The convention to specify `dest_bucket_key` is the same as `source_bucket_key`.
-    :type dest_bucket_key: str
     :param source_bucket_name: Name of the S3 bucket where the source object is in. (templated)
 
         It should be omitted when `source_bucket_key` is provided as a full s3:// url.
-    :type source_bucket_name: str
     :param dest_bucket_name: Name of the S3 bucket to where the object is copied. (templated)
 
         It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
-    :type dest_bucket_name: str
     :param source_version_id: Version ID of the source object (OPTIONAL)
-    :type source_version_id: str
     :param aws_conn_id: Connection id of the S3 connection to use
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 
@@ -291,10 +271,8 @@ class S3CopyObjectOperator(BaseOperator):
         - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     """
 
     template_fields: Sequence[str] = (
@@ -348,7 +326,6 @@ class S3DeleteObjectsOperator(BaseOperator):
     Users may specify up to 1000 keys to delete.
 
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
-    :type bucket: str
     :param keys: The key(s) to delete from S3 bucket. (templated)
 
         When ``keys`` is a string, it's supposed to be the key name of
@@ -358,12 +335,9 @@ class S3DeleteObjectsOperator(BaseOperator):
         keys to delete.
 
         You may specify up to 1000 keys.
-    :type keys: str or list
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
-    :type prefix: str
     :param aws_conn_id: Connection id of the S3 connection to use
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 
@@ -375,7 +349,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     """
 
     template_fields: Sequence[str] = ('keys', 'bucket', 'prefix')
@@ -427,17 +400,11 @@ class S3FileTransformOperator(BaseOperator):
     omit the transformation script if S3 Select expression is specified.
 
     :param source_s3_key: The key to be retrieved from S3. (templated)
-    :type source_s3_key: str
     :param dest_s3_key: The key to be written from S3. (templated)
-    :type dest_s3_key: str
     :param transform_script: location of the executable transformation script
-    :type transform_script: str
     :param select_expression: S3 Select expression
-    :type select_expression: str
     :param script_args: arguments for transformation script (templated)
-    :type script_args: sequence of str
     :param source_aws_conn_id: source s3 connection
-    :type source_aws_conn_id: str
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -450,14 +417,10 @@ class S3FileTransformOperator(BaseOperator):
              CA cert bundle than the one used by botocore.
 
         This is also applicable to ``dest_verify``.
-    :type source_verify: bool or str
     :param dest_aws_conn_id: destination s3 connection
-    :type dest_aws_conn_id: str
     :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
         See: ``source_verify``
-    :type dest_verify: bool or str
     :param replace: Replace dest S3 key if it already exists
-    :type replace: bool
     """
 
     template_fields: Sequence[str] = ('source_s3_key', 'dest_s3_key', 'script_args')
@@ -523,8 +486,9 @@ class S3FileTransformOperator(BaseOperator):
                     close_fds=True,
                 ) as process:
                     self.log.info("Output:")
-                    for line in iter(process.stdout.readline, b''):
-                        self.log.info(line.decode(self.output_encoding).rstrip())
+                    if process.stdout is not None:
+                        for line in iter(process.stdout.readline, b''):
+                            self.log.info(line.decode(self.output_encoding).rstrip())
 
                     process.wait()
 
@@ -553,14 +517,10 @@ class S3ListOperator(BaseOperator):
     used by `xcom` in the downstream task.
 
     :param bucket: The S3 bucket where to find the objects. (templated)
-    :type bucket: str
     :param prefix: Prefix string to filters the objects whose name begin with
         such prefix. (templated)
-    :type prefix: str
     :param delimiter: the delimiter marks key hierarchy. (templated)
-    :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -571,7 +531,6 @@ class S3ListOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
 
 
     **Example**:
@@ -629,14 +588,10 @@ class S3ListPrefixesOperator(BaseOperator):
     can be used by `xcom` in the downstream task.
 
     :param bucket: The S3 bucket where to find the subfolders. (templated)
-    :type bucket: str
     :param prefix: Prefix string to filter the subfolders whose name begin with
         such prefix. (templated)
-    :type prefix: str
     :param delimiter: the delimiter marks subfolder hierarchy. (templated)
-    :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -647,7 +602,6 @@ class S3ListPrefixesOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
 
 
     **Example**:

@@ -312,7 +312,8 @@ textarea {
   font-size: inherit;
   line-height: inherit;
 }
-a {
+a,
+a code {
   color: #365f84;
   text-decoration: none;
 }

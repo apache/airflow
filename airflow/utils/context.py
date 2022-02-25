@@ -41,6 +41,51 @@ import lazy_object_proxy
 
 from airflow.utils.types import NOTSET
 
+# NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
+KNOWN_CONTEXT_KEYS = {
+    "conf",
+    "conn",
+    "dag",
+    "dag_run",
+    "data_interval_end",
+    "data_interval_start",
+    "ds",
+    "ds_nodash",
+    "execution_date",
+    "exception",
+    "inlets",
+    "logical_date",
+    "macros",
+    "next_ds",
+    "next_ds_nodash",
+    "next_execution_date",
+    "outlets",
+    "params",
+    "prev_data_interval_start_success",
+    "prev_data_interval_end_success",
+    "prev_ds",
+    "prev_ds_nodash",
+    "prev_execution_date",
+    "prev_execution_date_success",
+    "prev_start_date_success",
+    "run_id",
+    "task",
+    "task_instance",
+    "task_instance_key_str",
+    "test_mode",
+    "templates_dict",
+    "ti",
+    "tomorrow_ds",
+    "tomorrow_ds_nodash",
+    "ts",
+    "ts_nodash",
+    "ts_nodash_with_tz",
+    "try_number",
+    "var",
+    "yesterday_ds",
+    "yesterday_ds_nodash",
+}
+
 
 class VariableAccessor:
     """Wrapper to access Variable values in template."""
@@ -196,9 +241,19 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_merge(context: "Context", context_additions: Mapping[str, Any]) -> None:
-    """Merges dictionary parameters into existing context"""
-    return context.update(**context_additions)
+def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
+    """Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    context.update(*args, **kwargs)
 
 
 def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":

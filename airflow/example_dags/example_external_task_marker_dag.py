@@ -37,13 +37,13 @@ interval till one of the following will happen:
     exception
 """
 
-import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
-start_date = datetime.datetime(2021, 1, 1)
+start_date = pendulum.datetime(2021, 1, 1, tz="UTC")
 
 with DAG(
     dag_id="example_external_task_marker_parent",

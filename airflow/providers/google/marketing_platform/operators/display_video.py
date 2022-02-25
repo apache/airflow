@@ -48,15 +48,11 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
 
     :param body: Report object passed to the request's body as described here:
         https://developers.google.com/bid-manager/v1/queries#resource
-    :type body: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -65,7 +61,6 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -125,17 +120,12 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         `https://developers.google.com/bid-manager/v1/queries/deletequery`
 
     :param report_id: Report ID to delete.
-    :type report_id: str
     :param report_name: Name of the report to delete.
-    :type report_name: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -144,7 +134,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -211,23 +200,15 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         `https://developers.google.com/bid-manager/v1/queries/getquery`
 
     :param report_id: Report ID to retrieve.
-    :type report_id: str
     :param bucket_name: The bucket to upload to.
-    :type bucket_name: str
     :param report_name: The report name to set when uploading the local file.
-    :type report_name: str
     :param chunk_size: File will be downloaded in chunks of this many bytes.
-    :type chunk_size: int
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -236,7 +217,6 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -342,22 +322,16 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         `https://developers.google.com/bid-manager/v1/queries/runquery`
 
     :param report_id: Report ID to run.
-    :type report_id: str
     :param params: Parameters for running a report as described here:
         https://developers.google.com/bid-manager/v1/queries/runquery. Please note that this
         keyword is deprecated, please use `parameters` keyword to pass the parameters.
-    :type params: Dict[str, Any]
     :param parameters: Parameters for running a report as described here:
         https://developers.google.com/bid-manager/v1/queries/runquery
-    :type parameters: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -366,7 +340,6 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -436,7 +409,6 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
     :param request_body: dictionary with parameters that should be passed into.
             More information about it can be found here:
             https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
-    :type request_body: Dict[str, Any],
     """
 
     template_fields: Sequence[str] = (
@@ -512,15 +484,10 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         `https://developers.google.com/bid-manager/v1.1/lineitems/uploadlineitems`
 
     :param request_body: request to upload line items.
-    :type request_body: Dict[str, Any]
     :param bucket_name: The bucket form data is downloaded.
-    :type bucket_name: str
     :param object_name: The object to fetch.
-    :type object_name: str,
     :param filename: The filename to fetch.
-    :type filename: str,
     :param dry_run: Upload status without actually persisting the line items.
-    :type dry_run: str,
     """
 
     template_fields: Sequence[str] = (
@@ -587,23 +554,15 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         `https://developers.google.com/display-video/api/reference/rest`
 
     :param version: The SDF version of the downloaded file.
-    :type version: str
     :param partner_id: The ID of the partner to download SDF for.
-    :type partner_id: str
     :param advertiser_id: The ID of the advertiser to download SDF for.
-    :type advertiser_id: str
     :param parent_entity_filter: Filters on selected file types.
-    :type parent_entity_filter: Dict[str, Any]
     :param id_filter: Filters on entities by their entity IDs.
-    :type id_filter: Dict[str, Any]
     :param inventory_source_filter: Filters on Inventory Sources by their IDs.
-    :type inventory_source_filter: Dict[str, Any]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -612,7 +571,6 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (
@@ -668,23 +626,15 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         `https://developers.google.com/display-video/api/reference/rest`
 
     :param version: The SDF version of the downloaded file.
-    :type version: str
     :param partner_id: The ID of the partner to download SDF for.
-    :type partner_id: str
     :param advertiser_id: The ID of the advertiser to download SDF for.
-    :type advertiser_id: str
     :param parent_entity_filter: Filters on selected file types.
-    :type parent_entity_filter: Dict[str, Any]
     :param id_filter: Filters on entities by their entity IDs.
-    :type id_filter: Dict[str, Any]
     :param inventory_source_filter: Filters on Inventory Sources by their IDs.
-    :type inventory_source_filter: Dict[str, Any]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -693,7 +643,6 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = (

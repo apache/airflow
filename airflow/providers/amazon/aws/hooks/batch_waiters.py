@@ -94,16 +94,13 @@ class BatchWaitersHook(BatchClientHook):
         - https://github.com/boto/botocore/issues/1915
 
     :param waiter_config:  a custom waiter configuration for AWS Batch services
-    :type waiter_config: Optional[Dict]
 
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: Optional[str]
 
     :param region_name: region name to use in AWS client.
         Override the AWS region in connection (if provided)
-    :type region_name: Optional[str]
     """
 
     def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs) -> None:
@@ -180,7 +177,6 @@ class BatchWaitersHook(BatchClientHook):
         :param waiter_name: The name of the waiter. The name should match
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing); see ``.list_waiters``.
-        :type waiter_name: str
 
         :return: a waiter object for the named AWS Batch service
         :rtype: botocore.waiter.Waiter
@@ -203,10 +199,8 @@ class BatchWaitersHook(BatchClientHook):
         following names: "JobExists", "JobRunning" and "JobComplete".
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param delay:  A delay before polling for job status
-        :type delay: Union[int, float, None]
 
         :raises: AirflowException
 

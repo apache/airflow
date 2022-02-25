@@ -38,7 +38,6 @@ class DataSyncHook(AwsBaseHook):
 
     :param wait_interval_seconds: Time to wait between two
         consecutive calls to check TaskExecution status. Defaults to 30 seconds.
-    :type wait_interval_seconds: Optional[int]
     :raises ValueError: If wait_interval_seconds is not between 0 and 15*60 seconds.
     """
 

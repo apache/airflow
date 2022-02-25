@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.breeze import get_airflow_sources_root
-from airflow_breeze.utils import run_command
+from airflow_breeze.utils.path_utils import get_airflow_sources_root
+from airflow_breeze.utils.run_utils import run_command
 
 
 @dataclass

@@ -22,9 +22,11 @@ from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
+from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
+from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
@@ -57,6 +59,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     pid = auto_field()
     executor_config = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
+    rendered_fields = JsonObjectField()
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -65,6 +68,8 @@ class TaskInstanceSchema(SQLAlchemySchema):
             # corresponding to the attr.
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
+        elif attr == "rendered_fields":
+            return get_value(obj[2], attr, None)
         return get_value(obj[0], attr, default)
 
 
@@ -129,12 +134,19 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(required=True, validate=validate_istimezone)
+    execution_date = fields.DateTime(validate=validate_istimezone)
+    dag_run_id = fields.Str()
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+    @validates_schema
+    def validate_form(self, data, **kwargs):
+        """Validates set task instance state form"""
+        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
+            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
 class TaskInstanceReferenceSchema(Schema):

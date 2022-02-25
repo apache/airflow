@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes Docker xcom functionality (#21175)``
+* ``Fix docker behaviour with byte lines returned (#21429)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Rewrite the task decorator as a composition (#20868)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.4.0
 .....
 

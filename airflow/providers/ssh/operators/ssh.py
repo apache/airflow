@@ -18,15 +18,16 @@
 
 import warnings
 from base64 import b64encode
-from select import select
-from typing import Optional, Sequence, Tuple, Union
-
-from paramiko.client import SSHClient
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.ssh.hooks.ssh import SSHHook
+
+if TYPE_CHECKING:
+    from paramiko.client import SSHClient
+
+    from airflow.providers.ssh.hooks.ssh import SSHHook
 
 CMD_TIMEOUT = 10
 
@@ -37,34 +38,26 @@ class SSHOperator(BaseOperator):
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
-    :type ssh_hook: airflow.providers.ssh.hooks.ssh.SSHHook
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if
         `ssh_hook` is provided.
-    :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
         defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
-    :type remote_host: str
     :param command: command to execute on remote host. (templated)
-    :type command: str
     :param conn_timeout: timeout (in seconds) for maintaining the connection. The default is 10 seconds.
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :type conn_timeout: int
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-    :type cmd_timeout: int
     :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
         Use conn_timeout and cmd_timeout parameters instead.
-    :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
-    :type environment: dict
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``
         to have the remote process killed upon task timeout.
         The default is ``False`` but note that `get_pty` is forced to ``True``
         when the `command` starts with ``sudo``.
-    :type get_pty: bool
+    :param banner_timeout: timeout to wait for banner from the server in seconds
     """
 
     template_fields: Sequence[str] = ('command', 'remote_host')
@@ -74,7 +67,7 @@ class SSHOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook: Optional[SSHHook] = None,
+        ssh_hook: Optional["SSHHook"] = None,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
         command: Optional[str] = None,
@@ -83,6 +76,7 @@ class SSHOperator(BaseOperator):
         cmd_timeout: Optional[int] = None,
         environment: Optional[dict] = None,
         get_pty: bool = False,
+        banner_timeout: float = 30.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,6 +93,7 @@ class SSHOperator(BaseOperator):
             self.cmd_timeout = self.timeout if self.timeout else CMD_TIMEOUT
         self.environment = environment
         self.get_pty = get_pty
+        self.banner_timeout = banner_timeout
 
         if self.timeout:
             warnings.warn(
@@ -106,16 +101,22 @@ class SSHOperator(BaseOperator):
                 'Please use `conn_timeout` and `cmd_timeout` instead.'
                 'The old option `timeout` will be removed in a future version.',
                 DeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
 
-    def get_hook(self) -> SSHHook:
+    def get_hook(self) -> "SSHHook":
+        from airflow.providers.ssh.hooks.ssh import SSHHook
+
         if self.ssh_conn_id:
             if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
                 self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
             else:
                 self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, conn_timeout=self.conn_timeout)
+                self.ssh_hook = SSHHook(
+                    ssh_conn_id=self.ssh_conn_id,
+                    conn_timeout=self.conn_timeout,
+                    banner_timeout=self.banner_timeout,
+                )
 
         if not self.ssh_hook:
             raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
@@ -130,78 +131,32 @@ class SSHOperator(BaseOperator):
 
         return self.ssh_hook
 
-    def get_ssh_client(self) -> SSHClient:
+    def get_ssh_client(self) -> "SSHClient":
         # Remember to use context manager or call .close() on this when done
         self.log.info('Creating ssh_client')
         return self.get_hook().get_conn()
 
-    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> Tuple[int, bytes, bytes]:
-        self.log.info("Running command: %s", command)
-
-        # set timeout taken as params
-        stdin, stdout, stderr = ssh_client.exec_command(
-            command=command,
-            get_pty=self.get_pty,
-            timeout=self.timeout,
-            environment=self.environment,
+    def exec_ssh_client_command(self, ssh_client: "SSHClient", command: str):
+        warnings.warn(
+            'exec_ssh_client_command method on SSHOperator is deprecated, call '
+            '`ssh_hook.exec_ssh_client_command` instead',
+            DeprecationWarning,
         )
-        # get channels
-        channel = stdout.channel
-
-        # closing stdin
-        stdin.close()
-        channel.shutdown_write()
-
-        agg_stdout = b''
-        agg_stderr = b''
-
-        # capture any initial output in case channel is closed already
-        stdout_buffer_length = len(stdout.channel.in_buffer)
-
-        if stdout_buffer_length > 0:
-            agg_stdout += stdout.channel.recv(stdout_buffer_length)
-
-        # read from both stdout and stderr
-        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], self.cmd_timeout)
-            for recv in readq:
-                if recv.recv_ready():
-                    line = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += line
-                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
-                if recv.recv_stderr_ready():
-                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += line
-                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
-            if (
-                stdout.channel.exit_status_ready()
-                and not stderr.channel.recv_stderr_ready()
-                and not stdout.channel.recv_ready()
-            ):
-                stdout.channel.shutdown_read()
-                try:
-                    stdout.channel.close()
-                except Exception:
-                    # there is a race that when shutdown_read has been called and when
-                    # you try to close the connection, the socket is already closed
-                    # We should ignore such errors (but we should log them with warning)
-                    self.log.warning("Ignoring exception on close", exc_info=True)
-                break
-
-        stdout.close()
-        stderr.close()
-
-        exit_status = stdout.channel.recv_exit_status()
-
-        return exit_status, agg_stdout, agg_stderr
+        assert self.ssh_hook
+        return self.ssh_hook.exec_ssh_client_command(
+            ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
+        )
 
     def raise_for_status(self, exit_status: int, stderr: bytes) -> None:
         if exit_status != 0:
             error_msg = stderr.decode('utf-8')
             raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
 
-    def run_ssh_client_command(self, ssh_client: SSHClient, command: str) -> bytes:
-        exit_status, agg_stdout, agg_stderr = self.exec_ssh_client_command(ssh_client, command)
+    def run_ssh_client_command(self, ssh_client: "SSHClient", command: str) -> bytes:
+        assert self.ssh_hook
+        exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
+            ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
+        )
         self.raise_for_status(exit_status, agg_stderr)
         return agg_stdout
 

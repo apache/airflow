@@ -25,6 +25,7 @@ from typing import Optional
 from unittest import mock
 
 import paramiko
+import pytest
 from parameterized import parameterized
 
 from airflow import settings
@@ -249,6 +250,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -268,6 +270,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 key_filename='fake.file',
@@ -455,6 +458,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 pkey=TEST_PKEY,
@@ -477,6 +481,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 pkey=TEST_PKEY,
@@ -530,6 +535,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -555,6 +561,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 password='password',
@@ -578,6 +585,7 @@ class TestSSHHook(unittest.TestCase):
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=20,
@@ -601,6 +609,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=15,
@@ -624,6 +633,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=15,
@@ -679,6 +689,7 @@ class TestSSHHook(unittest.TestCase):
         # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
                 hostname='remote_host',
                 username='username',
                 timeout=expected_value,
@@ -729,6 +740,19 @@ class TestSSHHook(unittest.TestCase):
             session.delete(conn)
             session.commit()
 
-
-if __name__ == '__main__':
-    unittest.main()
+    @pytest.mark.flaky(max_runs=5, min_passes=1)
+    def test_exec_ssh_client_command(self):
+        hook = SSHHook(
+            ssh_conn_id='ssh_default',
+            conn_timeout=30,
+            banner_timeout=100,
+        )
+        with hook.get_conn() as client:
+            ret = hook.exec_ssh_client_command(
+                client,
+                'echo airflow',
+                False,
+                None,
+                30,
+            )
+            assert ret == (0, b'airflow\n', b'')

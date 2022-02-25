@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 import pendulum
 import sqlalchemy
@@ -142,7 +142,6 @@ def task_policy(task) -> None:
         for more than 48 hours
 
     :param task: task to be mutated
-    :type task: airflow.models.baseoperator.BaseOperator
     """
 
 
@@ -162,7 +161,6 @@ def dag_policy(dag) -> None:
     * Check if every DAG has configured tags
 
     :param dag: dag to be mutated
-    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -177,7 +175,6 @@ def task_instance_mutation_hook(task_instance):
     This could be used, for instance, to modify the task instance during retries.
 
     :param task_instance: task instance to be mutated
-    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
 
 
@@ -208,9 +205,20 @@ def get_airflow_context_vars(context):
     to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
 
     :param context: The context for the task_instance of interest.
-    :type context: dict
     """
     return {}
+
+
+def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+    """
+    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+
+    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+    You can control them separately instead of having one value for all DAG files.
+
+    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+    """
+    return conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
 
 
 def configure_vars():
@@ -384,6 +392,12 @@ def dispose_orm():
         engine = None
 
 
+def reconfigure_orm(disable_connection_pool=False):
+    """Properly close database connections and re-configure ORM"""
+    dispose_orm()
+    configure_orm(disable_connection_pool=disable_connection_pool)
+
+
 def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
@@ -549,6 +563,9 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
+
+# If set to True, serialized DAGs is compressed before writing to DB,
+COMPRESS_SERIALIZED_DAGS = conf.getboolean('core', 'compress_serialized_dags', fallback=False)
 
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver

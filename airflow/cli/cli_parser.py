@@ -224,6 +224,26 @@ ARG_COLOR = Arg(
     default=ColorMode.AUTO,
 )
 
+# DB args
+ARG_VERSION_RANGE = Arg(
+    ("-r", "--range"),
+    help="Version range(start:end) for offline sql generation. Example: '2.0.2:2.2.3'",
+    default=None,
+)
+ARG_REVISION_RANGE = Arg(
+    ('--revision-range',),
+    help=(
+        "Migration revision range(start:end) to use for offline sql generation. "
+        "Example: 'a13f7613ad25:7b2661a43ba3'"
+    ),
+    default=None,
+)
+ARG_REVISION_RANGE = Arg(
+    ('--revision-range',),
+    help='Revision range(start:end) to use for offline sql generation',
+    default=None,
+)
+
 # list_dag_runs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
@@ -414,16 +434,16 @@ ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs='?')
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get('kerberos', 'keytab'))
 # run
-# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
-# all dependencies (not just past success), e.g. the ignore_depends_on_past
-# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
-# the "ignore_all_dependencies" command should be called the"force" command
-# instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
     help='Do not capture standard output and error streams (useful for interactive debugging)',
     action='store_true',
 )
+# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
+# all dependencies (not just past success), e.g. the ignore_depends_on_past
+# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
+# the "ignore_all_dependencies" command should be called the"force" command
+# instead.
 ARG_FORCE = Arg(
     ("-f", "--force"),
     help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
@@ -457,6 +477,8 @@ ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entir
 ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+ARG_MAP_INDEX = Arg(('--map-index',), type=int, default=-1, help="Mapped task index")
+
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
@@ -797,7 +819,7 @@ ARG_INCLUDE_DAGS = Arg(
 # triggerer
 ARG_CAPACITY = Arg(
     ("--capacity",),
-    type=str,
+    type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
@@ -1085,7 +1107,14 @@ TASKS_COMMANDS = (
         name='state',
         help="Get the status of a task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_state'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_SUBDIR,
+            ARG_VERBOSE,
+            ARG_MAP_INDEX,
+        ),
     ),
     ActionCommand(
         name='failed-deps',
@@ -1096,13 +1125,20 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
     ),
     ActionCommand(
         name='render',
         help="Render a task instance's template(s)",
         func=lazy_load_command('airflow.cli.commands.task_command.task_render'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_SUBDIR,
+            ARG_VERBOSE,
+            ARG_MAP_INDEX,
+        ),
     ),
     ActionCommand(
         name='run',
@@ -1128,6 +1164,7 @@ TASKS_COMMANDS = (
             ARG_INTERACTIVE,
             ARG_ERROR_FILE,
             ARG_SHUT_DOWN_LOGGING,
+            ARG_MAP_INDEX,
         ),
     ),
     ActionCommand(
@@ -1147,6 +1184,7 @@ TASKS_COMMANDS = (
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,
+            ARG_MAP_INDEX,
         ),
     ),
     ActionCommand(
@@ -1256,7 +1294,7 @@ DB_COMMANDS = (
         name='upgrade',
         help="Upgrade the metadata database to latest version",
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-        args=(),
+        args=(ARG_VERSION_RANGE, ARG_REVISION_RANGE),
     ),
     ActionCommand(
         name='shell',

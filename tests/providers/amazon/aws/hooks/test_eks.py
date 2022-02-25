@@ -63,6 +63,8 @@ from ..utils.eks_test_constants import (
     INSTANCE_TYPES,
     LAUNCH_TEMPLATE,
     MAX_FARGATE_LABELS,
+    NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE,
+    NODEGROUP_OWNERSHIP_TAG_KEY,
     NON_EXISTING_CLUSTER_NAME,
     NON_EXISTING_FARGATE_PROFILE_NAME,
     NON_EXISTING_NODEGROUP_NAME,
@@ -559,6 +561,32 @@ class TestEksHooks:
         for key, expected_value in generated_test_data.attributes_to_test:
             assert generated_test_data.nodegroup_describe_output[key] == expected_value
 
+    def test_create_nodegroup_without_tags_uses_default(self, nodegroup_builder) -> None:
+        _, generated_test_data = nodegroup_builder()
+        tag_list: Dict = generated_test_data.nodegroup_describe_output[NodegroupAttributes.TAGS]
+        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(
+            cluster_name=generated_test_data.cluster_name
+        )
+
+        assert tag_list.get(ownership_tag_key) == NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE
+
+    def test_create_nodegroup_with_ownership_tag_uses_provided_value(self, cluster_builder) -> None:
+        eks_hook, generated_test_data = cluster_builder()
+        cluster_name: str = generated_test_data.existing_cluster_name
+        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(cluster_name=cluster_name)
+        provided_tag_value: str = "shared"
+
+        created_nodegroup: Dict = eks_hook.create_nodegroup(
+            clusterName=cluster_name,
+            nodegroupName="nodegroup",
+            tags={ownership_tag_key: provided_tag_value},
+            **dict(deepcopy(NodegroupInputs.REQUIRED)),
+        )[ResponseAttributes.NODEGROUP]
+
+        tags = created_nodegroup.get(NodegroupAttributes.TAGS)
+        assert tags is not None
+        assert tags.get(ownership_tag_key) == provided_tag_value
+
     def test_describe_nodegroup_throws_exception_when_cluster_not_found(self, nodegroup_builder) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
         expected_exception: Type[AWSError] = ResourceNotFoundException
@@ -746,7 +774,14 @@ class TestEksHooks:
         if expected_result == PossibleTestResults.SUCCESS:
             result: Dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttributes.NODEGROUP]
 
-            for key, expected_value in test_inputs.items():
+            expected_output = deepcopy(test_inputs)
+            # The Create Nodegroup hook magically adds the required
+            # cluster/owned tag, so add that to the expected outputs.
+            expected_output['tags'] = {
+                f'kubernetes.io/cluster/{generated_test_data.existing_cluster_name}': 'owned'
+            }
+
+            for key, expected_value in expected_output.items():
                 assert result[key] == expected_value
         else:
             if launch_template and disk_size:
@@ -1236,7 +1271,7 @@ class TestEksHook:
                                 'apiVersion': 'client.authentication.k8s.io/v1alpha1',
                                 'args': expected_args,
                                 'command': sys.executable,
-                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'fatal'}],
+                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'FATAL'}],
                                 'interactiveMode': 'Never',
                             }
                         },

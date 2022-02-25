@@ -44,18 +44,13 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
-    :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -64,7 +59,6 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START natural_language_analyze_entities_template_fields]
@@ -122,18 +116,13 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
-    :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -142,7 +131,6 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
@@ -205,18 +193,13 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
-    :type document: dict or google.cloud.language_v1.types.Document
     :param encoding_type: The encoding type used by the API to calculate offsets.
-    :type encoding_type: google.cloud.language_v1.enums.EncodingType
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -225,7 +208,6 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
@@ -284,16 +266,12 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
-    :type document: dict or google.cloud.language_v1.types.Document
     :param retry: A retry object used to retry requests. If None is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         retry is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -302,7 +280,6 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START natural_language_classify_text_template_fields]

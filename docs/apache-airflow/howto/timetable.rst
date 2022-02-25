@@ -69,7 +69,7 @@ file:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
@@ -77,7 +77,7 @@ file:
 
     with DAG(
         dag_id="example_after_workday_timetable_dag",
-        start_date=datetime.datetime(2021, 3, 10),
+        start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
@@ -190,7 +190,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
@@ -199,7 +199,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     with DAG(
         dag_id="example_workday_timetable",
-        start_date=datetime.datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:

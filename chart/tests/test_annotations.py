@@ -20,6 +20,20 @@ import pytest
 from tests.helm_template_generator import render_chart
 
 
+def deployment_annotations(obj):
+    return obj["spec"]["template"]["metadata"]["annotations"]
+
+
+def cronjob_annotations(obj):
+    return obj["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
+
+
+def get_object_annotations(obj):
+    if obj["kind"] == "CronJob":
+        return cronjob_annotations(obj)
+    return deployment_annotations(obj)
+
+
 class TestServiceAccountAnnotations:
     @pytest.mark.parametrize(
         "values,show_only,expected_annotations",
@@ -279,6 +293,20 @@ class TestServiceAccountAnnotations:
                 "example": "triggerer",
             },
         ),
+        (
+            {
+                "cleanup": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "cleanup",
+                    },
+                }
+            },
+            "templates/cleanup/cleanup-cronjob.yaml",
+            {
+                "example": "cleanup",
+            },
+        ),
     ],
 )
 class TestPerComponentPodAnnotations:
@@ -294,10 +322,11 @@ class TestPerComponentPodAnnotations:
         # we hope to test on.
         assert len(k8s_objects) == 1
         obj = k8s_objects[0]
+        annotations = get_object_annotations(obj)
 
         for k, v in expected_annotations.items():
-            assert k in obj["spec"]["template"]["metadata"]["annotations"]
-            assert v == obj["spec"]["template"]["metadata"]["annotations"][k]
+            assert k in annotations
+            assert v == annotations[k]
 
     def test_precedence(self, values, show_only, expected_annotations):
         values_global_annotations = {"airflowPodAnnotations": {k: "GLOBAL" for k in expected_annotations}}
@@ -315,7 +344,8 @@ class TestPerComponentPodAnnotations:
         # we hope to test on.
         assert len(k8s_objects) == 1
         obj = k8s_objects[0]
+        annotations = get_object_annotations(obj)
 
         for k, v in expected_annotations.items():
-            assert k in obj["spec"]["template"]["metadata"]["annotations"]
-            assert v == obj["spec"]["template"]["metadata"]["annotations"][k]
+            assert k in annotations
+            assert v == annotations[k]

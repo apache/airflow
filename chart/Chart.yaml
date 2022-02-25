@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.4.0-dev
-appVersion: 2.2.3
+version: 1.5.0-dev
+appVersion: 2.2.4
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -44,182 +44,23 @@ type: application
 annotations:
   artifacthub.io/links: |
     - name: Documentation
-      url: https://airflow.apache.org/docs/helm-chart/1.4.0/
+      url: https://airflow.apache.org/docs/helm-chart/1.5.0/
   artifacthub.io/screenshots: |
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/dags.png
     - title: Tree View
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/tree.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/tree.png
+    - title: Graph View
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/graph.png
     - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/calendar.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/variable_hidden1.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/variable_hidden.png
     - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/gantt.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/gantt.png
     - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/duration.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/code.png
     - title: Task Instance Context Menu
-      url: https://airflow.apache.org/docs/apache-airflow/2.2.3/_images/context.png
-  artifacthub.io/changes: |
-    - description: Add ``type`` to extra secrets param
-      kind: added
-      links:
-        - name: "#20599"
-          url: https://github.com/apache/airflow/pull/20599
-    - description: Support elasticsearch connection ``scheme``
-      kind: added
-      links:
-        - name: "#20564"
-          url: https://github.com/apache/airflow/pull/20564
-    - description: Allows to disable built-in secret variables individually
-      kind: added
-      links:
-        - name: "#18974"
-          url: https://github.com/apache/airflow/pull/18974
-    - description: Add support for ``securityContext``
-      kind: added
-      links:
-        - name: "#18249"
-          url: https://github.com/apache/airflow/pull/18249
-    - description: Add extra containers, volumes and volume mounts for jobs
-      kind: added
-      links:
-        - name: "#18808"
-          url: https://github.com/apache/airflow/pull/18808
-    - description: Allow ingress multiple hostnames w/diff secrets
-      kind: added
-      links:
-        - name: "#18542"
-          url: https://github.com/apache/airflow/pull/18542
-    - description: PgBouncer extra volumes, volume mounts, and sslmode
-      kind: added
-      links:
-        - name: "#19749"
-          url: https://github.com/apache/airflow/pull/19749
-    - description: Allow specifying kerberos keytab
-      kind: added
-      links:
-        - name: "#19054"
-          url: https://github.com/apache/airflow/pull/19054
-    - description: Allow disabling the Helm hooks
-      kind: added
-      links:
-        - name: "#18776"
-          url: https://github.com/apache/airflow/pull/18776
-    - description: Add ``migration-wait-timeout``
-      kind: added
-      links:
-        - name: "#20069"
-          url: https://github.com/apache/airflow/pull/20069
-    - description: Increase default livenessProbe timeout
-      kind: changed
-      links:
-        - name: '#20698'
-          url: https://github.com/apache/airflow/pull/20698
-    - description: Strict schema for k8s objects for values.yaml
-      kind: changed
-      links:
-        - name: "#19181"
-          url: https://github.com/apache/airflow/pull/19181
-    - description: Remove unnecessary ``pod_template_file`` defaults
-      kind: changed
-      links:
-        - name: "#19690"
-          url: https://github.com/apache/airflow/pull/19690
-    - description: Use built-in ``check-migrations`` command for Airflow>=2
-      kind: changed
-      links:
-        - name: "#19676"
-          url: https://github.com/apache/airflow/pull/19676
-    - description: Fix precedence of ``affinity``, ``nodeSelector``, and ``tolerations``
-      kind: fixed
-      links:
-        - name: "#20641"
-          url: https://github.com/apache/airflow/pull/20641
-    - description: Fix chart elasticsearch default port 80 to 9200.
-      kind: fixed
-      links:
-        - name: "#20616"
-          url: https://github.com/apache/airflow/pull/20616
-    - description: Fix network policy issue for webserver and flowerui
-      kind: fixed
-      links:
-        - name: "#20199"
-          url: https://github.com/apache/airflow/pull/20199
-    - description: Use local definitions for k8s schema validation
-      kind: fixed
-      links:
-        - name: "#20544"
-          url: https://github.com/apache/airflow/pull/20544
-    - description: Add custom labels for ingresses/PVCs
-      kind: fixed
-      links:
-        - name: "#20535"
-          url: https://github.com/apache/airflow/pull/20535
-    - description: Fix extra secrets/configmaps labels
-      kind: fixed
-      links:
-        - name: "#20464"
-          url: https://github.com/apache/airflow/pull/20464
-    - description: Fix flower restarts on update
-      kind: fixed
-      links:
-        - name: "#20316"
-          url: https://github.com/apache/airflow/pull/20316
-    - description: Properly quote namespace names
-      kind: fixed
-      links:
-        - name: "#20266"
-          url: https://github.com/apache/airflow/pull/20266
-    - description: "Docs: Add ``helm dependency update`` step to chart INSTALL"
-      kind: changed
-      links:
-        - name: '#20702'
-          url: https://github.com/apache/airflow/pull/20702
-    - description: "Docs: Reword section covering the envvar secrets"
-      kind: changed
-      links:
-        - name: "#20566"
-          url: https://github.com/apache/airflow/pull/20566
-    - description: 'Docs: Add "Customizing Workers" page'
-      kind: changed
-      links:
-        - name: "#20331"
-          url: https://github.com/apache/airflow/pull/20331
-    - description: "Docs: Include Datadog example in production guide"
-      kind: changed
-      links:
-        - name: "#17996"
-          url: https://github.com/apache/airflow/pull/17996
-    - description: "Docs: Update production Helm guide database section to use k8s secret"
-      kind: changed
-      links:
-        - name: "#19892"
-          url: https://github.com/apache/airflow/pull/19892
-    - description: "Docs: Fix ``multiNamespaceMode`` docs to also cover KPO"
-      kind: changed
-      links:
-        - name: "#19879"
-          url: https://github.com/apache/airflow/pull/19879
-    - description: "Docs: Clarify Helm behaviour when it comes to loading default connections"
-      kind: changed
-      links:
-        - name: "#19708"
-          url: https://github.com/apache/airflow/pull/19708
-    - description: "Misc: Use ``2.2.3`` as default Airflow version"
-      kind: changed
-      links:
-        - name: "#20450"
-          url: https://github.com/apache/airflow/pull/20450
-    - description: "Misc: Add ArtifactHUB annotations for docs and screenshots"
-      kind: changed
-      links:
-        - name: "#20558"
-          url: https://github.com/apache/airflow/pull/20558
-    - description: "Misc: Add kubernetes 1.21 support"
-      kind: changed
-      links:
-        - name: "#19557"
-          url: https://github.com/apache/airflow/pull/19557
+      url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/context.png

@@ -56,11 +56,8 @@ with DAG(
         Compares the results of two QuboleOperator tasks.
 
         :param hive_show_table: The "hive_show_table" task.
-        :type hive_show_table: QuboleOperator
         :param hive_s3_location: The "hive_s3_location" task.
-        :type hive_s3_location: QuboleOperator
         :param ti: The TaskInstance object.
-        :type ti: airflow.models.TaskInstance
         :return: True if the files are the same, False otherwise.
         :rtype: bool
         """

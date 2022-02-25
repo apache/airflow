@@ -26,6 +26,7 @@ from zipfile import ZipFile
 import pytest
 
 from airflow import settings
+from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
@@ -33,7 +34,6 @@ from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -67,7 +67,7 @@ TEMP_DAG_FILENAME = "temp_dag.py"
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({('core', 'load_examples'): 'false'}):
-        with env_vars({('core', 'load_examples'): 'false'}):
+        with env_vars({'AIRFLOW__CORE__LOAD_EXAMPLES': 'false'}):
             yield
 
 
@@ -237,7 +237,8 @@ class TestDagFileProcessor:
         # ti is successful thereby trying to insert a duplicate record.
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-    def test_dag_file_processor_sla_miss_callback_exception(self, create_dummy_dag):
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
+    def test_dag_file_processor_sla_miss_callback_exception(self, mock_stats_incr, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         calling the sla_miss_callback
@@ -253,6 +254,7 @@ class TestDagFileProcessor:
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
+        mock_stats_incr.reset_mock()
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
@@ -267,6 +269,7 @@ class TestDagFileProcessor:
         mock_log.exception.assert_called_once_with(
             'Could not call sla_miss_callback for DAG %s', 'test_sla_miss'
         )
+        mock_stats_incr.assert_called_once_with('sla_callback_notification_failure')
 
     @mock.patch('airflow.dag_processing.processor.send_email')
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(

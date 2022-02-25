@@ -51,7 +51,7 @@ manual refresh might be needed.
 export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.7 3.8 3.9"
 for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
 do
-  ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
+  ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version}
 done
 
 GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
@@ -76,6 +76,11 @@ git push
 ```
 
 # Manually refreshing the images
+
+Note that in order to refresh images you have to not only have `buildx` command installed for docker,
+but you should also make sure that you have the buildkit builder configured and set.
+
+More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for particular
 python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with python version

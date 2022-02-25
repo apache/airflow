@@ -139,7 +139,6 @@ class PodLauncher(LoggingMixin):
         Monitors a pod and returns the final state
 
         :param pod: pod spec that will be monitored
-        :type pod : V1Pod
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
@@ -180,7 +179,6 @@ class PodLauncher(LoggingMixin):
         Parse K8s log line and returns the final state
 
         :param line: k8s log line
-        :type line: str
         :return: timestamp and log message
         :rtype: Tuple[str, str]
         """

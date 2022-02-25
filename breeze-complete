@@ -20,7 +20,6 @@
 # Allowed values for the commands & flags used
 # The values here should be synchronized with the ones in
 # the ./scripts/ci/libraries/_initialization.sh and it is verified
-# by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
 _breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
@@ -39,6 +38,7 @@ _breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor Celer
 _breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
+_breeze_allowed_platforms="linux/amd64"
 
 # shellcheck disable=SC2034
 {
@@ -55,6 +55,7 @@ _breeze_allowed_installation_methods=". apache-airflow"
     _breeze_default_mssql_version=$(echo "${_breeze_allowed_mssql_versions}" | awk '{print $1}')
     _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
     _breeze_default_package_format=$(echo "${_breeze_allowed_package_formats}" | awk '{print $1}')
+    _breeze_default_platform=$(echo "${_breeze_allowed_platforms}" | awk '{print $1}')
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
@@ -79,8 +80,6 @@ airflow-providers-available
 airflow-provider-yaml-files-ok
 autoflake
 base-operator
-bats-tests
-bats-in-container-tests
 black
 blacken-docs
 boring-cyborg
@@ -100,6 +99,7 @@ check-xml
 daysago-import-check
 debug-statements
 detect-private-key
+docstring-params
 doctoc
 dont-use-safe-filter
 end-of-file-fixer
@@ -177,7 +177,7 @@ S: N:
 "
 
 _breeze_long_options="
-help python: backend: integration:
+help python: backend: integration: platform:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
@@ -194,7 +194,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
-cleanup-docker-context-files
+cleanup-docker-context-files prepare-buildx-cache
 test-type: preserve-volumes dry-run-docker
 executor:
 "
@@ -203,10 +203,10 @@ _breeze_commands="
 shell
 build-docs
 build-image
+prepare-build-cache
 cleanup-image
 exec
 generate-constraints
-push-image
 initialize-local-virtualenv
 prepare-airflow-packages
 setup-autocomplete

@@ -88,23 +88,16 @@ class DynamoDBToS3Operator(BaseOperator):
        )
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
-    :type dynamodb_table_name: str
     :param s3_bucket_name: S3 bucket to replicate data to
-    :type s3_bucket_name: str
     :param file_size: Flush file to s3 if file size >= file_size
-    :type file_size: int
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501
-    :type dynamodb_scan_kwargs: Optional[Dict[str, Any]]
     :param s3_key_prefix: Prefix of s3 object key
-    :type s3_key_prefix: Optional[str]
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
-    :type process_func: Callable[[Dict[str, Any]], bytes]
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :type aws_conn_id: str
     """
 
     def __init__(

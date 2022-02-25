@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck disable=SC2086
+# shellcheck shell=bash disable=SC2086
 
 # Installs airflow and provider packages from locally present docker context files
 # This is used in CI to install airflow and provider packages in the CI system of ours
@@ -25,9 +24,14 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
+    fi
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
 
     # shellcheck disable=SC2206
@@ -65,7 +69,7 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
-        echo Force re-installing airflow and providers from local files with eager upgrade
+        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
         echo
         # force reinstall all airflow + provider package local files with eager upgrade
         pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
@@ -73,7 +77,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     else
         echo
-        echo Force re-installing airflow and providers from local files with constraints and upgrade if needed
+        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with constraints and upgrade if needed${COLOR_RESET}"
         echo
         if [[ ${AIRFLOW_CONSTRAINTS_LOCATION} == "/"* ]]; then
             grep -ve '^apache-airflow' <"${AIRFLOW_CONSTRAINTS_LOCATION}" > /tmp/constraints.txt
@@ -103,9 +107,10 @@ function install_airflow_and_providers_from_docker_context_files(){
 # without dependencies. This is extremely useful in case you want to install via pip-download
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
-install_all_other_packages_from_docker_context_files() {
+function install_all_other_packages_from_docker_context_files() {
+
     echo
-    echo Force re-installing all other package from local files without dependencies
+    echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
     echo
     local reinstalling_other_packages
     # shellcheck disable=SC2010
@@ -118,6 +123,7 @@ install_all_other_packages_from_docker_context_files() {
     fi
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location

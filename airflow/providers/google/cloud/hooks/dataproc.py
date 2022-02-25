@@ -41,6 +41,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
 
@@ -74,7 +75,6 @@ class DataProcJobBuilder:
         Set labels for Dataproc job.
 
         :param labels: Labels for the job query.
-        :type labels: dict
         """
         if labels:
             self.job["job"]["labels"].update(labels)
@@ -84,7 +84,6 @@ class DataProcJobBuilder:
         Set variables for Dataproc job.
 
         :param variables: Variables for the job query.
-        :type variables: Dict
         """
         if variables is not None:
             self.job["job"][self.job_type]["script_variables"] = variables
@@ -94,7 +93,6 @@ class DataProcJobBuilder:
         Set args for Dataproc job.
 
         :param args: Args for the job query.
-        :type args: List[str]
         """
         if args is not None:
             self.job["job"][self.job_type]["args"] = args
@@ -104,7 +102,6 @@ class DataProcJobBuilder:
         Set query for Dataproc job.
 
         :param query: query for the job.
-        :type query: str
         """
         self.job["job"][self.job_type]["query_list"] = {'queries': [query]}
 
@@ -113,7 +110,6 @@ class DataProcJobBuilder:
         Set query uri for Dataproc job.
 
         :param query_uri: URI for the job query.
-        :type query_uri: str
         """
         self.job["job"][self.job_type]["query_file_uri"] = query_uri
 
@@ -122,7 +118,6 @@ class DataProcJobBuilder:
         Set jars uris for Dataproc job.
 
         :param jars: List of jars URIs
-        :type jars: List[str]
         """
         if jars is not None:
             self.job["job"][self.job_type]["jar_file_uris"] = jars
@@ -132,7 +127,6 @@ class DataProcJobBuilder:
         Set archives uris for Dataproc job.
 
         :param archives: List of archives URIs
-        :type archives: List[str]
         """
         if archives is not None:
             self.job["job"][self.job_type]["archive_uris"] = archives
@@ -142,7 +136,6 @@ class DataProcJobBuilder:
         Set file uris for Dataproc job.
 
         :param files: List of files URIs
-        :type files: List[str]
         """
         if files is not None:
             self.job["job"][self.job_type]["file_uris"] = files
@@ -152,7 +145,6 @@ class DataProcJobBuilder:
         Set python file uris for Dataproc job.
 
         :param pyfiles: List of python files URIs
-        :type pyfiles: List[str]
         """
         if pyfiles is not None:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
@@ -162,9 +154,7 @@ class DataProcJobBuilder:
         Set Dataproc main class.
 
         :param main_jar: URI for the main file.
-        :type main_jar: str
         :param main_class: Name of the main class.
-        :type main_class: str
         :raises: Exception
         """
         if main_class is not None and main_jar is not None:
@@ -179,7 +169,6 @@ class DataProcJobBuilder:
         Set Dataproc main python file uri.
 
         :param main: URI for the python main file.
-        :type main: str
         """
         self.job["job"][self.job_type]["main_python_file_uri"] = main
 
@@ -188,7 +177,6 @@ class DataProcJobBuilder:
         Set Dataproc job name.
 
         :param name: Job name.
-        :type name: str
         """
         self.job["job"]["reference"]["job_id"] = name + "_" + str(uuid.uuid4())[:8]
 
@@ -227,7 +215,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return ClusterControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_template_client(
@@ -247,7 +235,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_client(
@@ -267,7 +255,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return JobControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_batch_client(
@@ -287,10 +275,10 @@ class DataprocHook(GoogleBaseHook):
             client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
 
         return BatchControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -315,29 +303,20 @@ class DataprocHook(GoogleBaseHook):
         Creates a cluster in a project.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param cluster_name: Name of the cluster to create
-        :type cluster_name: str
         :param labels: Labels that will be assigned to created cluster
-        :type labels: Dict[str, str]
         :param cluster_config: Required. The cluster config to create.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
-        :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         # Dataproc labels must conform to the following regex:
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
@@ -382,26 +361,18 @@ class DataprocHook(GoogleBaseHook):
         Deletes a cluster in a project.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param cluster_name: Required. The cluster name.
-        :type cluster_name: str
         :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
             if cluster with specified UUID does not exist.
-        :type cluster_uuid: str
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_cluster_client(region=region)
         result = client.delete_cluster(
@@ -433,19 +404,13 @@ class DataprocHook(GoogleBaseHook):
         diagnose is returned
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param cluster_name: Required. The cluster name.
-        :type cluster_name: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_cluster_client(region=region)
         operation = client.diagnose_cluster(
@@ -472,19 +437,13 @@ class DataprocHook(GoogleBaseHook):
         Gets the resource representation for a cluster in a project.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param cluster_name: Required. The cluster name.
-        :type cluster_name: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_cluster_client(region=region)
         result = client.get_cluster(
@@ -510,23 +469,16 @@ class DataprocHook(GoogleBaseHook):
         Lists all regions/{region}/clusters in a project.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param filter_: Optional. A filter constraining the clusters to list. Filters are case-sensitive.
-        :type filter_: str
         :param page_size: The maximum number of resources contained in the underlying API response. If page
             streaming is performed per- resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number of resources in a page.
-        :type page_size: int
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_cluster_client(region=region)
         result = client.list_clusters(
@@ -556,18 +508,13 @@ class DataprocHook(GoogleBaseHook):
         Updates a cluster in a project.
 
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param cluster_name: Required. The cluster name.
-        :type cluster_name: str
         :param cluster: Required. The changes to the cluster.
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.Cluster`
-        :type cluster: Union[Dict, google.cloud.dataproc_v1.types.Cluster]
         :param update_mask: Required. Specifies the path, relative to ``Cluster``, of the field to update. For
             example, to change the number of workers in a cluster to 5, the ``update_mask`` parameter would be
             specified as ``config.worker_config.num_instances``, and the ``PATCH`` request body would specify
@@ -587,7 +534,6 @@ class DataprocHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.FieldMask`
-        :type update_mask: Union[Dict, google.cloud.dataproc_v1.types.FieldMask]
         :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
             decommissioning allows removing nodes from the cluster without interrupting jobs in progress.
             Timeout specifies how long to wait for jobs in progress to finish before forcefully removing nodes
@@ -598,19 +544,14 @@ class DataprocHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.Duration`
-        :type graceful_decommission_timeout: Union[Dict, google.cloud.dataproc_v1.types.Duration]
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``UpdateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -655,22 +596,15 @@ class DataprocHook(GoogleBaseHook):
         Creates new workflow template.
 
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param template: The Dataproc workflow template to create. If a dict is provided,
             it must be of the same form as the protobuf message WorkflowTemplate.
-        :type template: Union[dict, WorkflowTemplate]
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -708,34 +642,24 @@ class DataprocHook(GoogleBaseHook):
         Instantiates a template and begins execution.
 
         :param template_name: Name of template to instantiate.
-        :type template_name: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param version: Optional. The version of workflow template to instantiate. If specified,
             the workflow will be instantiated only if the current version of
             the workflow template has the supplied version.
             This option cannot be used to instantiate a previous version of
             workflow template.
-        :type version: int
         :param request_id: Optional. A tag that prevents multiple concurrent workflow instances
             with the same tag from running. This mitigates risk of concurrent
             instances started due to retries.
-        :type request_id: str
         :param parameters: Optional. Map from parameter names to values that should be used for those
             parameters. Values may not exceed 100 characters.
-        :type parameters: Dict[str, str]
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -776,25 +700,17 @@ class DataprocHook(GoogleBaseHook):
 
         :param template: The workflow template to instantiate. If a dict is provided,
             it must be of the same form as the protobuf message WorkflowTemplate
-        :type template: Union[Dict, WorkflowTemplate]
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param request_id: Optional. A tag that prevents multiple concurrent workflow instances
             with the same tag from running. This mitigates risk of concurrent
             instances started due to retries.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -832,17 +748,11 @@ class DataprocHook(GoogleBaseHook):
         Helper method which polls a job to check if it finishes.
 
         :param job_id: Id of the Dataproc job
-        :type job_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param wait_time: Number of seconds between checks
-        :type wait_time: int
         :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
-        :type timeout: int
         """
         if region is None:
             if location is not None:
@@ -887,21 +797,14 @@ class DataprocHook(GoogleBaseHook):
         Gets the resource representation for a job in a project.
 
         :param job_id: Id of the Dataproc job
-        :type job_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -940,25 +843,17 @@ class DataprocHook(GoogleBaseHook):
 
         :param job: The job resource. If a dict is provided,
             it must be of the same form as the protobuf message Job
-        :type job: Union[Dict, Job]
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param request_id: Optional. A tag that prevents multiple concurrent workflow instances
             with the same tag from running. This mitigates risk of concurrent
             instances started due to retries.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -990,13 +885,9 @@ class DataprocHook(GoogleBaseHook):
         Submits Google Cloud Dataproc job.
 
         :param project_id: The id of Google Cloud Dataproc project.
-        :type project_id: str
         :param job: The job to be submitted
-        :type job: dict
         :param region: The region of Google Dataproc cluster.
-        :type region: str
         :param job_error_states: Job states that should be considered error states.
-        :type job_error_states: List[str]
         """
         # TODO: Remover one day
         warnings.warn("This method is deprecated. Please use `submit_job`", DeprecationWarning, stacklevel=2)
@@ -1019,21 +910,14 @@ class DataprocHook(GoogleBaseHook):
         Starts a job cancellation request.
 
         :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
-        :type location: str
         :param job_id: Required. The job ID.
-        :type job_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         if region is None:
             if location is not None:
@@ -1078,27 +962,19 @@ class DataprocHook(GoogleBaseHook):
         Creates a batch workload.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param batch: Required. The batch to create.
-        :type batch: google.cloud.dataproc_v1.types.Batch
         :param batch_id: Optional. The ID to use for the batch, which will become the final component
             of the batch's resource name.
             This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-        :type batch_id: str
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
-        :type request_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_batch_client(region)
         parent = f'projects/{project_id}/regions/{region}'
@@ -1132,19 +1008,13 @@ class DataprocHook(GoogleBaseHook):
         :param batch_id: Required. The ID to use for the batch, which will become the final component
             of the batch's resource name.
             This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-        :type batch_id: str
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
@@ -1174,19 +1044,13 @@ class DataprocHook(GoogleBaseHook):
         :param batch_id: Required. The ID to use for the batch, which will become the final component
             of the batch's resource name.
             This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-        :type batch_id: str
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
@@ -1216,23 +1080,16 @@ class DataprocHook(GoogleBaseHook):
         Lists batch workloads.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :type region: str
         :param page_size: Optional. The maximum number of batches to return in each response. The service may
             return fewer than this value. The default page size is 20; the maximum page size is 1000.
-        :type page_size: int
         :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
             Provide this token to retrieve the subsequent page.
-        :type page_token: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_batch_client(region)
         parent = f'projects/{project_id}/regions/{region}'

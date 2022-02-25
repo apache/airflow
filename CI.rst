@@ -149,22 +149,6 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_PULL_IMAGES``                   |    true     |    true      |    true    | Determines if images are force-pulled,          |
-|                                         |             |              |            | no matter if they are already present           |
-|                                         |             |              |            | locally. This includes not only the             |
-|                                         |             |              |            | CI/PROD images but also the Python base         |
-|                                         |             |              |            | images. Note that if Python base images         |
-|                                         |             |              |            | change, also the CI and PROD images             |
-|                                         |             |              |            | need to be fully rebuild unless they were       |
-|                                         |             |              |            | already built with that base Python             |
-|                                         |             |              |            | image. This is false for local development      |
-|                                         |             |              |            | to avoid often pulling and rebuilding           |
-|                                         |             |              |            | the image. It is true for CI workflow in        |
-|                                         |             |              |            | case waiting from images is enabled             |
-|                                         |             |              |            | as the images needs to be force-pulled from     |
-|                                         |             |              |            | GitHub Registry, but it is set to               |
-|                                         |             |              |            | false when waiting for images is disabled.      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``FORCE_BUILD_IMAGES``                  |    false    |    false     |    false   | Forces building images. This is generally not   |
 |                                         |             |              |            | very useful in CI as in CI environment image    |
 |                                         |             |              |            | is built or pulled only once, so there is no    |
@@ -384,13 +368,10 @@ Our CI uses GitHub Registry to pull and push images to/from by default. You can 
 | GITHUB_TOKEN                   |                           | Token to use to login to GitHub.             |
 |                                |                           | Only used when pushing images on CI.         |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_WAIT_FOR_IMAGE | ``false``                 | Wait for the image to be available. This is  |
-|                                |                           | useful if commit SHA is used as pull tag     |
-+--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY_PULL_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
 |                                |                           | default, can also be full-length commit SHA. |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
+| GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Push this image tag. This is "latest" by     |
 |                                |                           | default, can also be full-length commit SHA. |
 +--------------------------------+---------------------------+----------------------------------------------+
 
@@ -509,10 +490,6 @@ until the images are built by the ``Build Images`` workflow before running.
 This workflow is also triggered on normal pushes to our "main" branches, i.e. after a
 pull request is merged and whenever ``scheduled`` run is triggered.
 
-It's possible to disable this feature and go back to the previous behaviour via
-``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` flag in the "Build Workflow image". Setting it to "false" switches back to
-the behaviour that each job builds its own image.
-
 The workflow has the following jobs:
 
 +---------------------------+---------------------------------------------+
@@ -581,9 +558,7 @@ Comments:
  (1) CRON jobs builds images from scratch - to test if everything works properly for clean builds
  (2) The tests are run when the Trigger Tests job determine that important files change (this allows
      for example "no-code" changes to build much faster)
- (3) The jobs wait for CI images if ``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` variable is set to "true".
-     You can set it to "false" to disable using shared images - this is slower though as the images
-     are rebuilt in every job that needs them.
+ (3) The jobs wait for CI images to be available.
  (4) PROD and CI images are pushed as "latest" to GitHub Container registry and constraints are upgraded
      only if all tests are successful. The images are rebuilt in this step using constraints pushed
      in the previous step.

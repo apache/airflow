@@ -52,9 +52,7 @@ class EmrHook(AwsBaseHook):
         Will return only if single id is found.
 
         :param emr_cluster_name: Name of a cluster to find
-        :type emr_cluster_name: str
         :param cluster_states: State(s) of cluster to find
-        :type cluster_states: list
         :return: id of the EMR cluster
         """
         response = self.get_conn().list_clusters(ClusterStates=cluster_states)
@@ -103,7 +101,6 @@ class EmrContainerHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param virtual_cluster_id: Cluster ID of the EMR on EKS virtual cluster
-    :type virtual_cluster_id: str
     """
 
     INTERMEDIATE_STATES = (
@@ -118,7 +115,7 @@ class EmrContainerHook(AwsBaseHook):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    def __init__(self, *args: Any, virtual_cluster_id: str = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, virtual_cluster_id: Optional[str] = None, **kwargs: Any) -> None:
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
@@ -138,19 +135,13 @@ class EmrContainerHook(AwsBaseHook):
         See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run  # noqa: E501
 
         :param name: The name of the job run.
-        :type name: str
         :param execution_role_arn: The IAM role ARN associated with the job run.
-        :type execution_role_arn: str
         :param release_label: The Amazon EMR release version to use for the job run.
-        :type release_label: str
         :param job_driver: Job configuration details, e.g. the Spark job parameters.
-        :type job_driver: dict
         :param configuration_overrides: The configuration overrides for the job run,
             specifically either application configuration or monitoring configuration.
-        :type configuration_overrides: dict
         :param client_request_token: The client idempotency token of the job run request.
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
-        :type client_request_token: str
         :return: Job ID
         """
         params = {
@@ -181,7 +172,6 @@ class EmrContainerHook(AwsBaseHook):
         Fetch the reason for a job failure (e.g. error message). Returns None or reason string.
 
         :param job_id: Id of submitted job run
-        :type job_id: str
         :return: str
         """
         # We absorb any errors if we can't retrieve the job status
@@ -207,7 +197,6 @@ class EmrContainerHook(AwsBaseHook):
         Fetch the status of submitted job run. Returns None or one of valid query states.
         See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run  # noqa: E501
         :param job_id: Id of submitted job run
-        :type job_id: str
         :return: str
         """
         try:
@@ -232,11 +221,8 @@ class EmrContainerHook(AwsBaseHook):
         Returns one of the final states.
 
         :param job_id: Id of submitted job run
-        :type job_id: str
         :param max_tries: Number of times to poll for query state before function exits
-        :type max_tries: int
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
-        :type poll_interval: int
         :return: str
         """
         try_number = 1
@@ -267,7 +253,6 @@ class EmrContainerHook(AwsBaseHook):
         Cancel the submitted job_run
 
         :param job_id: Id of submitted job_run
-        :type job_id: str
         :return: dict
         """
         return self.conn.cancel_job_run(

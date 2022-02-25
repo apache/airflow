@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.1.4
+.....
+
+Misc
+~~~~
+
+
+* ``Squelch more deprecation warnings (#21003)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.1.3
 .....
 

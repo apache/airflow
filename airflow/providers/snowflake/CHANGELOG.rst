@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix #21096: Support boolean in extra__snowflake__insecure_mode (#21155)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Snowflake Provider: Improve tests for Snowflake Hook (#20745)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.4.0
 .....
 

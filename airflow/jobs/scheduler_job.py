@@ -34,10 +34,13 @@ from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -47,13 +50,12 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
-from airflow.utils.state import DagRunState, PoolSlotState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 TI = models.TaskInstance
@@ -79,22 +81,16 @@ class SchedulerJob(BaseJob):
 
     :param subdir: directory containing Python files with Airflow DAG
         definitions, or a specific path to a file
-    :type subdir: str
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
-    :type num_runs: int
     :param num_times_parse_dags: The number of times to try to parse each DAG file.
         -1 for unlimited times.
-    :type num_times_parse_dags: int
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :type scheduler_idle_sleep_time: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
-    :type do_pickle: bool
     :param log: override the default Logger
-    :type log: logging.Logger
     """
 
     __mapper_args__ = {'polymorphic_identity': 'SchedulerJob'}
@@ -129,6 +125,8 @@ class SchedulerJob(BaseJob):
             )
             scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
+        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
+        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -217,7 +215,6 @@ class SchedulerJob(BaseJob):
         Get the concurrency maps.
 
         :param states: List of states to query for
-        :type states: list[airflow.utils.state.State]
         :return: A map from (dag_id, task_id) to # of task instances and
          a map from (dag_id, task_id) to # of task instances in the given state list
         :rtype: tuple[dict[str, int], dict[tuple[str, str], int]]
@@ -242,7 +239,6 @@ class SchedulerJob(BaseJob):
         dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
-        :type max_tis: int
         :return: list[airflow.models.TaskInstance]
         """
         from airflow.utils.db import DBLocks
@@ -339,16 +335,17 @@ class SchedulerJob(BaseJob):
                 continue
 
             pool_total = pools[pool]["total"]
-            if task_instance.pool_slots > pool_total:
-                self.log.warning(
-                    "Not executing %s. Requested pool slots (%s) are greater than "
-                    "total pool slots: '%s' for pool: %s.",
-                    task_instance,
-                    task_instance.pool_slots,
-                    pool_total,
-                    pool,
-                )
-                continue
+            for task_instance in task_instances:
+                if task_instance.pool_slots > pool_total:
+                    self.log.warning(
+                        "Not executing %s. Requested pool slots (%s) are greater than "
+                        "total pool slots: '%s' for pool: %s.",
+                        task_instance,
+                        task_instance.pool_slots,
+                        pool_total,
+                        pool,
+                    )
+                    task_instances.remove(task_instance)
 
             open_slots = pools[pool]["open"]
 
@@ -402,6 +399,17 @@ class SchedulerJob(BaseJob):
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
                     serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+                    # If the dag is missing, fail the task and continue to the next task.
+                    if not serialized_dag:
+                        self.log.error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            dag_id,
+                            task_instance,
+                        )
+                        session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
+                            {TI.state: State.FAILED}, synchronize_session='fetch'
+                        )
+                        continue
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
@@ -474,9 +482,7 @@ class SchedulerJob(BaseJob):
         with the executor.
 
         :param task_instances: TaskInstances to enqueue
-        :type task_instances: list[TaskInstance]
         :param session: The session object
-        :type session: Session
         """
         # actually enqueue them
         for ti in task_instances:
@@ -516,7 +522,6 @@ class SchedulerJob(BaseJob):
         MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuing.
 
         :param session:
-        :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
         if self.max_tis_per_query == 0:
@@ -533,7 +538,7 @@ class SchedulerJob(BaseJob):
         """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str], int] = {}
+        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
         tis_with_right_state: List[TaskInstanceKey] = []
 
@@ -629,7 +634,7 @@ class SchedulerJob(BaseJob):
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.processor_agent.send_callback_to_execute(request)
+                    self.executor.send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -660,6 +665,10 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
+            self.executor.callback_sink = PipeCallbackSink(
+                get_sink_pipe=self.processor_agent.get_callbacks_pipe
+            )
+
             self.executor.start()
 
             self.register_signals()
@@ -736,6 +745,11 @@ class SchedulerJob(BaseJob):
         timers.call_regular_interval(
             conf.getfloat('scheduler', 'pool_metrics_interval', fallback=5.0),
             self._emit_pool_metrics,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
+            self._find_zombies,
         )
 
         for loop_count in itertools.count(start=1):
@@ -1086,7 +1100,6 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
@@ -1112,36 +1125,29 @@ class SchedulerJob(BaseJob):
         dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.processor_agent.send_callback_to_execute(callback)
+            self.executor.send_callback(callback)
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
 
-        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
+        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
-        self.processor_agent.send_sla_callback_request_to_execute(
-            full_filepath=dag.fileloc, dag_id=dag.dag_id
-        )
+        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        self.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
-            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats[PoolSlotState.OPEN.value])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[PoolSlotState.QUEUED.value])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[PoolSlotState.RUNNING.value])
+            Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
@@ -1260,3 +1266,39 @@ class SchedulerJob(BaseJob):
         )
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def _find_zombies(self, session):
+        """
+        Find zombie task instances, which are tasks haven't heartbeated for too long
+        and update the current zombie list.
+        """
+        self.log.debug("Finding 'running' jobs without a recent heartbeat")
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
+
+        zombies = (
+            session.query(TaskInstance, DagModel.fileloc)
+            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+            .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
+            .filter(TaskInstance.state == State.RUNNING)
+            .filter(
+                or_(
+                    LocalTaskJob.state != State.RUNNING,
+                    LocalTaskJob.latest_heartbeat < limit_dttm,
+                )
+            )
+            .all()
+        )
+
+        if zombies:
+            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+
+        for ti, file_loc in zombies:
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                simple_task_instance=SimpleTaskInstance(ti),
+                msg=f"Detected {ti} as zombie",
+            )
+            self.log.error("Detected zombie job: %s", request)
+            self.executor.send_callback(request)
+            Stats.incr('zombies_killed')

@@ -136,17 +136,11 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``base-operator``                      Checks that BaseOperator is imported properly
 ------------------------------------ ---------------------------------------------------------------- ------------
-``bats-tests``                         Runs BATS bash unit tests
------------------------------------- ---------------------------------------------------------------- ------------
-``bats-in-container-tests``            Run in Breeze container bats tests                                   *
------------------------------------- ---------------------------------------------------------------- ------------
 ``black``                              Runs Black (the uncompromising Python code formatter)
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``blacken-docs``                       Run black on python code blocks in documentation files
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``boring-cyborg``                      Checks for Boring Cyborg configuration consistency
------------------------------------- ---------------------------------------------------------------- ------------
-``build``                              Builds image for mypy, flake8                                        *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``       Regenerates the JSON file with cross-provider dependencies
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -177,6 +171,8 @@ require Breeze Docker images to be installed locally.
 ``debug-statements``                   Detects accidentally committed debug statements
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``detect-private-key``                 Detects if private key is added to the repository
+------------------------------------ ---------------------------------------------------------------- ------------
+``docstring-params``                   Checks that param types not specified in docstring
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``doctoc``                             Refreshes the table of contents for MD files
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -383,7 +379,7 @@ Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check flake8 -- --files tests/core/* --verbose
 
 Run all tests for the currently staged files:
 
@@ -411,62 +407,3 @@ It does not take pre-commit parameters as extra arguments.
 .. code-block:: bash
 
      ./breeze static-check licenses
-
-Running Static Code Checks via scripts from the Host
-....................................................
-
-You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts:
-
-* `<scripts/ci/docs/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/static_checks/check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/static_checks/flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/static_checks/lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/static_checks/mypy.sh>`_ - runs a check for Mypy type annotation consistency.
-
-The scripts may ask you to rebuild the images, if needed.
-
-You can force rebuilding the images by deleting the ``.build`` directory. This directory keeps cached
-information about the images already built and you can safely delete it if you want to start from scratch.
-
-After documentation is built, the HTML results are available in the ``docs/_build/html``
-folder. This folder is mounted from the host so you can access those files on your host as well.
-
-Running static code checks in the Docker container
-..................................................
-
-If you are already in the Breeze Docker environment (by running the ``./breeze`` command),
-you can also run the same static checks via run_scripts:
-
-* Mypy: ``./scripts/in_container/run_mypy.sh airflow tests``
-* Flake8: ``./scripts/in_container/run_flake8.sh``
-* License check: ``./scripts/in_container/run_check_licence.sh``
-* Documentation: ``./scripts/in_container/run_docs_build.sh``
-
-Running static code checks for selected files
-.............................................
-
-In all static check scripts, both in the container and host versions, you can also pass a module/file path as
-parameters of the scripts to only check selected modules or files. For example:
-
-In the Docker container:
-
-.. code-block::
-
-  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/
-
-or
-
-.. code-block::
-
-  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/test_utils.py
-
-On the host:
-
-.. code-block::
-
-  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/
-
-.. code-block::
-
-  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/test_utils.py

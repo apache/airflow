@@ -35,15 +35,10 @@ class HdfsSensor(BaseSensorOperator):
     Waits for a file or folder to land in HDFS
 
     :param filepath: The route to a stored file.
-    :type filepath: str
     :param hdfs_conn_id: The Airflow connection used for HDFS credentials.
-    :type hdfs_conn_id: str
     :param ignored_ext: This is the list of ignored extensions.
-    :type ignored_ext: Optional[List[str]]
     :param ignore_copying: Shall we ignore?
-    :type ignore_copying: Optional[bool]
     :param file_size: This is the size of the file.
-    :type file_size: Optional[int]
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -98,11 +93,8 @@ class HdfsSensor(BaseSensorOperator):
         Will filter if instructed to do so the result to remove matching criteria
 
         :param result: list of dicts returned by Snakebite ls
-        :type result: list[dict]
         :param ignored_ext: list of ignored extensions
-        :type ignored_ext: list
         :param ignore_copying: shall we ignore ?
-        :type ignore_copying: bool
         :return: list of dicts which were not removed
         :rtype: list[dict]
         """

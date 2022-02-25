@@ -350,7 +350,7 @@ function kind::deploy_airflow_with_helm() {
         --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
-        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.api.auth_backends=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=${EXECUTOR}"
     echo
@@ -383,7 +383,7 @@ function kind::upgrade_airflow_with_helm() {
         --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
-        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.api.auth_backends=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=${mode}"
 

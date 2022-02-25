@@ -21,7 +21,7 @@ import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import Optional
+from typing import IO, Optional
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -73,7 +73,13 @@ class ExternalLoggingMixin:
         """Return whether handler is able to support external links."""
 
 
-class StreamLogWriter(IOBase):
+# We have to ignore typing errors here because Python I/O classes are a mess, and they do not
+# have the same type hierarchy defined as the `typing.IO` - they violate Liskov Substitution Principle
+# While it is ok to make your class derive from IOBase (and its good thing to do as they provide
+# base implementation for IO-implementing classes, it's impossible to make them work with
+# IO generics (and apparently it has not even been intended)
+# See more: https://giters.com/python/typeshed/issues/6077
+class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None
@@ -174,12 +180,11 @@ def set_context(logger, value):
     _logger = logger
     while _logger:
         for handler in _logger.handlers:
-            try:
-                handler.set_context(value)
-            except AttributeError:
-                # Not all handlers need to have context passed in so we ignore
-                # the error when handlers do not have set_context defined.
-                pass
+            # Not all handlers need to have context passed in so we ignore
+            # the error when handlers do not have set_context defined.
+            set_context = getattr(handler, 'set_context', None)
+            if set_context:
+                set_context(value)
         if _logger.propagate is True:
             _logger = _logger.parent
         else:

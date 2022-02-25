@@ -33,38 +33,27 @@ class FTPToS3Operator(BaseOperator):
 
     :param ftp_path: The ftp remote path. For one file it is mandatory to include the file as well.
         For multiple files, it is the route where the files will be found.
-    :type ftp_path: str
     :param s3_bucket: The targeted s3 bucket in which to upload the file(s).
-    :type s3_bucket: str
     :param s3_key: The targeted s3 key. For one file it must include the file path. For several,
         it must end with "/".
-    :type s3_key: str
     :param ftp_filenames: Only used if you want to move multiple files. You can pass a list
         with exact filenames present in the ftp path, or a prefix that all files must meet. It
         can also be the string '*' for moving all the files within the ftp path.
-    :type ftp_filenames: Union(str, list)
     :param s3_filenames: Only used if you want to move multiple files and name them different from
         the originals from the ftp. It can be a list of filenames or file prefix (that will replace
         the ftp prefix).
-    :type s3_filenames: Union(str, list)
     :param ftp_conn_id: The ftp connection id. The name or identifier for
         establishing a connection to the FTP server.
-    :type ftp_conn_id: str
     :param aws_conn_id: The s3 connection id. The name or identifier for
         establishing a connection to S3.
-    :type aws_conn_id: str
     :param replace: A flag to decide whether or not to overwrite the key
         if it already exists. If replace is False and the key exists, an
         error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     """
 
     template_fields: Sequence[str] = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')

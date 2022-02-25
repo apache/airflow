@@ -115,11 +115,11 @@ class EcsTaskLogFetcher(Thread):
     def run(self) -> None:
         logs_to_skip = 0
         while not self.is_stopped():
+            time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(logs_to_skip)
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
                 logs_to_skip += 1
-            time.sleep(self.fetch_interval.total_seconds())
 
     def _get_log_events(self, skip: int = 0) -> Generator:
         try:
@@ -161,68 +161,48 @@ class EcsOperator(BaseOperator):
         :ref:`howto/operator:EcsOperator`
 
     :param task_definition: the task definition name on Elastic Container Service
-    :type task_definition: str
     :param cluster: the cluster name on Elastic Container Service
-    :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
-    :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
-    :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
-    :type launch_type: str
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
         If no capacity_provider_strategy or launch_type is specified,
         the default capacity provider strategy for the cluster is used.
-    :type capacity_provider_strategy: list
     :param group: the name of the task group associated with the task
-    :type group: str
     :param placement_constraints: an array of placement constraint objects to use for
         the task
-    :type placement_constraints: list
     :param placement_strategy: an array of placement strategy objects to use for
         the task
-    :type placement_strategy: list
     :param platform_version: the platform version on which your task is running
-    :type platform_version: str
     :param network_configuration: the network configuration for the task
-    :type network_configuration: dict
     :param tags: a dictionary of tags in the form of {'tagKey': 'tagValue'}.
-    :type tags: dict
     :param awslogs_group: the CloudWatch group where your ECS container logs are stored.
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
-    :type awslogs_group: str
     :param awslogs_region: the region in which your CloudWatch logs are stored.
         If None, this is the same as the `region_name` parameter. If that is also None,
         this is the default AWS region based on your connection settings.
-    :type awslogs_region: str
     :param awslogs_stream_prefix: the stream prefix that is used for the CloudWatch logs.
         This is usually based on some custom name combined with the name of the container.
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
-    :type awslogs_stream_prefix: str
     :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
         in between each Cloudwatch logs fetches.
-    :type awslogs_fetch_interval: timedelta
     :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
         transient errors.
-    :type quota_retry: dict
     :param reattach: If set to True, will check if the task previously launched by the task_instance
         is already running. If so, the operator will attach to it instead of starting a new task.
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
-    :type reattach: bool
     :param number_logs_exception: Number of lines from the last Cloudwatch logs to return in the
         AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
         failed in the code running in ECS).
-    :type number_logs_exception: int
     """
 
     ui_color = '#f0ede4'

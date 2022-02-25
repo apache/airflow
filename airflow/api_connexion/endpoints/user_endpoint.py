@@ -16,15 +16,15 @@
 # under the License.
 from typing import List, Optional
 
+from connexion import NoContent
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 from werkzeug.security import generate_password_hash
 
-from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
@@ -53,9 +53,11 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
+    direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
+    order_param = order_by.strip("-")
+    order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
-        "user_id",
         'id',
         "first_name",
         "last_name",
@@ -64,9 +66,14 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
         "is_active",
         "role",
     ]
+    if order_by not in allowed_filter_attrs:
+        raise BadRequest(
+            detail=f"Ordering with '{order_by}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     query = session.query(User)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    users = query.offset(offset).limit(limit).all()
+    users = query.order_by(direction(getattr(User, order_param))).offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 

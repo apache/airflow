@@ -19,8 +19,11 @@
 Databricks hook.
 
 This hook enable the submitting and running of jobs to the Databricks platform. Internally the
-operators talk to the ``api/2.0/jobs/runs/submit``
-`endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+operators talk to the
+``api/2.1/jobs/run-now``
+`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>_`
+or the ``api/2.1/jobs/runs/submit``
+`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
 import sys
 import time
@@ -117,16 +120,12 @@ class DatabricksHook(BaseHook):
     Interact with Databricks.
 
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
-    :type databricks_conn_id: str
     :param timeout_seconds: The amount of time in seconds the requests library
         will wait before timing-out.
-    :type timeout_seconds: int
     :param retry_limit: The number of times to retry the connection in case of
         service outages.
-    :type retry_limit: int
     :param retry_delay: The number of seconds to wait between retries (it
         might be a floating point number).
-    :type retry_delay: float
     """
 
     conn_name_attr = 'databricks_conn_id'
@@ -267,7 +266,6 @@ class DatabricksHook(BaseHook):
         """
         Utility function to check AAD token hasn't expired yet
         :param aad_token: dict with properties of AAD token
-        :type aad_token: dict
         :return: true if token is valid, false otherwise
         :rtype: bool
         """
@@ -301,9 +299,7 @@ class DatabricksHook(BaseHook):
         Utility function to perform an API call with retries
 
         :param endpoint_info: Tuple of method and endpoint
-        :type endpoint_info: tuple[string, string]
         :param json: Parameters for this API call.
-        :type json: dict
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise,
             we throw an AirflowException.
@@ -387,10 +383,9 @@ class DatabricksHook(BaseHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
-        :type json: dict
         :return: the run_id as an int
         :rtype: str
         """
@@ -399,10 +394,9 @@ class DatabricksHook(BaseHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
+        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
-        :type json: dict
         :return: the run_id as an int
         :rtype: str
         """
@@ -425,7 +419,6 @@ class DatabricksHook(BaseHook):
         Retrieves job_id from run_id.
 
         :param run_id: id of the run
-        :type run_id: int
         :return: Job id for given Databricks run
         """
         json = {'run_id': run_id}
@@ -532,7 +525,6 @@ class DatabricksHook(BaseHook):
         Utility function to call the ``2.0/libraries/install`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
-        :type json: dict
         """
         self._do_api_call(INSTALL_LIBS_ENDPOINT, json)
 
@@ -543,7 +535,6 @@ class DatabricksHook(BaseHook):
         Utility function to call the ``2.0/libraries/uninstall`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
-        :type json: dict
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 

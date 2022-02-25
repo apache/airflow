@@ -25,6 +25,7 @@ from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
 from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -38,11 +39,11 @@ class WorkflowsHook(GoogleBaseHook):
 
     def get_workflows_client(self) -> WorkflowsClient:
         """Returns WorkflowsClient."""
-        return WorkflowsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return WorkflowsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     def get_executions_client(self) -> ExecutionsClient:
         """Returns ExecutionsClient."""
-        return ExecutionsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return ExecutionsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow(
@@ -62,21 +63,14 @@ class WorkflowsHook(GoogleBaseHook):
         [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
 
         :param workflow: Required. Workflow to be created.
-        :type workflow: Dict
         :param workflow_id: Required. The ID of the workflow to be created.
-        :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_workflows_client()
@@ -102,19 +96,13 @@ class WorkflowsHook(GoogleBaseHook):
         Gets details of a single Workflow.
 
         :param workflow_id: Required. The ID of the workflow to be created.
-        :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_workflows_client()
@@ -138,18 +126,13 @@ class WorkflowsHook(GoogleBaseHook):
         used in new workflow executions.
 
         :param workflow: Required. Workflow to be created.
-        :type workflow: Dict
         :param update_mask: List of fields to be updated. If not present,
             the entire workflow will be updated.
-        :type update_mask: FieldMask
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_workflows_client()
@@ -176,19 +159,13 @@ class WorkflowsHook(GoogleBaseHook):
         executions of the workflow.
 
         :param workflow_id: Required. The ID of the workflow to be created.
-        :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_workflows_client()
@@ -211,24 +188,17 @@ class WorkflowsHook(GoogleBaseHook):
         The default order is not specified.
 
         :param filter_: Filter to restrict results to specific workflows.
-        :type filter_: str
         :param order_by: Comma-separated list of fields that
             specifies the order of the results. Default sorting order for a field is ascending.
             To specify descending order for a field, append a "desc" suffix.
             If not specified, the results will be returned in an unspecified order.
-        :type order_by: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_workflows_client()
@@ -257,21 +227,14 @@ class WorkflowsHook(GoogleBaseHook):
         the given workflow.
 
         :param execution: Required. Input parameters of the execution represented as a dictionary.
-        :type execution: Dict
         :param workflow_id: Required. The ID of the workflow.
-        :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_executions_client()
@@ -298,21 +261,14 @@ class WorkflowsHook(GoogleBaseHook):
         Returns an execution for the given ``workflow_id`` and ``execution_id``.
 
         :param workflow_id: Required. The ID of the workflow.
-        :type workflow_id: str
         :param execution_id: Required. The ID of the execution.
-        :type execution_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_executions_client()
@@ -334,21 +290,14 @@ class WorkflowsHook(GoogleBaseHook):
         Cancels an execution using the given ``workflow_id`` and ``execution_id``.
 
         :param workflow_id: Required. The ID of the workflow.
-        :type workflow_id: str
         :param execution_id: Required. The ID of the execution.
-        :type execution_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_executions_client()
@@ -375,19 +324,13 @@ class WorkflowsHook(GoogleBaseHook):
         first).
 
         :param workflow_id: Required. The ID of the workflow to be created.
-        :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-        :type project_id: str
         :param location: Required. The GCP region in which to handle the request.
-        :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: Sequence[Tuple[str, str]]
         """
         metadata = metadata or ()
         client = self.get_executions_client()

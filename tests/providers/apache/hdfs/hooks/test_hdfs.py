@@ -20,18 +20,15 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 
 try:
     import snakebite
-
-    snakebite_loaded = True
 except ImportError:
-    snakebite_loaded = False
-
-if not snakebite_loaded:
-    raise unittest.SkipTest("Skipping test because HDFSHook is not installed")
+    pytestmark = pytest.mark.skip("Skipping test because HDFSHook is not installed")
 
 
 class TestHDFSHook(unittest.TestCase):
