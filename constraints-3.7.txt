@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-22T13:28:17Z
+# This constraints file was automatically generated on 2022-02-25T20:26:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -85,20 +85,14 @@ apache-airflow-providers-docker==2.4.1
 apache-airflow-providers-elasticsearch==2.2.0
 apache-airflow-providers-exasol==2.1.0
 apache-airflow-providers-facebook==2.2.0
-apache-airflow-providers-ftp==2.0.1
-apache-airflow-providers-github==1.0.0
 apache-airflow-providers-google==6.4.0
 apache-airflow-providers-grpc==2.0.1
 apache-airflow-providers-hashicorp==2.1.1
-apache-airflow-providers-http==2.0.3
-apache-airflow-providers-imap==2.2.0
-apache-airflow-providers-influxdb==1.1.0
 apache-airflow-providers-jdbc==2.1.0
 apache-airflow-providers-jenkins==2.0.4
 apache-airflow-providers-jira==2.0.1
 apache-airflow-providers-microsoft-azure==3.6.0
 apache-airflow-providers-microsoft-mssql==2.1.0
-apache-airflow-providers-microsoft-psrp==1.1.0
 apache-airflow-providers-microsoft-winrm==2.0.2
 apache-airflow-providers-mongo==2.3.0
 apache-airflow-providers-mysql==2.2.0
@@ -117,12 +111,10 @@ apache-airflow-providers-redis==2.0.1
 apache-airflow-providers-salesforce==3.4.0
 apache-airflow-providers-samba==3.0.1
 apache-airflow-providers-segment==2.0.1
-apache-airflow-providers-sendgrid==2.0.1
 apache-airflow-providers-sftp==2.4.1
 apache-airflow-providers-singularity==2.0.1
 apache-airflow-providers-slack==4.2.0
 apache-airflow-providers-snowflake==2.5.0
-apache-airflow-providers-sqlite==2.1.0
 apache-airflow-providers-ssh==2.4.0
 apache-airflow-providers-tableau==2.1.4
 apache-airflow-providers-telegram==2.0.1
@@ -174,9 +166,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.4
+boto3==1.21.8
 boto==2.49.0
-botocore==1.24.4
+botocore==1.24.8
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -199,7 +191,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.11.2
+connexion==2.12.0
 coverage==6.3.2
 crcmod==1.7
 cron-descriptor==1.2.24
@@ -236,9 +228,9 @@ flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
 frozenlist==1.3.0
-fsspec==2022.1.0
+fsspec==2022.2.0
 future==0.18.2
-gcsfs==2022.1.0
+gcsfs==2022.2.0
 geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
@@ -247,14 +239,14 @@ google-ads==14.0.0
 google-api-core==1.31.5
 google-api-python-client==1.12.10
 google-auth-httplib2==0.1.0
-google-auth-oauthlib==0.4.6
+google-auth-oauthlib==0.5.0
 google-auth==1.35.0
 google-cloud-aiplatform==1.10.0
 google-cloud-appengine-logging==1.1.0
 google-cloud-audit-log==0.2.0
-google-cloud-automl==2.6.0
+google-cloud-automl==2.7.0
 google-cloud-bigquery-datatransfer==3.6.0
-google-cloud-bigquery-storage==2.11.0
+google-cloud-bigquery-storage==2.12.0
 google-cloud-bigquery==2.34.0
 google-cloud-bigtable==1.7.0
 google-cloud-build==3.8.0
@@ -262,7 +254,7 @@ google-cloud-container==1.0.1
 google-cloud-core==1.7.2
 google-cloud-datacatalog==3.6.2
 google-cloud-dataproc-metastore==1.3.1
-google-cloud-dataproc==3.2.0
+google-cloud-dataproc==3.3.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.11.0
 google-cloud-language==1.3.0
@@ -270,22 +262,22 @@ google-cloud-logging==2.7.0
 google-cloud-memcache==1.0.0
 google-cloud-monitoring==2.8.0
 google-cloud-orchestration-airflow==1.2.1
-google-cloud-os-login==2.5.1
+google-cloud-os-login==2.6.0
 google-cloud-pubsub==2.9.0
-google-cloud-redis==2.5.1
+google-cloud-redis==2.6.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
 google-cloud-storage==1.44.0
-google-cloud-tasks==2.7.2
+google-cloud-tasks==2.8.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
-google-cloud-workflows==1.5.0
+google-cloud-workflows==1.6.0
 google-crc32c==1.3.0
-google-resumable-media==2.2.1
-googleapis-common-protos==1.54.0
+google-resumable-media==2.3.0
+googleapis-common-protos==1.55.0
 graphviz==0.19.1
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.3
@@ -301,7 +293,7 @@ httplib2==0.19.1
 httpx==0.22.0
 humanize==4.0.0
 hvac==0.11.2
-identify==2.4.10
+identify==2.4.11
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
@@ -312,7 +304,7 @@ influxdb-client==1.26.0
 iniconfig==1.1.1
 ipdb==0.13.9
 ipython-genutils==0.2.0
-ipython==7.31.1
+ipython==7.32.0
 isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
@@ -322,7 +314,7 @@ jmespath==0.10.0
 json-merge-patch==0.2
 jsondiff==1.3.1
 jsonpath-ng==1.5.3
-jsonschema==3.2.0
+jsonschema==4.4.0
 jupyter-client==7.1.2
 jupyter-core==4.9.2
 jwcrypto==1.0
@@ -368,8 +360,6 @@ ntlm-auth==1.5.0
 numpy==1.20.3
 oauth2client==4.1.3
 oauthlib==3.2.0
-openapi-schema-validator==0.1.6
-openapi-spec-validator==0.3.3
 opsgenie-sdk==2.1.5
 orjson==3.6.7
 oscrypto==1.2.1
@@ -384,7 +374,7 @@ parso==0.8.3
 partd==1.2.0
 pathspec==0.9.0
 pbr==5.8.1
-pdpyras==4.4.0
+pdpyras==4.5.0
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -431,7 +421,7 @@ pymssql==2.2.4
 pyodbc==4.0.32
 pyparsing==2.4.7
 pypsrp==0.8.1
-pyrsistent==0.16.1
+pyrsistent==0.18.1
 pysftp==0.2.9
 pyspark==3.2.1
 pyspnego==0.5.0
@@ -451,7 +441,7 @@ python-jenkins==1.7.0
 python-jose==3.3.0
 python-ldap==3.4.0
 python-nvd3==0.15.0
-python-slugify==6.0.1
+python-slugify==6.1.0
 python-telegram-bot==13.11
 python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
@@ -475,7 +465,7 @@ rfc3986==1.5.0
 rich-click==1.0.0
 rich==11.2.0
 rsa==4.8
-s3transfer==0.5.1
+s3transfer==0.5.2
 sasl==0.3.1
 scramp==1.4.1
 scrapbook==0.5.0
@@ -512,7 +502,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.3.2
 spython==0.1.18
-sqlalchemy-bigquery==1.3.0
+sqlalchemy-bigquery==1.4.0
 sqlalchemy-drill==1.1.1
 sqlalchemy-redshift==0.8.9
 sqlparse==0.4.2
@@ -546,7 +536,7 @@ types-boto==2.49.7
 types-certifi==2021.10.8.1
 types-croniter==1.0.7
 types-cryptography==3.3.15
-types-docutils==0.17.6
+types-docutils==0.17.7
 types-enum34==1.1.8
 types-freezegun==1.1.6
 types-ipaddress==1.0.8
@@ -555,8 +545,8 @@ types-protobuf==3.19.12
 types-python-dateutil==2.8.9
 types-python-slugify==5.0.3
 types-pytz==2021.3.5
-types-redis==4.1.16
-types-requests==2.27.10
+types-redis==4.1.17
+types-requests==2.27.11
 types-setuptools==57.4.9
 types-six==1.16.10
 types-tabulate==0.8.5
@@ -573,16 +563,16 @@ urllib3==1.26.8
 userpath==1.8.0
 vertica-python==1.0.3
 vine==5.0.0
-virtualenv==20.13.1
+virtualenv==20.13.2
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
 webencodings==0.5.1
-websocket-client==1.2.3
+websocket-client==1.3.0
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.131.0
+yandexcloud==0.140.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
