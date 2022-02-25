@@ -603,7 +603,7 @@ devel_only = [
     # Actually GitHub3.1.0 already introduced PyJWT>=2.3.0 but so far `pip` was able to resolve it without
     # getting into a long backtracking loop and figure out that github3 3.0.0 version is the right version
     # similarly limiting it to 3.1.2 causes pip not to enter the backtracking loop. Apparently when there
-    # Are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
+    # are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
     # to resolve that github3 3.0.0 is the right version to use.
     # This limitation could be removed if PyJWT limitation < 2.0.0 is dropped from FAB or when
     # pip resolution is improved to handle the case, The issue which describes this PIP behaviour
