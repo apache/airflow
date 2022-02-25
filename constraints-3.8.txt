@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-25T22:27:21Z
+# This constraints file was automatically generated on 2022-02-25T23:40:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -347,6 +347,7 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
+mypy-boto3-rds==1.21.0
 mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.28
@@ -578,7 +579,7 @@ yandexcloud==0.140.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
-zict==2.0.0
+zict==2.1.0
 zipp==3.7.0
 zope.event==4.5.0
 zope.interface==5.4.0
