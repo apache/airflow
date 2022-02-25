@@ -214,6 +214,10 @@ In order to support that cleanly we have changed the interface for BaseOperatorL
 
 The existing signature will be detected (by the absence of the `ti_key` argument) and continue to work.
 
+### `ReadyToRescheduleDep` now only runs when `reschedule` is *True*
+
+When a `ReadyToRescheduleDep` is run, it now checks whether the `reschedule` attribute on the operator, and always reports itself as *passed* unless it is set to *True*. If you use this dep class on your custom operator, you will need to add this attribute to the operator class. Built-in operator classes that use this dep class (including sensors and all subclasses) already have this attribute and are not affected.
+
 ## Airflow 2.2.4
 
 ### Smart sensors deprecated

@@ -1330,14 +1330,8 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.edge_info == dag.edge_info
 
-    @pytest.mark.parametrize(
-        "mode, expect_custom_deps",
-        [
-            ("poke", False),
-            ("reschedule", True),
-        ],
-    )
-    def test_serialize_sensor(self, mode, expect_custom_deps):
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_serialize_sensor(self, mode):
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
@@ -1347,14 +1341,9 @@ class TestStringifiedDAGs:
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
 
         blob = SerializedBaseOperator.serialize_operator(op)
-
-        if expect_custom_deps:
-            assert "deps" in blob
-        else:
-            assert "deps" not in blob
+        assert "deps" in blob
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
-
         assert op.deps == serialized_op.deps
 
     @pytest.mark.parametrize(
