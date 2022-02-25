@@ -15,23 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function verify_image::check_not_empty {
-    image_size=$(docker inspect "${1}" -f '{{.Size}}')
-    if [[ ${image_size} == "0" ]]; then
-        echo "${COLOR_RED}The image ${1} is empty - which means it failed to build. See 'Build Image' step for details. Exiting!${COLOR_RESET}"
-        exit 1
-    fi
+# Pushes empty CI images with tags to registry in GitHub to stop waiting. They will fail validation
+# And whole job will fail
+function push_ci_image_with_tag_to_github() {
+    start_end::group_start "Prepare and push empty CI images"
+    docker_v build -t "${AIRFLOW_CI_IMAGE}" - <<EOF
+FROM scratch
+EOF
+    docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    start_end::group_end
 }
 
-function verify_image::verify_prod_image {
-    verify_image::check_not_empty "${1}"
-    export DOCKER_IMAGE="${1}"
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_prod_image.py"
-}
+build_images::prepare_ci_build
 
-function verify_image::verify_ci_image {
-    verify_image::check_not_empty "${1}"
-    export DOCKER_IMAGE="${1}"
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_ci_image.py"
-}
+build_images::login_to_docker_registry
+
+push_ci_image_with_tag_to_github
