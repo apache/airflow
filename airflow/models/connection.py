@@ -143,14 +143,14 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     def _validate_extra(extra, conn_id):
         try:
-            _extra_parsed = json.loads(extra)
-            if not isinstance(_extra_parsed, dict):
+            extra_parsed = json.loads(extra)
+            if not isinstance(extra_parsed, dict):
                 warnings.warn(
                     "Encountered JSON value in `extra` which does not parse as a dictionary in "
                     f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
                     "representation of a python dict.",
                     DeprecationWarning,
-                    stacklevel=2,
+                    stacklevel=3,
                 )
         except json.JSONDecodeError:
             warnings.warn(
