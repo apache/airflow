@@ -54,7 +54,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         invocation_type: Optional[str] = None,
         client_context: Optional[str] = None,
         payload: Optional[str] = None,
-        aws_conn_id='aws_default',
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -86,14 +86,12 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
         if response.get("StatusCode") not in success_status_codes:
             raise ValueError('Lambda function did not execute', json.dumps(response.get("ResponseMetadata")))
-        if "FunctionError" in response:
-            error_payload_stream = response.get("Payload")
-            error_payload = error_payload_stream.read().decode()
-            raise ValueError(
-                'Lambda function execution resulted in error',
-                {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": error_payload},
-            )
-        self.log.info('Lambda function invocation succeeded: %r', response.get("ResponseMetadata"))
         payload_stream = response.get("Payload")
         payload = payload_stream.read().decode()
+        if "FunctionError" in response:
+            raise ValueError(
+                'Lambda function execution resulted in error',
+                {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
+            )
+        self.log.info('Lambda function invocation succeeded: %r', response.get("ResponseMetadata"))
         return payload

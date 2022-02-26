@@ -18,7 +18,7 @@
 
 .. _howto/operator:AwsLambdaInvokeFunctionOperator:
 
-AWS Lambda Invoke Function Operator
+AWS Lambda Operators
 ===================================
 
 .. contents::
@@ -42,6 +42,7 @@ In the following example, we invoke an AWS Lambda function.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_lambda.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_lambda_operator]
     :end-before: [END howto_lambda_operator]
 
