@@ -17,8 +17,10 @@
 # under the License.
 import logging
 import os
+import re
 import time
 from logging.config import dictConfig
+from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import psutil
@@ -40,11 +42,13 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
+TASK_FORMAT = '{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
+
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'airflow.task': {'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'},
+        'airflow.task': {'format': TASK_FORMAT},
     },
     'handlers': {
         'console': {
@@ -197,19 +201,23 @@ class TestStandardTaskRunner:
         dag = dagbag.dags.get('test_on_kill')
         task = dag.get_task('task1')
 
-        with create_session() as session:
+        with create_session() as session, NamedTemporaryFile("w", delete=False) as f:
             dag.create_dagrun(
                 run_id="test",
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
                 start_date=DEFAULT_DATE,
                 session=session,
             )
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
             session.commit()
+            ti.refresh_from_task(task)
 
             runner = StandardTaskRunner(job1)
+            handler = logging.StreamHandler(f)
+            handler.setFormatter(logging.Formatter(TASK_FORMAT))
+            runner.log.addHandler(handler)
             runner.start()
 
             with timeout(seconds=3):
@@ -232,6 +240,14 @@ class TestStandardTaskRunner:
             logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
             runner.terminate()
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
+            with open(f.name) as g:
+                logged = g.read()
+            os.unlink(f.name)
+
+        ti.refresh_from_db()
+        assert re.findall(r'ERROR - Failed to execute job (\S+) for task (\S+)', logged) == [
+            (str(ti.job_id), ti.task_id)
+        ], logged
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
