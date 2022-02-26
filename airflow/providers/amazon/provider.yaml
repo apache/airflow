@@ -103,6 +103,10 @@ integrations:
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon RDS
+    external-doc-url: https://aws.amazon.com/rds/
+    logo: /integration-logos/aws/Amazon-RDS_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
@@ -382,6 +386,9 @@ hooks:
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.rds
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.hooks.redshift

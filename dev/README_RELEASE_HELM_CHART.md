@@ -37,6 +37,7 @@
   - [Publish release tag](#publish-release-tag)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
@@ -644,7 +645,12 @@ EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
-It is more reliable to set it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Update Announcements page
 

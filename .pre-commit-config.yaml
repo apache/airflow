@@ -143,16 +143,6 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-      - id: insert-license
-        name: Add license for all mermaid files
-        args:
-          - --comment-style
-          - "|%%|"
-          - --license-filepath
-          - license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-        files: \.mermaid$
-        exclude: ^airflow/_vendor/
   - repo: https://github.com/psf/black
     rev: 21.12b0
     hooks:
@@ -569,12 +559,6 @@ repos:
           - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
           - 'rich==10.9.0'
-      - id: mermaid
-        name: Generate mermaid images
-        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
-        language: system
-        files: \.mermaid$
-        require_serial: true
       - id: pre-commit-descriptions
         name: Check if pre-commits are described
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh

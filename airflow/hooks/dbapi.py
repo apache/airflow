@@ -18,7 +18,6 @@
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
-from urllib.parse import quote_plus, urlunsplit
 
 from sqlalchemy import create_engine
 
@@ -96,14 +95,8 @@ class DbApiHook(BaseHook):
         :return: the extracted uri.
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
-        login = ''
-        if conn.login:
-            login = f'{quote_plus(conn.login)}:{quote_plus(conn.password)}@'
-        host = conn.host
-        if conn.port is not None:
-            host += f':{conn.port}'
-        schema = self.__schema or conn.schema or ''
-        return urlunsplit((conn.conn_type, f'{login}{host}', schema, '', ''))
+        conn.schema = self.__schema or conn.schema
+        return conn.get_uri()
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
