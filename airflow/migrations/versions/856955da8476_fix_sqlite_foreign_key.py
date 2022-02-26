@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""fix sqlite foreign key
+"""Fix Sqlite foreign key
 
 Revision ID: 856955da8476
 Revises: f23433877c24
@@ -31,6 +31,7 @@ revision = '856955da8476'
 down_revision = 'f23433877c24'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 
 def upgrade():

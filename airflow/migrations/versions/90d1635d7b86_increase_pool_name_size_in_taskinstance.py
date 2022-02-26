@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase pool name size in TaskInstance
+"""Increase maximum length of pool name in ``task_instance`` table to ``256`` characters
 
 Revision ID: 90d1635d7b86
 Revises: 2e42bb497a22
@@ -32,15 +32,16 @@ revision = '90d1635d7b86'
 down_revision = '2e42bb497a22'
 branch_labels = None
 depends_on = None
+airflow_version = '2.1.0'
 
 
 def upgrade():
-    """Apply Increase pool name size in TaskInstance"""
+    """Apply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters"""
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column('pool', type_=sa.String(256), nullable=False)
 
 
 def downgrade():
-    """Unapply Increase pool name size in TaskInstance"""
+    """Unapply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters"""
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column('pool', type_=sa.String(50), nullable=False)

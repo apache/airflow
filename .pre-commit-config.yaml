@@ -488,13 +488,6 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml']
-      - id: verify-db-migrations-documented
-        name: Verify that DB Migrations have been documented
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_migration_documented.py
-        files: ^airflow/migrations/versions/.*\.(py)$
-        pass_filenames: false
-        require_serial: true
       - id: boring-cyborg
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -738,4 +731,11 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
+      - id: migration-reference
+        name: Update migration ref doc
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.sh
+        files: \.py$
+        pass_filenames: false
+        files: ^airflow/migrations/versions/.*\.(py)$|^docs/apache-airflow/migrations-ref.rst$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

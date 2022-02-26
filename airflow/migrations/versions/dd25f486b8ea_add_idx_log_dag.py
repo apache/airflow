@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add idx_log_dag
+"""Add index on ``log`` table
 
 Revision ID: dd25f486b8ea
 Revises: 9635ae0956e7
@@ -29,6 +29,7 @@ revision = 'dd25f486b8ea'
 down_revision = '9635ae0956e7'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.2'
 
 
 def upgrade():

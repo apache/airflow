@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""task_duration
+"""Change ``task_instance.task_duration`` type to ``FLOAT``
 
 Revision ID: 2e541a1dcfed
 Revises: 1b38cef5b76e
@@ -33,6 +33,7 @@ revision = '2e541a1dcfed'
 down_revision = '1b38cef5b76e'
 branch_labels = None
 depends_on = None
+airflow_version = '1.6.0'
 
 
 def upgrade():

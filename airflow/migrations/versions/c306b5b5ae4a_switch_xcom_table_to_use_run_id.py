@@ -34,6 +34,7 @@ revision = "c306b5b5ae4a"
 down_revision = "a3bcd0914482"
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 metadata = MetaData()

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add trigger table and task info
+"""Adds ``trigger`` table and deferrable operator columns to task instance
 
 Revision ID: 54bebd308c5f
 Revises: 30867afad44a
@@ -34,10 +34,11 @@ revision = '54bebd308c5f'
 down_revision = '30867afad44a'
 branch_labels = None
 depends_on = None
+airflow_version = '2.2.0'
 
 
 def upgrade():
-    """Apply Add trigger table and task info"""
+    """Apply Adds ``trigger`` table and deferrable operator columns to task instance"""
     op.create_table(
         'trigger',
         sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
@@ -58,7 +59,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add trigger table and task info"""
+    """Unapply Adds ``trigger`` table and deferrable operator columns to task instance"""
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.drop_constraint('task_instance_trigger_id_fkey', type_='foreignkey')
         batch_op.drop_index('ti_trigger_id')

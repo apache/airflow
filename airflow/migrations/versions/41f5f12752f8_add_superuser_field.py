@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add superuser field
+"""Add superuser field
 
 Revision ID: 41f5f12752f8
 Revises: 03bc53e68815
@@ -31,6 +31,7 @@ revision = '41f5f12752f8'
 down_revision = '03bc53e68815'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.2'
 
 
 def upgrade():
