@@ -22,11 +22,11 @@ from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
-import datetime
+import pendulum
 
 args = {
     'owner': 'airflow',
-    'start_date': datetime.datetime(2022,1,1),
+    'start_date': pendulum.datetime(2022,1,1),
 }
 
 dag = DAG(

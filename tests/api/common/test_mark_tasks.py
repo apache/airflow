@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+import datetime
 from typing import Callable
 
 import pytest
-import datetime
 from sqlalchemy.orm import eagerload
 
 from airflow import models
@@ -66,8 +65,8 @@ class TestMarkTasks:
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
             start_date3,
-            start_date3 + timedelta(days=1),
-            start_date3 + timedelta(days=2),
+            start_date3 + datetime.timedelta(days=1),
+            start_date3 + datetime.timedelta(days=2),
         ]
 
     @pytest.fixture(autouse=True)
@@ -76,7 +75,7 @@ class TestMarkTasks:
         clear_db_runs()
         drs = _create_dagruns(
             self.dag1,
-            [_DagRunInfo(d, (d, d + timedelta(days=1))) for d in self.execution_dates],
+            [_DagRunInfo(d, (d, d + datetime.timedelta(days=1))) for d in self.execution_dates],
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
@@ -88,7 +87,7 @@ class TestMarkTasks:
             [
                 _DagRunInfo(
                     self.dag2.start_date,
-                    (self.dag2.start_date, self.dag2.start_date + timedelta(days=1)),
+                    (self.dag2.start_date, self.dag2.start_date + datetime.timedelta(days=1)),
                 ),
             ],
             state=State.RUNNING,
@@ -112,7 +111,7 @@ class TestMarkTasks:
             [
                 _DagRunInfo(
                     self.dag4.start_date,
-                    (self.dag4.start_date, self.dag4.start_date + timedelta(days=1)),
+                    (self.dag4.start_date, self.dag4.start_date + datetime.timedelta(days=1)),
                 )
             ],
             state=State.SUCCESS,

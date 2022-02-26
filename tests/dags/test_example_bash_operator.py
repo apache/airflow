@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime
+
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 
 dag = DAG(
     dag_id='test_example_bash_operator',
-    default_args={'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022,1,1)},
+    default_args={'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022, 1, 1)},
     schedule_interval='0 0 * * *',
     dagrun_timeout=datetime.timedelta(minutes=60),
 )
