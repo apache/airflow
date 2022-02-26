@@ -61,7 +61,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, PoolNotFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
@@ -2629,6 +2629,17 @@ class DAG(LoggingMixin):
                 raise AirflowException(
                     "DAG Schedule must be None, if there are any required params without default values"
                 )
+
+    @provide_session
+    def validate_task_pools(self, session=NEW_SESSION):
+        """Validates and raise exception if any task in a dag is using a non-existent pool"""
+        from airflow.models.pool import Pool
+
+        pools = {p.pool for p in Pool.get_pools(session)}
+        task_pools = {task.pool for task in self.tasks}
+        diff = task_pools - pools
+        if diff:
+            raise PoolNotFound(f"The following pools: `{list(diff)}` does not exist in the database")
 
 
 class DagTag(Base):

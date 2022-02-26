@@ -283,6 +283,18 @@ class TestDagBag:
         assert len(dagbag.import_errors) == len(invalid_dag_files)
         assert len(dagbag.dags) == 0
 
+    def test_process_file_invalid_pool_name_check(self):
+        """
+        test that non-existing pool name raises import error
+        """
+        non_existing_pool = "test_invalid_pool.py"
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        assert len(dagbag.import_errors) == 0
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, non_existing_pool))
+        assert len(dagbag.import_errors) == 1
+        assert len(dagbag.dags) == 0
+
     @patch.object(DagModel, 'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
         """

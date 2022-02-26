@@ -41,6 +41,7 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
     ParamValidationError,
+    PoolNotFound,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -405,6 +406,8 @@ class DagBag(LoggingMixin):
                 dag.timetable.validate()
                 # validate dag params
                 dag.params.validate()
+                # validate pools
+                dag.validate_task_pools()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
@@ -417,6 +420,7 @@ class DagBag(LoggingMixin):
                 AirflowDagDuplicatedIdException,
                 AirflowClusterPolicyViolation,
                 ParamValidationError,
+                PoolNotFound,
             ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = str(exception)

@@ -43,7 +43,7 @@ dag1 = DAG(dag_id='test_backfill_pooled_task_dag', default_args=default_args)
 dag1_task1 = DummyOperator(
     task_id='test_backfill_pooled_task',
     dag=dag1,
-    pool='test_backfill_pooled_task_pool',
+    pool='default_pool',
 )
 
 # dag2 has been moved to test_prev_dagrun_dep.py

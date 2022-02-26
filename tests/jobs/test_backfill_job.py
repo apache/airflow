@@ -783,11 +783,6 @@ class TestBackfillJob:
         """
         Test that queued tasks are executed by BackfillJob
         """
-        session = settings.Session()
-        pool = Pool(pool='test_backfill_pooled_task_pool', slots=1)
-        session.add(pool)
-        session.commit()
-        session.close()
 
         dag = self.dagbag.get_dag('test_backfill_pooled_task_dag')
         dag.clear()

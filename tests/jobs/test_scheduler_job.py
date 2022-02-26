@@ -674,26 +674,6 @@ class TestSchedulerJob:
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
 
-    def test_nonexistent_pool(self, dag_maker):
-        dag_id = 'SchedulerJobTest.test_nonexistent_pool'
-        with dag_maker(dag_id=dag_id, max_active_tasks=16):
-            DummyOperator(task_id="dummy_wrong_pool", pool="this_pool_doesnt_exist")
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        session = settings.Session()
-
-        dr = dag_maker.create_dagrun()
-
-        ti = dr.task_instances[0]
-        ti.state = State.SCHEDULED
-        session.merge(ti)
-        session.commit()
-
-        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
-        session.flush()
-        assert 0 == len(res)
-        session.rollback()
-
     def test_infinite_pool(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_infinite_pool'
         with dag_maker(dag_id=dag_id, concurrency=16):
@@ -2391,6 +2371,7 @@ class TestSchedulerJob:
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
             'test_invalid_param.py',
+            'test_invalid_pool.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:

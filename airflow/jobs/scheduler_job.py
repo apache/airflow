@@ -330,9 +330,6 @@ class SchedulerJob(BaseJob):
 
         for pool, task_instances in pool_to_task_instances.items():
             pool_name = pool
-            if pool not in pools:
-                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool)
-                continue
 
             pool_total = pools[pool]["total"]
             for task_instance in task_instances:
