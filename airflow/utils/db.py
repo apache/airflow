@@ -1174,7 +1174,16 @@ def resetdb(session: Session = NEW_SESSION):
 
 @provide_session
 def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW_SESSION):
-    """Downgrade the airflow metastore schema to a prior version."""
+    """
+    Downgrade the airflow metastore schema to a prior version.
+
+    :param to_revision: The alembic revision to downgrade *to*.
+    :param sql: if True, print sql statements but do not run them
+    :param from_revision: if supplied, alembic revision to dawngrade *from*. This may only
+        be used in conjunction with ``sql=True`` because if we actually run the commands,
+        we should only downgrade from the *current* revision.
+    :param session: sqlalchemy session for connection to airflow metadata database
+    """
     if from_revision and not sql:
         raise ValueError(
             "`from_revision` can't be combined with `sql=False`. When actually "
