@@ -28,7 +28,6 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
@@ -397,6 +396,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     Currently the named parameters that ``DatabricksRunNowOperator`` supports are
         - ``job_id``
+        - ``job_name``
         - ``json``
         - ``notebook_params``
         - ``python_params``
@@ -409,6 +409,10 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
+    :param job_name: the name of the existing Databricks job.
+        It must exist only one job with the specified name.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+        This field will be templated.
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -489,6 +493,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self,
         *,
         job_id: Optional[str] = None,
+        job_name: Optional[str] = None,
         json: Optional[Any] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
@@ -513,6 +518,10 @@ class DatabricksRunNowOperator(BaseOperator):
 
         if job_id is not None:
             self.json['job_id'] = job_id
+        if job_name is not None:
+            self.json['job_name'] = job_name
+        if 'job_id' in self.json and 'job_name' in self.json:
+            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
         if notebook_params is not None:
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
@@ -536,6 +545,12 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         hook = self._get_hook()
+        if 'job_name' in self.json:
+            job_id = hook.find_job_id_by_name(self.json['job_name'])
+            if job_id is None:
+                raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
+            self.json['job_id'] = job_id
+            del self.json['job_name']
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
