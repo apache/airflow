@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import DAG
-import datetime
+import pendulum
 
-args = {'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022,1,1)}
+args = {'owner': 'airflow', 'retries': 3, 'start_date': pendulum.datetime(2022,1,1)}
 
 tree_dag = DAG(
     dag_id='test_tree_view',

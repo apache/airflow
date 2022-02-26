@@ -16,10 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+from datetime import datetime,timedelta
 
 import pytest
-import datetime
 from sqlalchemy.orm import eagerload
 
 from airflow import models

@@ -25,7 +25,7 @@ from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
 from typing import List
-
+import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -42,7 +42,6 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-import datetime
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -1134,7 +1133,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 DEFAULT_ARGS = {
     "owner": "test",
     "depends_on_past": True,
-    "start_date": datetime.datetime(2022,1,1),
+    "start_date": pendulum.datetime(2022,1,1),
     "end_date": datetime.today(),
     "schedule_interval": "@once",
     "retries": 1,

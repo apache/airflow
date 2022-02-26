@@ -26,7 +26,6 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-import datetime
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 from tests.models import DEFAULT_DATE
@@ -1027,7 +1026,7 @@ def test_pass_taskgroup_output_to_task():
     def increment(num):
         return num + 1
 
-    @dag(schedule_interval=None, start_date=datetime.datetime(2022,1,1), default_args={"owner": "airflow"})
+    @dag(schedule_interval=None, start_date=pendulum.datetime(2022,1,1), default_args={"owner": "airflow"})
     def wrap():
         total_1 = one()
         assert isinstance(total_1, XComArg)

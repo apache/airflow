@@ -16,7 +16,7 @@
 # under the License.
 import os
 from urllib.parse import quote_plus
-
+import pendulum
 import pytest
 from parameterized import parameterized
 
@@ -94,7 +94,7 @@ class TestGetExtraLinks:
         with DAG(
             dag_id="TEST_DAG_ID",
             default_args=dict(
-                start_date=datetime.datetime(2022, 1, 1),
+                start_date=pendulum.datetime(2022, 1, 1),
             ),
         ) as dag:
             BigQueryExecuteQueryOperator(task_id="TEST_SINGLE_QUERY", sql="SELECT 1")
