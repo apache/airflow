@@ -1034,12 +1034,12 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         session.commit()
 
 
-def _offline_migration(command, config, revision):
+def _offline_migration(migration_func: Callable, config, revision):
     log.info("Running offline migrations for revision range %s", revision)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         logging.disable(logging.CRITICAL)
-        command.upgrade(config, revision, sql=True)
+        migration_func(config, revision, sql=True)
         logging.disable(logging.NOTSET)
 
 
@@ -1134,10 +1134,10 @@ def upgradedb(
         revision = _validate_version_range(command, config, version_range)
         if not revision:
             return
-        return _offline_migration(command, config, revision)
+        return _offline_migration(command.upgrade, config, revision)
     elif revision_range:
         _validate_revision(command, config, revision_range)
-        return _offline_migration(command, config, revision_range)
+        return _offline_migration(command.upgrade, config, revision_range)
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
@@ -1170,6 +1170,65 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
 
     initdb(session=session)
+
+
+@provide_session
+def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW_SESSION):
+    """
+    Downgrade the airflow metastore schema to a prior version.
+
+    :param to_revision: The alembic revision to downgrade *to*.
+    :param sql: if True, print sql statements but do not run them
+    :param from_revision: if supplied, alembic revision to dawngrade *from*. This may only
+        be used in conjunction with ``sql=True`` because if we actually run the commands,
+        we should only downgrade from the *current* revision.
+    :param session: sqlalchemy session for connection to airflow metadata database
+    """
+    if from_revision and not sql:
+        raise ValueError(
+            "`from_revision` can't be combined with `sql=False`. When actually "
+            "applying a downgrade (instead of just generating sql), we always "
+            "downgrade from current revision."
+        )
+
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
+
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+
+    log.info("Attempting downgrade to revision %s", to_revision)
+
+    config = _get_alembic_config()
+
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+
+    errors_seen = False
+    for err in _check_migration_errors(session=session):
+        if not errors_seen:
+            log.error("Automatic migration failed.  You may need to apply downgrades manually.  ")
+            errors_seen = True
+        log.error("%s", err)
+
+    if errors_seen:
+        exit(1)
+
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        if sql:
+            log.warning("Generating sql scripts for manual migration.")
+
+            conn = session.connection()
+
+            from alembic.migration import MigrationContext
+
+            migration_ctx = MigrationContext.configure(conn)
+            if not from_revision:
+                from_revision = migration_ctx.get_current_revision()
+            revision_range = f"{from_revision}:{to_revision}"
+            _offline_migration(command.downgrade, config=config, revision=revision_range)
+        else:
+            log.info("Applying downgrade migrations.")
+            command.downgrade(config, revision=to_revision, sql=sql)
 
 
 def drop_airflow_models(connection):

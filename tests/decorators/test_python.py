@@ -97,6 +97,13 @@ class TestAirflowTaskDecorator:
 
         assert identity_dict(5, 5).operator.multiple_outputs is True
 
+        # Check invoking ``@task_decorator.__call__()`` yields the correct inference.
+        @task_decorator()
+        def identity_dict_with_decorator_call(x: int, y: int) -> resolve(annotation):
+            return {"x": x, "y": y}
+
+        assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
@@ -115,6 +122,25 @@ class TestAirflowTaskDecorator:
             return x
 
         assert identity_notyping(5).operator.multiple_outputs is False
+
+        # The following cases ensure invoking ``@task_decorator.__call__()`` yields the correct inference.
+        @task_decorator()
+        def identity_tuple_with_decorator_call(x: int, y: int) -> Tuple[int, int]:
+            return x, y
+
+        assert identity_tuple_with_decorator_call(5, 5).operator.multiple_outputs is False
+
+        @task_decorator()
+        def identity_int_with_decorator_call(x: int) -> int:
+            return x
+
+        assert identity_int_with_decorator_call(5).operator.multiple_outputs is False
+
+        @task_decorator()
+        def identity_notyping_with_decorator_call(x: int):
+            return x
+
+        assert identity_notyping_with_decorator_call(5).operator.multiple_outputs is False
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)

@@ -34,6 +34,7 @@ _PASSWORD = 'snowflake42'
 
 BASE_CONNECTION_KWARGS: Dict = {
     'login': 'user',
+    'conn_type': 'snowflake',
     'password': 'pw',
     'schema': 'public',
     'extra': {

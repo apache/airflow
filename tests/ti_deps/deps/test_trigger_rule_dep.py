@@ -423,6 +423,63 @@ class TestTriggerRuleDep:
         )
         assert len(dep_statuses) == 0
 
+    def test_all_skipped_tr_failure(self, get_task_instance):
+        """
+        All-skipped trigger rule failure
+        """
+        ti = get_task_instance(TriggerRule.ALL_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"])
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=1,
+                skipped=0,
+                failed=0,
+                upstream_failed=0,
+                done=1,
+                flag_upstream_failed=False,
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    def test_all_skipped_tr_success(self, get_task_instance):
+        """
+        All-skipped trigger rule success
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"]
+        )
+        with create_session() as session:
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    successes=0,
+                    skipped=3,
+                    failed=0,
+                    upstream_failed=0,
+                    done=3,
+                    flag_upstream_failed=False,
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 0
+
+            # with `flag_upstream_failed` set to True
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    successes=0,
+                    skipped=3,
+                    failed=0,
+                    upstream_failed=0,
+                    done=3,
+                    flag_upstream_failed=True,
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 0
+
     def test_all_done_tr_failure(self, get_task_instance):
         """
         All-done trigger rule failure

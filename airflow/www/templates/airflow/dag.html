@@ -163,7 +163,7 @@
               <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id)) }}">Trigger DAG w/ config</a></li>
             </ul>
           </div>
-          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
+          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
             onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
           </a>
@@ -412,7 +412,7 @@
             </span>
           </div>
           <hr style="margin-bottom: 8px;">
-          <a id="btn_dagrun_details" class="btn" data-base-url="{{ url_for('Airflow.dagrun_details') }}">
+          <a id="btn_dagrun_details" class="btn" data-base-url="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url) }}">
             DAG Run details
           </a>
         </div>
