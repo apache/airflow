@@ -17,7 +17,9 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import patch
 
+import pendulum
 import pytest
 from sqlalchemy.engine.url import make_url
 
@@ -134,3 +136,149 @@ class TestCliDb(unittest.TestCase):
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):
             db_command.shell(self.parser.parse_args(['db', 'shell']))
+
+
+class TestCLIDBClean:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.parametrize('timezone', ['UTC', 'Europe/Berlin', 'America/Los_Angeles'])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_date_timezone_omitted(self, run_cleanup_mock, timezone):
+        """
+        When timezone omitted we should always expect that the timestamp is
+        coerced to tz-aware with default timezone
+        """
+        timestamp = '2021-01-01 00:00:00'
+        with patch('airflow.utils.timezone.TIMEZONE', pendulum.timezone(timezone)):
+            args = self.parser.parse_args(['db', 'clean', '--clean-before-timestamp', f"{timestamp}", '-y'])
+            db_command.cleanup_tables(args)
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
+            verbose=False,
+            confirm=False,
+        )
+
+    @pytest.mark.parametrize('timezone', ['UTC', 'Europe/Berlin', 'America/Los_Angeles'])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_date_timezone_supplied(self, run_cleanup_mock, timezone):
+        """
+        When tz included in the string then default timezone should not be used.
+        """
+        timestamp = '2021-01-01 00:00:00+03:00'
+        with patch('airflow.utils.timezone.TIMEZONE', pendulum.timezone(timezone)):
+            args = self.parser.parse_args(['db', 'clean', '--clean-before-timestamp', f"{timestamp}", '-y'])
+            db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse(timestamp),
+            verbose=False,
+            confirm=False,
+        )
+
+    @pytest.mark.parametrize('confirm_arg, expected', [(['-y'], False), ([], True)])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
+        """
+        When tz included in the string then default timezone should not be used.
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *confirm_arg,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=False,
+            confirm=expected,
+        )
+
+    @pytest.mark.parametrize('dry_run_arg, expected', [(['--dry-run'], True), ([], False)])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_dry_run(self, run_cleanup_mock, dry_run_arg, expected):
+        """
+        When tz included in the string then default timezone should not be used.
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *dry_run_arg,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=expected,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=False,
+            confirm=True,
+        )
+
+    @pytest.mark.parametrize(
+        'extra_args, expected', [(['--tables', 'hello, goodbye'], ['hello', 'goodbye']), ([], None)]
+    )
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_tables(self, run_cleanup_mock, extra_args, expected):
+        """
+        When tz included in the string then default timezone should not be used.
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=expected,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=False,
+            confirm=True,
+        )
+
+    @pytest.mark.parametrize('extra_args, expected', [(['--verbose'], True), ([], False)])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_verbose(self, run_cleanup_mock, extra_args, expected):
+        """
+        When tz included in the string then default timezone should not be used.
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=expected,
+            confirm=True,
+        )

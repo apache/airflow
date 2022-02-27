@@ -20,8 +20,10 @@ import datetime
 import operator
 import os
 import signal
+import sys
 import urllib
 from tempfile import NamedTemporaryFile
+from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -1859,6 +1861,27 @@ class TestTaskInstance:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        with dag_maker(dag_id='test_retries_on_other_exceptions'):
+            task = PythonOperator(
+                task_id='test_raise_other_exception',
+                python_callable=fail,
+                retries=1,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+            ti.run()
+        assert len(log.error.mock_calls) == 1
+        assert log.error.call_args[0] == ("Task failed with exception",)
+        exc_info = log.error.call_args[1]["exc_info"]
+        filename = exc_info[2].tb_frame.f_code.co_filename
+        formatted_exc = format_exception(*exc_info)
+        assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
+
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']
         assert 'hive_in_python_op' == os.environ['AIRFLOW_CTX_TASK_ID']
@@ -2289,7 +2312,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComTypePushed) as ctx:
@@ -2312,7 +2335,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComLengthPushed) as ctx:
@@ -2341,7 +2364,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.apply(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
@@ -2373,7 +2396,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.map(value=literal)
+            show.apply(value=literal)
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
@@ -2405,7 +2428,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.map(value=emit())
+            show.apply(value=emit())
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
@@ -2438,7 +2461,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(number, letter):
                 outputs.append((number, letter))
 
-            show.map(number=emit_numbers(), letter=emit_letters())
+            show.apply(number=emit_numbers(), letter=emit_letters())
 
         dag_run = dag_maker.create_dagrun()
         for task_id in ["emit_numbers", "emit_letters"]:
@@ -2477,7 +2500,7 @@ class TestMappedTaskInstanceReceiveValue:
                 outputs.append((a, b))
 
             emit_task = emit_numbers()
-            show.map(a=emit_task, b=emit_task)
+            show.apply(a=emit_task, b=emit_task)
 
         dag_run = dag_maker.create_dagrun()
         ti = dag_run.get_task_instance("emit_numbers", session=session)

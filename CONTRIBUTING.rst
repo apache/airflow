@@ -691,6 +691,7 @@ salesforce                 tableau
 sftp                       ssh
 slack                      http
 snowflake                  slack
+trino                      google
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE

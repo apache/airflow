@@ -87,6 +87,7 @@ PIP package              Version required
 ``redshift_connector``   ``~=2.0.888``
 ``sqlalchemy_redshift``  ``~=0.8.6``
 ``watchtower``           ``~=2.0.1``
+``mypy-boto3-rds``       ``>=1.21.0``
 =======================  ===================
 
 Cross provider package dependencies

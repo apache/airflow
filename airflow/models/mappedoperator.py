@@ -78,9 +78,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
 
-    # BaseOperator.map() can be called on an XComArg, sequence, or dict (not any
-    # mapping since we need the value to be ordered).
-    MapArgument = Union[XComArg, Sequence, dict]
+    # BaseOperator.apply() can be called on an XComArg, sequence, or dict (not
+    # any mapping since we need the value to be ordered).
+    Mappable = Union[XComArg, Sequence, dict]
 
 ValidationSource = Union[Literal["map"], Literal["partial"]]
 
@@ -104,14 +104,14 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
             continue
         for name in param_names:
             value = unknown_args.pop(name, NOTSET)
-            if func != "map":
+            if func != "apply":
                 continue
             if value is NOTSET:
                 continue
             if isinstance(value, get_mappable_types()):
                 continue
             type_name = type(value).__name__
-            error = f"{op.__name__}.map() got an unexpected type {type_name!r} for keyword argument {name}"
+            error = f"{op.__name__}.apply() got an unexpected type {type_name!r} for keyword argument {name}"
             raise ValueError(error)
         if not unknown_args:
             return  # If we have no args left ot check: stop looking at the MRO chian.
@@ -134,7 +134,7 @@ def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
-def create_mocked_kwargs(kwargs: Dict[str, "MapArgument"]) -> Dict[str, unittest.mock.MagicMock]:
+def create_mocked_kwargs(kwargs: Dict[str, "Mappable"]) -> Dict[str, unittest.mock.MagicMock]:
     """Create a mapping of mocks for given map arguments.
 
     When a mapped operator is created, we want to perform basic validation on
@@ -157,14 +157,14 @@ class OperatorPartial:
     """An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
-    user to call ``.map()`` on it at some point (usually in a method chain) to
+    user to call ``.apply()`` on it at some point (usually in a method chain) to
     create a ``MappedOperator`` to add into the DAG.
     """
 
     operator_class: Type["BaseOperator"]
     kwargs: Dict[str, Any]
 
-    _map_called: bool = False  # Set when map() is called to ease user debugging.
+    _apply_called: bool = False  # Set when apply() is called to ease user debugging.
 
     def __attrs_post_init__(self):
         from airflow.operators.subdag import SubDagOperator
@@ -178,13 +178,13 @@ class OperatorPartial:
         return f"{self.operator_class.__name__}.partial({args})"
 
     def __del__(self):
-        if not self._map_called:
+        if not self._apply_called:
             warnings.warn(f"{self!r} was never mapped!")
 
-    def map(self, **mapped_kwargs: "MapArgument") -> "MappedOperator":
+    def apply(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         from airflow.operators.dummy import DummyOperator
 
-        validate_mapping_kwargs(self.operator_class, "map", mapped_kwargs)
+        validate_mapping_kwargs(self.operator_class, "apply", mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -214,7 +214,7 @@ class OperatorPartial:
             start_date=start_date,
             end_date=end_date,
         )
-        self._map_called = True
+        self._apply_called = True
         return op
 
 
@@ -223,7 +223,7 @@ class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
     operator_class: Union[Type["BaseOperator"], str]
-    mapped_kwargs: Dict[str, "MapArgument"]
+    mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
 
     # Needed for serialization.
@@ -461,11 +461,11 @@ class MappedOperator(AbstractOperator):
         dag._remove_task(self.task_id)
         return self._create_unmapped_operator(mapped_kwargs=self.mapped_kwargs, real=True)
 
-    def _get_expansion_kwargs(self) -> Dict[str, "MapArgument"]:
+    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
 
         This is ``self.mapped_kwargs`` for classic operators because kwargs to
-        ``BaseOperator.map()`` contribute to operator arguments.
+        ``BaseOperator.apply()`` contribute to operator arguments.
         """
         return self.mapped_kwargs
 
