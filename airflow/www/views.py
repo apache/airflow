@@ -1207,7 +1207,7 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = copy.copy(dag.get_task(task_id).unmap())
+        task = dag.get_task(task_id).prepare_for_execution()
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1230,6 +1230,8 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+        else:
+            task = ti.task
 
         title = "Rendered Template"
         html_dict = {}
@@ -1750,12 +1752,13 @@ class Airflow(AirflowBaseView):
 
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
-            return redirect(request.referrer)
+            return redirect(redirect_url)
         except AirflowException:
             flash(
                 f"Cannot delete DAG with id {dag_id} because some task instances of the DAG "
@@ -1763,7 +1766,7 @@ class Airflow(AirflowBaseView):
                 "failed/succeeded before deleting the DAG",
                 "error",
             )
-            return redirect(request.referrer)
+            return redirect(redirect_url)
 
         flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
@@ -2157,10 +2160,11 @@ class Airflow(AirflowBaseView):
         dag_run: Optional[DagRun] = (
             session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
         )
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         if dag_run is None:
             flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(redirect_url or url_for('Airflow.index'))
         else:
             try:
                 duration = dag_run.end_date - dag_run.start_date
@@ -2236,6 +2240,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
+        origin = args.get('origin')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2245,13 +2250,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG {dag_id} not found', "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             flash(f"Task {task_id} not found", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         task.dag = dag
 
@@ -2260,12 +2265,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         from airflow.api.common.mark_tasks import set_state
 
@@ -3577,12 +3582,24 @@ class XComModelView(AirflowModelView):
     def pre_add(self, item):
         """Pre add hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
     def pre_update(self, item):
         """Pre update hook."""
         item.execution_date = timezone.make_aware(item.execution_date)
-        item.value = XCom.serialize_value(item.value)
+        item.value = XCom.serialize_value(
+            value=item.value,
+            key=item.key,
+            task_id=item.task_id,
+            dag_id=item.dag_id,
+            run_id=item.run_id,
+        )
 
 
 def lazy_add_provider_discovered_options_to_connection_form():
@@ -4593,6 +4610,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'dag_id',
         'task_id',
         'run_id',
+        'map_index',
         'dag_run.execution_date',
         'operator',
         'start_date',
@@ -4666,10 +4684,18 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             return td_format(timedelta(seconds=duration))
         return None
 
+    def format_map_index(self):
+        """Only show indices of mapped tasks"""
+        map_index = self.get('map_index')
+        if map_index < 0:
+            return Markup("&nbsp;")
+        return None
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
         'run_id': wwwutils.dag_run_link,
+        'map_index': format_map_index,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
         'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),

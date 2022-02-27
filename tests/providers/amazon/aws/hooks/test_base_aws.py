@@ -391,6 +391,7 @@ class TestAwsBaseHook(unittest.TestCase):
                 }
             )
         )
+        mock_connection.conn_type = 'aws'
 
         # Store original __import__
         orig_import = __import__

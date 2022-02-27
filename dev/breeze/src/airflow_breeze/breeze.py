@@ -20,10 +20,9 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
-import click
 import click_completion
+import rich_click as click
 from click import ClickException
-from click_completion import get_auto_shell
 
 from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_image import build_image
@@ -159,7 +158,10 @@ def build_ci_image(
     """Builds docker CI image without entering the container."""
 
     if verbose:
-        console.print(f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT}[/]\n")
+        console.print(
+            f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT} "
+            f"python version: {python}[/]\n"
+        )
     build_image(
         verbose,
         additional_extras=additional_extras,
@@ -229,7 +231,7 @@ def setup_autocomplete():
     global NAME
     breeze_comment = "Added by Updated Airflow Breeze autocomplete setup"
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
-    shell = get_auto_shell()
+    shell = click_completion.get_auto_shell()
     click.echo(f"Installing {shell} completion for local user")
     extra_env = {'_CLICK_COMPLETION_COMMAND_CASE_INSENSITIVE_COMPLETE': 'ON'}
     autocomplete_path = Path(AIRFLOW_SOURCES_DIR) / ".build/autocomplete" / f"{NAME}-complete.{shell}"
@@ -239,16 +241,16 @@ def setup_autocomplete():
     click.echo(f"Activation command scripts are created in this autocompletion path: {autocomplete_path}")
     if click.confirm(f"Do you want to add the above autocompletion scripts to your {shell} profile?"):
         if shell == 'bash':
-            script_path = Path('~').expanduser() / '/.bash_completion'
+            script_path = Path('~').expanduser() / '.bash_completion'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'zsh':
-            script_path = Path('~').expanduser() / '/.zshrc'
+            script_path = Path('~').expanduser() / '.zshrc'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'fish':
             # Include steps for fish shell
-            script_path = Path('~').expanduser() / f'/.config/fish/completions/{NAME}.fish'
+            script_path = Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish'
             with open(path) as source_file, open(script_path, 'w') as destination_file:
                 for line in source_file:
                     destination_file.write(line)

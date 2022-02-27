@@ -64,7 +64,7 @@ reduce the number of open connections on the database.
   pgbouncer:
     enabled: true
 
-Depending on the size of you Airflow instance, you may want to adjust the following as well (defaults are shown):
+Depending on the size of your Airflow instance, you may want to adjust the following as well (defaults are shown):
 
 .. code-block:: yaml
 
@@ -110,6 +110,11 @@ Example to create a Kubernetes Secret from ``kubectl``:
 .. code-block:: bash
 
     kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+
+The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+"forbidden" errors when the logs are accessed.
 
 Extending and customizing Airflow Image
 ---------------------------------------

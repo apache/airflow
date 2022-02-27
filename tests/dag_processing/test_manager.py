@@ -35,6 +35,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 from freezegun import freeze_time
 
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
@@ -49,7 +50,6 @@ from airflow.models import DagBag, DagModel, errors
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context

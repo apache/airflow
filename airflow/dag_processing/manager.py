@@ -37,13 +37,13 @@ from setproctitle import setproctitle
 from tabulate import tabulate
 
 import airflow.models
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
@@ -174,37 +174,11 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             # when harvest_serialized_dags calls _heartbeat_manager.
             pass
 
-    def send_callback_to_execute(self, request: CallbackRequest) -> None:
-        """
-        Sends information about the callback to be executed by DagFileProcessor.
-
-        :param request: Callback request to be executed.
-        """
+    def get_callbacks_pipe(self) -> MultiprocessingConnection:
+        """Returns the pipe for sending Callbacks to DagProcessorManager."""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
-        try:
-            self._parent_signal_conn.send(request)
-        except ConnectionError:
-            # If this died cos of an error then we will noticed and restarted
-            # when harvest_serialized_dags calls _heartbeat_manager.
-            pass
-
-    def send_sla_callback_request_to_execute(self, full_filepath: str, dag_id: str) -> None:
-        """
-        Sends information about the SLA callback to be executed by DagFileProcessor.
-
-        :param full_filepath: DAG File path
-        :param dag_id: DAG ID
-        """
-        if not self._parent_signal_conn:
-            raise ValueError("Process not started.")
-        try:
-            request = SlaCallbackRequest(full_filepath=full_filepath, dag_id=dag_id)
-            self._parent_signal_conn.send(request)
-        except ConnectionError:
-            # If this died cos of an error then we will noticed and restarted
-            # when harvest_serialized_dags calls _heartbeat_manager.
-            pass
+        return self._parent_signal_conn
 
     def wait_until_finished(self) -> None:
         """Waits until DAG parsing is finished."""

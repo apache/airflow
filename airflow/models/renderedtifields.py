@@ -47,11 +47,11 @@ class RenderedTaskInstanceFields(Base):
     def __init__(self, ti: TaskInstance, render_templates=True):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
-        self.task = ti.task
         self.execution_date = ti.execution_date
         self.ti = ti
         if render_templates:
             ti.render_templates()
+        self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
         self.rendered_fields = {

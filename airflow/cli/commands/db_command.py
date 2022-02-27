@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.db_cleanup import config_dict, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
 
@@ -45,7 +46,7 @@ def resetdb(args):
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    db.upgradedb()
+    db.upgradedb(version_range=args.range, revision_range=args.revision_range)
     print("Upgrades done")
 
 
@@ -101,3 +102,19 @@ def shell(args):
 def check(_):
     """Runs a check command that checks if db is available."""
     db.check()
+
+
+# lazily imported by CLI parser for `help` command
+all_tables = sorted(config_dict)
+
+
+@cli_utils.action_cli(check_db=False)
+def cleanup_tables(args):
+    """Purges old records in metadata database"""
+    run_cleanup(
+        table_names=args.tables,
+        dry_run=args.dry_run,
+        clean_before_timestamp=args.clean_before_timestamp,
+        verbose=args.verbose,
+        confirm=not args.yes,
+    )

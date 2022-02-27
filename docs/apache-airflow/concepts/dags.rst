@@ -38,19 +38,22 @@ There are three ways to declare a DAG - either you can use a context manager,
 which will add the DAG to anything inside it implicitly::
 
     with DAG(
-        "my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+        "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule_interval="@daily", catchup=False
     ) as dag:
         op = DummyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
-    my_dag = DAG("my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
+    my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+                 schedule_interval="@daily", catchup=False)
     op = DummyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
-    @dag(start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
+    @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+         schedule_interval="@daily", catchup=False)
     def generate_dag():
         op = DummyOperator(task_id="task")
 
@@ -157,6 +160,8 @@ The ``schedule_interval`` argument takes any value that is a valid `Crontab <htt
     For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
 
     If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
+    For more information on ``logical date``, see :ref:`data-interval` and
+    :ref:`faq:what-does-execution-date-mean`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the
@@ -177,6 +182,20 @@ In much the same way a DAG instantiates into a DAG Run every time it's run,
 Tasks specified inside a DAG are also instantiated into
 :ref:`Task Instances <concepts:task-instances>` along with it.
 
+A DAG run will have a start date when it starts, and end date when it ends.
+This period describes the time when the DAG actually 'ran.' Aside from the DAG
+run's start and end date, there is another date called *logical date*
+(formally known as execution date), which describes the intended time a
+DAG run is scheduled or triggered. The reason why this is called
+*logical* is because of the abstract nature of it having multiple meanings,
+depending on the context of the DAG run itself.
+
+For example, if a DAG run is manually triggered by the user, its logical date would be the
+date and time of which the DAG run was triggered, and the value should be equal
+to DAG run's start date. However, when the DAG is being automatically scheduled, with certain
+schedule interval put in place, the logical date is going to indicate the time
+at which it marks the start of the data interval, where the DAG run's start
+date would then be the logical date + scheduled interval.
 
 DAG Assignment
 --------------
@@ -198,10 +217,11 @@ Default Arguments
 Often, many Operators inside a DAG need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
 
 
+    import pendulum
 
     with DAG(
         dag_id='my_dag',
-        start_date=datetime(2016, 1, 1),
+        start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
         schedule_interval='@daily',
         catchup=False,
         default_args={'retries': 2},
@@ -349,19 +369,21 @@ Note that if you are running the DAG at the very start of its life---specificall
 Trigger Rules
 ~~~~~~~~~~~~~
 
-By default, Airflow will wait for all upstream tasks for a task to be :ref:`successful <concepts:task-states>` before it runs that task.
+By default, Airflow will wait for all upstream (direct parents) tasks for a task to be :ref:`successful <concepts:task-states>` before it runs that task.
 
 However, this is just the default behaviour, and you can control it using the ``trigger_rule`` argument to a Task. The options for ``trigger_rule`` are:
 
 * ``all_success`` (default): All upstream tasks have succeeded
 * ``all_failed``: All upstream tasks are in a ``failed`` or ``upstream_failed`` state
 * ``all_done``: All upstream tasks are done with their execution
+* ``all_skipped``: All upstream tasks are in a ``skipped`` state
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
 * ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``always``: No dependencies at all, run this task at any time
+
 
 You can also combine this with the :ref:`concepts:depends-on-past` functionality if you wish.
 
@@ -374,7 +396,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
     .. code-block:: python
 
         # dags/branch_without_trigger.py
-        import datetime as dt
+        import pendulum
 
         from airflow.models import DAG
         from airflow.operators.dummy import DummyOperator
@@ -383,7 +405,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         dag = DAG(
             dag_id="branch_without_trigger",
             schedule_interval="@once",
-            start_date=dt.datetime(2019, 2, 28),
+            start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
         run_this_first = DummyOperator(task_id="run_this_first", dag=dag)
@@ -467,9 +489,11 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
+    import pendulum
+
     with DAG(
         dag_id='dag1',
-        start_date=datetime(2016, 1, 1),
+        start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
         schedule_interval="@daily",
         catchup=False,
         default_args={'retries': 1},
@@ -547,9 +571,13 @@ This is especially useful if your tasks are built dynamically from configuration
     """
     ### My great DAG
     """
+    import pendulum
 
     dag = DAG(
-        "my_dag", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+        "my_dag",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule_interval="@daily",
+        catchup=False,
     )
     dag.doc_md = __doc__
 
@@ -698,7 +726,7 @@ You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` a
 would only be applicable for that subfolder.
 
 DAG Dependencies
-================
+----------------
 
 *Added in Airflow 2.1*
 

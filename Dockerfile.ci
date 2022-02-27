@@ -34,7 +34,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
     INSTALL_MYSQL_CLIENT="true" \
-    INSTALL_MSSQL_CLIENT="true"
+    INSTALL_MSSQL_CLIENT="true" \
+    INSTALL_POSTGRES_CLIENT="true"
 
 RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
 
@@ -95,14 +96,15 @@ RUN apt-get update \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh scripts/docker/install_postgres.sh /scripts/docker/
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
 # That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
-RUN bash /scripts/docker/install_mysql.sh prod  \
-    && bash /scripts/docker/install_mysql.sh dev  \
+RUN bash /scripts/docker/install_mysql.sh prod \
+    && bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh \
+    && bash /scripts/docker/install_postgres.sh dev \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
               --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
@@ -200,7 +202,7 @@ ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ARG INSTALL_FROM_PYPI="true"
-ARG AIRFLOW_PIP_VERSION=21.3.1
+ARG AIRFLOW_PIP_VERSION=22.0.3
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -237,6 +239,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 # * install always current version of airflow
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MSSQL_CLIENT="true" \
+    INSTALL_POSTGRES_CLIENT="true" \
     AIRFLOW_INSTALLATION_METHOD="." \
     AIRFLOW_INSTALL_EDITABLE_FLAG="--editable" \
     AIRFLOW_VERSION_SPECIFICATION="" \

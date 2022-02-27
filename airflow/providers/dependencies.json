@@ -70,6 +70,9 @@
   "postgres": [
     "amazon"
   ],
+  "presto": [
+    "google"
+  ],
   "salesforce": [
     "tableau"
   ],
@@ -81,5 +84,8 @@
   ],
   "snowflake": [
     "slack"
+  ],
+  "trino": [
+    "google"
   ]
 }

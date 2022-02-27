@@ -1060,6 +1060,7 @@ nosasl
 notificationChannels
 npm
 ntlm
+ntpd
 nullable
 num
 oauth
@@ -1374,9 +1375,12 @@ tagValue
 task_group
 taskflow
 taskinstance
+taskmeta
 taskmixin
+tasksetmeta
 tblproperties
 tcp
+teardown
 templatable
 templateable
 templated

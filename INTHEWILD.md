@@ -132,6 +132,7 @@ Currently, **officially** using Airflow:
 1. [ContaAzul](https://www.contaazul.com) [[@bern4rdelli](https://github.com/bern4rdelli), [@renanleme](https://github.com/renanleme) & [@sabino](https://github.com/sabino)]
 1. [Corsearch](https://corsearch.com/) [[@silvantonio](https://github.com/silvantonio), [@erjanmx](https://github.com/erjanmx), [@honarkhah](https://github.com/honarkhah), [@RogierVanDoggenaar](https://github.com/RogierVanDoggenaar), [@arekgorecki](https://github.com/arekgorecki), [@jmolpointerbp](https://github.com/jmolpointerbp)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
+1. [CoverGenius](https://covergenius.com) [[@lihan](https://github.com/lihan), [@tyomo4ka](https://github.com/tyomo4ka), [@girish-l](https://github.com/girish-l)]
 1. [Craig@Work](https://www.craigatwork.com)
 1. [Crealytics](https://crealytics.com)
 1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)]
@@ -327,6 +328,7 @@ Currently, **officially** using Airflow:
 1. [Paraná Banco](https://paranabanco.com.br/) [[@lopesdiego12](https://github.com/lopesdiego12/)]
 1. [Parimatch Tech](https://parimatch.tech/) [[@KulykDmytro](https://github.com/KulykDmytro), [@Tonkonozhenko](https://github.com/Tonkonozhenko)]
 1. [Pathstream](https://pathstream.com) [[@pJackDanger](https://github.com/JackDanger)]
+1. [Paxful](https://paxful.com) [[@ne1r0n](https://github.com/ne1r0n)]
 1. [PayFit](https://payfit.com) [[@pcorbel](https://github.com/pcorbel)]
 1. [PAYMILL](https://www.paymill.com/) [[@paymill](https://github.com/paymill) & [@matthiashuschle](https://github.com/matthiashuschle)]
 1. [PayPal](https://www.paypal.com/) [[@r39132](https://github.com/r39132) & [@jhsenjaliya](https://github.com/jhsenjaliya)]

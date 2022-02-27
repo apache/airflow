@@ -43,6 +43,7 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
@@ -205,6 +206,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
 - Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
+- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
 - Check out the 'stable' branch
@@ -897,7 +899,7 @@ At this point we release an official package:
 
     ```shell script
     git tag -f -s "constraints-latest" -m "Latest constraints set to Apache Airflow ${VERSION}"
-    git push origin tag "constraints-latest"
+    git push -f origin tag "constraints-latest"
     ```
 
 - Push Tag for the final version
@@ -1009,6 +1011,12 @@ EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Update Announcements page
 

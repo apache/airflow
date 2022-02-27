@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.2.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.3.1
+ARG AIRFLOW_PIP_VERSION=22.0.3
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -87,7 +87,6 @@ ARG DEV_APT_DEPS="\
      libffi-dev \
      libkrb5-dev \
      libldap2-dev \
-     libpq-dev \
      libsasl2-2 \
      libsasl2-dev \
      libsasl2-modules \
@@ -96,7 +95,6 @@ ARG DEV_APT_DEPS="\
      lsb-release \
      nodejs \
      openssh-client \
-     postgresql-client \
      python-selinux \
      sasl2-bin \
      software-properties-common \
@@ -143,6 +141,7 @@ RUN apt-get update \
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -195,13 +194,16 @@ ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT}
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
-COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh scripts/docker/install_postgres.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_mysql.sh dev && bash /scripts/docker/install_mssql.sh
+RUN bash /scripts/docker/install_mysql.sh dev && \
+    bash /scripts/docker/install_mssql.sh && \
+    bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
@@ -382,7 +384,6 @@ ARG RUNTIME_APT_DEPS="\
        lsb-release \
        netcat \
        openssh-client \
-       postgresql-client \
        rsync \
        sasl2-bin \
        sqlite3 \
@@ -394,6 +395,7 @@ ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_POSTGRES_CLIENT="true"
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -401,6 +403,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
@@ -440,13 +443,14 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/install_postgres.sh /scripts/docker/
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
 # That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mssql.sh \
+    && bash /scripts/docker/install_postgres.sh prod \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
