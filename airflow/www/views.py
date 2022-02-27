@@ -130,7 +130,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.widgets import AirflowModelListWidget, AirflowVaribaleShowWidget
+from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -4071,7 +4071,7 @@ class VariableModelView(AirflowModelView):
     edit_template = 'airflow/variable_edit.html'
     show_template = 'airflow/variable_show.html'
 
-    show_widget = AirflowVaribaleShowWidget
+    show_widget = AirflowVariableShowWidget
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # type: ignore
 

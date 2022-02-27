@@ -74,7 +74,7 @@ class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
         return super().__call__(field, **kwargs)
 
 
-class AirflowVaribaleShowWidget(RenderTemplateWidget):
+class AirflowVariableShowWidget(RenderTemplateWidget):
     """Airflow variable show widget"""
 
     template = 'airflow/variable_show_widget.html'
