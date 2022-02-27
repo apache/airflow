@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-26T20:05:26Z
+# This constraints file was automatically generated on 2022-02-27T15:23:43Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -136,6 +136,7 @@ cryptography==3.4.8
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2021.6.0
+databricks-sql-connector==1.0.1
 datadog==0.43.0
 decorator==5.1.1
 defusedxml==0.7.1
