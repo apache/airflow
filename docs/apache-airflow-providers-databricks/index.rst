@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/databricks>
-    Operators <operators>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
@@ -76,11 +76,18 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.1.0``
-``requests``        ``>=2.26.0, <3``
-==================  ==================
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - PIP package
+     - Version required
+   * - ``apache-airflow``
+     - ``>=2.1.0``
+   * - ``requests``
+     - ``>=2.26.0, <3``
+   * - ``databricks-sql-connector``
+     - ``>=1.0,<2.0``
+
 
 .. include:: ../../airflow/providers/databricks/CHANGELOG.rst
