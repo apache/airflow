@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
-from airflow_breeze.cache import check_cache_and_write_if_not_cached
+from airflow_breeze.cache import check_cache_and_write_if_not_cached, write_to_cache_file
 from airflow_breeze.ci.build_params import BuildParams
 from airflow_breeze.console import console
 from airflow_breeze.utils.path_utils import get_airflow_sources_root
@@ -82,12 +82,25 @@ def construct_docker_command(ci_image: BuildParams) -> List[str]:
 
 
 def build_image(verbose, **kwargs):
-    ci_image_params = BuildParams(**filter_out_none(**kwargs))
-    is_cached, value = check_cache_and_write_if_not_cached(
-        "PYTHON_MAJOR_MINOR_VERSION", ci_image_params.python_version
-    )
-    if is_cached:
-        ci_image_params.python_version = value
+    parameters_passed = filter_out_none(**kwargs)
+    ci_image_params = get_image_build_params(parameters_passed)
     cmd = construct_docker_command(ci_image_params)
     output = run_command(cmd, verbose=verbose, text=True)
     console.print(f"[blue]{output}")
+
+
+def get_image_build_params(parameters_passed: Dict[str, str]):
+    cacheable_parameters = {"python_version": 'PYTHON_MAJOR_MINOR_VERSION'}
+    ci_image_params = BuildParams(**parameters_passed)
+    for parameter, cache_key in cacheable_parameters.items():
+        value_from_parameter = parameters_passed.get(parameter)
+        if value_from_parameter:
+            write_to_cache_file(cache_key, value_from_parameter, check_allowed_values=True)
+            setattr(ci_image_params, parameter, value_from_parameter)
+        else:
+            is_cached, value = check_cache_and_write_if_not_cached(
+                cache_key, getattr(ci_image_params, parameter)
+            )
+            if is_cached:
+                setattr(ci_image_params, parameter, value)
+    return ci_image_params
