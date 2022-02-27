@@ -24,7 +24,7 @@ import textwrap
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Union
 
-import click
+import rich_click as click
 from github import Github, Issue, PullRequest, UnknownObjectException
 from rich.console import Console
 from rich.progress import Progress

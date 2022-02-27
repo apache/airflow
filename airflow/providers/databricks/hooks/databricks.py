@@ -28,7 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 import sys
 import time
 from time import sleep
-from typing import Dict
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -56,6 +56,8 @@ CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
 
 INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
 UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
+
+LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
@@ -402,6 +404,52 @@ class DatabricksHook(BaseHook):
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
+
+    def list_jobs(self, limit: int = 25, offset: int = 0, expand_tasks: bool = False) -> List[Dict[str, Any]]:
+        """
+        Lists the jobs in the Databricks Job Service.
+
+        :param limit: The limit/batch size used to retrieve jobs.
+        :param offset: The offset of the first job to return, relative to the most recently created job.
+        :param expand_tasks: Whether to include task and cluster details in the response.
+        :return: A list of jobs.
+        """
+        has_more = True
+        jobs = []
+
+        while has_more:
+            json = {
+                'limit': limit,
+                'offset': offset,
+                'expand_tasks': expand_tasks,
+            }
+            response = self._do_api_call(LIST_JOBS_ENDPOINT, json)
+            jobs += response['jobs'] if 'jobs' in response else []
+            has_more = response.get('has_more', False)
+            if has_more:
+                offset += len(response['jobs'])
+
+        return jobs
+
+    def find_job_id_by_name(self, job_name: str) -> Optional[int]:
+        """
+        Finds job id by its name. If there are multiple jobs with the same name, raises AirflowException.
+
+        :param job_name: The name of the job to look up.
+        :return: The job_id as an int or None if no job was found.
+        """
+        all_jobs = self.list_jobs()
+        matching_jobs = [j for j in all_jobs if j['settings']['name'] == job_name]
+
+        if len(matching_jobs) > 1:
+            raise AirflowException(
+                f"There are more than one job with name {job_name}. Please delete duplicated jobs first"
+            )
+
+        if not matching_jobs:
+            return None
+        else:
+            return matching_jobs[0]['job_id']
 
     def get_run_page_url(self, run_id: int) -> str:
         """

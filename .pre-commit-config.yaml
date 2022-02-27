@@ -143,16 +143,6 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-      - id: insert-license
-        name: Add license for all mermaid files
-        args:
-          - --comment-style
-          - "|%%|"
-          - --license-filepath
-          - license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-        files: \.mermaid$
-        exclude: ^airflow/_vendor/
   - repo: https://github.com/psf/black
     rev: 21.12b0
     hooks:
@@ -565,16 +555,10 @@ repos:
         files: provider\.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
         additional_dependencies:
           - 'PyYAML==5.3.1'
-          - 'jsonschema==3.2.0'
+          - 'jsonschema>=3.2.0,<5.0.0'
           - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
           - 'rich==10.9.0'
-      - id: mermaid
-        name: Generate mermaid images
-        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
-        language: system
-        files: \.mermaid$
-        require_serial: true
       - id: pre-commit-descriptions
         name: Check if pre-commits are described
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
@@ -618,7 +602,7 @@ repos:
         files: .*\.schema\.json$
         exclude: ^airflow/_vendor/
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
         name: Lint NodePort Service with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -629,7 +613,7 @@ repos:
         pass_filenames: true
         files: scripts/ci/kubernetes/nodeport.yaml
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
         name: Lint Docker compose files with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -640,7 +624,7 @@ repos:
         pass_filenames: true
         files: ^scripts/ci/docker-compose/.+\.ya?ml$|docker-compose\.ya?ml$
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
         name: Lint chart/values.schema.json file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -652,7 +636,7 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: vendor-k8s-json-schema
         name: Vendor k8s definitions into values.schema.json
         entry: ./scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py
@@ -671,7 +655,7 @@ repos:
         pass_filenames: false
         files: ^chart/values\.yaml$|^chart/values\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
         name: Lint airflow/config_templates/config.yml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
@@ -682,7 +666,7 @@ repos:
         pass_filenames: true
         files: airflow/config_templates/config\.yml$
         require_serial: true
-        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: persist-credentials-disabled
         name: Check that workflow files have persist-credentials disabled
         entry: ./scripts/ci/pre_commit/pre_commit_checkout_no_credentials.py
@@ -696,7 +680,6 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        pass_filenames: true
         exclude: ^airflow/_vendor/
         additional_dependencies: ['rich']
       - id: chart-schema-lint

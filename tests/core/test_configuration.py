@@ -592,6 +592,28 @@ AIRFLOW_HOME = /root/airflow
             test_conf.validate()
             assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
 
+    def test_auth_backends_adds_session(self):
+        test_conf = AirflowConfigParser(default_config='')
+        # Guarantee we have deprecated settings, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        test_conf.deprecated_values = {
+            'api': {
+                'auth_backends': (
+                    re.compile(r'^airflow\.api\.auth\.backend\.deny_all$|^$'),
+                    'airflow.api.auth.backend.session',
+                    '3.0',
+                ),
+            },
+        }
+        test_conf.read_dict({'api': {'auth_backends': 'airflow.api.auth.backend.basic_auth'}})
+
+        with pytest.warns(FutureWarning):
+            test_conf.validate()
+            assert (
+                test_conf.get('api', 'auth_backends')
+                == 'airflow.api.auth.backend.basic_auth\nairflow.api.auth.backend.session'
+            )
+
     @pytest.mark.parametrize(
         "conf_dict",
         [

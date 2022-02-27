@@ -20,10 +20,9 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
-import click
 import click_completion
+import rich_click as click
 from click import ClickException
-from click_completion import get_auto_shell
 
 from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_image import build_image
@@ -229,7 +228,7 @@ def setup_autocomplete():
     global NAME
     breeze_comment = "Added by Updated Airflow Breeze autocomplete setup"
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
-    shell = get_auto_shell()
+    shell = click_completion.get_auto_shell()
     click.echo(f"Installing {shell} completion for local user")
     extra_env = {'_CLICK_COMPLETION_COMMAND_CASE_INSENSITIVE_COMPLETE': 'ON'}
     autocomplete_path = Path(AIRFLOW_SOURCES_DIR) / ".build/autocomplete" / f"{NAME}-complete.{shell}"

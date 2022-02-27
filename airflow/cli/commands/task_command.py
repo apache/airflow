@@ -224,7 +224,6 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
-    ti.task = ti.task.unmap()
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -530,7 +529,6 @@ def task_render(args):
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary=True)
-    ti.task = ti.task.unmap()
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

@@ -202,6 +202,7 @@ amazon = [
     'redshift_connector>=2.0.888',
     'sqlalchemy_redshift>=0.8.6',
     pandas_requirement,
+    'mypy-boto3-rds>=1.21.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -264,7 +265,7 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
-    'click>=7.1',
+    'click>=8.0',
     'sphinx>=4.4.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
@@ -592,14 +593,23 @@ devel_only = [
     'black',
     'blinker',
     'bowler',
-    'click>=7.1',
+    'click>=8.0',
     'coverage',
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
     'freezegun',
-    'github3.py',
+    # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
+    # Actually GitHub3.1.0 already introduced PyJWT>=2.3.0 but so far `pip` was able to resolve it without
+    # getting into a long backtracking loop and figure out that github3 3.0.0 version is the right version
+    # similarly limiting it to 3.1.2 causes pip not to enter the backtracking loop. Apparently when there
+    # are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
+    # to resolve that github3 3.0.0 is the right version to use.
+    # This limitation could be removed if PyJWT limitation < 2.0.0 is dropped from FAB or when
+    # pip resolution is improved to handle the case. The issue which describes this PIP behaviour
+    # and hopefully allowing to improve it is tracked in https://github.com/pypa/pip/issues/10924
+    'github3.py<3.1.0',
     'gitpython',
     'ipdb',
     'jira',
@@ -633,6 +643,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'rich_click',
     'semver',
     'twine',
     'wheel',

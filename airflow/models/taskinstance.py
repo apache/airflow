@@ -27,7 +27,9 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
+from inspect import currentframe
 from tempfile import NamedTemporaryFile
+from types import FrameType
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -43,6 +45,7 @@ from typing import (
     Union,
 )
 from urllib.parse import quote
+from weakref import WeakKeyDictionary
 
 import dill
 import jinja2
@@ -125,6 +128,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+
+_EXECUTION_FRAME_MAPPING: "WeakKeyDictionary[Operator, FrameType]" = WeakKeyDictionary()
 
 
 @contextlib.contextmanager
@@ -1311,14 +1316,8 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
-        if self.task.is_mapped:
-            raise RuntimeError(
-                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
-                'expanded already!'
-            )
-        task = self.task.unmap()
         self.test_mode = test_mode
-        self.refresh_from_task(task, pool_override=pool)
+        self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1330,7 +1329,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
-                self.task = task.prepare_for_execution()
+                self.task = self.task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context)
             if not test_mode:
@@ -1393,7 +1392,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{self.dag_id}.{self.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1410,7 +1409,18 @@ class TaskInstance(Base, LoggingMixin):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
+        parent_pid = os.getpid()
+
         def signal_handler(signum, frame):
+            pid = os.getpid()
+
+            # If a task forks during execution (from DAG code) for whatever
+            # reason, we want to make sure that we react to the signal only in
+            # the process that we've spawned ourselves (referred to here as the
+            # parent process).
+            if pid != parent_pid:
+                os._exit(1)
+                return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
             raise AirflowException("Task received SIGTERM signal")
@@ -1487,7 +1497,6 @@ class TaskInstance(Base, LoggingMixin):
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
-        execute_callable = task_copy.execute
         if self.next_method:
             # __fail__ is a special signal value for next_method that indicates
             # this task was scheduled specifically to fail.
@@ -1498,29 +1507,35 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = getattr(task_copy, self.next_method)
             if self.next_kwargs:
                 execute_callable = partial(execute_callable, **self.next_kwargs)
+        else:
+            execute_callable = task_copy.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
-        if task_copy.execution_timeout:
-            # If we are coming in with a next_method (i.e. from a deferral),
-            # calculate the timeout from our start_date.
-            if self.next_method:
-                timeout_seconds = (
-                    task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
-                ).total_seconds()
+        try:
+            if task_copy.execution_timeout:
+                # If we are coming in with a next_method (i.e. from a deferral),
+                # calculate the timeout from our start_date.
+                if self.next_method:
+                    timeout_seconds = (
+                        task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
+                    ).total_seconds()
+                else:
+                    timeout_seconds = task_copy.execution_timeout.total_seconds()
+                try:
+                    # It's possible we're already timed out, so fast-fail if true
+                    if timeout_seconds <= 0:
+                        raise AirflowTaskTimeout()
+                    # Run task in timeout wrapper
+                    with timeout(timeout_seconds):
+                        result = execute_callable(context=context)
+                except AirflowTaskTimeout:
+                    task_copy.on_kill()
+                    raise
             else:
-                timeout_seconds = task_copy.execution_timeout.total_seconds()
-            try:
-                # It's possible we're already timed out, so fast-fail if true
-                if timeout_seconds <= 0:
-                    raise AirflowTaskTimeout()
-                # Run task in timeout wrapper
-                with timeout(timeout_seconds):
-                    result = execute_callable(context=context)
-            except AirflowTaskTimeout:
-                task_copy.on_kill()
-                raise
-        else:
-            result = execute_callable(context=context)
+                result = execute_callable(context=context)
+        except:  # noqa: E722
+            _EXECUTION_FRAME_MAPPING[task_copy] = currentframe()
+            raise
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
             with create_session() as session:
@@ -1656,11 +1671,12 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
-        task_copy = self.task.unmap().prepare_for_execution()
-        self.task = task_copy
+        from airflow.models.baseoperator import BaseOperator
 
+        self.task = self.task.prepare_for_execution()
         self.render_templates()
-        task_copy.dry_run()
+        assert isinstance(self.task, BaseOperator)  # For Mypy.
+        self.task.dry_run()
 
     @provide_session
     def _handle_reschedule(
@@ -1727,7 +1743,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                self.log.error("Task failed with exception", exc_info=error)
+                execution_frame = _EXECUTION_FRAME_MAPPING.get(self.task)
+                tb = error.__traceback__
+                while tb is not None:
+                    if tb.tb_frame is execution_frame:
+                        tb = tb.tb_next
+                        break
+                    tb = tb.tb_next
+                tb = tb or error.__traceback__
+                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
@@ -1934,6 +1958,9 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
+        # NOTE: If you add anything to this dict, make sure to also update the
+        # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
+        # airflow/utils/context.py!
         context = {
             'conf': conf,
             'dag': dag,
@@ -1985,24 +2012,25 @@ class TaskInstance(Base, LoggingMixin):
         return Context(context)  # type: ignore
 
     @provide_session
-    def get_rendered_template_fields(self, session=NEW_SESSION):
+    def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
         """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
+            task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
-        else:
-            try:
-                self.render_templates()
-            except (TemplateAssertionError, UndefinedError) as e:
-                raise AirflowException(
-                    "Webserver does not have access to User-defined Macros or Filters "
-                    "when Dag Serialization is enabled. Hence for the task that have not yet "
-                    "started running, please use 'airflow tasks render' for debugging the "
-                    "rendering of template_fields."
-                ) from e
+            self.task = task
+        try:
+            self.render_templates()
+        except (TemplateAssertionError, UndefinedError) as e:
+            raise AirflowException(
+                "Webserver does not have access to User-defined Macros or Filters "
+                "when Dag Serialization is enabled. Hence for the task that have not yet "
+                "started running, please use 'airflow tasks render' for debugging the "
+                "rendering of template_fields."
+            ) from e
 
     @provide_session
     def get_rendered_k8s_spec(self, session=NEW_SESSION):
@@ -2024,15 +2052,16 @@ class TaskInstance(Base, LoggingMixin):
             params.update(dag_run.conf)
 
     def render_templates(self, context: Optional[Context] = None) -> None:
-        """Render templates in the operator fields."""
-        if self.task.is_mapped:
-            raise RuntimeError(
-                f'task property of {self.task_id!r} was still a MappedOperator -- it should have been '
-                'expanded already!'
-            )
+        """Render templates in the operator fields.
+
+        If the task was originally mapped, this may replace ``self.task`` with
+        the unmapped, fully rendered BaseOperator.
+        """
         if not context:
             context = self.get_template_context()
-        self.task.unmap().render_template_fields(context)
+        task = self.task.render_template_fields(context)
+        if task is not None:
+            self.task = task
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""

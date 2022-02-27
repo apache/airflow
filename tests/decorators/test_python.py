@@ -27,7 +27,6 @@ from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -478,22 +477,59 @@ class TestAirflowTaskDecorator:
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
 
 
-def test_mapped_decorator() -> None:
+def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
-    def double(number: int):
-        return number * 2
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
-        doubled_0 = double.map(number=literal)
-        doubled_1 = double.map(number=literal)
+    with pytest.raises(ValueError) as ctx:
+        print_info.partial(run_id="hi")
+    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    assert isinstance(doubled_0, XComArg)
-    assert isinstance(doubled_0.operator, MappedOperator)
-    assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
+    with pytest.raises(ValueError) as ctx:
+        print_info.apply(run_id=["hi", "there"])
+    assert str(ctx.value) == "cannot call apply() on task context variable 'run_id'"
 
-    assert doubled_1.operator.task_id == "double__1"
+
+def test_mapped_decorator_wrong_argument() -> None:
+    @task_decorator
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
+
+    with pytest.raises(TypeError) as ct:
+        print_info.partial(wrong_name="hi")
+    assert str(ct.value) == "partial() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(TypeError) as ct:
+        print_info.apply(wrong_name=["hi", "there"])
+    assert str(ct.value) == "apply() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(ValueError) as cv:
+        print_info.apply(message="hi")
+    assert str(cv.value) == "apply() got an unexpected type 'str' for keyword argument 'message'"
+
+
+def test_mapped_decorator():
+    @task_decorator
+    def print_info(m1: str, m2: str, run_id: str = "") -> None:
+        print(f"{run_id}: {m1} {m2}")
+
+    @task_decorator
+    def print_everything(**kwargs) -> None:
+        print(kwargs)
+
+    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+        t0 = print_info.apply(m1=["a", "b"], m2={"foo": "bar"})
+        t1 = print_info.partial(m1="hi").apply(m2=[1, 2, 3])
+        t2 = print_everything.partial(whatever="123").apply(any_key=[1, 2], works=t1)
+
+    assert isinstance(t2, XComArg)
+    assert isinstance(t2.operator, DecoratedMappedOperator)
+    assert t2.operator.task_id == "print_everything"
+    assert t2.operator.mapped_op_kwargs == {"any_key": [1, 2], "works": t1}
+
+    assert t0.operator.task_id == "print_info"
+    assert t1.operator.task_id == "print_info__1"
 
 
 def test_mapped_decorator_invalid_args() -> None:
@@ -501,13 +537,14 @@ def test_mapped_decorator_invalid_args() -> None:
     def double(number: int):
         return number * 2
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
+    literal = [1, 2, 3]
 
-        with pytest.raises(TypeError, match="arguments 'other', 'b'"):
-            double.partial(other=1, b='a')
-        with pytest.raises(TypeError, match="argument 'other'"):
-            double.map(number=literal, other=1)
+    with pytest.raises(TypeError, match="arguments 'other', 'b'"):
+        double.partial(other=[1], b=['a'])
+    with pytest.raises(TypeError, match="argument 'other'"):
+        double.apply(number=literal, other=[1])
+    with pytest.raises(ValueError, match="argument 'number'"):
+        double.apply(number=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:
@@ -518,9 +555,9 @@ def test_partial_mapped_decorator() -> None:
     literal = [1, 2, 3]
 
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        quadrupled = product.partial(multiple=3).map(number=literal)
-        doubled = product.partial(multiple=2).map(number=literal)
-        trippled = product.partial(multiple=3).map(number=literal)
+        quadrupled = product.partial(multiple=3).apply(number=literal)
+        doubled = product.partial(multiple=2).apply(number=literal)
+        trippled = product.partial(multiple=3).apply(number=literal)
 
         product.partial(multiple=2)  # No operator is actually created.
 
@@ -532,11 +569,11 @@ def test_partial_mapped_decorator() -> None:
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.mapped_kwargs == {"op_args": [], "op_kwargs": {"number": literal}}
-    assert doubled.operator.partial_op_kwargs == {"multiple": 2}
+    assert doubled.operator.mapped_op_kwargs == {"number": literal}
+    assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
     assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
-    assert trippled.operator.partial_op_kwargs == {"multiple": 3}
+    assert trippled.operator.partial_kwargs["op_kwargs"] == {"multiple": 3}
 
     assert doubled.operator is not trippled.operator
 
@@ -552,7 +589,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).map(arg2=task1())
+        task2.partial(arg1=1).apply(arg2=task1())
 
     unmapped = dag.get_task("task2").unmap()
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
@@ -569,7 +606,7 @@ def test_mapped_decorator_converts_partial_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).map(arg2=task1.map(arg=[1, 2]))
+        task2.partial(arg1=1).apply(arg2=task1.apply(arg=[1, 2]))
 
     mapped_task2 = dag.get_task("task2")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
