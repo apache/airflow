@@ -1735,7 +1735,7 @@ class Airflow(AirflowBaseView):
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
-        flash(f"Sent {ti} to the message queue, it should start any moment now.")
+        flash(f"Sent {ti} to the message queue, run id: {dag_run_id} it should start any moment now.")
         return redirect(origin)
 
     @expose('/delete', methods=['POST'])
@@ -1784,6 +1784,7 @@ class Airflow(AirflowBaseView):
     def trigger(self, session=None):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
+        run_id = request.values.get('run_id')
         origin = get_safe_url(request.values.get('origin'))
         unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
@@ -1838,10 +1839,15 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
+        # if run_id is not None, filter dag runs based on run id and ignore execution date
+        dr = DagRun.find(
+            dag_id=dag_id,
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            execution_date=execution_date if run_id is None else None,
+        )
         if dr:
-            flash(f"This run_id {dr.run_id} already exists")
+            flash(f"The run_id {run_id} already exists", "error")
             return redirect(origin)
 
         run_conf = {}
@@ -1883,6 +1889,7 @@ class Airflow(AirflowBaseView):
                 conf=run_conf,
                 external_trigger=True,
                 dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+                run_id=run_id,
             )
         except ValueError as ve:
             flash(f"{ve}", "error")
@@ -1896,7 +1903,7 @@ class Airflow(AirflowBaseView):
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
-        flash(f"Triggered {dag_id}, it should start any moment now.")
+        flash(f"Triggered {dag_id},TALLL it should start any moment now.")
         return redirect(origin)
 
     def _clear_dag_tis(
