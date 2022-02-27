@@ -90,7 +90,6 @@ def get_mapped_summary(parent_instance, task_instances):
         TaskInstanceState.SHUTDOWN,
         TaskInstanceState.RESTARTING,
         TaskInstanceState.REMOVED,
-        'no_status',
         TaskInstanceState.SUCCESS,
         TaskInstanceState.SKIPPED,
     ]

@@ -250,21 +250,20 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
 
     def get_summary(dag_run, children):
         priority = [
-            'failed',
-            'upstream_failed',
-            'up_for_retry',
-            'up_for_reschedule',
-            'queued',
-            'scheduled',
-            'deferred',
-            'sensing',
-            'running',
-            'shutdown',
-            'restarting',
-            'removed',
-            'no_status',
-            'success',
-            'skipped',
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UPSTREAM_FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SENSING,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.SHUTDOWN,
+            TaskInstanceState.RESTARTING,
+            TaskInstanceState.REMOVED,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SKIPPED,
         ]
 
         child_instances = [child['instances'] for child in children if 'instances' in child]
