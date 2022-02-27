@@ -1,0 +1,61 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-dbt-cloud
+name: dbt Cloud
+description: |
+    `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__).
+
+versions:
+  - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
+integrations:
+  - integration-name: dbt Cloud
+    external-doc-url: https://docs.getdbt.com/docs/dbt-cloud/cloud-overview
+    logo: /integration-logos/dbt/dbt.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-dbt-cloud/operators.rst
+    tags: [dbt]
+
+operators:
+  - integration-name: dbt Cloud
+    python-modules:
+      - airflow.providers.dbt.cloud.operators.dbt
+
+sensors:
+  - integration-name: dbt Cloud
+    python-modules:
+      - airflow.providers.dbt.cloud.sensors.dbt
+
+hooks:
+  - integration-name: dbt Cloud
+    python-modules:
+      - airflow.providers.dbt.cloud.hooks.dbt
+
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+  - airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook
+
+connection-types:
+  - hook-class-name: airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook
+    connection-type: dbt_cloud
+
+extra-links:
+  - airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperatorLink
