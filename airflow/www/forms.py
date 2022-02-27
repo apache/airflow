@@ -194,3 +194,21 @@ class ConnectionForm(DynamicForm):
         ),
         widget=Select2Widget(),
     )
+
+
+class VariableForm(DynamicForm):
+    """Form for editing and adding Variable"""
+
+    key = StringField(
+        lazy_gettext('Key'), validators=[InputRequired()], widget=BS3TextFieldWidget()
+    )
+    val = StringField(lazy_gettext('Value'), widget=BS3TextAreaFieldWidget())
+    description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
+    pinned = SelectField(
+        lazy_gettext('Pin at Top'),
+        choices=(
+            ('True', 'Yes'),
+            ('False', 'No'),
+        ),
+        widget=Select2Widget(),
+    )

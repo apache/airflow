@@ -50,12 +50,14 @@ class Variable(Base, LoggingMixin):
     _val = Column('val', Text)
     description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
+    is_pinned = Column(Boolean, unique=False, default=False)
 
-    def __init__(self, key=None, val=None, description=None):
+    def __init__(self, key=None, val=None, description=None, is_pinned: Optional[bool] = False):
         super().__init__()
         self.key = key
         self.val = val
         self.description = description
+        self.is_pinned = is_pinned
 
     @reconstructor
     def on_db_load(self):
@@ -92,6 +94,21 @@ class Variable(Base, LoggingMixin):
     def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
+
+    def get_pinned(self):
+        return self.is_pinned
+
+    def set_pinned(self, value: str):
+        if value == 'True':
+            self.is_pinned = True
+        else:
+            self.is_pinned = False
+
+    @declared_attr
+    def pinned(cls):
+        return synonym('is_pinned', descriptor=property(cls.get_pinned, cls.set_pinned))
+
+
 
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):

@@ -129,6 +129,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
+    VariableForm
 )
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
@@ -3727,7 +3728,7 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'is_encrypted',
         'is_extra_encrypted',
-        'is_pinned'
+        'pinned'
     ]
     add_columns = [
         'conn_id',
@@ -3753,7 +3754,7 @@ class ConnectionModelView(AirflowModelView):
     add_widget = ConnectionFormWidget
     edit_widget = ConnectionFormWidget
 
-    base_order = ('is_pinned', 'desc')
+    base_order = ('pinned', 'desc')
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
@@ -4107,6 +4108,8 @@ class VariableModelView(AirflowModelView):
 
     route_base = '/variable'
 
+    add_form = edit_form = VariableForm
+
     list_template = 'airflow/variable_list.html'
     edit_template = 'airflow/variable_edit.html'
     show_template = 'airflow/variable_show.html'
@@ -4133,13 +4136,13 @@ class VariableModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['key', 'val', 'description', 'is_encrypted']
-    add_columns = ['key', 'val', 'description']
-    edit_columns = ['key', 'val', 'description']
-    show_columns = ['key', 'val', 'description']
+    list_columns = ['key', 'val', 'description', 'is_encrypted', 'pinned']
+    add_columns = ['key', 'val', 'description', 'pinned']
+    edit_columns = ['key', 'val', 'description', 'pinned']
+    show_columns = ['key', 'val', 'description', 'pinned']
     search_columns = ['key', 'val']
 
-    base_order = ('key', 'asc')
+    base_order = ('pinned', 'desc')
 
     def hidden_field_formatter(self):
         """Formats hidden fields"""

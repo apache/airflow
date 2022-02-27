@@ -304,6 +304,11 @@ class Connection(Base, LoggingMixin):
             self._extra = value
             self.is_extra_encrypted = False
 
+    @declared_attr
+    def extra(cls):
+        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
+        return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
+
     def get_pinned(self):
         return self.is_pinned
 
@@ -312,11 +317,6 @@ class Connection(Base, LoggingMixin):
             self.is_pinned = True
         else:
             self.is_pinned = False
-
-    @declared_attr
-    def extra(cls):
-        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
 
     @declared_attr
     def pinned(cls):

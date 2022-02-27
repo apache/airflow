@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""adding is_pinned column to connections
+"""adding is_pinned column to connections and variables
 
 Revision ID: f2386f13728c
 Revises: c306b5b5ae4a
@@ -35,10 +35,12 @@ depends_on = None
 
 
 def upgrade():
-    """Apply adding is_pinned column to connections"""
+    """Apply adding is_pinned column to connections and variables"""
     op.add_column('connection', sa.Column('is_pinned', sa.Boolean, default=False))
+    op.add_column('variable', sa.Column('is_pinned', sa.Boolean, default=False))
 
 
 def downgrade():
     op.drop_column('connection', 'is_pinned')
+    op.drop_column('variable', 'is_pinned')
 
