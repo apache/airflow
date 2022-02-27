@@ -127,7 +127,7 @@ class TestSqlToS3Operator(unittest.TestCase):
                 task_id="task_id",
                 file_format="json",
                 replace=True,
-                pd_kwargs={'index': False, 'header': False},
+                pd_kwargs={'date_format': "iso", 'lines': True},
                 dag=None,
             )
             op._get_hook = mock_dbapi_hook
