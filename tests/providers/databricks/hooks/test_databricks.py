@@ -549,7 +549,7 @@ class TestDatabricksHook(unittest.TestCase):
         aad_token = {'token': 'my_token', 'expires_on': int(time.time())}
         self.assertFalse(self.hook._is_aad_token_valid(aad_token))
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_list_jobs_success_single_page(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
@@ -560,14 +560,14 @@ class TestDatabricksHook(unittest.TestCase):
             list_jobs_endpoint(HOST),
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
-            auth=(LOGIN, PASSWORD),
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
 
         assert jobs == LIST_JOBS_RESPONSE['jobs']
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_list_jobs_success_multiple_pages(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.side_effect = [
@@ -590,7 +590,7 @@ class TestDatabricksHook(unittest.TestCase):
         assert len(jobs) == 2
         assert jobs == LIST_JOBS_RESPONSE['jobs'] * 2
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_get_job_id_by_name_success(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
@@ -601,14 +601,14 @@ class TestDatabricksHook(unittest.TestCase):
             list_jobs_endpoint(HOST),
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
-            auth=(LOGIN, PASSWORD),
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
 
         assert job_id == JOB_ID
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_get_job_id_by_name_not_found(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
@@ -619,14 +619,14 @@ class TestDatabricksHook(unittest.TestCase):
             list_jobs_endpoint(HOST),
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
-            auth=(LOGIN, PASSWORD),
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
 
         assert job_id is None
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_get_job_id_by_name_raise_exception_with_duplicates(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = {
@@ -642,7 +642,7 @@ class TestDatabricksHook(unittest.TestCase):
             list_jobs_endpoint(HOST),
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
-            auth=(LOGIN, PASSWORD),
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )

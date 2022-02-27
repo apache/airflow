@@ -25,13 +25,7 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
-from time import sleep
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
-
-import requests
-from requests import PreparedRequest, exceptions as requests_exceptions
-from requests.auth import AuthBase
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook

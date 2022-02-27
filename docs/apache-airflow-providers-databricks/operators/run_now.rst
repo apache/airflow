@@ -40,7 +40,9 @@ Note that there is exactly one named parameter for each top level parameter in t
    * - Parameter
      - Input
    * - job_id: str
-     - ID of the existing Databricks jobs (required)
+     - ID of the existing Databricks jobs (required if ``job_name`` isn't provided).
+   * - job_name: str
+     - Name of the existing Databricks job (required if ``job_id`` isn't provided). It will throw exception if job isn't found, of if there are multiple jobs with the same name.
    * - jar_params: list[str]
      - A list of parameters for jobs with JAR tasks, e.g. ``"jar_params": ["john doe", "35"]``. The parameters will be passed to JAR file as command line parameters. If specified upon run-now, it would overwrite the parameters specified in job setting. The json representation of this field (i.e. ``{"jar_params":["john doe","35"]}``) cannot exceed 10,000 bytes. This field will be templated.
    * - notebook_params: dict[str,str]
