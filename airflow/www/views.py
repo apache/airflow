@@ -1752,12 +1752,13 @@ class Airflow(AirflowBaseView):
 
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
-            return redirect(request.referrer)
+            return redirect(redirect_url)
         except AirflowException:
             flash(
                 f"Cannot delete DAG with id {dag_id} because some task instances of the DAG "
@@ -1765,7 +1766,7 @@ class Airflow(AirflowBaseView):
                 "failed/succeeded before deleting the DAG",
                 "error",
             )
-            return redirect(request.referrer)
+            return redirect(redirect_url)
 
         flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
@@ -2159,10 +2160,11 @@ class Airflow(AirflowBaseView):
         dag_run: Optional[DagRun] = (
             session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
         )
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         if dag_run is None:
             flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(redirect_url or url_for('Airflow.index'))
         else:
             try:
                 duration = dag_run.end_date - dag_run.start_date
@@ -2238,6 +2240,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
+        origin = args.get('origin')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2247,13 +2250,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG {dag_id} not found', "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             flash(f"Task {task_id} not found", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         task.dag = dag
 
@@ -2262,12 +2265,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         from airflow.api.common.mark_tasks import set_state
 
