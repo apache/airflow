@@ -304,10 +304,24 @@ class Connection(Base, LoggingMixin):
             self._extra = value
             self.is_extra_encrypted = False
 
+    def get_pinned(self):
+        return self.is_pinned
+
+    def set_pinned(self, value: str):
+        if value == 'True':
+            self.is_pinned = True
+        else:
+            self.is_pinned = False
+
     @declared_attr
     def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
+
+    @declared_attr
+    def pinned(cls):
+        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
+        return synonym('is_pinned', descriptor=property(cls.get_pinned, cls.set_pinned))
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`"""

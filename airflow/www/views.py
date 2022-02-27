@@ -3739,7 +3739,7 @@ class ConnectionModelView(AirflowModelView):
         'password',
         'port',
         'extra',
-        'is_pinned'
+        'pinned'
     ]
     edit_columns = add_columns.copy()
 
@@ -3753,7 +3753,7 @@ class ConnectionModelView(AirflowModelView):
     add_widget = ConnectionFormWidget
     edit_widget = ConnectionFormWidget
 
-    base_order = ('conn_id', 'asc')
+    base_order = ('is_pinned', 'desc')
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
