@@ -281,10 +281,9 @@ class BaseDatabricksHook(BaseHook):
 
     @staticmethod
     def _retryable_error(exception) -> bool:
-        return (
-            isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout))
-            or exception.response is not None
-            and exception.response.status_code >= 500
+        return isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+            exception.response is not None
+            and (exception.response.status_code >= 500 or exception.response.status_code == 429)
         )
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:

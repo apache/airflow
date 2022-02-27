@@ -244,6 +244,16 @@ class TestDatabricksHook(unittest.TestCase):
 
                     assert mock_errors.call_count == self.hook.retry_limit
 
+    def test_do_api_call_retries_with_too_many_requests(self):
+        with mock.patch('airflow.providers.databricks.hooks.databricks_base.requests') as mock_requests:
+            with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=429)
+
+                with pytest.raises(AirflowException):
+                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+                assert mock_errors.call_count == self.hook.retry_limit
+
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
         setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=400)
