@@ -16,29 +16,32 @@
     under the License.
 
 
-.. _howto/operator:AwsLambdaInvokeFunctionOperator:
-
 AWS Lambda Operators
-===================================
+==================================================
 
-.. contents::
-  :depth: 1
-  :local:
+`AWS Lambda <https://aws.amazon.com/lambda/>`__   is a
+serverless, event-driven compute service that lets you
+run code for virtually any type of application
+or backend service without provisioning or managing servers.
+You can trigger Lambda from over 200 AWS services and software as a service (SaaS) applications,
+and only pay for what you use.
+
+Airflow provides an operator to invoke an AWS Lambda function.
 
 Prerequisite Tasks
-------------------
+^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
-
-Using Operator
---------------
-Use the
-:class:`~airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator`
-to invoke an AWS Lambda function.  To get started with AWS Lambda please visit
-`aws.amazon.com/lambda <https://aws.amazon.com/lambda/>`_
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 
-In the following example, we invoke an AWS Lambda function.
+.. _howto/operator:AwsLambdaInvokeFunctionOperator:
+
+Invoke an existing AWS Lambda function with a payload
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To publish a message to an Amazon SNS Topic you can use
+:class:`~airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator`.
+
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_lambda.py
     :language: python
@@ -46,10 +49,10 @@ In the following example, we invoke an AWS Lambda function.
     :start-after: [START howto_lambda_operator]
     :end-before: [END howto_lambda_operator]
 
-More information
-----------------
 
-For further information, look at the documentation of :meth:`~Lambda.Client.invoke` method
-in `boto3`_.
+Reference
+^^^^^^^^^
 
-.. _boto3: https://pypi.org/project/boto3/
+For further information, look at:
+
+* `Boto3 Library Documentation for Lambda <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html>`__

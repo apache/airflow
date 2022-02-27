@@ -40,6 +40,11 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
     :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
     :param qualifier: Specify a version or alias to invoke a published version of the function.
     :param aws_conn_id: The AWS connection ID to use
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AwsLambdaInvokeFunctionOperator`
+
     """
 
     template_fields: Sequence[str] = ('function_name', 'payload', 'qualifier', 'invocation_type')

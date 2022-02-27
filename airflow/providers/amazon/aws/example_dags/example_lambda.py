@@ -40,9 +40,6 @@ with DAG(
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
         task_id='setup__invoke_lambda_function',
         function_name=LAMBDA_FUNCTION_NAME,
-        log_type="None",
-        qualifier="$LATEST",
         payload=SAMPLE_EVENT,
-        max_tries=None,
     )
     # [END howto_lambda_operator]
