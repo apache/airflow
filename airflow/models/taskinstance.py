@@ -27,7 +27,9 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
+from inspect import currentframe
 from tempfile import NamedTemporaryFile
+from types import FrameType
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -43,6 +45,7 @@ from typing import (
     Union,
 )
 from urllib.parse import quote
+from weakref import WeakKeyDictionary
 
 import dill
 import jinja2
@@ -125,6 +128,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+
+_EXECUTION_FRAME_MAPPING: "WeakKeyDictionary[Operator, FrameType]" = WeakKeyDictionary()
 
 
 @contextlib.contextmanager
@@ -1404,7 +1409,18 @@ class TaskInstance(Base, LoggingMixin):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
+        parent_pid = os.getpid()
+
         def signal_handler(signum, frame):
+            pid = os.getpid()
+
+            # If a task forks during execution (from DAG code) for whatever
+            # reason, we want to make sure that we react to the signal only in
+            # the process that we've spawned ourselves (referred to here as the
+            # parent process).
+            if pid != parent_pid:
+                os._exit(1)
+                return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
             raise AirflowException("Task received SIGTERM signal")
@@ -1481,7 +1497,6 @@ class TaskInstance(Base, LoggingMixin):
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
-        execute_callable = task_copy.execute
         if self.next_method:
             # __fail__ is a special signal value for next_method that indicates
             # this task was scheduled specifically to fail.
@@ -1492,29 +1507,35 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = getattr(task_copy, self.next_method)
             if self.next_kwargs:
                 execute_callable = partial(execute_callable, **self.next_kwargs)
+        else:
+            execute_callable = task_copy.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
-        if task_copy.execution_timeout:
-            # If we are coming in with a next_method (i.e. from a deferral),
-            # calculate the timeout from our start_date.
-            if self.next_method:
-                timeout_seconds = (
-                    task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
-                ).total_seconds()
+        try:
+            if task_copy.execution_timeout:
+                # If we are coming in with a next_method (i.e. from a deferral),
+                # calculate the timeout from our start_date.
+                if self.next_method:
+                    timeout_seconds = (
+                        task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
+                    ).total_seconds()
+                else:
+                    timeout_seconds = task_copy.execution_timeout.total_seconds()
+                try:
+                    # It's possible we're already timed out, so fast-fail if true
+                    if timeout_seconds <= 0:
+                        raise AirflowTaskTimeout()
+                    # Run task in timeout wrapper
+                    with timeout(timeout_seconds):
+                        result = execute_callable(context=context)
+                except AirflowTaskTimeout:
+                    task_copy.on_kill()
+                    raise
             else:
-                timeout_seconds = task_copy.execution_timeout.total_seconds()
-            try:
-                # It's possible we're already timed out, so fast-fail if true
-                if timeout_seconds <= 0:
-                    raise AirflowTaskTimeout()
-                # Run task in timeout wrapper
-                with timeout(timeout_seconds):
-                    result = execute_callable(context=context)
-            except AirflowTaskTimeout:
-                task_copy.on_kill()
-                raise
-        else:
-            result = execute_callable(context=context)
+                result = execute_callable(context=context)
+        except:  # noqa: E722
+            _EXECUTION_FRAME_MAPPING[task_copy] = currentframe()
+            raise
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
             with create_session() as session:
@@ -1722,7 +1743,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                self.log.error("Task failed with exception", exc_info=error)
+                execution_frame = _EXECUTION_FRAME_MAPPING.get(self.task)
+                tb = error.__traceback__
+                while tb is not None:
+                    if tb.tb_frame is execution_frame:
+                        tb = tb.tb_next
+                        break
+                    tb = tb.tb_next
+                tb = tb or error.__traceback__
+                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task

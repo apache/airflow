@@ -50,6 +50,7 @@ NEW_CLUSTER = {'spark_version': '2.0.x-scala2.10', 'node_type_id': 'r3.xlarge', 
 CLUSTER_ID = 'cluster_id'
 RUN_ID = 1
 JOB_ID = 42
+JOB_NAME = 'job-name'
 HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
@@ -71,6 +72,17 @@ LIBRARIES = [
     {"jar": "dbfs:/mnt/libraries/library.jar"},
     {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
 ]
+LIST_JOBS_RESPONSE = {
+    'jobs': [
+        {
+            'job_id': JOB_ID,
+            'settings': {
+                'name': JOB_NAME,
+            },
+        },
+    ],
+    'has_more': False,
+}
 
 
 def run_now_endpoint(host):
@@ -134,6 +146,13 @@ def uninstall_endpoint(host):
     Utility function to generate the uninstall endpoint given the host.
     """
     return f'https://{host}/api/2.0/libraries/uninstall'
+
+
+def list_jobs_endpoint(host):
+    """
+    Utility function to generate the list jobs endpoint giver the host
+    """
+    return f'https://{host}/api/2.1/jobs/list'
 
 
 def create_valid_response_mock(content):
@@ -530,6 +549,104 @@ class TestDatabricksHook(unittest.TestCase):
     def test_is_aad_token_valid_returns_false(self):
         aad_token = {'token': 'my_token', 'expires_on': int(time.time())}
         self.assertFalse(self.hook._is_aad_token_valid(aad_token))
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_list_jobs_success_single_page(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
+
+        jobs = self.hook.list_jobs()
+
+        mock_requests.get.assert_called_once_with(
+            list_jobs_endpoint(HOST),
+            json=None,
+            params={'limit': 25, 'offset': 0, 'expand_tasks': False},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert jobs == LIST_JOBS_RESPONSE['jobs']
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_list_jobs_success_multiple_pages(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({**LIST_JOBS_RESPONSE, 'has_more': True}),
+            create_successful_response_mock(LIST_JOBS_RESPONSE),
+        ]
+
+        jobs = self.hook.list_jobs()
+
+        assert mock_requests.get.call_count == 2
+
+        first_call_args = mock_requests.method_calls[0]
+        assert first_call_args[1][0] == list_jobs_endpoint(HOST)
+        assert first_call_args[2]['params'] == {'limit': 25, 'offset': 0, 'expand_tasks': False}
+
+        second_call_args = mock_requests.method_calls[1]
+        assert second_call_args[1][0] == list_jobs_endpoint(HOST)
+        assert second_call_args[2]['params'] == {'limit': 25, 'offset': 1, 'expand_tasks': False}
+
+        assert len(jobs) == 2
+        assert jobs == LIST_JOBS_RESPONSE['jobs'] * 2
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_job_id_by_name_success(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
+
+        job_id = self.hook.find_job_id_by_name(JOB_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_jobs_endpoint(HOST),
+            json=None,
+            params={'limit': 25, 'offset': 0, 'expand_tasks': False},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert job_id == JOB_ID
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_job_id_by_name_not_found(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_JOBS_RESPONSE
+
+        job_id = self.hook.find_job_id_by_name("Non existing job")
+
+        mock_requests.get.assert_called_once_with(
+            list_jobs_endpoint(HOST),
+            json=None,
+            params={'limit': 25, 'offset': 0, 'expand_tasks': False},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert job_id is None
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_job_id_by_name_raise_exception_with_duplicates(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            **LIST_JOBS_RESPONSE,
+            'jobs': LIST_JOBS_RESPONSE['jobs'] * 2,
+        }
+
+        exception_message = f'There are more than one job with name {JOB_NAME}.'
+        with pytest.raises(AirflowException, match=exception_message):
+            self.hook.find_job_id_by_name(JOB_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_jobs_endpoint(HOST),
+            json=None,
+            params={'limit': 25, 'offset': 0, 'expand_tasks': False},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
 
 
 class TestDatabricksHookToken(unittest.TestCase):

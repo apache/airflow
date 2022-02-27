@@ -26,6 +26,8 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
+import lazy_object_proxy
+
 from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
@@ -162,6 +164,11 @@ def positive_int(*, allow_zero):
     return _check
 
 
+def string_list_type(val):
+    """Parses comma-separated list and returns list of string (strips whitespace)"""
+    return [x.strip() for x in val.split(',')]
+
+
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
@@ -205,7 +212,7 @@ ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
 ARG_YES = Arg(
-    ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
+    ("-y", "--yes"), help="Do not prompt to confirm. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
     (
@@ -397,6 +404,30 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(('-c', '--conf'), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+
+# db
+ARG_DB_TABLES = Arg(
+    ("-t", "--tables"),
+    help=lazy_object_proxy.Proxy(
+        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
+        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+    ),
+    type=string_list_type,
+)
+ARG_DB_CLEANUP_TIMESTAMP = Arg(
+    ("--clean-before-timestamp",),
+    help="The date or timestamp before which data should be purged.\n"
+    "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
+    "Example: '2022-01-01 00:00:00+01:00'",
+    type=parsedate,
+    required=True,
+)
+ARG_DB_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
@@ -1307,6 +1338,18 @@ DB_COMMANDS = (
         help="Check if the database can be reached",
         func=lazy_load_command('airflow.cli.commands.db_command.check'),
         args=(),
+    ),
+    ActionCommand(
+        name='clean',
+        help="Purge old records in metastore tables",
+        func=lazy_load_command('airflow.cli.commands.db_command.cleanup_tables'),
+        args=(
+            ARG_DB_TABLES,
+            ARG_DB_DRY_RUN,
+            ARG_DB_CLEANUP_TIMESTAMP,
+            ARG_VERBOSE,
+            ARG_YES,
+        ),
     ),
 )
 CONNECTIONS_COMMANDS = (
