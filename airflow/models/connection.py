@@ -141,7 +141,13 @@ class Connection(Base, LoggingMixin):
             mask_secret(self.password)
 
     @staticmethod
-    def _validate_extra(extra, conn_id):
+    def _validate_extra(extra, conn_id) -> None:
+        """
+        Here we verify that ``extra`` is a JSON-encoded python dict.  From Airflow 3.0, we should no
+        longer suppress these errors but raise instead.
+        """
+        if extra is None:
+            return None
         try:
             extra_parsed = json.loads(extra)
             if not isinstance(extra_parsed, dict):
@@ -159,6 +165,7 @@ class Connection(Base, LoggingMixin):
                 DeprecationWarning,
                 stacklevel=2,
             )
+        return None
 
     @reconstructor
     def on_db_load(self):
