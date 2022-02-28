@@ -353,7 +353,7 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="buster"}
+    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
 
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
