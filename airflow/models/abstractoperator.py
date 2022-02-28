@@ -263,7 +263,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if "ti_key" in args:
             return link.get_link(self, ti_key=ti.key)
         else:
-            return link.get_link(self, ti.dag_run.logical_date)
+            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
         return None
 
     def render_template_fields(
