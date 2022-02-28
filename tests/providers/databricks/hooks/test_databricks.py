@@ -331,7 +331,7 @@ class TestDatabricksHook(unittest.TestCase):
                 'new_cluster': NEW_CLUSTER,
             },
             params=None,
-            auth=(LOGIN, PASSWORD),
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
