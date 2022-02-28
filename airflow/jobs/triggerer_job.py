@@ -168,8 +168,8 @@ class TriggererJob(BaseJob):
         """
         while self.runner.failed_triggers:
             # Tell the model to fail this trigger's deps
-            trigger_id = self.runner.failed_triggers.popleft()
-            Trigger.submit_failure(trigger_id=trigger_id)
+            trigger_id, saved_exc = self.runner.failed_triggers.popleft()
+            Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
             # Emit stat event
             Stats.incr('triggers.failed')
 
@@ -211,7 +211,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     events: Deque[Tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
-    failed_triggers: Deque[int]
+    failed_triggers: Deque[Tuple[int, BaseException]]
 
     # Should-we-stop flag
     stop: bool = False
@@ -292,6 +292,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         for trigger_id, details in list(self.triggers.items()):
             if details["task"].done():
                 # Check to see if it exited for good reasons
+                saved_exc = None
                 try:
                     result = details["task"].result()
                 except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
@@ -302,7 +303,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     continue
                 except BaseException as e:
                     # This is potentially bad, so log it.
-                    self.log.error("Trigger %s exited with error %s", details["name"], e)
+                    self.log.exception("Trigger %s exited with error %s", details["name"], e)
+                    saved_exc = e
                 else:
                     # See if they foolishly returned a TriggerEvent
                     if isinstance(result, TriggerEvent):
@@ -316,7 +318,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                         "Trigger %s exited without sending an event. Dependent tasks will be failed.",
                         details["name"],
                     )
-                    self.failed_triggers.append(trigger_id)
+                    self.failed_triggers.append((trigger_id, saved_exc))
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
 
@@ -387,7 +389,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             running_trigger_ids.union(x[0] for x in self.events)
             .union(self.to_cancel)
             .union(x[0] for x in self.to_create)
-            .union(self.failed_triggers)
+            .union(trigger[0] for trigger in self.failed_triggers)
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
@@ -403,9 +405,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # Resolve trigger record into an actual class instance
             try:
                 trigger_class = self.get_trigger_by_classpath(new_triggers[new_id].classpath)
-            except BaseException:
+            except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
-                self.failed_triggers.append(new_id)
+                self.failed_triggers.append((new_id, e))
                 continue
             self.to_create.append((new_id, trigger_class(**new_triggers[new_id].kwargs)))
         # Enqueue orphaned triggers for cancellation
