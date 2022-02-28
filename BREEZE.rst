@@ -1279,6 +1279,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
+
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
 
@@ -1486,6 +1494,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
+
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
 
@@ -1552,6 +1568,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1627,6 +1651,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
@@ -1669,6 +1701,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
 
 
   ####################################################################################################
@@ -1872,6 +1912,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
+
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
           One of:
@@ -1947,6 +1995,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2353,6 +2409,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 buster bullseye
 
   ****************************************************************************************************
    Choose backend to run for Airflow

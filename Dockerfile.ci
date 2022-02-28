@@ -51,13 +51,16 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
+COPY scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
+
 # Install basic and additional apt dependencies
 RUN apt-get update \
     && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
-    && apt-get install -y --no-install-recommends curl gnupg2 \
+    && apt-get install -y --no-install-recommends curl gnupg2 lsb-release \
     && mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && source /scripts/docker/determine_debian_version_specific_variables.sh \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}" \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
@@ -79,7 +82,7 @@ RUN apt-get update \
            libsasl2-dev \
            libsasl2-modules \
            libssl-dev \
-           libenchant-dev \
+           "${DISTRO_LIBENCHANT}" \
            locales  \
            netcat \
            nodejs \
@@ -112,7 +115,6 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && chmod 0440 /etc/sudoers.d/airflow
 
 ARG RUNTIME_APT_DEPS="\
-      libgcc-8-dev \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -160,16 +162,14 @@ ENV RUNTIME_APT_DEP=${RUNTIME_APT_DEPS} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
 
-# Note missing man directories on debian-buster
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-RUN mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_DEV_APT_ENV?} \
+RUN export ${ADDITIONAL_DEV_APT_ENV?} \
     && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
+    && source /scripts/docker/determine_debian_version_specific_variables.sh \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
+      "${DISTRO_LIBGCC}" \
       ${RUNTIME_APT_DEPS} \
       ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \

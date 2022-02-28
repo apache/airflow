@@ -515,6 +515,7 @@ EOF
         fi
         cat <<EOF
                                Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
+                               Debian version:         ${DEBIAN_VERSION}
                                Backend:                ${BACKEND} ${backend_version}
 EOF
         if [[ -n ${USE_AIRFLOW_VERSION=} ]]; then
@@ -629,6 +630,7 @@ export HOST_USER_ID=${HOST_USER_ID}
 export HOST_GROUP_ID=${HOST_GROUP_ID}
 export COMPOSE_FILE="${compose_file}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
+export DEBIAN_VERSION="${DEBIAN_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
@@ -679,13 +681,19 @@ EOF
 #######################################################################################################
 function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
-    local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-${DEBIAN_VERSION}.yml
+    else
+        local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+    fi
+
     local backend_port_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-port.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
+
 
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
@@ -816,6 +824,12 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        -d | --debian-version)
+            export DEBIAN_VERSION="${2}"
+            echo "Debian version: ${DEBIAN_VERSION}"
+            echo
+            shift 2
+            ;;
         -b | --backend)
             export BACKEND="${2}"
             echo "Backend: ${BACKEND}"
@@ -940,7 +954,7 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        -d | --db-reset)
+        --db-reset)
             echo "Resetting the DB!"
             echo
             export DB_RESET="true"
@@ -1543,6 +1557,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS=$(echo "${_breeze_allowed_python_major_minor_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS
+
+    FORMATTED_DEBIAN_VERSIONS=$(echo "${_breeze_allowed_debian_versions=""}" | tr '\n' ' ' |
+        fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_DEBIAN_VERSIONS
 
     FORMATTED_BACKENDS=$(echo "${_breeze_allowed_backends=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2259,6 +2277,14 @@ ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
         One of:
 
 ${FORMATTED_PLATFORMS}
+
+
+-d, --debian DEBIAN_VERSION
+        Debian version used for the image. This is always name of the debian distribution version.
+
+        One of:
+
+${FORMATTED_DEBIAN_VERSIONS}
 
 "
 }
