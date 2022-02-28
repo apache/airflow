@@ -158,7 +158,10 @@ def build_ci_image(
     """Builds docker CI image without entering the container."""
 
     if verbose:
-        console.print(f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT}[/]\n")
+        console.print(
+            f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT} "
+            f"python version: {python}[/]\n"
+        )
     build_image(
         verbose,
         additional_extras=additional_extras,

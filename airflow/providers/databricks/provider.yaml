@@ -37,22 +37,40 @@ integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
     how-to-guide:
-      - /docs/apache-airflow-providers-databricks/operators.rst
+      - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
+      - /docs/apache-airflow-providers-databricks/operators/run_now.rst
     logo: /integration-logos/databricks/Databricks.png
     tags: [service]
+  - integration-name: Databricks SQL
+    external-doc-url: https://databricks.com/product/databricks-sql
+    how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/sql.rst
+      - /docs/apache-airflow-providers-databricks/operators/copy_into.rst
+    logo: /integration-logos/databricks/Databricks.png
+    tags: [service]
+
 operators:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.operators.databricks
+  - integration-name: Databricks SQL
+    python-modules:
+      - airflow.providers.databricks.operators.databricks_sql
 
 hooks:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.hooks.databricks
+      - airflow.providers.databricks.hooks.databricks_base
+  - integration-name: Databricks SQL
+    python-modules:
+      - airflow.providers.databricks.hooks.databricks_sql
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.databricks.hooks.databricks.DatabricksHook
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
+    connection-type: databricks
+  - hook-class-name: airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook
     connection-type: databricks
