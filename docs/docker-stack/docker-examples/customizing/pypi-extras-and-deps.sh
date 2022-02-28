@@ -23,7 +23,7 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 export AIRFLOW_VERSION=2.2.2
-export DEBIAN_VERSION="buster"
+export DEBIAN_VERSION="bullseye"
 
 docker build . \
     --pull \

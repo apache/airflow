@@ -324,7 +324,7 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
 
 
 Other configuration options

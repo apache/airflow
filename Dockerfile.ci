@@ -15,7 +15,7 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
+ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 FROM ${PYTHON_BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
