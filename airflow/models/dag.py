@@ -2452,17 +2452,18 @@ class DAG(LoggingMixin):
             else:
                 orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
-            for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in set(dag.tags):
+            dag_tags = set(dag.tags or {})
+            orm_dag_tags = list(orm_dag.tags or [])
+            for orm_tag in orm_dag_tags:
+                if orm_tag.name not in dag_tags:
                     session.delete(orm_tag)
                     orm_dag.tags.remove(orm_tag)
-            if dag.tags:
-                orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in set(dag.tags):
-                    if dag_tag not in orm_tag_names:
-                        dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
-                        orm_dag.tags.append(dag_tag_orm)
-                        session.add(dag_tag_orm)
+            orm_tag_names = {t.name for t in orm_dag_tags}
+            for dag_tag in dag_tags:
+                if dag_tag not in orm_tag_names:
+                    dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
+                    orm_dag.tags.append(dag_tag_orm)
+                    session.add(dag_tag_orm)
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
