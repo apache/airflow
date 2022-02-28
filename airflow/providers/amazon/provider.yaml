@@ -117,6 +117,8 @@ integrations:
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
     logo: /integration-logos/aws/Amazon-SageMaker_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sagemaker.rst
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/

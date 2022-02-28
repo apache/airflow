@@ -40,7 +40,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go.sh|\.gitmodules$|^airflow/_vendor/
+        exclude: ^docs/Makefile$|^clients/gen/go\.sh|\.gitmodules$|^airflow/_vendor/
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -214,7 +214,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|^airflow/_vendor/
+        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$|^airflow/_vendor/
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -266,7 +266,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        exclude: ^airflow/_vendor/|^CHANGELOG\.txt|^airflow/www/static/css/material-icons\.css
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
@@ -353,7 +353,7 @@ repos:
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
         language: python
-        files: ^scripts/ci/pre_commit/supported_versions.py$|^README.md$|^docs/apache-airflow/supported-versions.rst$
+        files: ^scripts/ci/pre_commit/supported_versions\.py$|^README\.md$|^docs/apache-airflow/supported-versions\.rst$
         pass_filenames: false
         additional_dependencies: ['tabulate']
       - id: update-version
@@ -571,7 +571,7 @@ repos:
         args:
           - --max-length=70
         language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names.py$
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black']
         require_serial: true
         pass_filenames: false

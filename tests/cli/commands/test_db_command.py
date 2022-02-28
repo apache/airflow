@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -28,9 +27,9 @@ from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
 
-class TestCliDb(unittest.TestCase):
+class TestCliDb:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
@@ -136,6 +135,73 @@ class TestCliDb(unittest.TestCase):
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):
             db_command.shell(self.parser.parse_args(['db', 'shell']))
+
+    @pytest.mark.parametrize(
+        'args, match',
+        [
+            (['-y', '--revision', 'abc', '--version', '2.2.0'], 'Cannot supply both'),
+            (['-y', '--revision', 'abc1', '--from-revision', 'abc2'], 'only .* with `--sql-only`'),
+            (['-y', '--revision', 'abc1', '--from-version', '2.2.2'], 'only .* with `--sql-only`'),
+            (['-y', '--version', '2.2.2', '--from-version', '2.2.2'], 'only .* with `--sql-only`'),
+            (
+                ['-y', '--revision', 'abc', '--from-version', '2.2.0', '--from-revision', 'abc'],
+                'may not be combined',
+            ),
+            (['-y', '--version', 'abc'], r'Downgrading to .* not supported\.'),
+            (['-y'], 'Must provide either'),
+        ],
+    )
+    @mock.patch("airflow.utils.db.downgrade")
+    def test_cli_downgrade_invalid(self, mock_dg, args, match):
+        """We test some options that should produce an error"""
+
+        with pytest.raises(SystemExit, match=match):
+            db_command.downgrade(self.parser.parse_args(['db', 'downgrade', *args]))
+
+    @pytest.mark.parametrize(
+        'args, expected',
+        [
+            (['-y', '--revision', 'abc1'], dict(to_revision='abc1')),
+            (
+                ['-y', '--revision', 'abc1', '--from-revision', 'abc2', '-s'],
+                dict(to_revision='abc1', from_revision='abc2', sql=True),
+            ),
+            (
+                ['-y', '--revision', 'abc1', '--from-version', '2.2.2', '-s'],
+                dict(to_revision='abc1', from_revision='7b2661a43ba3', sql=True),
+            ),
+            (
+                ['-y', '--version', '2.2.2', '--from-version', '2.2.2', '-s'],
+                dict(to_revision='7b2661a43ba3', from_revision='7b2661a43ba3', sql=True),
+            ),
+            (['-y', '--version', '2.2.2'], dict(to_revision='7b2661a43ba3')),
+        ],
+    )
+    @mock.patch("airflow.utils.db.downgrade")
+    def test_cli_downgrade_good(self, mock_dg, args, expected):
+        defaults = dict(from_revision=None, sql=False)
+        db_command.downgrade(self.parser.parse_args(['db', 'downgrade', *args]))
+        mock_dg.assert_called_with(**{**defaults, **expected})
+
+    @pytest.mark.parametrize(
+        'resp, raise_',
+        [
+            ('y', False),
+            ('Y', False),
+            ('n', True),
+            ('a', True),  # any other value
+        ],
+    )
+    @mock.patch("airflow.utils.db.downgrade")
+    @mock.patch("airflow.cli.commands.db_command.input")
+    def test_cli_downgrade_confirm(self, mock_input, mock_dg, resp, raise_):
+        mock_input.return_value = resp
+        if raise_:
+            with pytest.raises(SystemExit):
+                db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--revision', 'abc']))
+        else:
+            db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--revision', 'abc']))
+            mock_dg.assert_called_with(to_revision='abc', from_revision=None, sql=False)
 
 
 class TestCLIDBClean:

@@ -31,7 +31,7 @@ from sqlalchemy import MetaData
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import check_migrations, create_default_connections, upgradedb
+from airflow.utils.db import check_migrations, create_default_connections, downgrade, upgradedb
 
 
 class TestDb:
@@ -213,3 +213,27 @@ class TestDb:
             with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
                 upgradedb("2.1.1:2.1.2")
         mock_alembic_upgrade.assert_not_called()
+
+    @mock.patch('airflow.utils.db._offline_migration')
+    def test_downgrade_sql_no_from(self, mock_om):
+        downgrade(to_revision='abc', sql=True, from_revision=None)
+        actual = mock_om.call_args[1]['revision']
+        assert re.match(r'[a-z0-9]+:abc', actual) is not None
+
+    @mock.patch('airflow.utils.db._offline_migration')
+    def test_downgrade_sql_with_from(self, mock_om):
+        downgrade(to_revision='abc', sql=True, from_revision='123')
+        actual = mock_om.call_args[1]['revision']
+        assert actual == '123:abc'
+
+    @mock.patch('alembic.command.downgrade')
+    def test_downgrade_invalid_combo(self, mock_om):
+        """can't combine `sql=False` and `from_revision`"""
+        with pytest.raises(ValueError, match="can't be combined"):
+            downgrade(to_revision='abc', from_revision='123')
+
+    @mock.patch('alembic.command.downgrade')
+    def test_downgrade_with_from(self, mock_om):
+        downgrade(to_revision='abc')
+        actual = mock_om.call_args[1]['revision']
+        assert actual == 'abc'

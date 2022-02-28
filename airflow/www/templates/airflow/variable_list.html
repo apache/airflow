@@ -38,4 +38,8 @@
   <div class="clearfix"></div>
   {% endif %}
   {{ super() }}
+  <style>
+    td { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width:1px;}
+    th { resize: horizontal; overflow: auto;}
+  </style>
 {% endblock %}

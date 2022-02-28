@@ -23,7 +23,10 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerModelOperator
+from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerDeleteModelOperator,
+    SageMakerModelOperator,
+)
 
 role = 'arn:aws:iam:role/test-role'
 
@@ -63,3 +66,18 @@ class TestSageMakerModelOperator(unittest.TestCase):
         mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+
+class TestSageMakerDeleteModelOperator(unittest.TestCase):
+    def setUp(self):
+        delete_model_params = {'ModelName': 'test'}
+        self.sagemaker = SageMakerDeleteModelOperator(
+            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=delete_model_params
+        )
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'delete_model')
+    def test_execute(self, delete_model, mock_client):
+        delete_model.return_value = None
+        self.sagemaker.execute(None)
+        delete_model.assert_called_once_with(model_name='test')

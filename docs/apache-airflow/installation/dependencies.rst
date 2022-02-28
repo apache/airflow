@@ -71,7 +71,7 @@ System dependencies
 '''''''''''''''''''
 
 You need certain system level requirements in order to install Airflow. Those are requirements that are known
-to be needed for Linux system (Tested on Ubuntu Buster LTS) :
+to be needed for Linux system (Tested on Ubuntu Bullseye LTS) :
 
 .. code-block:: bash
 
