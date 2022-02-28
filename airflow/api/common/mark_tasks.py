@@ -344,16 +344,16 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     return run_ids
 
 
-def _set_dag_run_state(dag_id: str, dag_run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
+def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
     """
     Helper method that set dag run state in the DB.
 
     :param dag_id: dag_id of target dag run
-    :param dag_run_id: dag run id of target dag run
+    :param run_id: run id of target dag run
     :param state: target state
     :param session: database session
     """
-    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one()
+    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
     dag_run.state = state
     if state == State.RUNNING:
         dag_run.start_date = timezone.utcnow()
