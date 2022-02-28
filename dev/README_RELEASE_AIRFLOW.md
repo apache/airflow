@@ -1074,6 +1074,7 @@ This includes:
 - Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
 - Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
 
