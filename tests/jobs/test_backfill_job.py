@@ -39,6 +39,7 @@ from airflow.exceptions import (
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
@@ -81,6 +82,9 @@ class TestBackfillJob:
         self.clean_db()
         self.parser = cli_parser.get_parser()
         self.dagbag = dag_bag
+        # `airflow tasks run` relies on serialized_dag
+        for dag in self.dagbag.dags.values():
+            SerializedDagModel.write_dag(dag)
 
     def _get_dummy_dag(
         self,

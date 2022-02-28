@@ -366,7 +366,7 @@ class TestDagFileProcessor:
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-    @patch.object(TaskInstance, 'handle_failure_with_callback')
+    @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -423,18 +423,14 @@ class TestDagFileProcessor:
             tis = session.query(TaskInstance)
             assert tis[0].hostname == "test_hostname"
 
-    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path):
+    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path, get_test_dag):
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_on_failure_callback.py'
-        )
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
-        dag = dagbag.get_dag('test_om_failure_callback_dag')
-        task = dag.get_task(task_id='test_om_failure_callback_task')
+        dag = get_test_dag('test_on_failure_callback')
+        task = dag.get_task(task_id='test_on_failure_callback_task')
         with create_session() as session:
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
@@ -442,7 +438,7 @@ class TestDagFileProcessor:
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-            (ti,) = dagrun.task_instances
+            ti = dagrun.get_task_instance(task.task_id)
             ti.refresh_from_task(task)
 
             requests = [
@@ -452,9 +448,11 @@ class TestDagFileProcessor:
                     msg="Message",
                 )
             ]
-            dag_file_processor.process_file(dag_file, requests, session=session)
+            dag_file_processor.process_file(dag.fileloc, requests, session=session)
 
-        assert "Callback fired" == callback_file.read_text()
+        ti.refresh_from_db()
+        msg = ' '.join([str(k) for k in ti.key.primary]) + ' fired callback'
+        assert msg in callback_file.read_text()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):

@@ -22,16 +22,13 @@ import logging
 import math
 import operator
 import os
-import pickle
 import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
-from tempfile import NamedTemporaryFile
 from types import TracebackType
 from typing import (
-    IO,
     TYPE_CHECKING,
     Any,
     Callable,
@@ -158,31 +155,6 @@ def set_current_context(context: Context) -> Iterator[Context]:
                 context,
                 expected_state,
             )
-
-
-def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
-    """Load and return error from error file"""
-    if fd.closed:
-        return None
-    fd.seek(0, os.SEEK_SET)
-    data = fd.read()
-    if not data:
-        return None
-    try:
-        return pickle.loads(data)
-    except Exception:
-        return "Failed to load task run error"
-
-
-def set_error_file(error_file: str, error: Union[str, BaseException]) -> None:
-    """Write error into error file by path"""
-    with open(error_file, "wb") as fd:
-        try:
-            pickle.dump(error, fd)
-        except Exception:
-            # local class objects cannot be pickled, so we fallback
-            # to store the string representation instead
-            pickle.dump(str(error), fd)
 
 
 def clear_task_instances(
@@ -1415,7 +1387,6 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
-        error_file: Optional[str] = None,
         session=NEW_SESSION,
     ) -> None:
         """
@@ -1443,10 +1414,11 @@ class TaskInstance(Base, LoggingMixin):
         # Initialize final state counters at zero
         for state in State.task_states:
             Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}', count=0)
+
+        self.task = self.task.prepare_for_execution()
+        context = self.get_template_context(ignore_param_exceptions=False)
         try:
             if not mark_success:
-                self.task = self.task.prepare_for_execution()
-                context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context, test_mode)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
@@ -1485,7 +1457,7 @@ class TaskInstance(Base, LoggingMixin):
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
-            self.handle_failure(e, test_mode, force_fail=True, error_file=error_file, session=session)
+            self.handle_failure(e, test_mode, context, force_fail=True, session=session)
             session.commit()
             raise
         except AirflowException as e:
@@ -1500,11 +1472,11 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return
             else:
-                self.handle_failure(e, test_mode, error_file=error_file, session=session)
+                self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, error_file=error_file, session=session)
+            self.handle_failure(e, test_mode, context, session=session)
             session.commit()
             raise
         finally:
@@ -1515,6 +1487,12 @@ class TaskInstance(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         self._log_state()
         self.set_duration()
+
+        # run on_success_callback before db committing
+        # otherwise, the LocalTaskJob sees the state is changed to `success`,
+        # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
+        self._run_finished_callback(self.task.on_success_callback, context, 'on_success')
+
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
@@ -1611,6 +1589,14 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
         # Raise exception for sensing state
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
+
+    def _run_finished_callback(self, callback, context, callback_type):
+        """Run callback after task finishes"""
+        try:
+            if callback:
+                callback(context)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception(f"Error when executing {callback_type} callback")
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
@@ -1713,40 +1699,6 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             self.log.exception("Failed when executing execute callback")
 
-    def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
-        """
-        Call callback defined for finished state change.
-
-        NOTE: Only invoke this function from caller of self._run_raw_task or
-        self.run
-        """
-        if self.state == State.FAILED:
-            task = self.task
-            if task.on_failure_callback is not None:
-                context = self.get_template_context()
-                context["exception"] = error
-                try:
-                    task.on_failure_callback(context)
-                except Exception:
-                    self.log.exception("Error when executing on_failure_callback")
-        elif self.state == State.SUCCESS:
-            task = self.task
-            if task.on_success_callback is not None:
-                context = self.get_template_context()
-                try:
-                    task.on_success_callback(context)
-                except Exception:
-                    self.log.exception("Error when executing on_success_callback")
-        elif self.state == State.UP_FOR_RETRY:
-            task = self.task
-            if task.on_retry_callback is not None:
-                context = self.get_template_context()
-                context["exception"] = error
-                try:
-                    task.on_retry_callback(context)
-                except Exception:
-                    self.log.exception("Error when executing on_retry_callback")
-
     @provide_session
     def run(
         self,
@@ -1777,20 +1729,9 @@ class TaskInstance(Base, LoggingMixin):
         if not res:
             return
 
-        try:
-            error_fd = NamedTemporaryFile(delete=True)
-            self._run_raw_task(
-                mark_success=mark_success,
-                test_mode=test_mode,
-                job_id=job_id,
-                pool=pool,
-                error_file=error_fd.name,
-                session=session,
-            )
-        finally:
-            error = None if self.state == State.SUCCESS else load_error_file(error_fd)
-            error_fd.close()
-            self._run_finished_callback(error=error)
+        self._run_raw_task(
+            mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+        )
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
@@ -1870,17 +1811,13 @@ class TaskInstance(Base, LoggingMixin):
         return tb or error.__traceback__
 
     @provide_session
-    def handle_failure(
-        self,
-        error: Union[None, str, BaseException] = None,
-        test_mode: Optional[bool] = None,
-        force_fail: bool = False,
-        error_file: Optional[str] = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
+    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
+
+        if context is None:
+            context = self.get_template_context()
 
         if error:
             if isinstance(error, BaseException):
@@ -1888,10 +1825,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
-            # external monitoring process provides pickle file so _run_raw_task
-            # can send its runtime errors for access by failure callback
-            if error_file:
-                set_error_file(error_file, error)
         if not test_mode:
             self.refresh_from_db(session)
 
@@ -1906,6 +1839,9 @@ class TaskInstance(Base, LoggingMixin):
             session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
+
+        if context is not None:
+            context['exception'] = error
 
         # Set state correctly and figure out how to log it and decide whether
         # to email
@@ -1928,12 +1864,16 @@ class TaskInstance(Base, LoggingMixin):
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
             email_for_state = operator.attrgetter('email_on_failure')
+            callback = task.on_failure_callback if task else None
+            callback_type = 'on_failure'
         else:
             if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter('email_on_retry')
+            callback = task.on_retry_callback if task else None
+            callback_type = 'on_retry'
 
         self._log_state('Immediate failure requested. ' if force_fail else '')
         if task and email_for_state(task) and task.email:
@@ -1942,20 +1882,12 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
+        if callback:
+            self._run_finished_callback(callback, context, callback_type)
+
         if not test_mode:
             session.merge(self)
             session.flush()
-
-    @provide_session
-    def handle_failure_with_callback(
-        self,
-        error: Union[None, str, Exception],
-        test_mode: Optional[bool] = None,
-        force_fail: bool = False,
-        session=NEW_SESSION,
-    ) -> None:
-        self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
-        self._run_finished_callback(error=error)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
