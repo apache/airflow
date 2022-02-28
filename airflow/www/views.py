@@ -2142,7 +2142,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def dagrun_queued(self):
-        """Mark DagRun success"""
+        """Queue DagRun so tasks that haven't run yet can be started."""
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
