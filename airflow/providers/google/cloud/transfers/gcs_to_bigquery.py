@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Storage to BigQuery operator."""
 
 import json
+import warnings
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -163,8 +164,9 @@ class GCSToBigQueryOperator(BaseOperator):
         allow_jagged_rows=False,
         encoding="UTF-8",
         max_id_key=None,
-        bigquery_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id='google_cloud_default',
+        gcp_conn_id='google_cloud_default',
+        bigquery_conn_id=None,
+        google_cloud_storage_conn_id=None,
         delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
@@ -179,6 +181,15 @@ class GCSToBigQueryOperator(BaseOperator):
         description=None,
         **kwargs,
     ):
+        # To preserve backward compatibility. Remove one day
+        if bigquery_conn_id or google_cloud_storage_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id and google_cloud_storage_conn_id parameters have been deprecated. "
+                "You should pass only gcp_conn_id parameter. "
+                "Will be used bigquery_conn_id or google_cloud_storage_conn_id if gcp_conn_id not passed.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         super().__init__(**kwargs)
 
@@ -209,8 +220,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.encoding = encoding
 
         self.max_id_key = max_id_key
-        self.bigquery_conn_id = bigquery_conn_id
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id or bigquery_conn_id or google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
@@ -227,7 +237,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         bq_hook = BigQueryHook(
-            bigquery_conn_id=self.bigquery_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
@@ -236,7 +246,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
                 gcs_hook = GCSHook(
-                    gcp_conn_id=self.google_cloud_storage_conn_id,
+                    gcp_conn_id=self.gcp_conn_id,
                     delegate_to=self.delegate_to,
                     impersonation_chain=self.impersonation_chain,
                 )
@@ -247,7 +257,6 @@ class GCSToBigQueryOperator(BaseOperator):
                 schema_fields = json.loads(blob.decode("utf-8"))
             else:
                 schema_fields = None
-
         else:
             schema_fields = self.schema_fields
 
@@ -255,64 +264,66 @@ class GCSToBigQueryOperator(BaseOperator):
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
         source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
 
         if self.external_table:
-            cursor.create_external_table(
-                external_project_dataset_table=self.destination_project_dataset_table,
-                schema_fields=schema_fields,
-                source_uris=source_uris,
-                source_format=self.source_format,
-                compression=self.compression,
-                skip_leading_rows=self.skip_leading_rows,
-                field_delimiter=self.field_delimiter,
-                max_bad_records=self.max_bad_records,
-                quote_character=self.quote_character,
-                ignore_unknown_values=self.ignore_unknown_values,
-                allow_quoted_newlines=self.allow_quoted_newlines,
-                allow_jagged_rows=self.allow_jagged_rows,
-                encoding=self.encoding,
-                src_fmt_configs=self.src_fmt_configs,
-                encryption_configuration=self.encryption_configuration,
-                labels=self.labels,
-                description=self.description,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                bq_hook.create_external_table(
+                    external_project_dataset_table=self.destination_project_dataset_table,
+                    schema_fields=schema_fields,
+                    source_uris=source_uris,
+                    source_format=self.source_format,
+                    compression=self.compression,
+                    skip_leading_rows=self.skip_leading_rows,
+                    field_delimiter=self.field_delimiter,
+                    max_bad_records=self.max_bad_records,
+                    quote_character=self.quote_character,
+                    ignore_unknown_values=self.ignore_unknown_values,
+                    allow_quoted_newlines=self.allow_quoted_newlines,
+                    allow_jagged_rows=self.allow_jagged_rows,
+                    encoding=self.encoding,
+                    src_fmt_configs=self.src_fmt_configs,
+                    encryption_configuration=self.encryption_configuration,
+                    labels=self.labels,
+                    description=self.description,
+                )
         else:
-            cursor.run_load(
-                destination_project_dataset_table=self.destination_project_dataset_table,
-                schema_fields=schema_fields,
-                source_uris=source_uris,
-                source_format=self.source_format,
-                autodetect=self.autodetect,
-                create_disposition=self.create_disposition,
-                skip_leading_rows=self.skip_leading_rows,
-                write_disposition=self.write_disposition,
-                field_delimiter=self.field_delimiter,
-                max_bad_records=self.max_bad_records,
-                quote_character=self.quote_character,
-                ignore_unknown_values=self.ignore_unknown_values,
-                allow_quoted_newlines=self.allow_quoted_newlines,
-                allow_jagged_rows=self.allow_jagged_rows,
-                encoding=self.encoding,
-                schema_update_options=self.schema_update_options,
-                src_fmt_configs=self.src_fmt_configs,
-                time_partitioning=self.time_partitioning,
-                cluster_fields=self.cluster_fields,
-                encryption_configuration=self.encryption_configuration,
-                labels=self.labels,
-                description=self.description,
-            )
-
-        if cursor.use_legacy_sql:
-            escaped_table_name = f'[{self.destination_project_dataset_table}]'
-        else:
-            escaped_table_name = f'`{self.destination_project_dataset_table}`'
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                bq_hook.run_load(
+                    destination_project_dataset_table=self.destination_project_dataset_table,
+                    schema_fields=schema_fields,
+                    source_uris=source_uris,
+                    source_format=self.source_format,
+                    autodetect=self.autodetect,
+                    create_disposition=self.create_disposition,
+                    skip_leading_rows=self.skip_leading_rows,
+                    write_disposition=self.write_disposition,
+                    field_delimiter=self.field_delimiter,
+                    max_bad_records=self.max_bad_records,
+                    quote_character=self.quote_character,
+                    ignore_unknown_values=self.ignore_unknown_values,
+                    allow_quoted_newlines=self.allow_quoted_newlines,
+                    allow_jagged_rows=self.allow_jagged_rows,
+                    encoding=self.encoding,
+                    schema_update_options=self.schema_update_options,
+                    src_fmt_configs=self.src_fmt_configs,
+                    time_partitioning=self.time_partitioning,
+                    cluster_fields=self.cluster_fields,
+                    encryption_configuration=self.encryption_configuration,
+                    labels=self.labels,
+                    description=self.description,
+                )
 
         if self.max_id_key:
-            select_command = f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}'
-            cursor.execute(select_command)
-            row = cursor.fetchone()
+            select_command = f'SELECT MAX({self.max_id_key}) FROM `{self.destination_project_dataset_table}`'
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                job_id = bq_hook.run_query(
+                    sql=select_command,
+                    use_legacy_sql=False,
+                )
+            row = list(bq_hook.get_job(job_id).result())
             if row:
                 max_id = row[0] if row[0] else 0
                 self.log.info(
@@ -322,4 +333,4 @@ class GCSToBigQueryOperator(BaseOperator):
                     max_id,
                 )
             else:
-                raise RuntimeError(f"The f{select_command} returned no rows!")
+                raise RuntimeError(f"The {select_command} returned no rows!")
