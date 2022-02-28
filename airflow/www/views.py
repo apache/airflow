@@ -1182,7 +1182,7 @@ class Airflow(AirflowBaseView):
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
         attrs_to_avoid = ["NUM_DAGS_PER_DAGRUN_QUERY", "serialized_dag", "tags"]
-        attrs_to_avoid.extend(*wwwutils.get_attr_renderer().keys())
+        attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
         dag_model_attrs: List[Tuple[str, Any]] = [
             (attr_name, attr)
             for attr_name, attr in (
