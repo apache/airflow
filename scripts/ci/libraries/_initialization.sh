@@ -83,9 +83,9 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
-    # until we have support for ARM images, we set docker default platform to AMD
+    # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+    export PLATFORM=${PLATFORM:="linux/amd64"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
@@ -414,7 +414,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.3.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.3"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds

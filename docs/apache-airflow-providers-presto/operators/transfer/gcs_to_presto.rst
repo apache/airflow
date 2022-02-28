@@ -41,8 +41,9 @@ Load CSV from GCS to Presto Table
 To load a CSV file from Google Cloud Storage to a Presto table you can use the
 :class:`~airflow.providers.presto.transfers.gcs_to_presto.GCSToPrestoOperator`.
 
-This operator assumes that the first row of the CSV contains headers corresponding to the columns in a
-pre-existing presto table.
+This operator assumes that CSV does not have headers and the data is corresponding to the columns in a
+pre-existing presto table. Optionally, you can provide schema as tuple/list of strings or as a path to a
+JSON file in the same bucket as the CSV file.
 
 .. exampleinclude:: /../../airflow/providers/presto/example_dags/example_gcs_to_presto.py
     :language: python

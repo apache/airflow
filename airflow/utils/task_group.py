@@ -380,7 +380,7 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
-    def map(self, arg: Iterable) -> "MappedTaskGroup":
+    def apply(self, arg: Iterable) -> "MappedTaskGroup":
         if self.children:
             raise RuntimeError("Cannot map a TaskGroup that already has children")
         if not self.group_id:

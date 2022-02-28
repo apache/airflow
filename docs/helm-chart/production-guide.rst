@@ -64,7 +64,7 @@ reduce the number of open connections on the database.
   pgbouncer:
     enabled: true
 
-Depending on the size of you Airflow instance, you may want to adjust the following as well (defaults are shown):
+Depending on the size of your Airflow instance, you may want to adjust the following as well (defaults are shown):
 
 .. code-block:: yaml
 

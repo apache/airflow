@@ -82,6 +82,7 @@ REVISION_HEADS_MAP = {
     "2.2.1": "7b2661a43ba3",
     "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
+    "2.2.4": "587bdf053233",
 }
 
 
@@ -654,19 +655,12 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
-    with EnvironmentContext(
-        config,
-        script_,
-    ) as env, settings.engine.connect() as connection:
-        env.configure(connection)
+    with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
         db_heads = None
         for ticker in range(timeout):
-            source_heads = set(script_.get_heads())
+            source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
             if source_heads == db_heads:
                 return
@@ -678,27 +672,33 @@ def check_migrations(timeout):
         )
 
 
-def _get_script_dir_and_config():
-    """Get config and script directory"""
+@contextlib.contextmanager
+def _configured_alembic_environment():
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    return script_, config
 
-
-def check_and_run_migrations():
-    """Check and run migrations if necessary. Only use in a tty"""
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
     with EnvironmentContext(
         config,
         script_,
     ) as env, settings.engine.connect() as connection:
+
+        alembic_logger = logging.getLogger('alembic')
+        level = alembic_logger.level
+        alembic_logger.setLevel(logging.WARNING)
         env.configure(connection)
+        alembic_logger.setLevel(level)
+
+        yield env
+
+
+def check_and_run_migrations():
+    """Check and run migrations if necessary. Only use in a tty"""
+    with _configured_alembic_environment() as env:
         context = env.get_context()
-        source_heads = set(script_.get_heads())
+        source_heads = set(env.script.get_heads())
         db_heads = set(context.get_current_heads())
         db_command = None
         command_name = None
@@ -748,24 +748,41 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
-
-    def check_templates(filename, elasticsearch_id):
-        stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
-
-        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
-            session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
-
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
-    pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
-    if pre_upgrade_filename is not None:
-        check_templates(pre_upgrade_filename, elasticsearch_id)
-        session.flush()
+    pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
+    pre_upgrade_elasticsearch_id = conf.upgraded_values.get(
+        ("elasticsearch", "log_id_template"), elasticsearch_id
+    )
 
-    check_templates(filename, elasticsearch_id)
+    if pre_upgrade_filename != filename or pre_upgrade_elasticsearch_id != elasticsearch_id:
+        # The previous non-upgraded value likely won't be the _latest_ value (as after we've recorded the
+        # recorded the upgraded value it will be second-to-newest), so we'll have to just search which is okay
+        # as this is a table with a tiny number of rows
+        row = (
+            session.query(LogTemplate.id)
+            .filter(
+                or_(
+                    LogTemplate.filename == pre_upgrade_filename,
+                    LogTemplate.elasticsearch_id == pre_upgrade_elasticsearch_id,
+                )
+            )
+            .order_by(LogTemplate.id.desc())
+            .first()
+        )
+        if not row:
+            session.add(
+                LogTemplate(filename=pre_upgrade_filename, elasticsearch_id=pre_upgrade_elasticsearch_id)
+            )
+            session.flush()
+
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+    if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+        session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -1017,12 +1034,12 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         session.commit()
 
 
-def _offline_migration(command, config, revision):
+def _offline_migration(migration_func: Callable, config, revision):
     log.info("Running offline migrations for revision range %s", revision)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         logging.disable(logging.CRITICAL)
-        command.upgrade(config, revision, sql=True)
+        migration_func(config, revision, sql=True)
         logging.disable(logging.NOTSET)
 
 
@@ -1117,10 +1134,10 @@ def upgradedb(
         revision = _validate_version_range(command, config, version_range)
         if not revision:
             return
-        return _offline_migration(command, config, revision)
+        return _offline_migration(command.upgrade, config, revision)
     elif revision_range:
         _validate_revision(command, config, revision_range)
-        return _offline_migration(command, config, revision_range)
+        return _offline_migration(command.upgrade, config, revision_range)
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
@@ -1153,6 +1170,65 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
 
     initdb(session=session)
+
+
+@provide_session
+def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW_SESSION):
+    """
+    Downgrade the airflow metastore schema to a prior version.
+
+    :param to_revision: The alembic revision to downgrade *to*.
+    :param sql: if True, print sql statements but do not run them
+    :param from_revision: if supplied, alembic revision to dawngrade *from*. This may only
+        be used in conjunction with ``sql=True`` because if we actually run the commands,
+        we should only downgrade from the *current* revision.
+    :param session: sqlalchemy session for connection to airflow metadata database
+    """
+    if from_revision and not sql:
+        raise ValueError(
+            "`from_revision` can't be combined with `sql=False`. When actually "
+            "applying a downgrade (instead of just generating sql), we always "
+            "downgrade from current revision."
+        )
+
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
+
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+
+    log.info("Attempting downgrade to revision %s", to_revision)
+
+    config = _get_alembic_config()
+
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+
+    errors_seen = False
+    for err in _check_migration_errors(session=session):
+        if not errors_seen:
+            log.error("Automatic migration failed.  You may need to apply downgrades manually.  ")
+            errors_seen = True
+        log.error("%s", err)
+
+    if errors_seen:
+        exit(1)
+
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        if sql:
+            log.warning("Generating sql scripts for manual migration.")
+
+            conn = session.connection()
+
+            from alembic.migration import MigrationContext
+
+            migration_ctx = MigrationContext.configure(conn)
+            if not from_revision:
+                from_revision = migration_ctx.get_current_revision()
+            revision_range = f"{from_revision}:{to_revision}"
+            _offline_migration(command.downgrade, config=config, revision=revision_range)
+        else:
+            log.info("Applying downgrade migrations.")
+            command.downgrade(config, revision=to_revision, sql=sql)
 
 
 def drop_airflow_models(connection):

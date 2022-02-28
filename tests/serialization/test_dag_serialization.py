@@ -1600,7 +1600,7 @@ def test_kubernetes_optional():
 
 def test_mapped_operator_serde():
     literal = [1, 2, {'a': 'b'}]
-    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).map(
+    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).apply(
         bash_command=literal
     )
 
@@ -1650,7 +1650,7 @@ def test_mapped_operator_xcomarg_serde():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
         xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').map(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1716,7 +1716,7 @@ def test_mapped_decorator_serde():
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).map(arg2={"a": 1, "b": 2}, arg3=xcomarg)
+        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=xcomarg)
 
     original = dag.get_task("x")
 
@@ -1727,14 +1727,15 @@ def test_mapped_decorator_serde():
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
         'downstream_task_ids': [],
-        'partial_op_kwargs': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
-        'partial_kwargs': {'retry_delay': {'__type': 'timedelta', '__var': 30.0}},
-        'mapped_kwargs': {
+        'partial_kwargs': {
             'op_args': [],
-            'op_kwargs': {
-                'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-                'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
-            },
+            'op_kwargs': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            'retry_delay': {'__type': 'timedelta', '__var': 30.0},
+        },
+        'mapped_kwargs': {},
+        'mapped_op_kwargs': {
+            'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
+            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
         },
         'operator_extra_links': [],
         'ui_color': '#ffefeb',
@@ -1750,12 +1751,15 @@ def test_mapped_decorator_serde():
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 
-    assert deserialized.mapped_kwargs["op_kwargs"] == {
+    assert deserialized.mapped_op_kwargs == {
         "arg2": {"a": 1, "b": 2},
         "arg3": _XComRef("op1", "my_key"),
     }
-    assert deserialized.partial_kwargs == {"retry_delay": timedelta(seconds=30)}
-    assert deserialized.partial_op_kwargs == {"arg1": [1, 2, {"a": "b"}]}
+    assert deserialized.partial_kwargs == {
+        "op_args": [],
+        "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
+        "retry_delay": timedelta(seconds=30),
+    }
 
 
 def test_mapped_task_group_serde():
@@ -1763,7 +1767,7 @@ def test_mapped_task_group_serde():
 
     literal = [1, 2, {'a': 'b'}]
     with DAG("test", start_date=execution_date) as dag:
-        with TaskGroup("process_one", dag=dag).map(literal) as process_one:
+        with TaskGroup("process_one", dag=dag).apply(literal) as process_one:
             BaseOperator(task_id='one')
 
     serialized = SerializedTaskGroup.serialize_task_group(process_one)

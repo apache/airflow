@@ -155,6 +155,23 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
+            (
+                "CONN_ID=mysql://host_1?param1=val1&param2=val2",
+                {"CONN_ID": "mysql://host_1?param1=val1&param2=val2"},
+            ),
+        )
+    )
+    def test_parsing_with_params(self, content, expected_connection_uris):
+        with mock_local_file(content):
+            connections_by_conn_id = local_filesystem.load_connections_dict("a.env")
+            connection_uris_by_conn_id = {
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
+            }
+
+            assert expected_connection_uris == connection_uris_by_conn_id
+
+    @parameterized.expand(
+        (
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
         )

@@ -21,24 +21,47 @@ set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
+COLOR_YELLOW=$'\e[33m'
+readonly COLOR_YELLOW
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 function install_mssql_client() {
+    # Install MsSQL client from Microsoft repositories
+    if [[ ${INSTALL_MSSQL_CLIENT:="true"} != "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Skip installing mssql client${COLOR_RESET}"
+        echo
+        return
+    fi
     echo
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
+    local distro
+    local version
+    distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+    version_name=$(lsb_release -cs | tr '[:upper:]' '[:lower:]')
+    version=$(lsb_release -rs)
+    local driver
+    if [[ ${version_name} == "buster" ]]; then
+        driver=msodbcsql17
+    elif [[ ${version_name} == "bullseye" ]]; then
+        driver=msodbcsql18
+    else
+        echo
+        echo "${COLOR_YELLOW}Only Buster or Bullseye are supported. Skipping MSSQL installation${COLOR_RESET}"
+        echo
+        return
+    fi
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
-    curl --silent https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
+    curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
+        /etc/apt/sources.list.d/mssql-release.list
     apt-get update -yqq
     apt-get upgrade -yqq
-    ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends msodbcsql17 mssql-tools
+    ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends "${driver}"
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-# Install MsSQL client from Microsoft repositories
-if [[ ${INSTALL_MSSQL_CLIENT:="true"} == "true" ]]; then
-    install_mssql_client "${@}"
-fi
+install_mssql_client "${@}"
