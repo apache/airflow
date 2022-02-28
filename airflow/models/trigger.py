@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime
+from traceback import format_exception
 from typing import Any, Dict, Iterable, Optional
 
 from sqlalchemy import Column, Integer, String, func, or_
@@ -124,7 +125,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, session=None):
+    def submit_failure(cls, trigger_id, exc=None, session=None):
         """
         Called when a trigger has failed unexpectedly, and we need to mark
         everything that depended on it as failed. Notably, we have to actually
@@ -144,8 +145,9 @@ class Trigger(Base):
             TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
         ):
             # Add the error and set the next_method to the fail state
+            traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             task_instance.next_method = "__fail__"
-            task_instance.next_kwargs = {"error": "Trigger failure"}
+            task_instance.next_kwargs = {"error": "Trigger failure", "traceback": traceback}
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
