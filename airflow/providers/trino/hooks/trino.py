@@ -61,32 +61,41 @@ class TrinoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(
+            self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
         user = db.login
         if db.password and extra.get('auth') == 'kerberos':
-            raise AirflowException("Kerberos authorization doesn't support password.")
+            raise AirflowException(
+                "Kerberos authorization doesn't support password.")
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get('auth') == 'jwt':
             auth = trino.auth.JWTAuthentication(token=extra.get('jwt__token'))
         elif extra.get('auth') == 'kerberos':
             auth = trino.auth.KerberosAuthentication(
-                config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
+                config=extra.get('kerberos__config',
+                                 os.environ.get('KRB5_CONFIG')),
                 service_name=extra.get('kerberos__service_name'),
-                mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),
-                force_preemptive=_boolify(extra.get('kerberos__force_preemptive', False)),
+                mutual_authentication=_boolify(
+                    extra.get('kerberos__mutual_authentication', False)),
+                force_preemptive=_boolify(
+                    extra.get('kerberos__force_preemptive', False)),
                 hostname_override=extra.get('kerberos__hostname_override'),
                 sanitize_mutual_error_response=_boolify(
                     extra.get('kerberos__sanitize_mutual_error_response', True)
                 ),
-                principal=extra.get('kerberos__principal', conf.get('kerberos', 'principal')),
+                principal=extra.get('kerberos__principal',
+                                    conf.get('kerberos', 'principal')),
                 delegate=_boolify(extra.get('kerberos__delegate', False)),
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
         if _boolify(extra.get('impersonate_as_owner', False)):
             user = os.getenv('AIRFLOW_CTX_DAG_OWNER', None)
+            if user is None:
+                user = db.login
+
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
@@ -96,7 +105,8 @@ class TrinoHook(DbApiHook):
             catalog=extra.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            # type: ignore[func-returns-value]
+            isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get('verify', True)),
         )
 
@@ -104,8 +114,10 @@ class TrinoHook(DbApiHook):
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
-        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
+        db = self.get_connection(
+            self.trino_conn_id)  # type: ignore[attr-defined]
+        isolation_level = db.extra_dejson.get(
+            'isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
     @staticmethod

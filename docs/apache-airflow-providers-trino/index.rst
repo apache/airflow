@@ -45,6 +45,14 @@ Content
     Detailed list of commits <commits>
 
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
+    Operators <operators/index>
+
+
 Package apache-airflow-providers-trino
 ------------------------------------------------------
 
