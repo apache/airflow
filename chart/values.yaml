@@ -78,7 +78,7 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 6-bullseye
+    tag: 6-buster
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow

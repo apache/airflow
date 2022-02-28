@@ -1248,7 +1248,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
         --zone="${GCP_ZONE}" \
         --machine-type=f1-micro \
         --subnet="${GCP_NETWORK_NAME}" \
-        --image=debian-11-bullseye-v20220120 \
+        --image=debian-10-buster-v20200210 \
         --image-project=debian-cloud \
         --preemptible
 

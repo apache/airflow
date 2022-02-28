@@ -318,7 +318,7 @@ It is recommended to build images with ``DOCKER_BUILDKIT=1`` variable
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
@@ -344,7 +344,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
     --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
@@ -372,7 +372,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-bullseye``             | Base Python image                        |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-buster``               | Base Python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
@@ -489,7 +489,7 @@ This builds the CI image in version 3.7 with default extras ("all").
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
      --pull \
-     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" --tag my-image:0.0.1
+     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" --tag my-image:0.0.1
 
 
 This builds the CI image in version 3.6 with "gcp" extra only.
@@ -498,7 +498,7 @@ This builds the CI image in version 3.6 with "gcp" extra only.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
@@ -508,7 +508,7 @@ This builds the CI image in version 3.6 with "apache-beam" extra added.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "mssql" additional package added.
@@ -517,7 +517,7 @@ This builds the CI image in version 3.6 with "mssql" additional package added.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
@@ -526,7 +526,7 @@ This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev 
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
@@ -535,7 +535,7 @@ This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headl
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless" \
     --tag my-image:0.0.1
 
