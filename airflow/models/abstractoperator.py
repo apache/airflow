@@ -246,6 +246,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
 
+        :meta private:
+
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
         :param ti: The TaskInstance for the URL being searched for.
