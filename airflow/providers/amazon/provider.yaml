@@ -201,6 +201,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/dms.rst
     tags: [aws]
+  - integration-name: Amazon QuickSight
+    external-doc-url: https://aws.amazon.com/quicksight/
+    logo: /integration-logos/aws/Amazon-Quicksight_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/quicksight.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -296,6 +302,9 @@ operators:
       - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.operators.quicksight
 
 sensors:
   - integration-name: Amazon Athena
@@ -451,6 +460,9 @@ hooks:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.hooks.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.quicksight
 
 transfers:
   - source-integration-name: Amazon DynamoDB
