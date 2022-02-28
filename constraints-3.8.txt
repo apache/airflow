@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-02-27T15:23:27Z
+# This constraints file was automatically generated on 2022-02-28T10:08:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -129,7 +129,7 @@ argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.3
 asn1crypto==1.4.0
-astroid==2.9.3
+astroid==2.10.0
 asttokens==2.0.5
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -219,7 +219,7 @@ email-validator==1.1.3
 entrypoints==0.4
 eventlet==0.33.0
 execnet==1.9.0
-executing==0.8.2
+executing==0.8.3
 facebook-business==12.0.1
 fastavro==1.4.9
 filelock==3.6.0
@@ -299,7 +299,7 @@ identify==2.4.11
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
-importlib-metadata==4.11.1
+importlib-metadata==4.11.2
 importlib-resources==5.4.0
 inflection==0.5.1
 influxdb-client==1.26.0
@@ -528,7 +528,7 @@ toml==0.10.2
 tomli==2.0.1
 toolz==0.11.2
 tornado==6.1
-tqdm==4.62.3
+tqdm==4.63.0
 traitlets==5.1.1
 trino==0.310.0
 twine==3.8.0
