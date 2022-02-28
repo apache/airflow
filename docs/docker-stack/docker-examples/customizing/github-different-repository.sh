@@ -21,7 +21,7 @@ set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 # [START build]
-export DEBIAN_VERSION="bullseye"
+export DEBIAN_VERSION="buster"
 
 docker build . \
     --pull \

@@ -416,8 +416,8 @@ to make sure to update those requirements and rebuild the images to account for 
 Choosing Debian version when customizing the image
 --------------------------------------------------
 
-The reference Airflow image currently uses ``bullseye`` version of Debian (also known as Debian 10) as base
-image, however when you want to build a custom image, you can also use ``buster`` version of base images.
+The reference Airflow image currently uses ``buster`` version of Debian (also known as Debian 10) as base
+image, however when you want to build a custom image, you can also use ``bullseye`` version of base images.
 Airflow supports both versions of Debian. You choose which version of Debian to use by choosing the
 right version of python base image:
 

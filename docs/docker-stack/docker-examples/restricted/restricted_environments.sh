@@ -34,7 +34,7 @@ pip download --dest docker-context-files \
 # [END download]
 
 # [START build]
-export DEBIAN_VERSION="bullseye"
+export DEBIAN_VERSION="buster"
 
 docker build . \
     --pull \

@@ -77,8 +77,8 @@ class BuildParams:
     @property
     def python_base_image(self):
         """Construct Python Base Image"""
-        #  ghcr.io/apache/airflow/main/python:3.8-slim-bullseye
-        return f'{self.airflow_image_name}/{self.airflow_branch}/python:{self.python_version}-slim-bullseye'
+        #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
+        return f'{self.airflow_image_name}/{self.airflow_branch}/python:{self.python_version}-slim-buster'
 
     @property
     def airflow_ci_local_manifest_image(self):
