@@ -109,9 +109,18 @@ a JSON-encoded python dict.
 
 For users of providers that are included in the Airflow codebase, you should not have to make any changes
 because in the Airflow codebase we should not allow hooks to misuse the `Connection.extra` field in this way.
+
 However, if you have any custom hooks that store something other than JSON dict, you will have to update it.
 If you do, you should see a warning any time that this connection is retrieved or instantiated (e.g. it should show up in
 task logs).
+
+To see if you have any connections that will need to be updated, you can run this command:
+
+```shell
+airflow connections export - 2>&1 >/dev/null | grep 'non-JSON'
+```
+
+This will catch any warnings about connections that are storing something other than JSON-encoded python dict in the `extra` field.
 
 ### Zip files in the DAGs folder can no longer have a `.py` extension
 

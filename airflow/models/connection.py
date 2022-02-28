@@ -276,15 +276,19 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
+            extra_val = fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
-            return self._extra
+            extra_val = self._extra
+        if extra_val:
+            self._validate_extra(extra_val, self.conn_id)
+        return extra_val
 
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
         if value:
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self._validate_extra(self._extra, self.conn_id)
             self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
