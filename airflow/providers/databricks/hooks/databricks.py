@@ -38,7 +38,7 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
-OUTPUT_RUNS_JOB_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get-output')
+OUTPUT_RUNS_JOB_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get-output')
 
 INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
 UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
