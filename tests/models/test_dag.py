@@ -1887,6 +1887,19 @@ class TestDag(unittest.TestCase):
             conf={"param1": "hello"},
         )
 
+    def test_return_date_range_with_num_method(self):
+        start_date = TEST_DATE
+        delta = timedelta(days=1)
+
+        dag = models.DAG('dummy-dag', schedule_interval=delta)
+        dag_dates = dag.date_range(start_date=start_date, num=3)
+
+        assert dag_dates == [
+            start_date,
+            start_date + delta,
+            start_date + 2 * delta,
+        ]
+
 
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
