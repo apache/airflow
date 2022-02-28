@@ -45,6 +45,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 import attr
@@ -1729,6 +1730,23 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
         :return: link name
         """
+
+    @overload
+    @abstractmethod
+    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
+        """
+        Link to external system.
+
+        :param operator: airflow operator
+        :param ti_key: TaskInstance ID to return link for
+        :return: link to external system
+        """
+
+    @overload
+    @abstractmethod
+    def get_link(self, operator: AbstractOperator, dttm: datetime) -> str:
+        """:meta private:"""
+        # Deprecated form of get_link callback
 
     @abstractmethod
     def get_link(

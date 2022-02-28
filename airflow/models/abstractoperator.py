@@ -38,6 +38,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 if TYPE_CHECKING:
     import jinja2  # Slow import.
 
+    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
@@ -251,11 +252,11 @@ class AbstractOperator(LoggingMixin, DAGNode):
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(
-            link_name
-        ) or self.global_operator_extra_link_dict.get(link_name)
+        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(link_name)
         if not link:
-            return None
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
         # Check for old function signature
         parameters = inspect.signature(link.get_link).parameters
         args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
@@ -405,7 +406,3 @@ class AbstractOperator(LoggingMixin, DAGNode):
             # content has no inner template fields
             return
         self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)
-
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
