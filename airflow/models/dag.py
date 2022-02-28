@@ -2631,8 +2631,12 @@ class DAG(LoggingMixin):
                 )
 
     @provide_session
-    def validate_task_pools(self, session=NEW_SESSION):
-        """Validates and raise exception if any task in a dag is using a non-existent pool"""
+    def validate_task_pools(self, session: Session = NEW_SESSION):
+        """
+        Validates and raise exception if any task in a dag is using a non-existent pool
+
+        :meta private:
+        """
         from airflow.models.pool import Pool
 
         pools = {p.pool for p in Pool.get_pools(session)}
