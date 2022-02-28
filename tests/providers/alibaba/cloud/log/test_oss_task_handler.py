@@ -58,7 +58,7 @@ class TestOSSTaskHandler(unittest.TestCase):
     @skip_test_if_no_valid_conn_id
     def test_oss_log_exists(self):
         self.hook.load_string("1.log", "task1 log", TEST_BUCKET)
-        assert self.oss_task_handler.oss_log_exists(self.remote_log_location) == True
+        assert self.oss_task_handler.oss_log_exists(self.remote_log_location) is True
 
     @skip_test_if_no_valid_conn_id
     def test_oss_read(self):

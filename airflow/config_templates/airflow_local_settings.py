@@ -255,7 +255,7 @@ if REMOTE_LOGGING:
                 'formatter': 'airflow',
                 'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
                 'oss_log_folder': REMOTE_BASE_LOG_FOLDER,
-                'filename_template': FILENAME_TEMPLATE
+                'filename_template': FILENAME_TEMPLATE,
             },
         }
         DEFAULT_LOGGING_CONFIG['handlers'].update(OSS_REMOTE_HANDLERS)

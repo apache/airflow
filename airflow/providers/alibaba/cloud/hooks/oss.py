@@ -92,7 +92,7 @@ class OSSHook(BaseHook):
     def __init__(self, region: Optional[str] = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
-        if region == None:
+        if region is None:
             self.region = self.get_default_region()
         else:
             self.region = region
@@ -147,6 +147,7 @@ class OSSHook(BaseHook):
         :rtype: oss2.api.Bucket
         """
         auth = self.get_credential()
+        assert self.region is not None
         return oss2.Bucket(auth, 'http://oss-' + self.region + '.aliyuncs.com', bucket_name)
 
     @provide_bucket_name
@@ -363,7 +364,7 @@ class OSSHook(BaseHook):
         else:
             raise Exception("Unsupported auth_type: " + auth_type)
 
-    def get_default_region(self) -> str:
+    def get_default_region(self) -> Optional[str]:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get('auth_type', None)
         if not auth_type:
