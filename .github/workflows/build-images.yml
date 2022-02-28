@@ -31,6 +31,7 @@ env:
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
+  DEBIAN_VERSION: "bullseye"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}

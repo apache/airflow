@@ -568,7 +568,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-buster"
+                            "default": "6-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
