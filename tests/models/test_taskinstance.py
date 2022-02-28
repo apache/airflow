@@ -2004,7 +2004,7 @@ class TestTaskInstance:
             'metadata': {
                 'annotations': {
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00:00:00+00:00',
+                    'run_id': 'test_run_id',
                     'task_id': 'op1',
                     'try_number': '1',
                 },
@@ -2012,7 +2012,7 @@ class TestTaskInstance:
                     'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00_00_00_plus_00_00',
+                    'run_id': 'test_run_id',
                     'kubernetes_executor': 'True',
                     'task_id': 'op1',
                     'try_number': '1',
