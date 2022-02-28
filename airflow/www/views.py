@@ -1163,7 +1163,7 @@ class Airflow(AirflowBaseView):
     def dag_details(self, dag_id, session=None):
         """Get Dag details."""
         dag = current_app.dag_bag.get_dag(dag_id)
-        dag_model = DagModel.get_dagmodel(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
         title = "DAG Details"
         root = request.args.get('root', '')
@@ -1181,6 +1181,18 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
+        attrs_to_avoid = ["NUM_DAGS_PER_DAGRUN_QUERY", "serialized_dag", "tags"]
+        attrs_to_avoid.extend(*wwwutils.get_attr_renderer().keys())
+        dag_model_attrs: List[Tuple[str, Any]] = [
+            (attr_name, attr)
+            for attr_name, attr in (
+                (attr_name, getattr(dag_model, attr_name))
+                for attr_name in dir(dag_model)
+                if not attr_name.startswith("_") and attr_name not in attrs_to_avoid
+            )
+            if not callable(attr)
+        ]
+
         return self.render_template(
             'airflow/dag_details.html',
             dag=dag,
@@ -1190,7 +1202,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
-            dag_model=dag_model,
+            dag_model_attrs=dag_model_attrs,
         )
 
     @expose('/rendered-templates')
