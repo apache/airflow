@@ -30,7 +30,7 @@ import logging
 import sys
 import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import boto3
 import botocore
@@ -48,13 +48,25 @@ else:
 
 from dateutil.tz import tzlocal
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class _SessionFactory(LoggingMixin):
+class BaseSessionFactory(LoggingMixin):
+    """
+    Base AWS Session Factory class to handle boto3 session creation.
+    It can handle most of the AWS supported authentication methods.
+
+    User can also derive from this class to have full control of boto3 session
+    creation or to support custom federation.
+
+    .. seealso::
+        :ref:`howto/connection:aws:session-factory`
+    """
+
     def __init__(self, conn: Connection, region_name: Optional[str], config: Config) -> None:
         super().__init__()
         self.conn = conn
@@ -82,13 +94,17 @@ class _SessionFactory(LoggingMixin):
 
         return self._create_session_with_assume_role(session_kwargs=session_kwargs)
 
-    def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
-        aws_session_token = self.extra_config.get("aws_session_token")
+    def _get_region_name(self) -> Optional[str]:
         region_name = self.region_name
         if self.region_name is None and 'region_name' in self.extra_config:
             self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
             region_name = self.extra_config["region_name"]
+        return region_name
+
+    def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
+        aws_session_token = self.extra_config.get("aws_session_token")
+        region_name = self._get_region_name()
         self.log.debug(
             "Creating session with aws_access_key_id=%s region_name=%s",
             aws_access_key_id,
@@ -421,7 +437,7 @@ class AwsBaseHook(BaseHook):
                 )
                 self.config = Config(**extra_config["config_kwargs"])
 
-            session = _SessionFactory(
+            session = SessionFactory(
                 conn=connection_object, region_name=region_name, config=self.config
             ).create_session()
 
@@ -632,3 +648,19 @@ def _parse_s3_config(
             logging.warning("Option Error in parsing s3 config file")
             raise
         return access_key, secret_key
+
+
+def resolve_session_factory() -> Type[BaseSessionFactory]:
+    """Resolves custom SessionFactory class"""
+    clazz = conf.getimport("aws", "session_factory", fallback=None)
+    if not clazz:
+        return BaseSessionFactory
+    if not issubclass(clazz, BaseSessionFactory):
+        raise TypeError(
+            f"Your custom AWS SessionFactory class `{clazz.__name__}` is not a subclass "
+            f"of `{BaseSessionFactory.__name__}`."
+        )
+    return clazz
+
+
+SessionFactory = resolve_session_factory()

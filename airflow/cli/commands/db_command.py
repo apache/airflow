@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
@@ -48,6 +49,51 @@ def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db.upgradedb(version_range=args.range, revision_range=args.revision_range)
     print("Upgrades done")
+
+
+@cli_utils.action_cli(check_db=False)
+def downgrade(args):
+    """Downgrades the metadata database"""
+    if args.revision and args.version:
+        raise SystemExit("Cannot supply both `revision` and `version`.")
+    if args.from_version and args.from_revision:
+        raise SystemExit("`--from-revision` may not be combined with `--from-version`")
+    if (args.from_revision or args.from_version) and not args.sql_only:
+        raise SystemExit("Args `--from-revision` and `--from-version` may only be used with `--sql-only`")
+    if not (args.version or args.revision):
+        raise SystemExit("Must provide either revision or version.")
+    from_revision = None
+    if args.from_revision:
+        from_revision = args.from_revision
+    elif args.from_version:
+        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        if not from_revision:
+            raise SystemExit(f"Unknown version {args.version!r} supplied as `--from-version`.")
+    if args.version:
+        revision = REVISION_HEADS_MAP.get(args.version)
+        if not revision:
+            raise SystemExit(f"Downgrading to version {args.version} is not supported.")
+    elif args.revision:
+        revision = args.revision
+    if not args.sql_only:
+        print("Performing downgrade with database " + repr(settings.engine.url))
+    else:
+        print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
+
+    if args.sql_only or (
+        args.yes
+        or input(
+            "\nWarning: About to reverse schema migrations for the airflow metastore. "
+            "Please ensure you have backed up your database before any upgrade or "
+            "downgrade operation. Proceed? (y/n)\n"
+        ).upper()
+        == "Y"
+    ):
+        db.downgrade(to_revision=revision, from_revision=from_revision, sql=args.sql_only)
+        if not args.sql_only:
+            print("Downgrade complete")
+    else:
+        raise SystemExit("Cancelled")
 
 
 def check_migrations(args):

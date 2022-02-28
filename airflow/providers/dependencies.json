@@ -30,6 +30,9 @@
   "apache.livy": [
     "http"
   ],
+  "dbt.cloud": [
+    "http"
+  ],
   "dingding": [
     "http"
   ],
@@ -84,5 +87,8 @@
   ],
   "snowflake": [
     "slack"
+  ],
+  "trino": [
+    "google"
   ]
 }

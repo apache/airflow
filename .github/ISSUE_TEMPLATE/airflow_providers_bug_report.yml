@@ -44,6 +44,7 @@ body:
         - cncf-kubernetes
         - databricks
         - datadog
+        - dbt-cloud
         - dingding
         - discord
         - docker

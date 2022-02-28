@@ -376,6 +376,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``all_success`` (default): All upstream tasks have succeeded
 * ``all_failed``: All upstream tasks are in a ``failed`` or ``upstream_failed`` state
 * ``all_done``: All upstream tasks are done with their execution
+* ``all_skipped``: All upstream tasks are in a ``skipped`` state
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
