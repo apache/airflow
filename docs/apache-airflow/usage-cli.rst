@@ -220,7 +220,6 @@ Beware cascading deletes
 
 Keep in mind that some tables have foreign key relationships defined with ``ON DELETE CASCADE`` so deletes in one table may trigger deletes in others.  For example, the ``task_instance`` table keys to the ``dag_run`` table, so if a DagRun record is deleted, all of its associated task instances will also be deleted.
 
-
 Special handling for DAG runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
