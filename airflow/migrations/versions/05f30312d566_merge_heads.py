@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""merge heads
+"""Merge migrations Heads
 
 Revision ID: 05f30312d566
 Revises: 86770d1215c0, 0e2a74e0fc9f
@@ -28,6 +28,7 @@ revision = '05f30312d566'
 down_revision = ('86770d1215c0', '0e2a74e0fc9f')
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 
 def upgrade():

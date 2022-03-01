@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase length of email and username
+"""Increase length of email and username in ``ab_user`` and ``ab_register_user`` table to ``256`` characters
 
 Revision ID: 5e3ec427fdd3
 Revises: 587bdf053233
@@ -32,6 +32,7 @@ revision = '5e3ec427fdd3'
 down_revision = '587bdf053233'
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 def upgrade():

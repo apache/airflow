@@ -35,6 +35,7 @@ revision = 'bbf4a7ad0465'
 down_revision = 'cf5dc11e79ad'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def get_table_constraints(conn, table_name):

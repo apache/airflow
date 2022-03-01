@@ -121,6 +121,7 @@ lint-dockerfile
 lint-openapi
 markdownlint
 mermaid
+migration-reference
 mixed-line-ending
 mypy
 mypy-helm

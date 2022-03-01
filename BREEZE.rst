@@ -2296,16 +2296,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
                  end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
                  identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
-                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
-                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
-                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
-                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
-                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
-                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
-                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-supported-versions update-versions vendor-k8s-json-schema
-                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid
+                 migration-reference mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports persist-credentials-disabled pre-commit-descriptions
+                 pre-commit-hook-names pretty-format-json provide-create-sessions
+                 providers-changelogs providers-init-file providers-subpackages-init-file
+                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
+                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
+                 update-extras update-local-yml-file update-setup-cfg-file update-supported-versions
+                 update-versions vendor-k8s-json-schema verify-db-migrations-documented version-sync
+                 www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

@@ -35,6 +35,7 @@ revision = '45ba3f1493b9'
 down_revision = '364159666cbd'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 __tablename__ = "rendered_task_instance_fields"
 k8s_pod_yaml = Column('k8s_pod_yaml', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)

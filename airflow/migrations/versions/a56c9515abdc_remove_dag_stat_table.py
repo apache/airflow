@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Remove dag_stat table
+"""Remove ``dag_stat`` table
 
 Revision ID: a56c9515abdc
 Revises: c8ffec048a3b
@@ -32,6 +32,7 @@ revision = 'a56c9515abdc'
 down_revision = 'c8ffec048a3b'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.3'
 
 
 def upgrade():

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add pool_slots field to task_instance
+"""Add ``pool_slots`` field to ``task_instance``
 
 Revision ID: a4c2fd67d16b
 Revises: 7939bcff74ba
@@ -32,6 +32,7 @@ revision = 'a4c2fd67d16b'
 down_revision = '7939bcff74ba'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.10'
 
 
 def upgrade():

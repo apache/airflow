@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""fix description field in connection to be text
+"""Fix description field in ``connection`` to be ``text``
 
 Revision ID: 64a7d6477aae
 Revises: f5b5ec089444
@@ -32,10 +32,11 @@ revision = '64a7d6477aae'
 down_revision = '61ec73d9401f'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def upgrade():
-    """Apply fix description field in connection to be text"""
+    """Apply Fix description field in ``connection`` to be ``text``"""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
@@ -54,7 +55,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply fix description field in connection to be text"""
+    """Unapply Fix description field in ``connection`` to be ``text``"""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
