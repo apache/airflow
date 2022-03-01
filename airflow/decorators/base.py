@@ -476,7 +476,7 @@ class TaskDecorator(Protocol):
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool],
+        multiple_outputs: Optional[bool] = None,
         **kwargs: Any,
     ) -> Callable[[Function], Task[Function]]:
         """For the decorator factory ``@task()`` case."""

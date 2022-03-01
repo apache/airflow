@@ -20,7 +20,7 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
 
 from airflow.decorators.base import Function, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
