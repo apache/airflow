@@ -9,7 +9,6 @@ New Features
 - Add envFrom to the flower deployment (#21401)
 - Add annotations to cleanup pods (#21484)
 
-
 Improvements
 """"""""""""
 
@@ -17,13 +16,11 @@ Improvements
 - Update git-sync to v3.4.0 (#21309)
 - Remove default auth backend setting (#21640)
 
-
 Bug Fixes
 """""""""
 - Fix elasticsearch URL when username/password are empty (#21222)
 - Mount `airflow.cfg` in wait-for-airflow-migrations containers (#20609)
 - Grant pod log reader to triggerer serviceaccount (#21111)
-
 
 Doc only changes
 """"""""""""""""
@@ -34,8 +31,6 @@ Doc only changes
 Misc
 """"
 - Use ``2.2.4`` as default Airflow version (#21745)
-
-
 
 Airflow Helm Chart 1.4.0, 2022-01-10
 ------------------------------------
