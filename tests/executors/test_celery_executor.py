@@ -188,7 +188,7 @@ class TestCeleryExecutor:
                 'command',
                 1,
                 None,
-                SimpleTaskInstance(ti=TaskInstance(task=task, run_id=None)),
+                SimpleTaskInstance.from_ti(ti=TaskInstance(task=task, run_id=None)),
             )
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
@@ -221,7 +221,7 @@ class TestCeleryExecutor:
                 'command',
                 1,
                 None,
-                SimpleTaskInstance(ti=TaskInstance(task=task, run_id=None)),
+                SimpleTaskInstance.from_ti(ti=TaskInstance(task=task, run_id=None)),
             )
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple

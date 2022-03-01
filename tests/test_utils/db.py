@@ -35,6 +35,7 @@ from airflow.models import (
     errors,
 )
 from airflow.models.dagcode import DagCode
+from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
@@ -87,6 +88,11 @@ def clear_db_variables():
 def clear_db_dag_code():
     with create_session() as session:
         session.query(DagCode).delete()
+
+
+def clear_db_callbacks():
+    with create_session() as session:
+        session.query(DbCallbackRequest).delete()
 
 
 def set_default_pool_slots(slots):

@@ -35,6 +35,7 @@ from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -631,7 +632,7 @@ class SchedulerJob(BaseJob):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance(ti),
+                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
                     self.executor.send_callback(request)
@@ -665,9 +666,14 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
-            self.executor.callback_sink = PipeCallbackSink(
-                get_sink_pipe=self.processor_agent.get_callbacks_pipe
-            )
+            if conf.getboolean("scheduler", "standalone_dag_processor"):
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                self.executor.callback_sink = DatabaseCallbackSink()
+            else:
+                self.log.debug("Using PipeCallbackSink as callback sink.")
+                self.executor.callback_sink = PipeCallbackSink(
+                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
+                )
 
             self.executor.start()
 
@@ -833,6 +839,7 @@ class SchedulerJob(BaseJob):
         :rtype: int
         """
         # Put a check in place to make sure we don't commit unexpectedly
+        callbacks_to_send = []
         with prohibit_commit(session) as guard:
 
             if settings.USE_JOB_SCHEDULE:
@@ -858,7 +865,7 @@ class SchedulerJob(BaseJob):
                     self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                     continue
 
-                self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                callbacks_to_send.append((dag, callback_to_run))
 
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
@@ -868,17 +875,18 @@ class SchedulerJob(BaseJob):
                 if self.executor.slots_available <= 0:
                     # We know we can't do anything here, so don't even try!
                     self.log.debug("Executor full, skipping critical section")
-                    return 0
+                    num_queued_tis = 0
+                else:
 
-                timer = Stats.timer('scheduler.critical_section_duration')
-                timer.start()
+                    timer = Stats.timer('scheduler.critical_section_duration')
+                    timer.start()
 
-                # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                num_queued_tis = self._critical_section_execute_task_instances(session=session)
+                    # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
+                    num_queued_tis = self._critical_section_execute_task_instances(session=session)
 
-                # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
-                # metric, way down
-                timer.stop(send=True)
+                    # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
+                    # metric, way down
+                    timer.stop(send=True)
             except OperationalError as e:
                 timer.stop(send=False)
 
@@ -890,7 +898,12 @@ class SchedulerJob(BaseJob):
                 raise
 
             guard.commit()
-            return num_queued_tis
+        # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+        # so it must be done outside of prohibit_commit.
+        for (dag, callback_to_run) in callbacks_to_send:
+            self._send_dag_callbacks_to_processor(dag, callback_to_run)
+
+        return num_queued_tis
 
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
@@ -1084,6 +1097,7 @@ class SchedulerJob(BaseJob):
             )
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
+            self.log.info("DagCallbackRequest %s", callback_to_execute)
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
             # Because we send the callback here, we need to return None
             return callback
@@ -1128,6 +1142,8 @@ class SchedulerJob(BaseJob):
         self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.executor.send_callback(callback)
+        else:
+            self.log.info("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
@@ -1296,7 +1312,7 @@ class SchedulerJob(BaseJob):
         for ti, file_loc in zombies:
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                simple_task_instance=SimpleTaskInstance(ti),
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=f"Detected {ti} as zombie",
             )
             self.log.error("Detected zombie job: %s", request)
