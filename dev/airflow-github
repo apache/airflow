@@ -119,13 +119,9 @@ def is_core_commit(files: List[str]) -> bool:
         # chart
         "chart/",
         "docs/helm-chart/",
-        # Everything except scripts/in_container
-        "scripts/ci",
-        "scripts/docker",
-        "scripts/systemd",
-        "scripts/tools",
         "clients",
         # non-released docs
+        "COMMITTERS.rst",
         "CONTRIBUTING.rst",
         "CONTRIBUTORS_QUICK_START.rst",
         "IMAGES.rst",
@@ -135,6 +131,11 @@ def is_core_commit(files: List[str]) -> bool:
         "README.md",
         "BREEZE.rst",
         "CI.rst",
+        "CI_DIAGRAMS.md",
+        "SELECTIVE_CHECKS.md",
+        "STATIC_CODE_CHECKS.rst",
+        "images/",
+        "TESTING.rst",
         # dev/release/testing
         "breeze",
         "codecov.yml",
@@ -146,13 +147,20 @@ def is_core_commit(files: List[str]) -> bool:
         ".markdownlint.yml",
         "tests/",
         "dev/",
+        "Dockerfile",
         "Dockerfile.ci",
+        ".hadolint.yaml",
+        "scripts/",
+        "docs/build_docs.py",
+        "docs/start_doc_server.sh",
         # Misc
         "airflow/ui",
         ".dockerignore",
         "docs/spelling_wordlist.txt",
         "docs/integration-logos/*",
         "docs/exts/",
+        "docs/docker-stack",
+        "docs/README.rst",
     ]
 
     for file in files:
@@ -315,8 +323,6 @@ def needs_categorization(previous_version, target_version, show_skipped, show_fi
                     if show_files:
                         for f in files:
                             print(f"\t{f}")
-            else:
-                print(f"**** {commit['subject']}: Already categorized")
         else:
             print(f"Commit '{commit['id']}' is missing PR number: {commit['subject']}")
 

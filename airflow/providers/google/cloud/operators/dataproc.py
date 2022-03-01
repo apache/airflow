@@ -756,9 +756,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :param cluster_name: Required. The cluster name (templated).
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
         if cluster with specified UUID does not exist.
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
@@ -785,9 +785,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         region: str,
         cluster_name: str,
+        project_id: Optional[str] = None,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -1499,7 +1499,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     """
     Creates new workflow template.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param template: The Dataproc workflow template to create. If a dict is provided,
@@ -1519,8 +1519,8 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self,
         *,
         template: Dict,
-        project_id: str,
         region: Optional[str] = None,
+        project_id: Optional[str] = None,
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -1759,7 +1759,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     """
     Submits a job to a cluster.
 
-    :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
@@ -1798,8 +1798,8 @@ class DataprocSubmitJobOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         job: Dict,
+        project_id: Optional[str] = None,
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
@@ -1876,8 +1876,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
     """
     Updates a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param cluster_name: Required. The cluster name.
     :param cluster: Required. The changes to the cluster.
@@ -1993,7 +1993,7 @@ class DataprocCreateBatchOperator(BaseOperator):
     """
     Creates a batch workload.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to. (templated)
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
@@ -2031,7 +2031,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         self,
         *,
         region: Optional[str] = None,
-        project_id: str,
+        project_id: Optional[str] = None,
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
@@ -2101,8 +2101,8 @@ class DataprocDeleteBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2126,7 +2126,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -2165,8 +2165,8 @@ class DataprocGetBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2191,7 +2191,7 @@ class DataprocGetBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str,
+        project_id: Optional[Retry] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -2230,8 +2230,8 @@ class DataprocListBatchesOperator(BaseOperator):
     """
     Lists batch workloads.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param page_size: Optional. The maximum number of batches to return in each response. The service may
         return fewer than this value. The default page size is 20; the maximum page size is 1000.
     :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
