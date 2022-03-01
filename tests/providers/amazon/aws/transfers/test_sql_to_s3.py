@@ -21,7 +21,9 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pandas as pd
+import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
@@ -102,6 +104,46 @@ class TestSqlToS3Operator(unittest.TestCase):
                 filename=f.name, key=s3_key, bucket_name=s3_bucket, replace=False
             )
 
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_json(self, mock_s3_hook, temp_mock):
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        mock_dbapi_hook = mock.Mock()
+        test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
+        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
+        get_pandas_df_mock.return_value = test_df
+        with NamedTemporaryFile() as f:
+            temp_mock.return_value.__enter__.return_value.name = f.name
+
+            op = SqlToS3Operator(
+                query=query,
+                s3_bucket=s3_bucket,
+                s3_key=s3_key,
+                sql_conn_id="mysql_conn_id",
+                aws_conn_id="aws_conn_id",
+                task_id="task_id",
+                file_format="json",
+                replace=True,
+                pd_kwargs={'date_format': "iso", 'lines': True, 'orient': "records"},
+                dag=None,
+            )
+            op._get_hook = mock_dbapi_hook
+            op.execute(None)
+            mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+
+            get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+
+            temp_mock.assert_called_once_with(mode='r+', suffix=".json")
+            mock_s3_hook.return_value.load_file.assert_called_once_with(
+                filename=f.name,
+                key=s3_key,
+                bucket_name=s3_bucket,
+                replace=True,
+            )
+
     def test_fix_int_dtypes(self):
         op = SqlToS3Operator(
             query="query",
@@ -113,3 +155,15 @@ class TestSqlToS3Operator(unittest.TestCase):
         dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
         op._fix_int_dtypes(df=dirty_df)
         assert dirty_df["ints"].dtype.kind == "i"
+
+    def test_invalid_file_format(self):
+        with pytest.raises(AirflowException):
+            SqlToS3Operator(
+                query="query",
+                s3_bucket="bucket",
+                s3_key="key",
+                sql_conn_id="mysql_conn_id",
+                task_id="task_id",
+                file_format="invalid_format",
+                dag=None,
+            )

@@ -35,7 +35,7 @@ from airflow.models import (
     Base,
     DagModel,
     DagRun,
-    ImportError,
+    ImportError as models_ImportError,
     Log,
     RenderedTaskInstanceFields,
     SensorInstance,
@@ -102,7 +102,7 @@ config_list: List[_TableConfig] = [
         keep_last_filters=[DagRun.external_trigger == false()],
         keep_last_group_by=DagRun.dag_id,
     ),
-    _TableConfig(orm_model=ImportError, recency_column=ImportError.timestamp),
+    _TableConfig(orm_model=models_ImportError, recency_column=models_ImportError.timestamp),
     _TableConfig(orm_model=Log, recency_column=Log.dttm),
     _TableConfig(
         orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date

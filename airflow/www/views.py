@@ -74,6 +74,7 @@ from flask_appbuilder.security.views import (
     UserStatsChartView,
     ViewMenuModelView,
 )
+from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
@@ -129,7 +130,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.widgets import AirflowModelListWidget
+from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -4073,6 +4074,9 @@ class VariableModelView(AirflowModelView):
 
     list_template = 'airflow/variable_list.html'
     edit_template = 'airflow/variable_edit.html'
+    show_template = 'airflow/variable_show.html'
+
+    show_widget = AirflowVariableShowWidget
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # type: ignore
 
@@ -4081,6 +4085,7 @@ class VariableModelView(AirflowModelView):
         'add': 'create',
         'list': 'read',
         'edit': 'edit',
+        'show': 'read',
         'delete': 'delete',
         'action_muldelete': 'delete',
         'action_varexport': 'read',
@@ -4096,6 +4101,7 @@ class VariableModelView(AirflowModelView):
     list_columns = ['key', 'val', 'description', 'is_encrypted']
     add_columns = ['key', 'val', 'description']
     edit_columns = ['key', 'val', 'description']
+    show_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
@@ -4120,6 +4126,26 @@ class VariableModelView(AirflowModelView):
     def prefill_form(self, form, request_id):
         if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
+
+    def prefill_show(self, item):
+        if secrets_masker.should_hide_value_for_key(item.key):
+            item.val = '*' * 8
+
+    def _show(self, pk):
+        pages = get_page_args()
+        page_sizes = get_page_size_args()
+        orders = get_order_args()
+
+        item = self.datamodel.get(pk, self._base_filters)
+        if not item:
+            abort(404)
+        self.prefill_show(item)
+        widgets = self._get_show_widget(pk, item)
+        self.update_redirect()
+
+        return self._get_related_views_widgets(
+            item, orders=orders, pages=pages, page_sizes=page_sizes, widgets=widgets
+        )
 
     extra_args = {"can_create_variable": _can_create_variable}
 

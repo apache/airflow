@@ -110,7 +110,7 @@ For details about installation, see: :ref:`executor:CeleryExecutor`. For details
 CLI Check for Celery Workers
 ----------------------------
 
-To verify that the database is working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
+To verify that the Celery workers are working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
 with a non-zero error code.
 
 To check if the worker running on the local host is working correctly, run:
