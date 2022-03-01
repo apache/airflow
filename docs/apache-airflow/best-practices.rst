@@ -606,10 +606,10 @@ A *better* way (though it's a bit more manual) is to use the ``dags pause`` comm
 
 .. _integration-test-dags:
 
-Add "integration test" dags
+Add "integration test" DAGs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It can be helpful to add a couple "integration test" dags that use all the common services in your ecosystem (e.g. s3, snowflake, vault) but with dummy resources or "dev" accounts.  These test dags can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  But if they succeed they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 Prune data before upgrading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
