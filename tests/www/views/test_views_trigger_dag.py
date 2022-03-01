@@ -217,16 +217,3 @@ def test_viewer_cant_trigger_dag(app):
         resp = client.get(url, follow_redirects=True)
         response_data = resp.data.decode()
         assert "Access is Denied" in response_data
-
-
-@pytest.mark.parametrize("test_run_id , expected_run_id", [('test_id', 'test_id'), (None, DagRunType.MANUAL)])
-def test_trigger_dag_run_id(admin_client, test_run_id, expected_run_id):
-    test_dag_id = "example_bash_operator"
-
-    admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={test_run_id}')
-
-    with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
-    assert run is not None
-    assert run.run_type == DagRunType.MANUAL
-    assert expected_run_id in run.run_id
