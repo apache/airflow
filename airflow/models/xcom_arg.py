@@ -69,7 +69,7 @@ class XComArg(DependencyMixin):
     def __getitem__(self, item: str) -> "XComArg":
         """Implements xcomresult['some_result_key']"""
         if not isinstance(item, str):
-            raise ValueError("XComArg only supports str lookup")
+            raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return XComArg(operator=self.operator, key=item)
 
     def __iter__(self):
