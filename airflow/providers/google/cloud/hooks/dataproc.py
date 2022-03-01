@@ -582,6 +582,127 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def start_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_config: Union[Dict, Cluster],
+        labels: Optional[Dict[str, str]] = None,
+        request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+    ):
+        """
+        Starts a cluster in a project.
+
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+        :param region: Required. The Cloud Dataproc region in which to handle the request.
+        :param cluster_name: Name of the cluster to create
+        :param labels: Labels that will be assigned to created cluster
+        :param cluster_config: Required. The cluster config to create.
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :param request_id: Optional. A unique id used to identify the request. If the server receives two
+            ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
+            the first ``google.longrunning.Operation`` created and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        # Dataproc labels must conform to the following regex:
+        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
+        # semantic versioning spec: x.y.z).
+        labels = labels or {}
+        labels.update({'airflow-version': 'v' +
+                      airflow_version.replace('.', '-').replace('+', '-')})
+
+        cluster = {
+            "project_id": project_id,
+            "cluster_name": cluster_name,
+            "config": cluster_config,
+            "labels": labels,
+        }
+
+        client = self.get_cluster_client(region=region)
+        result = client.start_cluster(
+            request={
+                'project_id': project_id,
+                'region': region,
+                'cluster': cluster,
+                'request_id': request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def stop_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_config: Union[Dict, Cluster],
+        labels: Optional[Dict[str, str]] = None,
+        request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
+    ):
+        """
+        Stops a cluster in a project.
+
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+        :param region: Required. The Cloud Dataproc region in which to handle the request.
+        :param cluster_name: Name of the cluster to create
+        :param labels: Labels that will be assigned to created cluster
+        :param cluster_config: Required. The cluster config to create.
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :param request_id: Optional. A unique id used to identify the request. If the server receives two
+            ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
+            the first ``google.longrunning.Operation`` created and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        # Dataproc labels must conform to the following regex:
+        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
+        # semantic versioning spec: x.y.z).
+        labels = labels or {}
+        labels.update({'airflow-version': 'v' +
+                      airflow_version.replace('.', '-').replace('+', '-')})
+
+        cluster = {
+            "project_id": project_id,
+            "cluster_name": cluster_name,
+            "config": cluster_config,
+            "labels": labels,
+        }
+
+        client = self.get_cluster_client(region=region)
+        result = client.stop_cluster(
+            request={
+                'project_id': project_id,
+                'region': region,
+                'cluster': cluster,
+                'request_id': request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow_template(
         self,
         template: Union[Dict, WorkflowTemplate],
