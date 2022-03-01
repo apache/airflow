@@ -130,7 +130,7 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
     sensitive_config_values = {
-        ('core', 'sql_alchemy_conn'),
+        ('database', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'flower_basic_auth'),
@@ -337,7 +337,7 @@ class AirflowConfigParser(ConfigParser):
             'DebugExecutor',
             'SequentialExecutor',
         )
-        is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
+        is_sqlite = "sqlite" in self.get('database', 'sql_alchemy_conn')
         if is_sqlite and is_executor_without_sqlite_support:
             raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
         if is_sqlite:
