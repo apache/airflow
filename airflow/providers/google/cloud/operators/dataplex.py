@@ -17,12 +17,13 @@
 
 """This module contains Google Dataplex operators."""
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Union
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from google.api_core.retry import exponential_sleep_generator
+from google.api_core.retry import Retry, exponential_sleep_generator
+from google.cloud.dataplex_v1.types import Task
 from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
@@ -48,6 +49,14 @@ class DataplexCreateTaskOperator(BaseOperator):
     :type validate_only: bool
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -87,6 +96,9 @@ class DataplexCreateTaskOperator(BaseOperator):
         dataplex_task_id: str,
         validate_only: Optional[bool] = None,
         api_version: str = "v1",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -102,6 +114,9 @@ class DataplexCreateTaskOperator(BaseOperator):
         self.dataplex_task_id = dataplex_task_id
         self.validate_only = validate_only
         self.api_version = api_version
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -124,14 +139,18 @@ class DataplexCreateTaskOperator(BaseOperator):
                 body=self.body,
                 dataplex_task_id=self.dataplex_task_id,
                 validate_only=self.validate_only,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
             )
             if not self.asynchronous:
                 self.log.info("Waiting for Dataplex task %s to be created", self.dataplex_task_id)
-                task = hook.wait_for_operation(operation)
+                task = hook.wait_for_operation(timeout=1200, operation=operation)
                 self.log.info("Task %s created successfully", self.dataplex_task_id)
             else:
-                self.log.info("Is operation done already? %s", operation['done'])
-                return operation
+                is_done = operation.done()
+                self.log.info("Is operation done already? %s", is_done)
+                return is_done
         except HttpError as err:
             if err.resp.status not in (409, '409'):
                 raise
@@ -143,12 +162,15 @@ class DataplexCreateTaskOperator(BaseOperator):
                     region=self.region,
                     lake_id=self.lake_id,
                     dataplex_task_id=self.dataplex_task_id,
+                    retry=self.retry,
+                    timeout=self.timeout,
+                    metadata=self.metadata,
                 )
                 if task['state'] != 'CREATING':
                     break
                 sleep(time_to_wait)
 
-        return task
+        return Task.to_dict(task)
 
 
 class DataplexDeleteTaskOperator(BaseOperator):
@@ -165,6 +187,14 @@ class DataplexDeleteTaskOperator(BaseOperator):
     :type dataplex_task_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -190,6 +220,9 @@ class DataplexDeleteTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -202,6 +235,9 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.lake_id = lake_id
         self.dataplex_task_id = dataplex_task_id
         self.api_version = api_version
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -220,8 +256,11 @@ class DataplexDeleteTaskOperator(BaseOperator):
             region=self.region,
             lake_id=self.lake_id,
             dataplex_task_id=self.dataplex_task_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
-        hook.wait_for_operation(operation)
+        hook.wait_for_operation(timeout=1200, operation=operation)
         self.log.info("Dataplex task %s deleted successfully!", self.dataplex_task_id)
 
 
@@ -249,6 +288,14 @@ class DataplexListTasksOperator(BaseOperator):
     :type order_by: Optional[str]
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -285,6 +332,9 @@ class DataplexListTasksOperator(BaseOperator):
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
         api_version: str = "v1",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -300,6 +350,9 @@ class DataplexListTasksOperator(BaseOperator):
         self.filter = filter
         self.order_by = order_by
         self.api_version = api_version
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -321,8 +374,11 @@ class DataplexListTasksOperator(BaseOperator):
             page_token=self.page_token,
             filter=self.filter,
             order_by=self.order_by,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
-        return tasks
+        return [Task.to_dict(task) for task in tasks]
 
 
 class DataplexGetTaskOperator(BaseOperator):
@@ -339,6 +395,14 @@ class DataplexGetTaskOperator(BaseOperator):
     :type dataplex_task_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -364,6 +428,9 @@ class DataplexGetTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -376,6 +443,9 @@ class DataplexGetTaskOperator(BaseOperator):
         self.lake_id = lake_id
         self.dataplex_task_id = dataplex_task_id
         self.api_version = api_version
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -394,5 +464,8 @@ class DataplexGetTaskOperator(BaseOperator):
             region=self.region,
             lake_id=self.lake_id,
             dataplex_task_id=self.dataplex_task_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
-        return task
+        return Task.to_dict(task)

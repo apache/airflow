@@ -16,12 +16,13 @@
 # under the License.
 
 """This module contains Google Dataplex hook."""
-import os
-from time import sleep
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-from google.api_core.retry import exponential_sleep_generator
-from googleapiclient.discovery import Resource, build
+from google.api_core.operation import Operation
+from google.api_core.retry import Retry
+from google.cloud.dataplex_v1 import DataplexServiceClient
+from google.cloud.dataplex_v1.types import Task
+from googleapiclient.discovery import Resource
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -65,30 +66,21 @@ class DataplexHook(GoogleBaseHook):
         )
         self.api_version = api_version
 
-    def get_conn(self) -> Resource:
-        """Retrieves connection to Dataplex."""
-        if not self._conn:
-            http_authorized = self._authorize()
-            self._conn = build(
-                "dataplex",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
-            )
-        return self._conn
+    def get_dataplex_client(self) -> DataplexServiceClient:
+        """Returns DataplexServiceClient."""
+        client_options = {'api_endpoint': 'dataplex.googleapis.com:443'}
 
-    def wait_for_operation(self, operation: Dict[str, Any]) -> Dict[str, Any]:
+        return DataplexServiceClient(
+            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+        )
+
+    def wait_for_operation(self, timeout: Optional[float], operation: Operation):
         """Waits for long-lasting operation to complete."""
-        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
-            operation = (
-                self.get_conn().projects().locations().operations().get(name=operation.get("name")).execute()
-            )
-            if operation.get("done"):
-                break
-        if "error" in operation:
-            raise AirflowException(operation["error"])
-        return operation["response"]
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_task(
@@ -96,9 +88,12 @@ class DataplexHook(GoogleBaseHook):
         project_id: str,
         region: str,
         lake_id: str,
-        body: Dict[str, Any],
+        body: Union[Dict[str, Any], Task],
         dataplex_task_id: str,
         validate_only: Optional[bool] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ) -> Any:
         """
         Creates a task resource within a lake.
@@ -116,20 +111,29 @@ class DataplexHook(GoogleBaseHook):
         :param validate_only: Optional. Only validate the request, but do not perform mutations.
             The default is false.
         :type validate_only: bool
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
         """
         parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .lakes()
-            .tasks()
-            .create(  # pylint: disable=no-member
-                parent=parent, body=body, taskId=dataplex_task_id, validateOnly=validate_only
-            )
-            .execute(num_retries=self.num_retries)
+
+        client = self.get_dataplex_client()
+        result = client.create_task(
+            request={
+                'parent': parent,
+                'task_id': dataplex_task_id,
+                'task': body,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        return response
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_task(
@@ -138,6 +142,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ) -> Any:
         """
         Delete the task resource.
@@ -150,18 +157,27 @@ class DataplexHook(GoogleBaseHook):
         :type lake_id: str
         :param dataplex_task_id: Required. The ID of the Google Cloud task to be deleted.
         :type dataplex_task_id: str
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
         """
         name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .lakes()
-            .tasks()
-            .delete(name=name)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
+
+        client = self.get_dataplex_client()
+        result = client.delete_task(
+            request={
+                'name': name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        return response
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_tasks(
@@ -173,6 +189,9 @@ class DataplexHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ) -> Any:
         """
         Lists tasks under the given lake.
@@ -195,20 +214,31 @@ class DataplexHook(GoogleBaseHook):
         :type filter: Optional[str]
         :param order_by: Optional. Order by fields for the result.
         :type order_by: Optional[str]
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
         """
         parent = f'projects/{project_id}/locations/{region}/lakes/{lake_id}'
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .lakes()
-            .tasks()
-            .list(  # pylint: disable=no-member
-                parent=parent, pageSize=page_size, pageToken=page_token, filter=filter, orderBy=order_by
-            )
-            .execute(num_retries=self.num_retries)
+
+        client = self.get_dataplex_client()
+        result = client.list_tasks(
+            request={
+                'parent': parent,
+                'page_size': page_size,
+                'page_token': page_token,
+                'filter': filter,
+                'order_by': order_by,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        return response
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_task(
@@ -217,6 +247,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ) -> Any:
         """
         Get task resource.
@@ -229,15 +262,23 @@ class DataplexHook(GoogleBaseHook):
         :type lake_id: str
         :param dataplex_task_id: Required. The ID of the Google Cloud task to be retrieved.
         :type dataplex_task_id: str
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
         """
         name = f'projects/{project_id}/locations/{region}/lakes/{lake_id}/tasks/{dataplex_task_id}'
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .lakes()
-            .tasks()
-            .get(name=name)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
+        client = self.get_dataplex_client()
+        result = client.get_task(
+            request={
+                'name': name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        return response
+        return result

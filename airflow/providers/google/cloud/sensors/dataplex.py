@@ -16,10 +16,12 @@
 # under the License.
 
 """This module contains Google Dataplex sensors."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
@@ -29,11 +31,11 @@ from airflow.sensors.base import BaseSensorOperator
 class TaskState:
     """Dataplex Task states"""
 
-    STATE_UNSPECIFIED = "STATE_UNSPECIFIED"
-    ACTIVE = "ACTIVE"
-    CREATING = "CREATING"
-    DELETING = "DELETING"
-    ACTION_REQUIRED = "ACTION_REQUIRED"
+    STATE_UNSPECIFIED = 0
+    ACTIVE = 1
+    CREATING = 2
+    DELETING = 3
+    ACTION_REQUIRED = 4
 
 
 class DataplexTaskStateSensor(BaseSensorOperator):
@@ -50,6 +52,14 @@ class DataplexTaskStateSensor(BaseSensorOperator):
     :type dataplex_task_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -75,6 +85,9 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -87,6 +100,9 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.lake_id = lake_id
         self.dataplex_task_id = dataplex_task_id
         self.api_version = api_version
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -105,8 +121,11 @@ class DataplexTaskStateSensor(BaseSensorOperator):
             region=self.region,
             lake_id=self.lake_id,
             dataplex_task_id=self.dataplex_task_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
-        task_status = task["state"]
+        task_status = task.state
 
         if task_status == TaskState.DELETING:
             raise AirflowException(f"Task is going to be deleted {self.dataplex_task_id}")

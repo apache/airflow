@@ -25,6 +25,7 @@ from airflow.providers.google.cloud.operators.dataplex import (
 )
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataplex.DataplexHook"
+TASK_STR = "airflow.providers.google.cloud.operators.dataplex.Task"
 
 PROJECT_ID = "project-id"
 REGION = "region"
@@ -40,7 +41,8 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class TestDataplexCreateTaskOperator(TestCase):
     @mock.patch(HOOK_STR)
-    def test_execute(self, hook_mock):
+    @mock.patch(TASK_STR)
+    def test_execute(self, task_mock, hook_mock):
         op = DataplexCreateTaskOperator(
             task_id="create_dataplex_task",
             project_id=PROJECT_ID,
@@ -55,6 +57,7 @@ class TestDataplexCreateTaskOperator(TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
+        task_mock.return_value.to_dict.return_value = None
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -69,6 +72,9 @@ class TestDataplexCreateTaskOperator(TestCase):
             body=BODY,
             dataplex_task_id=DATAPLEX_TASK_ID,
             validate_only=None,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
 
@@ -94,7 +100,13 @@ class TestDataplexDeleteTaskOperator(TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.delete_task.assert_called_once_with(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
 
@@ -126,12 +138,16 @@ class TestDataplexListTasksOperator(TestCase):
             page_token=None,
             filter=None,
             order_by=None,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
 
 class TestDataplexGetTaskOperator(TestCase):
     @mock.patch(HOOK_STR)
-    def test_execute(self, hook_mock):
+    @mock.patch(TASK_STR)
+    def test_execute(self, task_mock, hook_mock):
         op = DataplexGetTaskOperator(
             project_id=PROJECT_ID,
             region=REGION,
@@ -143,6 +159,8 @@ class TestDataplexGetTaskOperator(TestCase):
             delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        hook_mock.return_value.wait_for_operation.return_value = None
+        task_mock.return_value.to_dict.return_value = None
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -151,5 +169,11 @@ class TestDataplexGetTaskOperator(TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.get_task.assert_called_once_with(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
