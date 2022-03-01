@@ -1536,7 +1536,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        update_mask: Union[Dict, FieldMask],
         parameters: Union[Dict, cloud_memcache.MemcacheParameters],
         location: str,
         instance_id: str,
