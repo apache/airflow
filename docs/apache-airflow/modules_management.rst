@@ -359,6 +359,7 @@ When we import this package, it should print the above message.
 
     setuptools.setup(
         name="airflow_operators",
+        packages=setuptools.find_packages(),
     )
 
 5. Build the wheel:

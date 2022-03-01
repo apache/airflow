@@ -24,6 +24,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.models.xcom import IN_MEMORY_DAGRUN_ID, XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
@@ -91,6 +92,11 @@ class TestXCom:
         assert cls().serialize_value([1]) == b"[1]"
 
     def test_xcom_deserialize_with_json_to_pickle_switch(self, dag_run, session):
+        ti_key = TaskInstanceKey(
+            dag_id=dag_run.dag_id,
+            task_id="test_task3",
+            run_id=dag_run.run_id,
+        )
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
             XCom.set(
                 key="xcom_test3",
@@ -101,13 +107,7 @@ class TestXCom:
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(
-                key="xcom_test3",
-                dag_id=dag_run.dag_id,
-                task_id="test_task3",
-                run_id=dag_run.run_id,
-                session=session,
-            )
+            ret_value = XCom.get_one(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
     def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):

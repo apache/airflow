@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Adding extra to Log
+"""Adding ``extra`` column to ``Log`` table
 
 Revision ID: 502898887f84
 Revises: 52d714495f0
@@ -31,6 +31,7 @@ revision = '502898887f84'
 down_revision = '52d714495f0'
 branch_labels = None
 depends_on = None
+airflow_version = '1.6.0'
 
 
 def upgrade():

@@ -1279,6 +1279,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
 
@@ -1486,6 +1494,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
 
@@ -1552,6 +1568,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1627,6 +1651,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
@@ -1669,6 +1701,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
 
   ####################################################################################################
@@ -1872,6 +1912,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  linux/amd64
 
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
           One of:
@@ -1947,6 +1995,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2240,16 +2296,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
                  end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
                  identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
-                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
-                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
-                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
-                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
-                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
-                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
-                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-supported-versions update-versions vendor-k8s-json-schema
-                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid
+                 migration-reference mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports persist-credentials-disabled pre-commit-descriptions
+                 pre-commit-hook-names pretty-format-json provide-create-sessions
+                 providers-changelogs providers-init-file providers-subpackages-init-file
+                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
+                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
+                 update-extras update-local-yml-file update-setup-cfg-file update-supported-versions
+                 update-versions vendor-k8s-json-schema verify-db-migrations-documented version-sync
+                 www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2353,6 +2410,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  linux/amd64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   ****************************************************************************************************
    Choose backend to run for Airflow

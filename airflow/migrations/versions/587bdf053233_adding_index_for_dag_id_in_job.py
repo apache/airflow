@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""adding index for dag_id in job
+"""Add index for ``dag_id`` column in ``job`` table.
 
 Revision ID: 587bdf053233
 Revises: c381b21cb7e4
@@ -31,13 +31,14 @@ revision = '587bdf053233'
 down_revision = 'c381b21cb7e4'
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 def upgrade():
-    """Apply adding index for dag_id in job"""
+    """Apply Add index for ``dag_id`` column in ``job`` table."""
     op.create_index('idx_job_dag_id', 'job', ['dag_id'], unique=False)
 
 
 def downgrade():
-    """Unapply adding index for dag_id in job"""
+    """Unapply Add index for ``dag_id`` column in ``job`` table."""
     op.drop_index('idx_job_dag_id', table_name='job')

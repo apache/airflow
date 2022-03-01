@@ -32,6 +32,7 @@ revision = '52d53670a240'
 down_revision = '98271e7606e2'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 TABLE_NAME = 'rendered_task_instance_fields'
 

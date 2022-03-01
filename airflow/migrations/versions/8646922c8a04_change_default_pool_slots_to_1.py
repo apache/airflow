@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Change default pool_slots to 1
+"""Change default ``pool_slots`` to ``1``
 
 Revision ID: 8646922c8a04
 Revises: 449b4072c2da
@@ -32,15 +32,16 @@ revision = '8646922c8a04'
 down_revision = '449b4072c2da'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.2'
 
 
 def upgrade():
-    """Change default pool_slots to 1 and make pool_slots not nullable"""
+    """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable"""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default='1')
 
 
 def downgrade():
-    """Unapply Change default pool_slots to 1"""
+    """Unapply Change default ``pool_slots`` to ``1``"""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=True, server_default=None)

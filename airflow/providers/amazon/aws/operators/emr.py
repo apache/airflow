@@ -26,6 +26,7 @@ from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -230,7 +231,12 @@ class EmrClusterLink(BaseOperatorLink):
 
     name = 'EMR Cluster'
 
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
         """
         Get link to EMR cluster.
 
@@ -238,9 +244,13 @@ class EmrClusterLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        flow_id = XCom.get_one(
-            key="return_value", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+        if ti_key:
+            flow_id = XCom.get_one(key="return_value", ti_key=ti_key)
+        else:
+            assert dttm
+            flow_id = XCom.get_one(
+                key="return_value", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         return (
             f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
             if flow_id

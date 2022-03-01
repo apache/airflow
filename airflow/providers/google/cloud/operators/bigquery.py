@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQuery
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -82,10 +83,19 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
     def name(self) -> str:
         return f'BigQuery Console #{self.index + 1}'
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        job_ids = XCom.get_one(
-            key='job_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ):
+        if ti_key:
+            job_ids = XCom.get_one(key='job_id', ti_key=ti_key)
+        else:
+            assert dttm
+            job_ids = XCom.get_one(
+                key='job_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         if not job_ids:
             return None
         if len(job_ids) < self.index:

@@ -18,7 +18,7 @@
  */
 
 /* global calendarData, statesColors, document, window, $, d3, moment */
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 
 const dagId = getMetaValue('dag_id');
 const treeUrl = getMetaValue('tree_url');

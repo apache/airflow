@@ -19,10 +19,25 @@
 
 /* global document */
 
-export default function getMetaValue(name) {
+export function getMetaValue(name) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {
     return null;
   }
   return elem.getAttribute('content');
 }
+
+export const finalStatesMap = () => new Map([
+  ['success', 0],
+  ['failed', 0],
+  ['upstream_failed', 0],
+  ['up_for_retry', 0],
+  ['up_for_reschedule', 0],
+  ['running', 0],
+  ['deferred', 0],
+  ['sensing', 0],
+  ['queued', 0],
+  ['scheduled', 0],
+  ['skipped', 0],
+  ['no_status', 0],
+]);

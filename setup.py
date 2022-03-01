@@ -551,7 +551,9 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.122.0',
+    # Yandexcloud 0.145 broke logging of the yandexcloud provider. The limitation can be removed once
+    # https://github.com/yandex-cloud/python-sdk/issues/47 is fixed.
+    'yandexcloud>=0.122.0, <0.145.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',
@@ -677,6 +679,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,
     'databricks': databricks,
     'datadog': datadog,
+    'dbt.cloud': http_provider,
     'dingding': [],
     'discord': [],
     'docker': docker,

@@ -425,7 +425,7 @@ def test_external_task_sensor_templated(dag_maker, app):
     # Verify that the operator link uses the rendered value of ``external_dag_id``.
     app.config['SERVER_NAME'] = ""
     with app.app_context():
-        url = instance.task.get_extra_links(DEFAULT_DATE, "External DAG")
+        url = instance.task.get_extra_links(instance, "External DAG")
 
         assert f"tree?dag_id=dag_{DEFAULT_DATE.date()}" in url
 

@@ -35,6 +35,7 @@ revision = '849da589634d'
 down_revision = '45ba3f1493b9'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def prefix_individual_dag_permissions(session):

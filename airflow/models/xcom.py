@@ -50,6 +50,9 @@ XCOM_RETURN_KEY = 'return_value'
 # run without storing it in the database.
 IN_MEMORY_DAGRUN_ID = "__airflow_in_memory_dagrun__"
 
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
+
 
 class BaseXCom(Base, LoggingMixin):
     """Base class for XCom objects."""
@@ -205,11 +208,8 @@ class BaseXCom(Base, LoggingMixin):
     def get_one(
         cls,
         *,
-        run_id: str,
         key: Optional[str] = None,
-        task_id: Optional[str] = None,
-        dag_id: Optional[str] = None,
-        include_prior_dates: bool = False,
+        ti_key: "TaskInstanceKey",
         session: Session = NEW_SESSION,
     ) -> Optional[Any]:
         """Retrieve an XCom value, optionally meeting certain criteria.
@@ -223,19 +223,28 @@ class BaseXCom(Base, LoggingMixin):
         A deprecated form of this function accepts ``execution_date`` instead of
         ``run_id``. The two arguments are mutually exclusive.
 
-        :param run_id: DAG run ID for the task.
+        :param ti_key: The TaskInstanceKey to look up the XCom for
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
-        :param task_id: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param dag_id: Only pull XCom from this DAG. If *None* (default), the
-            DAG of the calling task is used.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified DAG run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
+
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        *,
+        key: Optional[str] = None,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        session: Session = NEW_SESSION,
+    ) -> Optional[Any]:
+        ...
 
     @overload
     @classmethod
@@ -256,24 +265,35 @@ class BaseXCom(Base, LoggingMixin):
         cls,
         execution_date: Optional[datetime.datetime] = None,
         key: Optional[str] = None,
-        task_id: Optional[Union[str, Iterable[str]]] = None,
-        dag_id: Optional[Union[str, Iterable[str]]] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+        if not exactly_one(execution_date is not None, ti_key is not None, run_id is not None):
+            raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
 
-        if run_id is not None:
+        if ti_key is not None:
+            query = session.query(cls).filter_by(
+                dag_id=ti_key.dag_id,
+                run_id=ti_key.run_id,
+                task_id=ti_key.task_id,
+            )
+            if key:
+                query = query.filter_by(key=key)
+            query = query.limit(1)
+        elif run_id:
             query = cls.get_many(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
                 dag_ids=dag_id,
                 include_prior_dates=include_prior_dates,
+                limit=1,
                 session=session,
             )
         elif execution_date is not None:
@@ -288,6 +308,7 @@ class BaseXCom(Base, LoggingMixin):
                     task_ids=task_id,
                     dag_ids=dag_id,
                     include_prior_dates=include_prior_dates,
+                    limit=1,
                     session=session,
                 )
         else:

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add queued_at column to dagrun table
+"""Add ``queued_at`` column in ``dag_run`` table
 
 Revision ID: 97cdd93827b8
 Revises: a13f7613ad25
@@ -34,13 +34,14 @@ revision = '97cdd93827b8'
 down_revision = 'a13f7613ad25'
 branch_labels = None
 depends_on = None
+airflow_version = '2.1.3'
 
 
 def upgrade():
-    """Apply Add queued_at column to dagrun table"""
+    """Apply Add ``queued_at`` column in ``dag_run`` table"""
     op.add_column('dag_run', sa.Column('queued_at', TIMESTAMP, nullable=True))
 
 
 def downgrade():
-    """Unapply Add queued_at column to dagrun table"""
+    """Unapply Add ``queued_at`` column in ``dag_run`` table"""
     op.drop_column('dag_run', "queued_at")
