@@ -1913,7 +1913,14 @@ class DataprocUpdateClusterOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('impersonation_chain', 'cluster_name')
+    template_fields: Sequence[str] = (
+        'cluster_name',
+        'cluster',
+        'region',
+        'request_id',
+        'project_id',
+        'impersonation_chain',
+    )
     operator_extra_links = (DataprocLink(),)
 
     def __init__(
