@@ -803,7 +803,7 @@ class TestDag(unittest.TestCase):
     @parameterized.expand([State.RUNNING, State.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
-        Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
+        Test that DagModel.max_active_runs_reached is updated when the dag cannot be created due to max
         active runs being hit.
         """
         dag = DAG(dag_id='test_scheduler_verify_max_active_runs', start_date=DEFAULT_DATE)
@@ -818,7 +818,7 @@ class TestDag(unittest.TestCase):
         model = session.query(DagModel).get((dag.dag_id,))
 
         assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        assert not model.max_active_runs_reached
 
         dr = dag.create_dagrun(
             state=state,
@@ -831,11 +831,11 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
         # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
-        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        assert model.max_active_runs_reached
+        # test that bulk_write_to_db again doesn't update max_active_runs
         DAG.bulk_write_to_db([dag])
         model = session.query(DagModel).get((dag.dag_id,))
-        assert model.next_dagrun_create_after is None
+        assert model.max_active_runs_reached
 
     def test_bulk_write_to_db_has_import_error(self):
         """

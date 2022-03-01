@@ -2447,10 +2447,11 @@ class DAG(LoggingMixin):
                 data_interval = None
             else:
                 data_interval = dag.get_run_data_interval(run)
+            orm_dag.calculate_dagrun_date_fields(dag, data_interval)
             if num_active_runs.get(dag.dag_id, 0) >= orm_dag.max_active_runs:
-                orm_dag.next_dagrun_create_after = None
+                orm_dag.max_active_runs_reached = True
             else:
-                orm_dag.calculate_dagrun_date_fields(dag, data_interval)
+                orm_dag.max_active_runs_reached = False
 
             dag_tags = set(dag.tags or {})
             orm_dag_tags = list(orm_dag.tags or [])
@@ -2691,6 +2692,7 @@ class DagModel(Base):
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
+    max_active_runs_reached = Column(Boolean(), default=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
     has_import_errors = Column(Boolean(), default=False)
@@ -2879,6 +2881,7 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
+                cls.max_active_runs_reached == expression.false(),
                 cls.next_dagrun_create_after <= func.now(),
             )
             .order_by(cls.next_dagrun_create_after)

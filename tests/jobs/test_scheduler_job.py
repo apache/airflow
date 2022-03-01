@@ -1257,7 +1257,7 @@ class TestSchedulerJob:
         assert session.query(DagRun).count() == 10
         assert session.query(DagRun.state).filter(DagRun.state == State.RUNNING).count() == 10
         assert session.query(DagRun.state).filter(DagRun.state == State.QUEUED).count() == 0
-        assert orm_dag.next_dagrun_create_after is None
+        assert orm_dag.max_active_runs_reached
 
     def test_runs_are_created_after_max_active_runs_was_reached(self, dag_maker, session):
         """
@@ -1285,6 +1285,7 @@ class TestSchedulerJob:
         dag_run = session.merge(dag_run)
         session.refresh(dag_run)
         dag_run.get_task_instance(task_id='task', session=session).state = State.SUCCESS
+        session.flush()
 
         # create new run
         for _ in range(3):
@@ -1325,7 +1326,7 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
 
-        assert orm_dag.next_dagrun_create_after is None
+        assert orm_dag.max_active_runs_reached
         # But we should record the date of _what run_ it would be
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
         assert isinstance(orm_dag.next_dagrun_data_interval_start, datetime.datetime)
@@ -1430,8 +1431,8 @@ class TestSchedulerJob:
         session.flush()
         session.refresh(dr)
         assert dr.state == State.FAILED
-        # check that next_dagrun_create_after has been updated by calculate_dagrun_date_fields
-        assert dag_maker.dag_model.next_dagrun_create_after == dr.execution_date + timedelta(days=1)
+        # check that max_active_runs_reached has been updated
+        assert not dag_maker.dag_model.max_active_runs_reached
         # check that no running/queued runs yet
         assert (
             session.query(DagRun).filter(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])).count()
@@ -2966,13 +2967,13 @@ class TestSchedulerJob:
         dr = session.query(DagRun).one()
         dr.state == DagRunState.QUEUED
         assert session.query(DagRun).count() == 1
-        assert dag_maker.dag_model.next_dagrun_create_after is None
+        assert dag_maker.dag_model.max_active_runs_reached
         session.flush()
         # dags_needing_dagruns query should not return any value
         assert len(DagModel.dags_needing_dagruns(session).all()) == 0
         self.scheduler_job._create_dag_runs(dag_models, session)
         assert session.query(DagRun).count() == 1
-        assert dag_maker.dag_model.next_dagrun_create_after is None
+        assert dag_maker.dag_model.max_active_runs_reached
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE
         # set dagrun to success
         dr = session.query(DagRun).one()
@@ -2982,12 +2983,12 @@ class TestSchedulerJob:
         session.merge(ti)
         session.merge(dr)
         session.flush()
-        # check that next_dagrun is set properly by Schedulerjob._update_dag_next_dagruns
+        # check that max_active_runs_reached is set properly by Schedulerjob._max_active_runs_reached
         self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
         assert len(DagModel.dags_needing_dagruns(session).all()) == 1
         # assert next_dagrun has been updated correctly
-        assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
+        assert not dag_maker.dag_model.max_active_runs_reached
         # assert no dagruns is created yet
         assert (
             session.query(DagRun).filter(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])).count()
@@ -3032,7 +3033,7 @@ class TestSchedulerJob:
         assert DagRun.active_runs_of_dags(session=session) == {'test_dag': 3}
 
         assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
-        assert model.next_dagrun_create_after is None
+        assert model.max_active_runs_reached
 
         complete_one_dagrun()
 
@@ -3043,7 +3044,7 @@ class TestSchedulerJob:
             complete_one_dagrun()
             model: DagModel = session.query(DagModel).get(dag.dag_id)
 
-        expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
+        expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 7)]
         dagrun_execution_dates = [
             dr.execution_date for dr in session.query(DagRun).order_by(DagRun.execution_date).all()
         ]
