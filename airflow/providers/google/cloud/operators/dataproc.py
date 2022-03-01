@@ -883,9 +883,10 @@ class DataprocStartClusterOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 
-    def _start_cluster(self, hook: DataprocHook):
-        hook.start_cluster(
+    def _start_cluster(self):
+        self.hook.start_cluster(
             project_id=self.project_id,
             region=self.region,
             cluster_name=self.cluster_name,
@@ -897,8 +898,8 @@ class DataprocStartClusterOperator(BaseOperator):
             metadata=self.metadata,
         )
 
-    def _get_cluster(self, hook: DataprocHook) -> Cluster:
-        return hook.get_cluster(
+    def _get_cluster(self) -> Cluster:
+        return self.hook.get_cluster(
             project_id=self.project_id,
             region=self.region,
             cluster_name=self.cluster_name,
@@ -907,19 +908,19 @@ class DataprocStartClusterOperator(BaseOperator):
             metadata=self.metadata,
         )
 
-    def _handle_error_state(self, hook: DataprocHook, cluster: Cluster) -> None:
+    def _handle_error_state(self, cluster: Cluster) -> None:
         if cluster.status.state != cluster.status.State.ERROR:
             return
         self.log.info("Cluster is in ERROR state")
-        gcs_uri = hook.diagnose_cluster(
+        gcs_uri = self.hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
         self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
         raise AirflowException("Cluster was started but is in ERROR state")
 
-    def _wait_for_cluster_in_starting_state(self, hook: DataprocHook) -> Cluster:
+    def _wait_for_cluster_in_starting_state(self) -> Cluster:
         time_left = self.timeout
-        cluster = self._get_cluster(hook)
+        cluster = self._get_cluster()
         for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
             if cluster.status.state != cluster.status.State.RUNNING:
                 break
@@ -928,24 +929,22 @@ class DataprocStartClusterOperator(BaseOperator):
                     f"Cluster {self.cluster_name} is still CREATING state, aborting")
             time.sleep(time_to_sleep)
             time_left = time_left - time_to_sleep
-            cluster = self._get_cluster(hook)
+            cluster = self._get_cluster()
         return cluster
 
     def execute(self, context: 'Context') -> None:
         self.log.info('Starting cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id,
-                            impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
         )
-        self._start_cluster(hook)
-        cluster = self._get_cluster(hook)
-        self._handle_error_state(hook, cluster)
+        self._start_cluster()
+        cluster = self._get_cluster()
+        self._handle_error_state(cluster)
         if cluster.status.state == cluster.status.State.STARTING:
             # Wait for cluster to be running
-            cluster = self._wait_for_cluster_in_starting_state(hook)
-            self._handle_error_state(hook, cluster)
+            cluster = self._wait_for_cluster_in_starting_state()
+            self._handle_error_state(cluster)
         
         self.log.info("Cluster started")
 
@@ -1008,9 +1007,10 @@ class DataprocStopClusterOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 
-    def _stop_cluster(self, hook: DataprocHook):
-        hook.stop_cluster(
+    def _stop_cluster(self):
+        self.hook.stop_cluster(
             project_id=self.project_id,
             region=self.region,
             cluster_name=self.cluster_name,
@@ -1022,8 +1022,8 @@ class DataprocStopClusterOperator(BaseOperator):
             metadata=self.metadata,
         )
 
-    def _get_cluster(self, hook: DataprocHook) -> Cluster:
-        return hook.get_cluster(
+    def _get_cluster(self) -> Cluster:
+        return self.hook.get_cluster(
             project_id=self.project_id,
             region=self.region,
             cluster_name=self.cluster_name,
@@ -1032,19 +1032,19 @@ class DataprocStopClusterOperator(BaseOperator):
             metadata=self.metadata,
         )
 
-    def _handle_error_state(self, hook: DataprocHook, cluster: Cluster) -> None:
+    def _handle_error_state(self, cluster: Cluster) -> None:
         if cluster.status.state != cluster.status.State.ERROR:
             return
         self.log.info("Cluster is in ERROR state")
-        gcs_uri = hook.diagnose_cluster(
+        gcs_uri = self.hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
         self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
         raise AirflowException("Cluster was stopped but is in ERROR state")
 
-    def _wait_for_cluster_in_stopting_state(self, hook: DataprocHook) -> Cluster:
+    def _wait_for_cluster_in_stopting_state(self) -> Cluster:
         time_left = self.timeout
-        cluster = self._get_cluster(hook)
+        cluster = self._get_cluster()
         for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
             if cluster.status.state != cluster.status.State.STOPPED:
                 break
@@ -1053,24 +1053,23 @@ class DataprocStopClusterOperator(BaseOperator):
                     f"Cluster {self.cluster_name} is still STOPPING state, aborting")
             time.sleep(time_to_sleep)
             time_left = time_left - time_to_sleep
-            cluster = self._get_cluster(hook)
+            cluster = self._get_cluster()
         return cluster
 
     def execute(self, context: 'Context') -> None:
         self.log.info('Stopping cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id,
-                            impersonation_chain=self.impersonation_chain)
+
         # Save data required to display extra link no matter what the cluster status will be
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
         )
-        self._stop_cluster(hook)
-        cluster = self._get_cluster(hook)
-        self._handle_error_state(hook, cluster)
+        self._stop_cluster()
+        cluster = self._get_cluster()
+        self._handle_error_state(cluster)
         if cluster.status.state == cluster.status.State.STOPPING:
             # Wait for cluster to be STOPPED
-            cluster = self._wait_for_cluster_in_stopting_state(hook)
-            self._handle_error_state(hook, cluster)
+            cluster = self._wait_for_cluster_in_stopting_state()
+            self._handle_error_state(cluster)
         
         self.log.info("Cluster stopped")
 
