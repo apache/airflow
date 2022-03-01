@@ -65,11 +65,7 @@ GET_RUN_RESPONSE = {
     'run_page_url': RUN_PAGE_URL,
     'state': {'life_cycle_state': LIFE_CYCLE_STATE, 'state_message': STATE_MESSAGE},
 }
-GET_RUN_OUTPUT_RESPONSE= {
-   "metadata":{},
-   "error":ERROR_MESSAGE,
-   "notebook_output":{}
-}
+GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ''
