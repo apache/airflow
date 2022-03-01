@@ -380,7 +380,11 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0;python_version<"3.9"',
+    'pyhive[hive]>=0.6.0',
+    # in case of Python 3.9 sasl library needs to be installed with version higher or equal than
+    # 0.3.1 because only that version supports Python 3.9. For other Python version pyhive[hive] pulls
+    # the sasl library anyway (and there sasl library version is not relevant)
+    'sasl>=0.3.1; python_version>="3.9"',
     'thrift>=0.9.2',
     pandas_requirement,
 ]
