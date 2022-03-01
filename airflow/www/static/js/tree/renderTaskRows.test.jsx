@@ -100,13 +100,14 @@ describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
     global.treeData = mockTreeData;
     const containerRef = {};
+    const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
 
     const { getByTestId, getByText, getAllByTestId } = render(
       <React.StrictMode>
         <ChakraProvider>
           <Table>
             <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
+              {renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds })}
             </Tbody>
           </Table>
         </ChakraProvider>
@@ -156,7 +157,7 @@ describe('Test renderTaskRows', () => {
         <ChakraProvider>
           <Table>
             <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
+              {renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds: [] })}
             </Tbody>
           </Table>
         </ChakraProvider>
