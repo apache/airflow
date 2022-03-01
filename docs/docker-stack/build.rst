@@ -149,8 +149,6 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :start-after: [START dag]
     :end-before: [END dag]
 
-
-
 Extending vs. customizing the image
 -----------------------------------
 
@@ -196,6 +194,7 @@ size of the Customized image.
 
 Airflow Summit 2020's `Production Docker Image <https://youtu.be/wDr3Y7q2XoI>`_ talk provides more
 details about the context, architecture and customization/extension methods for the Production Image.
+
 
 Extending the image
 -------------------
@@ -413,6 +412,17 @@ used to install all requirements declared there. It is recommended that the file
 contains specified version of dependencies to add with ``==`` version specifier, to achieve
 stable set of requirements, independent if someone releases a newer version. However you have
 to make sure to update those requirements and rebuild the images to account for latest security fixes.
+
+Choosing Debian version when customizing the image
+--------------------------------------------------
+
+The reference Airflow image currently uses ``buster`` version of Debian (also known as Debian 10) as base
+image, however when you want to build a custom image, you can also use ``bullseye`` version of base images.
+Airflow supports both versions of Debian. You choose which version of Debian to use by choosing the
+right version of python base image:
+
+* ``--build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster`` uses buster version of Debian (Debian 10)
+* ``--build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye`` uses bullseye version of Debian (Debian 11)
 
 Examples of image customizing
 -----------------------------

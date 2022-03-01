@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.2.3"
+ARG AIRFLOW_VERSION="2.2.4"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.3.1
+ARG AIRFLOW_PIP_VERSION=22.0.3
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -95,7 +95,6 @@ ARG DEV_APT_DEPS="\
      lsb-release \
      nodejs \
      openssh-client \
-     python-selinux \
      sasl2-bin \
      software-properties-common \
      sqlite3 \
@@ -119,21 +118,20 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
+COPY scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
 
-# Note missing man directories on debian-buster
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN apt-get update \
     && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
-    && apt-get install -y --no-install-recommends curl gnupg2 \
-    && mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
+    && apt-get install -y --no-install-recommends curl gnupg2 lsb-release \
     && export ${ADDITIONAL_DEV_APT_ENV?} \
+    && source /scripts/docker/determine_debian_version_specific_variables.sh \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}" \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            ${DEV_APT_DEPS} \
+           "${DISTRO_SELINUX}" \
            ${ADDITIONAL_DEV_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
@@ -375,7 +373,6 @@ ARG RUNTIME_APT_DEPS="\
        gosu \
        krb5-user \
        ldap-utils \
-       libffi6 \
        libldap-2.4-2 \
        libsasl2-2 \
        libsasl2-modules \
@@ -407,20 +404,20 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-# Note missing man directories on debian-buster
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+COPY scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
+
 # Install basic and additional apt dependencies
 RUN apt-get update \
     && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
-    && apt-get install -y --no-install-recommends curl gnupg2 \
-    && mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
+    && apt-get install -y --no-install-recommends curl gnupg2 lsb-release \
     && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
+    && source /scripts/docker/determine_debian_version_specific_variables.sh \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            ${RUNTIME_APT_DEPS} \
+           "${DISTRO_LIBFFI}" \
            ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \

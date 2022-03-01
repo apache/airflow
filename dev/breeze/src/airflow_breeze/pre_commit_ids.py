@@ -63,7 +63,6 @@ PRE_COMMIT_LIST = [
     'lint-dockerfile',
     'lint-openapi',
     'markdownlint',
-    'mermaid',
     'mixed-line-ending',
     'mypy',
     'no-providers-in-core-examples',

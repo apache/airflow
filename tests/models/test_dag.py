@@ -786,6 +786,20 @@ class TestDag(unittest.TestCase):
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
+        # Removing all tags
+        for dag in dags:
+            dag.tags = None
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
+                row[0] for row in session.query(DagModel.dag_id).all()
+            }
+            assert not set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
     @parameterized.expand([State.RUNNING, State.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
@@ -1886,6 +1900,19 @@ class TestDag(unittest.TestCase):
             execution_date=TEST_DATE,
             conf={"param1": "hello"},
         )
+
+    def test_return_date_range_with_num_method(self):
+        start_date = TEST_DATE
+        delta = timedelta(days=1)
+
+        dag = models.DAG('dummy-dag', schedule_interval=delta)
+        dag_dates = dag.date_range(start_date=start_date, num=3)
+
+        assert dag_dates == [
+            start_date,
+            start_date + delta,
+            start_date + 2 * delta,
+        ]
 
 
 class TestDagModel:

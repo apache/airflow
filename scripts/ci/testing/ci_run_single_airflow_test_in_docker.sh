@@ -83,7 +83,11 @@ function run_airflow_testing_in_docker() {
     echo
     echo "Semaphore grabbed. Running tests for ${TEST_TYPE}"
     echo
-    local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-${DEBIAN_VERSION}.yml")
+    else
+        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
+    fi
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
         docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")

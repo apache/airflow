@@ -23,6 +23,7 @@
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
 _breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
+_breeze_allowed_debian_versions="buster bullseye"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
@@ -43,6 +44,7 @@ _breeze_allowed_platforms="linux/amd64"
 # shellcheck disable=SC2034
 {
     # Default values for the commands & flags used
+    _breeze_default_debian_version=$(echo "${_breeze_allowed_debian_versions}" | awk '{print $1}')
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
     _breeze_default_generate_providers_mode=$(echo "${_breeze_allowed_generate_constraints_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
@@ -166,7 +168,7 @@ _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 
 _breeze_short_options="
-h p: b: i:
+h p: d: b: i:
 K: V:
 l a: t: d:
 v y n q f
@@ -177,7 +179,7 @@ S: N:
 "
 
 _breeze_long_options="
-help python: backend: integration: platform:
+help python: debian-version: backend: integration: platform:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
@@ -255,6 +257,9 @@ function breeze_complete::get_known_values_breeze() {
     case "$1" in
     -p | --python)
         _breeze_known_values=${_breeze_allowed_python_major_minor_versions}
+        ;;
+    -d | --debian-version)
+        _breeze_known_values=${_breeze_allowed_debian_versions}
         ;;
     -b | --backend)
         _breeze_known_values=${_breeze_allowed_backends}

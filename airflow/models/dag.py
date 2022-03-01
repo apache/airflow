@@ -552,7 +552,11 @@ class DAG(LoggingMixin):
         message = "`DAG.date_range()` is deprecated."
         if num is not None:
             warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-            return utils_date_range(start_date=start_date, num=num)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return utils_date_range(
+                    start_date=start_date, num=num, delta=self.normalized_schedule_interval
+                )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
         if end_date is None:
@@ -2450,17 +2454,18 @@ class DAG(LoggingMixin):
             else:
                 orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
-            for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in set(dag.tags):
+            dag_tags = set(dag.tags or {})
+            orm_dag_tags = list(orm_dag.tags or [])
+            for orm_tag in orm_dag_tags:
+                if orm_tag.name not in dag_tags:
                     session.delete(orm_tag)
                     orm_dag.tags.remove(orm_tag)
-            if dag.tags:
-                orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in set(dag.tags):
-                    if dag_tag not in orm_tag_names:
-                        dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
-                        orm_dag.tags.append(dag_tag_orm)
-                        session.add(dag_tag_orm)
+            orm_tag_names = {t.name for t in orm_dag_tags}
+            for dag_tag in dag_tags:
+                if dag_tag not in orm_tag_names:
+                    dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
+                    orm_dag.tags.append(dag_tag_orm)
+                    session.add(dag_tag_orm)
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 

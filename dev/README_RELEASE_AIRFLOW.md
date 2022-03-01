@@ -43,6 +43,7 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
@@ -1010,6 +1011,12 @@ EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Update Announcements page
 
@@ -1067,6 +1074,7 @@ This includes:
 - Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
 - Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
 

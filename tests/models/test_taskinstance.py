@@ -20,8 +20,10 @@ import datetime
 import operator
 import os
 import signal
+import sys
 import urllib
 from tempfile import NamedTemporaryFile
+from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -1858,6 +1860,27 @@ class TestTaskInstance:
         except AirflowException:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
+
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        with dag_maker(dag_id='test_retries_on_other_exceptions'):
+            task = PythonOperator(
+                task_id='test_raise_other_exception',
+                python_callable=fail,
+                retries=1,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+            ti.run()
+        assert len(log.error.mock_calls) == 1
+        assert log.error.call_args[0] == ("Task failed with exception",)
+        exc_info = log.error.call_args[1]["exc_info"]
+        filename = exc_info[2].tb_frame.f_code.co_filename
+        formatted_exc = format_exception(*exc_info)
+        assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
 
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']
