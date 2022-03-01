@@ -59,14 +59,14 @@ Login (optional)
 Password (optional)
     * If authentication with *Databricks login credentials*  is used then specify the ``password`` used to login to Databricks.
     * If authentication with *Azure Service Principal* is used then specify the secret of the Azure Service Principal
-    * if authentication with *PAT* is used, then specify PAT and leave login empty (recommended)
+    * if authentication with *PAT* is used, then specify PAT and use ``token`` as the login (recommended)
 
 Extra (optional)
     Specify the extra parameter (as json dictionary) that can be used in the Databricks connection.
 
-    Following parameter could be used if using the *PAT* authentication method:
+    Following parameter should be used if using the *PAT* authentication method:
 
-    * ``token``: Specify PAT to use. (it's better to put PAT into Password field so it won't be seen as plain text)
+    * ``token``: Specify PAT to use. Note, the PAT must appear in both the Password field as the token value in Extra.
 
     Following parameters are necessary if using authentication with AAD token:
 
