@@ -143,7 +143,7 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """
-        Here we verify that ``extra`` is a JSON-encoded python dict.  From Airflow 3.0, we should no
+        Here we verify that ``extra`` is a JSON-encoded Python dict.  From Airflow 3.0, we should no
         longer suppress these errors but raise instead.
         """
         if extra is None:
@@ -154,7 +154,7 @@ class Connection(Base, LoggingMixin):
                 warnings.warn(
                     "Encountered JSON value in `extra` which does not parse as a dictionary in "
                     f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
-                    "representation of a python dict.",
+                    "representation of a Python dict.",
                     DeprecationWarning,
                     stacklevel=3,
                 )

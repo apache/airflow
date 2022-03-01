@@ -85,7 +85,7 @@ https://developers.google.com/style/inclusive-documentation
 
 #### TLDR
 
-From Airflow 3.0, the `extra` field in airflow connections must be a JSON-encoded python dict.
+From Airflow 3.0, the `extra` field in airflow connections must be a JSON-encoded Python dict.
 
 #### What, why, and when?
 
@@ -103,7 +103,7 @@ value, what happens if you need to add more information, such as the API endpoin
 you would need to convert the string to a dict, and this would be a breaking change.
 
 For these reason, starting in Airflow 3.0 we will require that the `Connection.extra` field store
-a JSON-encoded python dict.
+a JSON-encoded Python dict.
 
 #### How will I be affected?
 
@@ -120,7 +120,7 @@ To see if you have any connections that will need to be updated, you can run thi
 airflow connections export - 2>&1 >/dev/null | grep 'non-JSON'
 ```
 
-This will catch any warnings about connections that are storing something other than JSON-encoded python dict in the `extra` field.
+This will catch any warnings about connections that are storing something other than JSON-encoded Python dict in the `extra` field.
 
 ### Zip files in the DAGs folder can no longer have a `.py` extension
 
