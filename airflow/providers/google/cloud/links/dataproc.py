@@ -18,11 +18,12 @@
 """This module contains Google Dataproc links."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
@@ -62,10 +63,19 @@ class DataprocLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            key=DataprocLink.key, dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            conf = XCom.get_one(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            conf = XCom.get_one(
+                key=self.key, dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         return (
             conf["url"].format(
                 region=conf["region"], project_id=conf["project_id"], resource=conf["resource"]
@@ -96,13 +106,22 @@ class DataprocListLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        list_conf = XCom.get_one(
-            key=DataprocListLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            list_conf = XCom.get_one(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            list_conf = XCom.get_one(
+                key=self.key,
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
         return (
             list_conf["url"].format(
                 project_id=list_conf["project_id"],

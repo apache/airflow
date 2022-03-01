@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Change field in DagCode to MEDIUMTEXT for MySql
+"""Change field in ``DagCode`` to ``MEDIUMTEXT`` for MySql
 
 Revision ID: e959f08ac86c
 Revises: 64a7d6477aae
@@ -31,6 +31,7 @@ revision = 'e959f08ac86c'
 down_revision = '64a7d6477aae'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def upgrade():

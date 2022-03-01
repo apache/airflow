@@ -33,6 +33,7 @@ revision = '2c6edca13270'
 down_revision = '849da589634d'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 mapping = {

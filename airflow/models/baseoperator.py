@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -1730,11 +1731,14 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
         """
         Link to external system.
 
+        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
+        supported at runtime but is deprecated.
+
         :param operator: airflow operator
-        :param dttm: datetime
+        :param ti_key: TaskInstance ID to return link for
         :return: link to external system
         """

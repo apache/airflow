@@ -607,11 +607,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-buster                                 | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-buster                | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+

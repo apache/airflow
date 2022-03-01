@@ -252,7 +252,7 @@ class TestDbtCloudRunJobOperator:
 
         ti.xcom_push(key="job_run_url", value=_run_response["data"]["href"])
 
-        url = ti.task.get_extra_links(DEFAULT_DATE, "Monitor Job Run")
+        url = ti.task.get_extra_links(ti, "Monitor Job Run")
 
         assert url == (
             EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(

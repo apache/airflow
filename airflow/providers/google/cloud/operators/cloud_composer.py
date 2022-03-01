@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
@@ -25,8 +24,9 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
+from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
@@ -40,11 +40,12 @@ CLOUD_COMPOSER_DETAILS_LINK = (
 CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + '?project={project_id}'
 
 
-class CloudComposerEnvironmentLink(BaseOperatorLink):
+class CloudComposerEnvironmentLink(BaseGoogleLink):
     """Helper class for constructing Cloud Composer Environment Link"""
 
     name = "Cloud Composer Environment"
     key = "composer_conf"
+    format_str = CLOUD_COMPOSER_DETAILS_LINK
 
     @staticmethod
     def persist(
@@ -65,27 +66,13 @@ class CloudComposerEnvironmentLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
-        conf = XCom.get_one(
-            key=CloudComposerEnvironmentLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return (
-            CLOUD_COMPOSER_DETAILS_LINK.format(
-                project_id=conf["project_id"], region=conf['region'], environment_id=conf['environment_id']
-            )
-            if conf
-            else ""
-        )
 
-
-class CloudComposerEnvironmentsLink(BaseOperatorLink):
+class CloudComposerEnvironmentsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Composer Environment Link"""
 
     name = "Cloud Composer Environment List"
     key = "composer_conf"
+    format_str = CLOUD_COMPOSER_ENVIRONMENTS_LINK
 
     @staticmethod
     def persist(operator_instance: "CloudComposerListEnvironmentsOperator", context: "Context") -> None:
@@ -96,15 +83,6 @@ class CloudComposerEnvironmentsLink(BaseOperatorLink):
                 "project_id": operator_instance.project_id,
             },
         )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
-        conf = XCom.get_one(
-            key=CloudComposerEnvironmentsLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return CLOUD_COMPOSER_ENVIRONMENTS_LINK.format(project_id=conf["project_id"]) if conf else ""
 
 
 class CloudComposerCreateEnvironmentOperator(BaseOperator):

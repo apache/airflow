@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add RenderedTaskInstanceFields table
+"""Add ``RenderedTaskInstanceFields`` table
 
 Revision ID: 852ae6c715af
 Revises: a4c2fd67d16b
@@ -34,12 +34,13 @@ revision = '852ae6c715af'
 down_revision = 'a4c2fd67d16b'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.10'
 
 TABLE_NAME = 'rendered_task_instance_fields'
 
 
 def upgrade():
-    """Apply Add RenderedTaskInstanceFields table"""
+    """Apply Add ``RenderedTaskInstanceFields`` table"""
     json_type = sa.JSON
     conn = op.get_bind()
 

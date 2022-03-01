@@ -45,7 +45,7 @@ class AirflowLink(BaseOperatorLink):
 
     name = 'airflow'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         return 'https://airflow.apache.org'
 
 
@@ -75,9 +75,9 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
     def name(self) -> str:
         return f'BigQuery Console #{self.index + 1}'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         search_queries = XCom.get_one(
-            task_id=operator.task_id, dag_id=operator.dag_id, execution_date=dttm, key='search_query'
+            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key='search_query'
         )
         if not search_queries:
             return None
@@ -90,9 +90,9 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 class CustomOpLink(BaseOperatorLink):
     name = 'Google Custom'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         search_query = XCom.get_one(
-            task_id=operator.task_id, dag_id=operator.dag_id, execution_date=dttm, key='search_query'
+            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key='search_query'
         )
         return f'http://google.com/custom_base_link?search={search_query}'
 
@@ -127,7 +127,7 @@ class GoogleLink(BaseOperatorLink):
     name = 'google'
     operators = [Dummy3TestOperator, CustomOperator]
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         return 'https://www.google.com'
 
 
@@ -139,7 +139,7 @@ class AirflowLink2(BaseOperatorLink):
     name = 'airflow'
     operators = [Dummy2TestOperator, Dummy3TestOperator]
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         return 'https://airflow.apache.org/1.10.5/'
 
 
@@ -150,7 +150,7 @@ class GithubLink(BaseOperatorLink):
 
     name = 'github'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator, *, ti_key):
         return 'https://github.com/apache/airflow'
 
 

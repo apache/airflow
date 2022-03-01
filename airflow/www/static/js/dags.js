@@ -19,7 +19,7 @@
 
 /* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
 
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 

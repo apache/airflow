@@ -19,7 +19,7 @@
 
 /* global window, $ */
 
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 
 function toggleWrap() {
   $('.code pre').toggleClass('wrap');

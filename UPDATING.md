@@ -81,13 +81,54 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Deprecation: `Connection.extra` must be JSON-encoded dict
+
+#### TLDR
+
+From Airflow 3.0, the `extra` field in airflow connections must be a JSON-encoded Python dict.
+
+#### What, why, and when?
+
+Airflow's Connection is used for storing credentials.  For storage of information that does not
+fit into user / password / host / schema / port, we have the `extra` string field.  Its intention
+was always to provide for storage of arbitrary key-value pairs, like `no_host_key_check` in the SSH
+hook, or `keyfile_dict` in GCP.
+
+But since the field is string, it's technically been permissible to store any string value.  For example
+one could have stored the string value `'my-website.com'` and used this in the hook.  But this is a very
+bad practice. One reason is intelligibility: when you look at the value for `extra`, you don't have any idea
+what its purpose is.  Better would be to store `{"api_host": "my-website.com"}` which at least tells you
+*something* about the value.  Another reason is extensibility: if you store the API host as a simple string
+value, what happens if you need to add more information, such as the API endpoint, or credentials?  Then
+you would need to convert the string to a dict, and this would be a breaking change.
+
+For these reason, starting in Airflow 3.0 we will require that the `Connection.extra` field store
+a JSON-encoded Python dict.
+
+#### How will I be affected?
+
+For users of providers that are included in the Airflow codebase, you should not have to make any changes
+because in the Airflow codebase we should not allow hooks to misuse the `Connection.extra` field in this way.
+
+However, if you have any custom hooks that store something other than JSON dict, you will have to update it.
+If you do, you should see a warning any time that this connection is retrieved or instantiated (e.g. it should show up in
+task logs).
+
+To see if you have any connections that will need to be updated, you can run this command:
+
+```shell
+airflow connections export - 2>&1 >/dev/null | grep 'non-JSON'
+```
+
+This will catch any warnings about connections that are storing something other than JSON-encoded Python dict in the `extra` field.
+
 ### Zip files in the DAGs folder can no longer have a `.py` extension
 
 It was previously possible to have any extension for zip files in the DAGs folder. Now `.py` files are going to be loaded as modules without checking whether it is a zip file, as it leads to less IO. If a `.py` file in the DAGs folder is a zip compressed file, parsing it will fail with an exception.
 
 ### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
 
-When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
+When you use SQLAlchemy 1.4.0+, you need to use `postgresql://` as the scheme in the `sql_alchemy_conn`.
 In the previous versions of SQLAlchemy it was possible to use `postgres://`, but using it in
 SQLAlchemy 1.4.0+ results in:
 
@@ -98,8 +139,8 @@ SQLAlchemy 1.4.0+ results in:
 E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
 ```
 
-If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
-1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+If you cannot change the scheme of your URL immediately, Airflow continues to work with SQLAlchemy
+1.3 and you can downgrade SQLAlchemy, but we recommend updating the scheme.
 Details in the [SQLAlchemy Changelog](https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b).
 
 ### Passing `execution_date` to `XCom.set()`, `XCom.clear()`, `XCom.get_one()`, and `XCom.get_many()` is deprecated
@@ -162,6 +203,16 @@ This setting is also used for the deprecated experimental API, which only uses t
 ### `auth_backends` includes session
 
 To allow the Airflow UI to use the API, the previous default authorization backend `airflow.api.auth.backend.deny_all` is changed to `airflow.api.auth.backend.session`, and this is automatically added to the list of API authorization backends if a non-default value is set.
+
+### BaseOperatorLink's `get_link` method changed to take a `ti_key` keyword argument
+
+In v2.2 we "deprecated" passing an execution date to XCom.get methods, but there was no other option for operator links as they were only passed an execution_date.
+
+Now in 2.3 as part of Dynamic Task Mapping (AIP-42) we will need to add map_index to the XCom row to support the "reduce" part of the API.
+
+In order to support that cleanly we have changed the interface for BaseOperatorLink to take an TaskInstanceKey as the `ti_key` keyword argument (as execution_date + task is no longer unique for mapped operators).
+
+The existing signature will be detected (by the absence of the `ti_key` argument) and continue to work.
 
 ## Airflow 2.2.4
 

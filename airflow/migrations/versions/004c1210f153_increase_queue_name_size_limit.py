@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""increase queue name size limit
+"""Increase queue name size limit
 
 Revision ID: 004c1210f153
 Revises: 939bb1e647c8
@@ -32,6 +32,7 @@ revision = '004c1210f153'
 down_revision = '939bb1e647c8'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.4'
 
 
 def upgrade():

@@ -134,9 +134,38 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+        if self.extra:
+            self._validate_extra(self.extra, self.conn_id)
 
         if self.password:
             mask_secret(self.password)
+
+    @staticmethod
+    def _validate_extra(extra, conn_id) -> None:
+        """
+        Here we verify that ``extra`` is a JSON-encoded Python dict.  From Airflow 3.0, we should no
+        longer suppress these errors but raise instead.
+        """
+        if extra is None:
+            return None
+        try:
+            extra_parsed = json.loads(extra)
+            if not isinstance(extra_parsed, dict):
+                warnings.warn(
+                    "Encountered JSON value in `extra` which does not parse as a dictionary in "
+                    f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
+                    "representation of a Python dict.",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+        except json.JSONDecodeError:
+            warnings.warn(
+                f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
+                "non-JSON `extra` will be removed in Airflow 3.0",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return None
 
     @reconstructor
     def on_db_load(self):
@@ -254,15 +283,19 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
+            extra_val = fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
-            return self._extra
+            extra_val = self._extra
+        if extra_val:
+            self._validate_extra(extra_val, self.conn_id)
+        return extra_val
 
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
         if value:
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self._validate_extra(self._extra, self.conn_id)
             self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
