@@ -23,7 +23,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useDisclosure } from '@chakra-ui/react';
 import camelcaseKeys from 'camelcase-keys';
 
-import getMetaValue from '../meta_value';
+import { getMetaValue } from '../utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');

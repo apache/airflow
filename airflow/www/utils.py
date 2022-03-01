@@ -36,13 +36,16 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import AirflowJsonEncoder
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -53,9 +56,80 @@ def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
     return value.isoformat()
 
 
-def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
+def get_mapped_instances(task_instance, session):
+    return (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.dag_id == task_instance.dag_id,
+            TaskInstance.run_id == task_instance.run_id,
+            TaskInstance.task_id == task_instance.task_id,
+            TaskInstance.map_index >= 0,
+        )
+        .all()
+    )
+
+
+def get_instance_with_map(task_instance, session):
+    if task_instance.map_index == -1:
+        return alchemy_to_dict(task_instance)
+    mapped_instances = get_mapped_instances(task_instance, session)
+    return get_mapped_summary(task_instance, mapped_instances)
+
+
+def get_mapped_summary(parent_instance, task_instances):
+    priority = [
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.SENSING,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.SHUTDOWN,
+        TaskInstanceState.RESTARTING,
+        TaskInstanceState.REMOVED,
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.SKIPPED,
+    ]
+
+    mapped_states = [ti.state for ti in task_instances]
+
+    group_state = None
+    for state in priority:
+        if state in mapped_states:
+            group_state = state
+            break
+
+    group_start_date = datetime_to_string(
+        min((ti.start_date for ti in task_instances if ti.start_date), default=None)
+    )
+    group_end_date = datetime_to_string(
+        max((ti.end_date for ti in task_instances if ti.end_date), default=None)
+    )
+
+    return {
+        'task_id': parent_instance.task_id,
+        'run_id': parent_instance.run_id,
+        'state': group_state,
+        'start_date': group_start_date,
+        'end_date': group_end_date,
+        'mapped_states': mapped_states,
+        'operator': parent_instance.operator,
+        'execution_date': datetime_to_string(parent_instance.execution_date),
+        'try_number': parent_instance.try_number,
+    }
+
+
+def encode_ti(
+    task_instance: Optional[TaskInstance], is_mapped: Optional[bool], session: Optional[Session]
+) -> Optional[Dict[str, Any]]:
     if not task_instance:
         return None
+
+    if is_mapped:
+        return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
 
     return {
         'task_id': task_instance.task_id,
