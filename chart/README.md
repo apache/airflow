@@ -30,7 +30,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Requirements
 
-- Kubernetes 1.20+ cluster
+- Kubernetes 1.21+ cluster
 - Helm 3.0+
 - PV provisioner support in the underlying infrastructure (optionally)
 
