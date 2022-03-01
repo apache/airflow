@@ -355,9 +355,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'httpx',
     'json-merge-patch>=0.2',
-    # pandas-gbq 0.15.0 release broke google provider's bigquery import
-    # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
-    'pandas-gbq<0.15.0',
+    'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
 ]

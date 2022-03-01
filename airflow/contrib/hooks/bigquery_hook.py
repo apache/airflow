@@ -24,8 +24,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (  # noqa
     BigQueryConnection,
     BigQueryCursor,
     BigQueryHook,
-    BigQueryPandasConnector,
-    GbqConnector,
 )
 
 warnings.warn(
