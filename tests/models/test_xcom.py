@@ -246,7 +246,7 @@ class TestXCom:
             task_id="test_task",
             run_id=IN_MEMORY_RUN_ID,
         )
-        expected = {**kwargs, 'run_id': -1}
+        expected = {**kwargs, 'run_id': '__airflow_in_memory_dagrun__'}
         XCom = resolve_xcom_backend()
         XCom.set(**kwargs)
         serialize_watcher.assert_called_once_with(**expected)
