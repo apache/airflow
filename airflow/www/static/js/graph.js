@@ -24,7 +24,7 @@
   autoRefreshInterval, moment, convertSecsToHumanReadable
 */
 
-import { getMetaValue, finalStatesMap } from './utils';
+import { getMetaValue, finalStatesMap, getVisibilityVars } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 import { callModal } from './dag';
@@ -376,6 +376,34 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let refreshInterval;
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 1000);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+const { hidden, visibilityChange } = getVisibilityVars();
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document[hidden]) {
+    clearInterval(refreshInterval);
+  } else {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 1000);
+  }
+};
+
+if (hidden) {
+  document.addEventListener(visibilityChange, handleVisibilityChange);
+}
+
 let prevTis;
 
 function handleRefresh() {
@@ -411,18 +439,6 @@ function handleRefresh() {
       $('#chart_section').hide(1000);
       $('#datatable_section').hide(1000);
     });
-}
-
-let refreshInterval;
-
-function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 1000);
-  } else {
-    clearInterval(refreshInterval);
-  }
 }
 
 $('#auto_refresh').change(() => {

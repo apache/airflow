@@ -37,7 +37,8 @@ import DagRuns from './dagRuns';
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
-  const { data: { groups = {} }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   useEffect(() => {
     // Set initial scroll to far right if it is scrollable
@@ -65,7 +66,7 @@ const Tree = () => {
               <DagRuns containerRef={containerRef} />
             </Thead>
             <Tbody>
-              {renderTaskRows({ task: groups, containerRef })}
+              {renderTaskRows({ task: groups, containerRef, dagRunIds })}
             </Tbody>
           </Table>
         </Box>

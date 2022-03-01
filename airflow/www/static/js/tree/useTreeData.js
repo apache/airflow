@@ -17,13 +17,13 @@
  * under the License.
  */
 
-/* global treeData, localStorage, fetch, autoRefreshInterval */
+/* global treeData, localStorage, fetch, autoRefreshInterval, document */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useDisclosure } from '@chakra-ui/react';
 import camelcaseKeys from 'camelcase-keys';
 
-import { getMetaValue } from '../utils';
+import { getMetaValue, getVisibilityVars } from '../utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -86,12 +86,30 @@ const useTreeData = () => {
 
   useEffect(() => {
     let refreshInterval;
+    const { hidden, visibilityChange } = getVisibilityVars();
+
+    // pause autorefresh when the page is not active
+    const handleVisibilityChange = () => {
+      if (document[hidden]) {
+        clearInterval(refreshInterval);
+      } else {
+        refreshInterval = setInterval(handleRefresh, autoRefreshInterval * 1000);
+      }
+    };
+
     if (isRefreshOn) {
       refreshInterval = setInterval(handleRefresh, autoRefreshInterval * 1000);
+      if (hidden) {
+        document.addEventListener(visibilityChange, handleVisibilityChange);
+      }
     } else {
       clearInterval(refreshInterval);
     }
-    return () => clearInterval(refreshInterval);
+
+    return () => {
+      clearInterval(refreshInterval);
+      document.removeEventListener(visibilityChange, handleVisibilityChange);
+    };
   }, [isRefreshOn, handleRefresh]);
 
   return {
