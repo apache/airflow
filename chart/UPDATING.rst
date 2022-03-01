@@ -44,6 +44,12 @@ Default Airflow image is updated to ``2.2.4``
 
 The default Airflow image that is used with the Chart is now ``2.2.4``, previously it was ``2.2.3``.
 
+Removed ``config.api``
+""""""""""""""""""""""
+
+This section configured the authentication backend for the Airflow API but used the same values as the Airflow default setting, which made it unnecessary to
+declare the same again.
+
 Airflow Helm Chart 1.4.0
 ------------------------
 
@@ -58,12 +64,6 @@ The default Airflow image that is used with the Chart is now ``2.2.3``, previous
 ``ingress.web.hosts`` and ``ingress.flower.hosts`` have had their types have been changed from an array of strings to an array of objects. ``ingress.web.tls`` and ``ingress.flower.tls`` can now be specified per host in ``ingress.web.hosts`` and ``ingress.flower.hosts`` respectively.
 
 The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
-
-Removed ``config.api``
-""""""""""""""""""""""
-
-This section configured the authentication backend for the Airflow API but used the same values as the Airflow default setting, which made it unnecessary to
-declare the same again.
 
 Fixed precedence of ``nodeSelector``, ``affinity`` and ``tolerations`` params
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
