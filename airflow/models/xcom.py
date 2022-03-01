@@ -59,7 +59,7 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dagrun_id = Column(Integer(), nullable=False, primary_key=True)
+    dagrun_id = Column('dag_run_id', Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 

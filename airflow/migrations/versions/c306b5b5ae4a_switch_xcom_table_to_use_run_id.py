@@ -42,7 +42,7 @@ metadata = MetaData()
 
 def _get_new_xcom_columns() -> Sequence[Column]:
     return [
-        Column("dagrun_id", Integer(), nullable=False),
+        Column("dag_run_id", Integer(), nullable=False),
         Column("task_id", StringID(), nullable=False),
         Column("key", StringID(length=512), nullable=False),
         Column("value", LargeBinary),
@@ -117,7 +117,7 @@ def upgrade():
     op.rename_table("__airflow_tmp_xcom", "xcom")
 
     with op.batch_alter_table("xcom") as batch_op:
-        batch_op.create_primary_key("xcom_pkey", ["dagrun_id", "task_id", "key"])
+        batch_op.create_primary_key("xcom_pkey", ["dag_run_id", "task_id", "key"])
         batch_op.create_index("idx_xcom_key", ["key"])
         batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
 
