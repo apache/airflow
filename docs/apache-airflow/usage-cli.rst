@@ -230,7 +230,6 @@ Considerations for backfillable DAGs
 
 Not all DAGs are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have DAGs that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
 
-
 .. _cli-db-upgrade:
 
 Upgrading Airflow
