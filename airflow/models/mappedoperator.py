@@ -287,7 +287,10 @@ class MappedOperator(AbstractOperator):
     def deps_for(operator_class: Type["BaseOperator"]) -> FrozenSet[BaseTIDep]:
         operator_deps = operator_class.deps
         if not isinstance(operator_deps, collections.abc.Set):
-            raise UnmappableOperator(f"cannot map operator; f{operator_class}.deps must be a set")
+            raise UnmappableOperator(
+                f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
+                f"not a {type(operator_deps).__name__}"
+            )
         return operator_deps | {MappedTaskIsExpanded()}
 
     def _validate_argument_count(self) -> None:
