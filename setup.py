@@ -334,9 +334,7 @@ google = [
     'google-cloud-kms>=2.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=2.1.1',
-    # 1.1.0 removed field_mask and broke import for released providers
-    # We can remove the <1.1.0 limitation after we release new Google Provider
-    'google-cloud-memcache>=0.2.0,<1.1.0',
+    'google-cloud-memcache>=0.2.0',
     'google-cloud-monitoring>=2.0.0',
     'google-cloud-os-login>=2.0.0',
     'google-cloud-orchestration-airflow>=1.0.0,<2.0.0',
