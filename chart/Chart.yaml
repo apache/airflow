@@ -70,7 +70,6 @@ annotations:
       links:
       - name: '#20864'
         url: https://github.com/apache/airflow/pull/20864
-
     - description: Support for priorityClassName
       kind: added
       links:
