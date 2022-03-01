@@ -82,7 +82,7 @@ Bug Fixes
 Doc only changes
 """"""""""""""""
 
-- Chart: Fix `extraEnvFrom` examples (#19144)
+- Chart: Fix ``extraEnvFrom`` examples (#19144)
 - Chart docs: Update webserver secret key reference configuration (#18595)
 - Fix helm chart links in source install guide (#18588)
 
@@ -197,7 +197,7 @@ Doc only changes
 - Chart Docs: Add single-line description for ``multiNamespaceMode`` (#17147)
 - Chart: Update description for Helm chart to include 'official' (#17040)
 - Chart: Better comment and example for ``podTemplate`` (#16859)
-- Chart: Add more clear docs for setting `pod_template_file.yaml` (#16632)
+- Chart: Add more clear docs for setting ``pod_template_file.yaml`` (#16632)
 - Fix description on ``scheduler.livenessprobe.periodSeconds`` (#16486)
 - Chart docs: Fix ``extrasecrets`` example (#16305)
 - Small improvements for ``README.md`` files (#16244)
@@ -207,5 +207,5 @@ Misc
 - Removes pylint from our toolchain (#16682)
 - Update link to match what is in pre-commit (#16408)
 - Chart: Update the ``appVersion`` to 2.1.0 in ``Chart.yaml`` (#16337)
-- Rename the main branch of the Airflow repo to be `main` (#16149)
+- Rename the main branch of the Airflow repo to be ``main`` (#16149)
 - Update Chart version to ``1.1.0-rc1`` (#16124)
