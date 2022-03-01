@@ -3180,7 +3180,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def extra_links(self):
+    @provide_session
+    def extra_links(self, session: "Session" = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
@@ -3216,9 +3217,24 @@ class Airflow(AirflowBaseView):
             response.status_code = 404
             return response
 
-        task = dag.get_task(task_id)
+        task: "AbstractOperator" = dag.get_task(task_id)
+
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                models.TaskInstance.dag_id == dag_id,
+                models.TaskInstance.task_id == task_id,
+                models.TaskInstance.execution_date == dttm,
+            )
+            .options(joinedload(TaskInstance.dag_run))
+            .first()
+        )
+        if not ti:
+            response = jsonify({'url': None, 'error': 'Task Instances not found'})
+            response.status_code = 404
+            return response
         try:
-            url = task.get_extra_links(dttm, link_name)
+            url = task.get_extra_links(ti, link_name)
         except ValueError as err:
             response = jsonify({'url': None, 'error': str(err)})
             response.status_code = 404

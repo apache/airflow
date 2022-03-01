@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import inspect
 from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
 
 from sqlalchemy.orm import Session
@@ -32,23 +33,26 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
+TaskStateChangeCallback = Callable[[Context], None]
+
 if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER = conf.get("operators", "default_owner")
-DEFAULT_POOL_SLOTS = 1
-DEFAULT_PRIORITY_WEIGHT = 1
-DEFAULT_QUEUE = conf.get("operators", "default_queue")
-DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY = datetime.timedelta(seconds=300)
-DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
-DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
-
-TaskStateChangeCallback = Callable[[Context], None]
+DEFAULT_OWNER: str = conf.get("operators", "default_owner")
+DEFAULT_POOL_SLOTS: int = 1
+DEFAULT_PRIORITY_WEIGHT: int = 1
+DEFAULT_QUEUE: str = conf.get("operators", "default_queue")
+DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
+    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+)
+DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -239,19 +243,29 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def extra_links(self) -> List[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
-    def get_extra_links(self, dttm: datetime.datetime, link_name: str) -> Optional[Dict[str, Any]]:
+    def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
 
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
-        :param dttm: The datetime parsed execution date for the URL being searched for.
+        :param ti: The TaskInstance for the URL being searched for.
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        if link_name in self.operator_extra_link_dict:
-            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
-        elif link_name in self.global_operator_extra_link_dict:
-            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
+        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+        # Check for old function signature
+        parameters = inspect.signature(link.get_link).parameters
+        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
+        if "ti_key" in args:
+            return link.get_link(self, ti_key=ti.key)
+        else:
+            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
         return None
 
     def render_template_fields(
