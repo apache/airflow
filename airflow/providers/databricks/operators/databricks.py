@@ -88,8 +88,10 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                 else:
                     run_output = hook.get_run_output(operator.run_id)
                     notebook_error = run_output['error']
-                    error_message = f'{operator.task_id} failed with terminal state: {run_state} ' \
-                                    f'and with the error {notebook_error}'
+                    error_message = (
+                        f'{operator.task_id} failed with terminal state: {run_state} '
+                        f'and with the error {notebook_error}'
+                    )
                     raise AirflowException(error_message)
             else:
                 log.info('%s in run state: %s', operator.task_id, run_state)
