@@ -1903,7 +1903,7 @@ class Airflow(AirflowBaseView):
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
-        flash(f"Triggered {dag_id},TALLL it should start any moment now.")
+        flash(f"Triggered {dag_id}, it should start any moment now.")
         return redirect(origin)
 
     def _clear_dag_tis(
