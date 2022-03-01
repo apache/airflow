@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add max tries column to task instance
+"""Add ``max_tries`` column to ``task_instance``
 
 Revision ID: cc1e65623dc7
 Revises: 127d2bf2dfa7
@@ -37,6 +37,7 @@ revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'
 branch_labels = None
 depends_on = None
+airflow_version = '1.8.2'
 
 Base = declarative_base()
 BATCH_SIZE = 5000

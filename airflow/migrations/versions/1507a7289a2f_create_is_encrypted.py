@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""create is_encrypted
+"""Add ``is_encrypted`` column in ``connection`` table
 
 Revision ID: 1507a7289a2f
 Revises: e3a246e0dc1
@@ -32,6 +32,7 @@ revision = '1507a7289a2f'
 down_revision = 'e3a246e0dc1'
 branch_labels = None
 depends_on = None
+airflow_version = '1.5.0'
 
 connectionhelper = sa.Table(
     'connection', sa.MetaData(), sa.Column('id', sa.Integer, primary_key=True), sa.Column('is_encrypted')

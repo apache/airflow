@@ -810,7 +810,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.deny_all"
+      default: "airflow.api.auth.backend.session"
     - name: maximum_page_limit
       description: |
         Used to set the maximum page limit for API requests

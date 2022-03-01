@@ -15,8 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
+
 import pytest
 
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import TaskInstance, Trigger
 from airflow.operators.dummy import DummyOperator
 from airflow.triggers.base import TriggerEvent
@@ -36,9 +39,11 @@ def session():
 def clear_db(session):
     session.query(TaskInstance).delete()
     session.query(Trigger).delete()
+    session.query(TriggererJob).delete()
     yield session
     session.query(TaskInstance).delete()
     session.query(Trigger).delete()
+    session.query(TriggererJob).delete()
     session.commit()
 
 
@@ -124,3 +129,50 @@ def test_submit_failure(session, create_task_instance):
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
+
+
+def test_assign_unassigned(session, create_task_instance):
+    """
+    Tests that unassigned triggers of all appropriate states are assigned.
+    """
+    finished_triggerer = TriggererJob(None, heartrate=10, state=State.SUCCESS)
+    finished_triggerer.end_date = timezone.utcnow() - datetime.timedelta(hours=1)
+    session.add(finished_triggerer)
+    assert not finished_triggerer.is_alive()
+    healthy_triggerer = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    session.add(healthy_triggerer)
+    assert healthy_triggerer.is_alive()
+    new_triggerer = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    session.add(new_triggerer)
+    assert new_triggerer.is_alive()
+    session.commit()
+    trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_healthy_triggerer.id = 1
+    trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
+    trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_killed_triggerer.id = 2
+    trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
+    trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_unassigned_to_triggerer.id = 3
+    assert trigger_unassigned_to_triggerer.triggerer_id is None
+    session.add(trigger_on_healthy_triggerer)
+    session.add(trigger_on_killed_triggerer)
+    session.add(trigger_unassigned_to_triggerer)
+    session.commit()
+    assert session.query(Trigger).count() == 3
+    Trigger.assign_unassigned(new_triggerer.id, 100, session=session)
+    session.expire_all()
+    # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
+    assert (
+        session.query(Trigger).filter(Trigger.id == trigger_on_killed_triggerer.id).one().triggerer_id
+        == new_triggerer.id
+    )
+    assert (
+        session.query(Trigger).filter(Trigger.id == trigger_unassigned_to_triggerer.id).one().triggerer_id
+        == new_triggerer.id
+    )
+    # Check that trigger on healthy triggerer still assigned to existing triggerer
+    assert (
+        session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
+        == healthy_triggerer.id
+    )

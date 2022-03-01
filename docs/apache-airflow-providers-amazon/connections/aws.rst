@@ -193,6 +193,106 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     https://pypi.org/project/requests-gssapi/
 
+
+.. _howto/connection:aws:session-factory:
+
+Session Factory
+---------------
+
+The default ``BaseSessionFactory`` for the connection can handle most of the authentication methods for AWS.
+In the case that you would like to have full control of
+`boto3 session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__ creation or
+you are using custom `federation <https://aws.amazon.com/identity/federation/>`__ that requires
+`external process to source the credentials <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sourcing-external.html>`__,
+you can subclass :class:`~airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory` and override ``create_session``
+and/or ``_create_basic_session`` method depending on your needs.
+
+You will also need to add configuration for ``AwsBaseHook`` to use the custom implementation by their full path.
+
+Example
+^^^^^^^
+
+**Configuration**:
+  .. code-block:: ini
+
+    [aws]
+    session_factory = my_company.aws.MyCustomSessionFactory
+
+**Connection extra field**:
+  .. code-block:: json
+
+    {
+      "federation": {
+        "username": "my_username",
+        "password": "my_password"
+      }
+    }
+
+**Custom Session Factory**:
+  .. code-block:: python
+
+    def get_federated_aws_credentials(username: str, password: str):
+        """
+        Mock interaction with federation endpoint/process and returns AWS credentials.
+        """
+        return {
+            "Version": 1,
+            "AccessKeyId": "key",
+            "SecretAccessKey": "secret",
+            "SessionToken": "token",
+            "Expiration": "2050-12-31T00:00:00.000Z",
+        }
+
+
+    class MyCustomSessionFactory(BaseSessionFactory):
+        @property
+        def federated(self):
+            return "federation" in self.extra_config
+
+        def _create_basic_session(
+            self, session_kwargs: Dict[str, Any]
+        ) -> boto3.session.Session:
+            if self.federated:
+                return self._create_federated_session(session_kwargs)
+            else:
+                return super()._create_basic_session(session_kwargs)
+
+        def _create_federated_session(
+            self, session_kwargs: Dict[str, Any]
+        ) -> boto3.session.Session:
+            username = self.extra_config["federation"]["username"]
+            region_name = self._get_region_name()
+            self.log.debug(
+                f"Creating federated session with username={username} region_name={region_name} for "
+                f"connection {self.conn.conn_id}"
+            )
+            credentials = RefreshableCredentials.create_from_metadata(
+                metadata=self._refresh_federated_credentials(),
+                refresh_using=self._refresh_federated_credentials,
+                method="custom-federation",
+            )
+            session = botocore.session.get_session()
+            session._credentials = credentials
+            session.set_config_variable("region", region_name)
+            return boto3.session.Session(botocore_session=session, **session_kwargs)
+
+        def _refresh_federated_credentials(self) -> Dict[str, str]:
+            self.log.debug("Refreshing federated AWS credentials")
+            credentials = get_federated_aws_credentials(**self.extra_config["federation"])
+            access_key_id = credentials["AccessKeyId"]
+            access_key_id = credentials["Expiration"]
+            self.log.info(
+                f"New federated AWS credentials received with aws_access_key_id={access_key_id} and "
+                f"expiry_time={expiry_time} for connection {self.conn.conn_id}"
+            )
+            return {
+                "access_key": access_key_id,
+                "secret_key": credentials["SecretAccessKey"],
+                "token": credentials["SessionToken"],
+                "expiry_time": expiry_time,
+            }
+
+
 .. _howto/connection:aws:gcp-federation:
 
 Google Cloud to AWS authentication using Web Identity Federation

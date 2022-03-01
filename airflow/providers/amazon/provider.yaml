@@ -103,6 +103,10 @@ integrations:
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon RDS
+    external-doc-url: https://aws.amazon.com/rds/
+    logo: /integration-logos/aws/Amazon-RDS_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
@@ -113,6 +117,8 @@ integrations:
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
     logo: /integration-logos/aws/Amazon-SageMaker_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sagemaker.rst
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
@@ -161,6 +167,8 @@ integrations:
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
     logo: /integration-logos/aws/AWS-Lambda_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/lambda.rst
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
@@ -223,6 +231,9 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
       - airflow.providers.amazon.aws.operators.glue_crawler
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.operators.aws_lambda
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
@@ -382,6 +393,9 @@ hooks:
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.rds
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.hooks.redshift

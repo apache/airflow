@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add pid field to TaskInstance
+"""Add ``pid`` field to ``TaskInstance``
 
 Revision ID: 5e7d17757c7a
 Revises: 8504051e801b
@@ -32,6 +32,7 @@ revision = '5e7d17757c7a'
 down_revision = '8504051e801b'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

@@ -175,3 +175,14 @@ become active again you can simply email the PMC and ask to be reinstated.
 
 The PMC also can mark committers as inactive after they have not been involved in the community for
 more than 12 months.
+
+Github configuration for committers
+-----------------------------------
+
+To be able to merge PRs, committers have to integrate their Github ID with Apache systems. To do that follow steps:
+
+1.  Verify you have a Github ID `enabled with 2FA <https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/>`__.
+2.  Enter your Github ID into your `Apache ID profile <https://id.apache.org/>`__.
+3.  Merge your Apache and GitHub accounts using `GitBox (Apache Account Linking utility) <https://gitbox.apache.org/setup/>`__. You should see 3 green checks in GitBox.
+4.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
+5.  After accepting the Github Invitation verify that you are a member of the `Airflow committers team on Github <https://github.com/orgs/apache/teams/airflow-committers>`__.

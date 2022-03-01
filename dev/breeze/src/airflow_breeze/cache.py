@@ -42,10 +42,11 @@ def touch_cache_file(param_name: str):
 
 def write_to_cache_file(param_name: str, param_value: str, check_allowed_values: bool = True) -> None:
     allowed = False
+    allowed_values = None
     if check_allowed_values:
         allowed, allowed_values = check_if_values_allowed(param_name, param_value)
     if allowed or not check_allowed_values:
-        print('BUID CACHE DIR:', BUILD_CACHE_DIR)
+        print('BUILD CACHE DIR:', BUILD_CACHE_DIR)
         Path(BUILD_CACHE_DIR, f".{param_name}").write_text(param_value)
     else:
         console.print(f'[cyan]You have sent the {param_value} for {param_name}')
@@ -58,7 +59,6 @@ def check_cache_and_write_if_not_cached(
     param_name: str, default_param_value: str
 ) -> Tuple[bool, Optional[str]]:
     is_cached = False
-    allowed = False
     cached_value = read_from_cache_file(param_name)
     if cached_value is None:
         write_to_cache_file(param_name, default_param_value)

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add ti job_id index
+"""Create index on ``job_id`` column in ``task_instance`` table
 
 Revision ID: 947454bf1dff
 Revises: bdaa763e6c56
@@ -30,6 +30,7 @@ revision = '947454bf1dff'
 down_revision = 'bdaa763e6c56'
 branch_labels = None
 depends_on = None
+airflow_version = '1.8.2'
 
 
 def upgrade():

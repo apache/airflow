@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add TI state index
+"""Add TI state index
 
 Revision ID: 211e584da130
 Revises: 2e82aab8ef20
@@ -30,6 +30,7 @@ revision = '211e584da130'
 down_revision = '2e82aab8ef20'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

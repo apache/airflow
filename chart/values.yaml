@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.3"
+defaultAirflowTag: "2.2.4"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.3"
+airflowVersion: "2.2.4"
 
 # Images
 images:
@@ -1417,9 +1417,6 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
-  # Authentication backend used for the experimental API
-  api:
-    auth_backends: airflow.api.auth.backend.deny_all
   logging:
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
     colored_console_log: 'False'

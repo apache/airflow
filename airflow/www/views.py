@@ -74,6 +74,7 @@ from flask_appbuilder.security.views import (
     UserStatsChartView,
     ViewMenuModelView,
 )
+from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
@@ -99,7 +100,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.serialized_dag import SerializedDagModel
@@ -129,7 +130,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.widgets import AirflowModelListWidget
+from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -223,41 +224,47 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
+def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_item_or_group, BaseOperator):
+    if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
-            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_item_or_group.task_id],
+            'instances': [
+                wwwutils.encode_ti(ti, task_item_or_group.is_mapped, session)
+                for ti in tis
+                if ti.task_id == task_item_or_group.task_id
+            ],
             'label': task_item_or_group.label,
-            'extra_links': task_item_or_group.extra_links,
+            'extra_links': [],
+            'is_mapped': task_item_or_group.is_mapped,
         }
 
     # Task Group
     task_group = task_item_or_group
 
-    children = [task_group_to_tree(child, dag, dag_runs, tis) for child in task_group.children.values()]
+    children = [
+        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.children.values()
+    ]
 
     def get_summary(dag_run, children):
         priority = [
-            'failed',
-            'upstream_failed',
-            'up_for_retry',
-            'up_for_reschedule',
-            'queued',
-            'scheduled',
-            'deferred',
-            'sensing',
-            'running',
-            'shutdown',
-            'restarting',
-            'removed',
-            'no_status',
-            'success',
-            'skipped',
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UPSTREAM_FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SENSING,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.SHUTDOWN,
+            TaskInstanceState.RESTARTING,
+            TaskInstanceState.REMOVED,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SKIPPED,
         ]
 
         child_instances = [child['instances'] for child in children if 'instances' in child]
@@ -307,7 +314,7 @@ def task_group_to_dict(task_item_or_group):
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_item_or_group, BaseOperator):
+    if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
             'value': {
@@ -423,7 +430,7 @@ def dag_edges(dag):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, BaseOperator):
+        if isinstance(task_group, AbstractOperator):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -1752,12 +1759,13 @@ class Airflow(AirflowBaseView):
 
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
-            return redirect(request.referrer)
+            return redirect(redirect_url)
         except AirflowException:
             flash(
                 f"Cannot delete DAG with id {dag_id} because some task instances of the DAG "
@@ -1765,7 +1773,7 @@ class Airflow(AirflowBaseView):
                 "failed/succeeded before deleting the DAG",
                 "error",
             )
-            return redirect(request.referrer)
+            return redirect(redirect_url)
 
         flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
@@ -2159,10 +2167,11 @@ class Airflow(AirflowBaseView):
         dag_run: Optional[DagRun] = (
             session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
         )
+        redirect_url = get_safe_url(request.values.get('redirect_url'))
 
         if dag_run is None:
             flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(redirect_url or url_for('Airflow.index'))
         else:
             try:
                 duration = dag_run.end_date - dag_run.start_date
@@ -2238,6 +2247,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
+        origin = args.get('origin')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2247,13 +2257,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG {dag_id} not found', "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             flash(f"Task {task_id} not found", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         task.dag = dag
 
@@ -2262,12 +2272,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(request.referrer or url_for('Airflow.index'))
+            return redirect(origin or url_for('Airflow.index'))
 
         from airflow.api.common.mark_tasks import set_state
 
@@ -2467,7 +2477,7 @@ class Airflow(AirflowBaseView):
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
         data = {
-            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
             'dag_runs': encoded_runs,
         }
 
@@ -2641,12 +2651,16 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        task_instances = {
+            ti.task_id: wwwutils.get_instance_with_map(ti, session)
+            for ti in dag.get_task_instances(dttm, dttm)
+        }
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
                 'extra_links': t.extra_links,
+                'is_mapped': t.is_mapped,
             }
             for t in dag.tasks
         }
@@ -3237,7 +3251,11 @@ class Airflow(AirflowBaseView):
         else:
             return "Error: Invalid execution_date"
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        with create_session() as session:
+            task_instances = {
+                ti.task_id: wwwutils.get_instance_with_map(ti, session)
+                for ti in dag.get_task_instances(dttm, dttm)
+            }
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
@@ -3248,7 +3266,6 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
-    @action_logging
     def tree_data(self):
         """Returns tree data"""
         dag_id = request.args.get('dag_id')
@@ -3286,7 +3303,7 @@ class Airflow(AirflowBaseView):
             min_date = min(dag_run_dates, default=None)
             tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
             data = {
-                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
                 'dag_runs': encoded_runs,
             }
 
@@ -4070,6 +4087,9 @@ class VariableModelView(AirflowModelView):
 
     list_template = 'airflow/variable_list.html'
     edit_template = 'airflow/variable_edit.html'
+    show_template = 'airflow/variable_show.html'
+
+    show_widget = AirflowVariableShowWidget
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # type: ignore
 
@@ -4078,6 +4098,7 @@ class VariableModelView(AirflowModelView):
         'add': 'create',
         'list': 'read',
         'edit': 'edit',
+        'show': 'read',
         'delete': 'delete',
         'action_muldelete': 'delete',
         'action_varexport': 'read',
@@ -4093,6 +4114,7 @@ class VariableModelView(AirflowModelView):
     list_columns = ['key', 'val', 'description', 'is_encrypted']
     add_columns = ['key', 'val', 'description']
     edit_columns = ['key', 'val', 'description']
+    show_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
@@ -4117,6 +4139,26 @@ class VariableModelView(AirflowModelView):
     def prefill_form(self, form, request_id):
         if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
+
+    def prefill_show(self, item):
+        if secrets_masker.should_hide_value_for_key(item.key):
+            item.val = '*' * 8
+
+    def _show(self, pk):
+        pages = get_page_args()
+        page_sizes = get_page_size_args()
+        orders = get_order_args()
+
+        item = self.datamodel.get(pk, self._base_filters)
+        if not item:
+            abort(404)
+        self.prefill_show(item)
+        widgets = self._get_show_widget(pk, item)
+        self.update_redirect()
+
+        return self._get_related_views_widgets(
+            item, orders=orders, pages=pages, page_sizes=page_sizes, widgets=widgets
+        )
 
     extra_args = {"can_create_variable": _can_create_variable}
 
@@ -4607,6 +4649,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'dag_id',
         'task_id',
         'run_id',
+        'map_index',
         'dag_run.execution_date',
         'operator',
         'start_date',
@@ -4680,10 +4723,18 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             return td_format(timedelta(seconds=duration))
         return None
 
+    def format_map_index(self):
+        """Only show indices of mapped tasks"""
+        map_index = self.get('map_index')
+        if map_index < 0:
+            return Markup("&nbsp;")
+        return None
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
         'run_id': wwwutils.dag_run_link,
+        'map_index': format_map_index,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
         'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),

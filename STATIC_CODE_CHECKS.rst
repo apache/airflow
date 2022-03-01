@@ -216,7 +216,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``markdownlint``                       Lints Markdown files
 ------------------------------------ ---------------------------------------------------------------- ------------
-``mermaid``                            Generates diagrams from mermaid files
+``migration-reference``                Update migration reference doc and revision metadata
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``mixed-line-ending``                  Detects if mixed line ending is used (\r vs. \r\n)
 ------------------------------------ ---------------------------------------------------------------- ------------

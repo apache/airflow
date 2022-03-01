@@ -87,7 +87,7 @@ It was previously possible to have any extension for zip files in the DAGs folde
 
 ### You have to use `postgresql://` instead of `postgres://` in `sql_alchemy_conn` for SQLAlchemy 1.4.0+
 
-When you use SQLAlchemy 1.4.0+, you need ot use `postgresql://` as the database in the `sql_alchemy_conn`.
+When you use SQLAlchemy 1.4.0+, you need to use `postgresql://` as the scheme in the `sql_alchemy_conn`.
 In the previous versions of SQLAlchemy it was possible to use `postgres://`, but using it in
 SQLAlchemy 1.4.0+ results in:
 
@@ -98,8 +98,8 @@ SQLAlchemy 1.4.0+ results in:
 E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
 ```
 
-If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
-1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+If you cannot change the scheme of your URL immediately, Airflow continues to work with SQLAlchemy
+1.3 and you can downgrade SQLAlchemy, but we recommend updating the scheme.
 Details in the [SQLAlchemy Changelog](https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b).
 
 ### Passing `execution_date` to `XCom.set()`, `XCom.clear()`, `XCom.get_one()`, and `XCom.get_many()` is deprecated
@@ -129,6 +129,20 @@ Previously, a task’s log is dynamically rendered from the `[core] log_filename
 
 A new `log_template` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field `log_template_id` is added to every DAG run to point to the format used by tasks (`NULL` indicates the first ever entry for compatibility).
 
+### Default templates for log filenames and elasticsearch log_id changed
+
+In order to support Dynamic Task Mapping the default templates for per-task instance logging has changed. If your config contains the old default values they will be upgraded-in-place.
+
+If you are happy with the new config values you should *remove* the setting in `airflow.cfg` and let the default value be used. Old default values were:
+
+
+- `[core] log_filename_template`: `{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log`
+- `[elasticsearch] log_id_template`: `{dag_id}-{task_id}-{execution_date}-{try_number}`
+
+`[core] log_filename_template` now uses "hive partition style" of `dag_id=<id>/run_id=<id>` by default, which may cause problems on some older FAT filesystems. If this affects you then you will have to change the log template.
+
+If you have customized the templates you should ensure that they contain `{{ ti.map_index }}` if you want to use dynamically mapped tasks.
+
 ### `airflow.models.base.Operator` is removed
 
 Previously, there was an empty class `airflow.models.base.Operator` for “type hinting”. This class was never really useful for anything (everything it did could be done better with `airflow.models.baseoperator.BaseOperator`), and has been removed. If you are relying on the class’s existence, use `BaseOperator` (for concrete operators), `airflow.models.abstractoperator.AbstractOperator` (the base class of both `BaseOperator` and the AIP-42 `MappedOperator`), or `airflow.models.operator.Operator` (a union type `BaseOperator | MappedOperator` for type annotation).
@@ -144,6 +158,10 @@ Note that Airflow’s metadatabase definition on both the database and ORM level
 Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
 
 This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
+
+### `auth_backends` includes session
+
+To allow the Airflow UI to use the API, the previous default authorization backend `airflow.api.auth.backend.deny_all` is changed to `airflow.api.auth.backend.session`, and this is automatically added to the list of API authorization backends if a non-default value is set.
 
 ## Airflow 2.2.4
 

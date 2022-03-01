@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add task fails journal table
+"""Add ``task_fail`` table
 
 Revision ID: 64de9cddf6c9
 Revises: 211e584da130
@@ -33,6 +33,7 @@ revision = '64de9cddf6c9'
 down_revision = '211e584da130'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

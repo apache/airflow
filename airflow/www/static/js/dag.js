@@ -19,7 +19,7 @@
 
 /* global document, window, $ */
 
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {

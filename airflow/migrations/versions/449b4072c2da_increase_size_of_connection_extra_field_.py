@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase size of connection.extra field to handle multiple RSA keys
+"""Increase size of ``connection.extra`` field to handle multiple RSA keys
 
 Revision ID: 449b4072c2da
 Revises: 82b7c48c147f
@@ -32,6 +32,7 @@ revision = '449b4072c2da'
 down_revision = '82b7c48c147f'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.2'
 
 
 def upgrade():
