@@ -182,7 +182,7 @@ class BaseXCom(Base, LoggingMixin):
             key=key,
             task_id=task_id,
             dag_id=dag_id,
-            run_id=dag_run_id,
+            run_id=run_id,
         )
 
         # Remove duplicate XComs and insert a new one.
