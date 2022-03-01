@@ -372,11 +372,13 @@ class BaseOperatorMeta(abc.ABCMeta):
             if not hasattr(self, '_BaseOperator__init_kwargs'):
                 self._BaseOperator__init_kwargs = {}
 
+            mapped_validation_only = kwargs.pop("_airflow_mapped_validation_only", False)
             result = func(self, **kwargs, default_args=default_args)
+
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
-            if not kwargs.get("_airflow_map_validation"):
+            if not mapped_validation_only:
                 # Set upstream task defined by XComArgs passed to template fields of the operator.
                 self.set_xcomargs_dependencies()
                 # Mark instance as instantiated.
@@ -656,11 +658,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
 
+    # How operator-mapping arguments should be validated. If True, a default validation implementation that
+    # calls the operator's constructor is used. If False, the operator should implement its own validation
+    # logic (default implementation is 'pass' i.e. no validation whatsoever).
+    mapped_arguments_validated_by_init: ClassVar[bool] = False
+
     def __new__(
         cls,
         dag: Optional['DAG'] = None,
         task_group: Optional["TaskGroup"] = None,
-        _airflow_map_validation: bool = False,  # If True, this is called to validate a MappedOperator.
+        _airflow_mapped_validation_only: bool = False,  # Whether called to validate a MappedOperator.
         **kwargs,
     ):
         # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
@@ -671,7 +678,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if not _airflow_map_validation and isinstance(task_group, MappedTaskGroup):
+        if not _airflow_mapped_validation_only and isinstance(task_group, MappedTaskGroup):
             return cls.partial(dag=dag, task_group=task_group, **kwargs).apply()
         return super().__new__(cls)
 
@@ -729,10 +736,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.__init_kwargs = {}
 
         super().__init__()
-
-        # This keyword is used internally to signify whether the operator is
-        # instantiated to validate a MappedOperator.
-        kwargs.pop("_airflow_map_validation", None)
 
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
@@ -1469,6 +1472,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    @classmethod
+    def _validate_mapped_arguments_by_init(cls, **kwargs: Any) -> None:
+        """Mapping argument validation by actually creating the operator."""
+        operator = cls(**kwargs, _airflow_mapped_validation_only=True)
+        if operator.dag:
+            operator.dag._remove_task(operator.task_id)
+
+    @classmethod
+    def validate_mapped_arguments(cls, **kwargs: Any) -> None:
+        """Validate arguments when this operator is being mapped."""
+        if cls.mapped_arguments_validated_by_init:
+            cls._validate_mapped_arguments_by_init(**kwargs)
 
     def unmap(self) -> "BaseOperator":
         """:meta private:"""

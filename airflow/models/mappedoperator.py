@@ -21,7 +21,6 @@ import collections.abc
 import datetime
 import functools
 import operator
-import unittest.mock
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -150,24 +149,6 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
     elif isinstance(arg, collections.abc.Iterable):
         for v in arg:
             ensure_xcomarg_return_value(v)
-
-
-def create_mocked_kwargs(kwargs: Dict[str, "Mappable"]) -> Dict[str, unittest.mock.MagicMock]:
-    """Create a mapping of mocks for given map arguments.
-
-    When a mapped operator is created, we want to perform basic validation on
-    the map arguments, especially the count of arguments. However, most of this
-    kind of logic lives directly on an operator class's ``__init__``, and
-    there's no good way to validate the arguments except to actually try to
-    create an operator instance.
-
-    Since the map arguments are yet to be populated when the mapped operator is
-    being parsed, we need to "invent" some mocked values for this validation
-    purpose. The :class:`~unittest.mock.MagicMock` class is a good fit for this
-    since it not only provide good run-time properties, but also enjoy special
-    treatments in Mypy.
-    """
-    return {k: unittest.mock.MagicMock(name=k) for k in kwargs}
 
 
 @attr.define(kw_only=True, repr=False)
@@ -321,11 +302,7 @@ class MappedOperator(AbstractOperator):
         """
         if isinstance(self.operator_class, str):
             return  # No need to validate deserialized operator.
-        mocked_mapped_kwargs = create_mocked_kwargs(self.mapped_kwargs)
-        op = self._create_unmapped_operator(mapped_kwargs=mocked_mapped_kwargs, real=False)
-        dag = op.get_dag()
-        if dag:
-            dag._remove_task(op.task_id)
+        self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
 
     @property
     def task_type(self) -> str:
@@ -455,36 +432,27 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
-        """Create a task of the underlying class based on this mapped operator.
-
-        :param mapped_kwargs: Mapped keyword arguments to be used to create the
-            task. Do not use ``self.mapped_kwargs``.
-        :param real: Whether the task should be created "for real" (i.e. *False*
-            means the operator is only created for validation purposes and not
-            going to be added to the actual DAG). This is simply forwarded to
-            the operator's ``_airflow_map_validation`` argument.
-        """
-        assert not isinstance(self.operator_class, str)
-        return self.operator_class(
-            task_id=self.task_id,
-            dag=self.dag,
-            task_group=self.task_group,
-            params=self.params,
-            start_date=self.start_date,
-            end_date=self.end_date,
-            _airflow_map_validation=not real,
+    def _get_unmap_kwargs(self) -> Dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "dag": self.dag,
+            "task_group": self.task_group,
+            "params": self.params,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
             **self.partial_kwargs,
-            **mapped_kwargs,
-        )
+            **self.mapped_kwargs,
+        }
 
     def unmap(self) -> "BaseOperator":
-        """Get the "normal" Operator after applying the current mapping"""
+        """Get the "normal" Operator after applying the current mapping."""
         dag = self.dag
         if not dag:
             raise RuntimeError("Cannot unmap a task without a DAG")
         dag._remove_task(self.task_id)
-        return self._create_unmapped_operator(mapped_kwargs=self.mapped_kwargs, real=True)
+        if isinstance(self.operator_class, str):
+            raise RuntimeError("Cannot unmap a deserialized operator")
+        return self.operator_class(**self._get_unmap_kwargs())
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
