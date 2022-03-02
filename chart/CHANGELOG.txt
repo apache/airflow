@@ -5,8 +5,8 @@ New Features
 """"""""""""
 
 - Add support for custom command and args in jobs (#20864)
-- Support for priorityClassName (#20794)
-- Add envFrom to the flower deployment (#21401)
+- Support for ``priorityClassName`` (#20794)
+- Add ``envFrom`` to the Flower deployment (#21401)
 - Add annotations to cleanup pods (#21484)
 
 Improvements
@@ -19,7 +19,7 @@ Improvements
 Bug Fixes
 """""""""
 - Fix elasticsearch URL when username/password are empty (#21222)
-- Mount `airflow.cfg` in wait-for-airflow-migrations containers (#20609)
+- Mount ``airflow.cfg`` in wait-for-airflow-migrations containers (#20609)
 - Grant pod log reader to triggerer serviceaccount (#21111)
 
 Doc only changes
