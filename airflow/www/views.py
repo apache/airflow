@@ -612,13 +612,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 
         dag.can_edit = current_app.appbuilder.sm.can_edit_dag(dag.dag_id)
         dag.can_trigger = dag.can_edit and can_create_dag_run
-        dag.can_delete = (
-            current_app.appbuilder.sm.has_access(
-                permissions.ACTION_CAN_DELETE,
-                permissions.RESOURCE_DAG,
-            )
-            or current_app.appbuilder.sm.can_delete_dag(dag.dag_id)
-        )
+        dag.can_delete = current_app.appbuilder.sm.can_delete_dag(dag.dag_id)
         context['dag'] = dag
 
 
