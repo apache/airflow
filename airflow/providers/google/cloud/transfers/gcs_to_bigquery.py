@@ -273,6 +273,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     schema_fields=schema_fields,
                     source_uris=source_uris,
                     source_format=self.source_format,
+                    autodetect=self.autodetect,
                     compression=self.compression,
                     skip_leading_rows=self.skip_leading_rows,
                     field_delimiter=self.field_delimiter,
@@ -285,8 +286,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     src_fmt_configs=self.src_fmt_configs,
                     encryption_configuration=self.encryption_configuration,
                     labels=self.labels,
-                    description=self.description,
-                    autodetect=self.autodetect
+                    description=self.description
                 )
         else:
             with warnings.catch_warnings():
