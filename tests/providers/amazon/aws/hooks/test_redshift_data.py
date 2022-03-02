@@ -19,7 +19,7 @@
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
 
-class TestRdsHook:
+class TestRedshiftDataHook:
     def test_conn_attribute(self):
         hook = RedshiftDataHook(aws_conn_id='aws_default', region_name='us-east-1')
         assert hasattr(hook, 'conn')
