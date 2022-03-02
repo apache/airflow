@@ -240,7 +240,7 @@ Run ``airflow db upgrade --help`` for usage details.
 Running migrations manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db upgrade``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref.rst` for a mapping between revision and version.
+If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db upgrade``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref` for a mapping between revision and version.
 
 
 .. _cli-db-downgrade:
@@ -258,4 +258,4 @@ If you want to preview the commands but not execute them, use option ``--sql-onl
 
 Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
 
-For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref.rst`.
+For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref`.

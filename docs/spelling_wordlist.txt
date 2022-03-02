@@ -504,6 +504,7 @@ backcompat
 backend
 backends
 backfill
+backfillable
 backfilled
 backfilling
 backfills
@@ -1441,6 +1442,7 @@ unix
 unmappable
 unmapped
 unpause
+unpaused
 unpausing
 unpredicted
 unqueued
