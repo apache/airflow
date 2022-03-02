@@ -22,6 +22,7 @@ from airflow.models import (
     DagModel,
     DagRun,
     DagTag,
+    DbCallbackRequest,
     Log,
     Pool,
     RenderedTaskInstanceFields,
@@ -35,7 +36,6 @@ from airflow.models import (
     errors,
 )
 from airflow.models.dagcode import DagCode
-from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections

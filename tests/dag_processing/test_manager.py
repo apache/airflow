@@ -46,9 +46,8 @@ from airflow.dag_processing.manager import (
     DagParsingStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, errors
+from airflow.models import DagBag, DagModel, DbCallbackRequest, errors
 from airflow.models.dagcode import DagCode
-from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname

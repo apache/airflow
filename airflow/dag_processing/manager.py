@@ -41,8 +41,7 @@ import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagModel, errors
-from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models import DagModel, DbCallbackRequest, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
