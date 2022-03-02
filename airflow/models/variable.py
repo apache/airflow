@@ -108,8 +108,6 @@ class Variable(Base, LoggingMixin):
     def pinned(cls):
         return synonym('is_pinned', descriptor=property(cls.get_pinned, cls.set_pinned))
 
-
-
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):
         """

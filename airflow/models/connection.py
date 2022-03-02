@@ -113,7 +113,7 @@ class Connection(Base, LoggingMixin):
         port: Optional[int] = None,
         extra: Optional[Union[str, dict]] = None,
         uri: Optional[str] = None,
-        is_pinned: Optional[bool] = False
+        is_pinned: Optional[bool] = False,
     ):
         super().__init__()
         self.conn_id = conn_id

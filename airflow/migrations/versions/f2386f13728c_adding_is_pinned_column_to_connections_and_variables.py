@@ -43,4 +43,3 @@ def upgrade():
 def downgrade():
     op.drop_column('connection', 'is_pinned')
     op.drop_column('variable', 'is_pinned')
-

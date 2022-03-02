@@ -129,7 +129,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
-    VariableForm
+    VariableForm,
 )
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
@@ -3728,7 +3728,7 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'is_encrypted',
         'is_extra_encrypted',
-        'pinned'
+        'pinned',
     ]
     add_columns = [
         'conn_id',
@@ -3740,7 +3740,7 @@ class ConnectionModelView(AirflowModelView):
         'password',
         'port',
         'extra',
-        'pinned'
+        'pinned',
     ]
     edit_columns = add_columns.copy()
 
