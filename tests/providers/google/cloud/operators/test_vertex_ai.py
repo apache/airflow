@@ -62,6 +62,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
     GetHyperparameterTuningJobOperator,
     ListHyperparameterTuningJobOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
+    DeleteModelOperator,
+    ExportModelOperator,
+    ListModelsOperator,
+    UploadModelOperator,
+)
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 TIMEOUT = 120
@@ -132,7 +138,9 @@ TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
 
+TEST_MODEL_ID = "test_model_id"
 TEST_MODEL_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id"
+TEST_MODEL_OBJ = {}
 TEST_JOB_DISPLAY_NAME = "temp_create_batch_prediction_job_test"
 TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 
@@ -151,6 +159,11 @@ TEST_DEPLOYED_MODEL = {
 }
 TEST_DEPLOYED_MODEL_ID = "test_deployed_model_id"
 TEST_HYPERPARAMETER_TUNING_JOB_ID = "test_hyperparameter_tuning_job_id"
+
+TEST_OUTPUT_CONFIG = {
+    "artifact_destination": {"output_uri_prefix": "gcs_destination_output_uri_prefix"},
+    "export_format_id": "tf-saved-model",
+}
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -1419,6 +1432,140 @@ class TestVertexAIListHyperparameterTuningJobOperator:
             page_token=page_token,
             filter=filter,
             read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIExportModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute(self, mock_hook):
+        op = ExportModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model_id=TEST_MODEL_ID,
+            output_config=TEST_OUTPUT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.export_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_ID,
+            output_config=TEST_OUTPUT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIDeleteModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model_id=TEST_MODEL_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.delete_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIListModelsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("model_service.Model.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+        order_by = "order_by"
+
+        op = ListModelsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            filter=filter,
+            page_size=page_size,
+            page_token=page_token,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.list_models.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            filter=filter,
+            page_size=page_size,
+            page_token=page_token,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIUploadModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("model_service.model_service.UploadModelResponse.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = UploadModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={'ti': mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.upload_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

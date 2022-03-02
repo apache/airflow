@@ -43,6 +43,11 @@ class ModelServiceHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
+    @staticmethod
+    def extract_model_id(obj: Dict) -> str:
+        """Returns unique id of the model."""
+        return obj["model"].rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -125,15 +130,38 @@ class ModelServiceHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
+        filter: Optional[str] = None,
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None,
+        read_mask: Optional[str] = None,
+        order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListModelsPager:
-        """
+        r"""
         Lists Models in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param filter: An expression for filtering the results of the request. For field names both
+            snake_case and camelCase are supported.
+            -  ``model`` supports = and !=. ``model`` represents the Model ID, i.e. the last segment of the
+            Model's [resource name][google.cloud.aiplatform.v1.Model.name].
+            -  ``display_name`` supports = and !=
+            -  ``labels`` supports general map functions that is:
+             -  ``labels.key=value`` - key:value equality
+             -  \`labels.key:\* or labels:key - key existence
+             -  A key including a space must be quoted. ``labels."a key"``.
+        :param page_size: The standard list page size.
+        :param page_token: The standard list page token. Typically obtained via
+            [ListModelsResponse.next_page_token][google.cloud.aiplatform.v1.ListModelsResponse.next_page_token]
+            of the previous
+            [ModelService.ListModels][google.cloud.aiplatform.v1.ModelService.ListModels]
+            call.
+        :param read_mask: Mask specifying which fields to read.
+        :param order_by: A comma-separated list of fields to order by, sorted in ascending order. Use "desc"
+            after a field name for descending.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
@@ -143,7 +171,12 @@ class ModelServiceHook(GoogleBaseHook):
 
         result = client.list_models(
             request={
-                "parent": parent,
+                'parent': parent,
+                'filter': filter,
+                'page_size': page_size,
+                'page_token': page_token,
+                'read_mask': read_mask,
+                'order_by': order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -156,7 +189,7 @@ class ModelServiceHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        model: Model,
+        model: Union[Model, Dict],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),

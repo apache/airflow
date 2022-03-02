@@ -81,6 +81,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
     GetHyperparameterTuningJobOperator,
     ListHyperparameterTuningJobOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
+    DeleteModelOperator,
+    ExportModelOperator,
+    ListModelsOperator,
+    UploadModelOperator,
+)
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -200,6 +206,30 @@ DEPLOYED_MODEL = {
         },
         'min_replica_count': 1,
         "max_replica_count": 1,
+    },
+}
+
+MODEL_OUTPUT_CONFIG = {
+    "artifact_destination": {
+        "output_uri_prefix": STAGING_BUCKET,
+    },
+    "export_format_id": "custom-trained",
+}
+MODEL_OBJ = {
+    "display_name": f"model-{str(uuid4())}",
+    # The artifact_uri should be the path to a GCS directory containing
+    # saved model artifacts.  The bucket must be accessible for the
+    # project's AI Platform service account and in the same region as
+    # the api endpoint.
+    "artifact_uri": f"{STAGING_BUCKET}/aiplatform-custom-training-2021-11-26-12:12:09.339/model",
+    "container_spec": {
+        "image_uri": MODEL_SERVING_CONTAINER_URI,
+        "command": [],
+        "args": [],
+        "env": [],
+        "ports": [],
+        "predict_route": "",
+        "health_route": "",
     },
 }
 
@@ -682,3 +712,48 @@ with models.DAG(
 
     create_hyperparameter_tuning_job >> get_hyperparameter_tuning_job >> delete_hyperparameter_tuning_job
     list_hyperparameter_tuning_job
+
+with models.DAG(
+    "example_gcp_vertex_ai_model_service",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as model_service_dag:
+    # [START how_to_cloud_vertex_ai_upload_model_operator]
+    upload_model = UploadModelOperator(
+        task_id="upload_model",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model=MODEL_OBJ,
+    )
+    # [END how_to_cloud_vertex_ai_upload_model_operator]
+
+    # [START how_to_cloud_vertex_ai_export_model_operator]
+    export_model = ExportModelOperator(
+        task_id="export_model",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=upload_model.output["model_id"],
+        output_config=MODEL_OUTPUT_CONFIG,
+    )
+    # [END how_to_cloud_vertex_ai_export_model_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_model_operator]
+    delete_model = DeleteModelOperator(
+        task_id="delete_model",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=upload_model.output["model_id"],
+    )
+    # [END how_to_cloud_vertex_ai_delete_model_operator]
+
+    # [START how_to_cloud_vertex_ai_list_models_operator]
+    list_models = ListModelsOperator(
+        task_id="list_models",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_models_operator]
+
+    upload_model >> export_model >> delete_model
+    list_models
