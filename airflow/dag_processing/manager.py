@@ -613,7 +613,6 @@ class DagFileProcessorManager(LoggingMixin):
                 session.delete(callback)
             except Exception as e:
                 self.log.warning("Error adding callback for execution: %s, %s", callback, e)
-        session.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):
         self._callback_to_execute[request.full_filepath].append(request)
