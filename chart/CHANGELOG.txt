@@ -31,6 +31,7 @@ Doc only changes
 Misc
 """"
 - Use ``2.2.4`` as default Airflow version (#21745)
+- Change redis image to bullseye (#21875)
 
 Airflow Helm Chart 1.4.0, 2022-01-10
 ------------------------------------
