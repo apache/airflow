@@ -1505,7 +1505,6 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     :param update_mask: Required. Mask of fields to update.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
-        Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param parameters: The parameters to apply to the instance.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`
