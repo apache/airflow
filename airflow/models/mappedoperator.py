@@ -46,6 +46,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cache
+from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -64,9 +65,9 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import Context
+from airflow.utils.helpers import is_container
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
@@ -77,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
 
     # BaseOperator.apply() can be called on an XComArg, sequence, or dict (not
     # any mapping since we need the value to be ordered).
@@ -134,6 +136,22 @@ def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
+def ensure_xcomarg_return_value(arg: Any) -> None:
+    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
+
+    if isinstance(arg, XComArg):
+        if arg.key != XCOM_RETURN_KEY:
+            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+    elif not is_container(arg):
+        return
+    elif isinstance(arg, collections.abc.Mapping):
+        for v in arg.values():
+            ensure_xcomarg_return_value(v)
+    elif isinstance(arg, collections.abc.Iterable):
+        for v in arg:
+            ensure_xcomarg_return_value(v)
+
+
 def create_mocked_kwargs(kwargs: Dict[str, "Mappable"]) -> Dict[str, unittest.mock.MagicMock]:
     """Create a mapping of mocks for given map arguments.
 
@@ -185,6 +203,8 @@ class OperatorPartial:
         from airflow.operators.dummy import DummyOperator
 
         validate_mapping_kwargs(self.operator_class, "apply", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
+        ensure_xcomarg_return_value(mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -240,7 +260,7 @@ class MappedOperator(AbstractOperator):
     _task_type: str
 
     dag: Optional["DAG"]
-    task_group: Optional[TaskGroup]
+    task_group: Optional["TaskGroup"]
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
@@ -255,7 +275,6 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
-        prevent_duplicates(self.partial_kwargs, self.mapped_kwargs, fail_reason="mapping already partial")
         self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)
@@ -284,7 +303,13 @@ class MappedOperator(AbstractOperator):
     @staticmethod
     @cache
     def deps_for(operator_class: Type["BaseOperator"]) -> FrozenSet[BaseTIDep]:
-        return operator_class.deps | {MappedTaskIsExpanded()}
+        operator_deps = operator_class.deps
+        if not isinstance(operator_deps, collections.abc.Set):
+            raise UnmappableOperator(
+                f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
+                f"not a {type(operator_deps).__name__}"
+            )
+        return operator_deps | {MappedTaskIsExpanded()}
 
     def _validate_argument_count(self) -> None:
         """Validate mapping arguments by unmapping with mocked values.

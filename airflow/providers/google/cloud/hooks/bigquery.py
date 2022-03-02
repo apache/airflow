@@ -46,11 +46,7 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import (
-    GbqConnector,
-    _check_google_client_version as gbq_check_google_client_version,
-    _test_google_api_imports as gbq_test_google_api_imports,
-)
+from pandas_gbq.gbq import GbqConnector  # noqa
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
@@ -2191,28 +2187,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
         return job.job_id
-
-
-class BigQueryPandasConnector(GbqConnector):
-    """
-    This connector behaves identically to GbqConnector (from Pandas), except
-    that it allows the service to be injected, and disables a call to
-    self.get_credentials(). This allows Airflow to use BigQuery with Pandas
-    without forcing a three legged OAuth connection. Instead, we can inject
-    service account credentials into the binding.
-    """
-
-    def __init__(
-        self, project_id: str, service: str, reauth: bool = False, verbose: bool = False, dialect="legacy"
-    ) -> None:
-        super().__init__(project_id)
-        gbq_check_google_client_version()
-        gbq_test_google_api_imports()
-        self.project_id = project_id
-        self.reauth = reauth
-        self.service = service
-        self.verbose = verbose
-        self.dialect = dialect
 
 
 class BigQueryConnection:

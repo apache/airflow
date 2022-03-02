@@ -626,7 +626,7 @@ class DagFileProcessorManager(LoggingMixin):
             # Likewise DagCode.remove_deleted_code
             dag_filelocs = []
             for fileloc in self._file_paths:
-                if zipfile.is_zipfile(fileloc):
+                if not fileloc.endswith(".py") and zipfile.is_zipfile(fileloc):
                     with zipfile.ZipFile(fileloc) as z:
                         dag_filelocs.extend(
                             [
