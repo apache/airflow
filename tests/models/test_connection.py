@@ -130,7 +130,7 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
-                          'extra1=a%20value&extra2=%2Fpath%2F',
+            'extra1=a%20value&extra2=%2Fpath%2F',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -157,7 +157,7 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
-                          '__extra__=arbitrary+string+%2A%29%2A%24',
+            '__extra__=arbitrary+string+%2A%29%2A%24',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -171,7 +171,7 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
-                          '__extra__=%5B%22list%22%2C+%22of%22%2C+%22values%22%5D',
+            '__extra__=%5B%22list%22%2C+%22of%22%2C+%22values%22%5D',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -185,8 +185,8 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
-                          '__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D',
-            # noqa: E501
+            '__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D',
+
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -213,7 +213,7 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation%3Ax%3Ay:1234/schema?'
-                          'extra1=a%20value&extra2=%2Fpath%2F',
+            'extra1=a%20value&extra2=%2Fpath%2F',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location:x:y',
@@ -275,9 +275,9 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='google-cloud-platform://?extra__google_cloud_platform__key_'
-                          'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope='
-                          'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra'
-                          '__google_cloud_platform__project=airflow',
+            'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope='
+            'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra'
+            '__google_cloud_platform__project=airflow',
             test_conn_attributes=dict(
                 conn_type='google_cloud_platform',
                 host='',
@@ -537,7 +537,7 @@ class TestConnection(unittest.TestCase):
             login='airflow',
             password='airflow',
             schema='airflow',
-            is_pinned=False
+            is_pinned=True,
         )
         assert 'localhost' == conn.host
         assert 'airflow' == conn.schema

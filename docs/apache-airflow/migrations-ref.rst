@@ -25,7 +25,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
  .. Beginning of auto-generated table
 
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+
-| ``f2386f13728c`` (head)         | ``c306b5b5ae4a``  | ``2.3.0``   | adding ``is_pinned`` column to connection and variable tables|
+| ``f2386f13728c`` (head)         | ``c306b5b5ae4a``  | ``2.3.0``   | adding is_pinned column to connections and variables         |
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+
 | ``c306b5b5ae4a``                | ``a3bcd0914482``  | ``2.3.0``   | Switch XCom table to use ``run_id``.                         |
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+
