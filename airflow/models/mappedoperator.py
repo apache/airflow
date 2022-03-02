@@ -46,6 +46,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cache
+from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -66,7 +67,6 @@ from airflow.typing_compat import Literal
 from airflow.utils.context import Context
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
 
     # BaseOperator.apply() can be called on an XComArg, sequence, or dict (not
     # any mapping since we need the value to be ordered).
@@ -240,7 +241,7 @@ class MappedOperator(AbstractOperator):
     _task_type: str
 
     dag: Optional["DAG"]
-    task_group: Optional[TaskGroup]
+    task_group: Optional["TaskGroup"]
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
@@ -284,7 +285,13 @@ class MappedOperator(AbstractOperator):
     @staticmethod
     @cache
     def deps_for(operator_class: Type["BaseOperator"]) -> FrozenSet[BaseTIDep]:
-        return operator_class.deps | {MappedTaskIsExpanded()}
+        operator_deps = operator_class.deps
+        if not isinstance(operator_deps, collections.abc.Set):
+            raise UnmappableOperator(
+                f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
+                f"not a {type(operator_deps).__name__}"
+            )
+        return operator_deps | {MappedTaskIsExpanded()}
 
     def _validate_argument_count(self) -> None:
         """Validate mapping arguments by unmapping with mocked values.
