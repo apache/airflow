@@ -349,7 +349,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def has_access(self, action_name, resource_name, user=None) -> bool:
         """
         Verify whether a given user could perform a certain action
-        (e.g can_read, can_write) on the given resource.
+        (e.g can_read, can_write, can_delete) on the given resource.
 
         :param action_name: action_name on resource (e.g can_read, can_edit).
         :param resource_name: name of view-menu or resource.
