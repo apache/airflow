@@ -22,6 +22,11 @@ Amazon DynamoDB to S3 Transfer Operator
 Use the DynamoDBToS3Operator transfer to copy the contents of an existing Amazon DynamoDB table
 to an existing Amazon Simple Storage Service (S3) bucket.
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: ../_partials/prerequisite_tasks.rst
+
 .. _howto/transfer:DynamoDBToS3Operator:
 
 DynamoDB To S3 Operator
