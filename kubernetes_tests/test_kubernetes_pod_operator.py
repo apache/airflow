@@ -49,6 +49,7 @@ def create_context(task):
     dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date)
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
+    task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
