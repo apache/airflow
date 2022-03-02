@@ -28,6 +28,7 @@ from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
+from airflow.providers.google.cloud.links.dataplex import DataplexTaskLink, DataplexTasksLink
 
 
 class DataplexCreateTaskOperator(BaseOperator):
@@ -86,6 +87,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         "impersonation_chain",
     )
     template_fields_renderers = {'body': 'json'}
+    operator_extra_links = (DataplexTaskLink(),)
 
     def __init__(
         self,
@@ -100,7 +102,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         *args,
@@ -130,6 +132,7 @@ class DataplexCreateTaskOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Creating Dataplex task %s", self.dataplex_task_id)
+        DataplexTaskLink.persist(context=context, task_instance=self)
 
         try:
             operation = hook.create_task(
@@ -224,7 +227,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
@@ -321,6 +324,7 @@ class DataplexListTasksOperator(BaseOperator):
         "delegate_to",
         "impersonation_chain",
     )
+    operator_extra_links = (DataplexTasksLink(),)
 
     def __init__(
         self,
@@ -336,7 +340,7 @@ class DataplexListTasksOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
@@ -365,6 +369,7 @@ class DataplexListTasksOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Listing Dataplex tasks from lake %s", self.lake_id)
+        DataplexTasksLink.persist(context=context, task_instance=self)
 
         tasks = hook.list_tasks(
             project_id=self.project_id,
@@ -420,6 +425,7 @@ class DataplexGetTaskOperator(BaseOperator):
     """
 
     template_fields = ("project_id", "dataplex_task_id", "delegate_to", "impersonation_chain")
+    operator_extra_links = (DataplexTaskLink(),)
 
     def __init__(
         self,
@@ -432,7 +438,7 @@ class DataplexGetTaskOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,
@@ -458,6 +464,7 @@ class DataplexGetTaskOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Retrieving Dataplex task %s", self.dataplex_task_id)
+        DataplexTaskLink.persist(context=context, task_instance=self)
 
         task = hook.get_task(
             project_id=self.project_id,
