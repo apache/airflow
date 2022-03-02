@@ -2525,13 +2525,6 @@ class Airflow(AirflowBaseView):
     def calendar(self, dag_id, session=None):
         """Get DAG runs as calendar"""
 
-        def _convert_to_date(session, column):
-            """Convert column to date."""
-            if session.bind.dialect.name == 'mssql':
-                return column.cast(Date)
-            else:
-                return func.date(column)
-
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
@@ -2544,15 +2537,16 @@ class Airflow(AirflowBaseView):
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
+        date = DagRun.execution_date.cast(Date)
         dag_states = (
             session.query(
-                (_convert_to_date(session, DagRun.execution_date)).label('date'),
+                date.label('date'),
                 DagRun.state,
                 func.count('*').label('count'),
             )
             .filter(DagRun.dag_id == dag.dag_id)
-            .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
-            .order_by(_convert_to_date(session, DagRun.execution_date).asc())
+            .group_by(date, DagRun.state)
+            .order_by(date.asc())
             .all()
         )
 
