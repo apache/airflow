@@ -135,7 +135,7 @@ annotations:
       links:
       - name: '#21745'
         url: https://github.com/apache/airflow/pull/21745
-    - description: 'Misc: Change redis image to bullseye'
+    - description: 'Misc: Change Redis image to bullseye'
       kind: changed
       links:
       - name: '#21875'
