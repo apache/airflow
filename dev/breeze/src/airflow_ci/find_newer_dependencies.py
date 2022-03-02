@@ -124,7 +124,7 @@ def main(constraints_branch: str, python: str, timezone: str, updated_on_or_afte
             progress.refresh()
     console.print("\n[yellow]If you see long running builds with `pip` backtracking, you should follow[/]")
     console.print(
-        "[yellow]https://github.com/apache/airflow/blob/main/dev/" "TRACKING_BACKTRACKING_ISSUES.md[/]\n"
+        "[yellow]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
     )
     constraint_string = ""
     for package, constrained_version in constrained_packages.items():
