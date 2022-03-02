@@ -1,3 +1,37 @@
+Airflow Helm Chart 1.5.0, 2022-03-07
+------------------------------------
+
+New Features
+""""""""""""
+
+- Add support for custom command and args in jobs (#20864)
+- Support for ``priorityClassName`` (#20794)
+- Add ``envFrom`` to the Flower deployment (#21401)
+- Add annotations to cleanup pods (#21484)
+
+Improvements
+""""""""""""
+
+- Speedup liveness probe for scheduler and triggerer (#20833, #21108)
+- Update git-sync to v3.4.0 (#21309)
+- Remove default auth backend setting (#21640)
+
+Bug Fixes
+"""""""""
+- Fix elasticsearch URL when username/password are empty (#21222)
+- Mount ``airflow.cfg`` in wait-for-airflow-migrations containers (#20609)
+- Grant pod log reader to triggerer serviceaccount (#21111)
+
+Doc only changes
+""""""""""""""""
+- Simplify chart docs for configuring Airflow (#21747)
+- Add extra information about time synchronization needed (#21685)
+- Fix extra containers docs (#20787)
+
+Misc
+""""
+- Use ``2.2.4`` as default Airflow version (#21745)
+- Change Redis image to bullseye (#21875)
 
 Airflow Helm Chart 1.4.0, 2022-01-10
 ------------------------------------
