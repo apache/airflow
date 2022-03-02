@@ -2221,7 +2221,7 @@ class Airflow(AirflowBaseView):
 
         altered = dag.set_task_instance_state(
             task_id=task_id,
-            dag_run_id=dag_run_id,
+            run_id=dag_run_id,
             state=state,
             upstream=upstream,
             downstream=downstream,
@@ -2283,7 +2283,7 @@ class Airflow(AirflowBaseView):
 
         to_be_altered = set_state(
             tasks=[task],
-            dag_run_id=dag_run_id,
+            run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
@@ -3596,7 +3596,7 @@ class XComModelView(AirflowModelView):
 
     search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
     list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    base_order = ('dagrun_id', 'desc')
+    base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 

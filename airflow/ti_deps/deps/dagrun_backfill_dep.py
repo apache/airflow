@@ -16,17 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module defines dep for DagRun ID validation"""
+"""This module defines dep for making sure DagRun not a backfill."""
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-class DagrunIdDep(BaseTIDep):
-    """Dep for valid DagRun ID to schedule from scheduler"""
+class DagRunNotBackfillDep(BaseTIDep):
+    """Dep for valid DagRun run_id to schedule from scheduler"""
 
-    NAME = "Dagrun run_id is not backfill job ID"
+    NAME = "DagRun is not backfill job"
     IGNORABLE = True
 
     @provide_session
@@ -37,7 +37,7 @@ class DagrunIdDep(BaseTIDep):
         :param ti: the task instance to get the dependency status for
         :param session: database session
         :param dep_context: the context for which this dependency should be evaluated for
-        :return: True if DagRun ID is valid for scheduling from scheduler.
+        :return: True if DagRun is valid for scheduling from scheduler.
         """
         dagrun = ti.get_dagrun(session)
 
