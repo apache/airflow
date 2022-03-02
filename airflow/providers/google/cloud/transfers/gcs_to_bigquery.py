@@ -286,6 +286,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     encryption_configuration=self.encryption_configuration,
                     labels=self.labels,
                     description=self.description,
+                    autodetect=self.autodetect
                 )
         else:
             with warnings.catch_warnings():
