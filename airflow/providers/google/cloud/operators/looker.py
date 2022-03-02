@@ -20,6 +20,7 @@
 
 from typing import TYPE_CHECKING, Dict, Optional
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.looker import LookerHook
 
@@ -83,8 +84,10 @@ class LookerStartPdtBuildOperator(BaseOperator):
 
         self.materialization_id = resp.materialization_id
 
-        # materialization_id shouldn't be None, ensure mypy about that
-        assert self.materialization_id is not None
+        if self.materialization_id is None:
+            raise AirflowException(
+                f'No `materialization_id` was returned for model: {self.model}, view: {self.view}.'
+            )
 
         self.log.info("PDT materialization job submitted successfully. Job id: %s.", self.materialization_id)
 

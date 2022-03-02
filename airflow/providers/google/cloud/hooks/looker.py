@@ -42,7 +42,8 @@ class LookerHook(BaseHook):
     ) -> None:
         super().__init__()
         self.looker_conn_id = looker_conn_id
-        self.source = self.get_api_source()
+        # source is used to track origin of the requests
+        self.source = f'airflow:{version}'
 
     def start_pdt_build(
         self,
@@ -181,19 +182,6 @@ class LookerHook(BaseHook):
 
         self.log.info('PDT materialization job completed successfully. Job id: %s.', materialization_id)
 
-    def get_api_source(self):
-        """Returns origin of the API call."""
-
-        # Infer API source based on Airflow version, e.g.:
-        # "2.1.4+composer" -> Cloud Composer
-        # "2.1.4" -> Airflow
-
-        self.log.debug(
-            "Got the following version for connection id: '%s'. Version: '%s'.", self.looker_conn_id, version
-        )
-
-        return 'composer' if 'composer' in version else 'airflow'
-
     def get_looker_sdk(self):
         """Returns Looker SDK client for Looker API 4.0."""
 
@@ -260,7 +248,8 @@ class LookerApiSettings(api_settings.ApiSettings):
 class JobStatus(Enum):
     """The job status string."""
 
-    PENDING = 'new'
+    QUEUED = "added"
+    PENDING = 'pending'
     RUNNING = 'running'
     CANCELLED = 'killed'
     DONE = 'complete'

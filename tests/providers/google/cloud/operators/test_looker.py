@@ -81,7 +81,7 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         mock_hook.return_value.start_pdt_build.assert_called_once_with(
             model=MODEL,
             view=VIEW,
-            query_params={},
+            query_params=None,
         )
 
         # hook.wait_for_job called once
@@ -116,7 +116,7 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         mock_hook.return_value.start_pdt_build.assert_called_once_with(
             model=MODEL,
             view=VIEW,
-            query_params={},
+            query_params=None,
         )
 
         # hook.wait_for_job NOT called

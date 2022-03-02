@@ -23,6 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
+from airflow.version import version
 
 HOOK_PATH = "airflow.providers.google.cloud.hooks.looker.LookerHook.{}"
 
@@ -30,7 +31,7 @@ JOB_ID = "test-id"
 TASK_ID = "test-task-id"
 MODEL = "test_model"
 VIEW = "test_view"
-SOURCE = 'airflow'
+SOURCE = f'airflow:{version}'
 
 CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 

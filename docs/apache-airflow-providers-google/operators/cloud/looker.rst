@@ -39,29 +39,7 @@ To use these operators, you must do a few things:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-Communication between Airflow and Looker is done via `Looker API <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
-To facilitate the API communication Looker operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
-Before calling API, Looker SDK needs to authenticate itself using your Looker API credentials.
-
-* Obtain your Looker API credentials using instructions in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
-
-* Obtain your Looker API path and port as described in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-getting-started#looker_api_path_and_port>`_.
-
-* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection`
-
-See the following example of a connection setup:
-
-.. code-block::
-
-  Connection Id: your_conn_id  # Passed to operators as ``looker_conn_id`` parameter.
-  Connection Type: HTTP
-  Host: https://your.looker.com  # Base URL for Looker API. Do not include /api/* in the URL.
-  Login: YourClientID  # Looker API client id
-  Password: YourClientSecret  # Looker API client secret
-  Port: 19999  # Port for Looker API. If hosted on GCP, don't specify the port leaving just the host.
-  # Extras are optional parameters in JSON format.
-  Extra: {"verify_ssl": "true",  # Set to false only if testing locally against self-signed certs. Defaults to true if not specified.
-          "timeout": "120"}  # Timeout in seconds for HTTP requests. Defaults to 2 minutes (120) seconds if not specified.
+* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`apache-airflow-providers-google:connections/gcp_looker`
 
 Start a PDT materialization job
 -------------------------------
