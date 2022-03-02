@@ -65,6 +65,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import Context
+from airflow.utils.helpers import is_container
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -135,6 +136,22 @@ def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
+def ensure_xcomarg_return_value(arg: Any) -> None:
+    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
+
+    if isinstance(arg, XComArg):
+        if arg.key != XCOM_RETURN_KEY:
+            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+    elif not is_container(arg):
+        return
+    elif isinstance(arg, collections.abc.Mapping):
+        for v in arg.values():
+            ensure_xcomarg_return_value(v)
+    elif isinstance(arg, collections.abc.Iterable):
+        for v in arg:
+            ensure_xcomarg_return_value(v)
+
+
 def create_mocked_kwargs(kwargs: Dict[str, "Mappable"]) -> Dict[str, unittest.mock.MagicMock]:
     """Create a mapping of mocks for given map arguments.
 
@@ -186,6 +203,8 @@ class OperatorPartial:
         from airflow.operators.dummy import DummyOperator
 
         validate_mapping_kwargs(self.operator_class, "apply", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
+        ensure_xcomarg_return_value(mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -256,7 +275,6 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
-        prevent_duplicates(self.partial_kwargs, self.mapped_kwargs, fail_reason="mapping already partial")
         self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)

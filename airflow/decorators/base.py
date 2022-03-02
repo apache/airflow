@@ -50,6 +50,7 @@ from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
     create_mocked_kwargs,
+    ensure_xcomarg_return_value,
     get_mappable_types,
     prevent_duplicates,
 )
@@ -266,9 +267,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
     @cached_property
     def _function_is_vararg(self):
-        return any(
-            v.kind == inspect.Parameter.VAR_KEYWORD for v in self.function_signature.parameters.values()
-        )
+        parameters = self.function_signature.parameters
+        return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values())
 
     @cached_property
     def _mappable_function_argument_names(self) -> Set[str]:
@@ -304,6 +304,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     def apply(self, **map_kwargs: "Mappable") -> XComArg:
         self._validate_arg_names("apply", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
+        ensure_xcomarg_return_value(map_kwargs)
 
         partial_kwargs = self.kwargs.copy()
 

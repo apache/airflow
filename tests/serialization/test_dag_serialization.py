@@ -40,7 +40,7 @@ from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -1605,8 +1605,7 @@ def test_mapped_operator_xcomarg_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1615,7 +1614,7 @@ def test_mapped_operator_xcomarg_serde():
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
         'downstream_task_ids': [],
-        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'test_key'}}},
+        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
@@ -1630,7 +1629,7 @@ def test_mapped_operator_xcomarg_serde():
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
-    assert arg.key == 'test_key'
+    assert arg.key == XCOM_RETURN_KEY
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
@@ -1666,13 +1665,12 @@ def test_mapped_decorator_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         op1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(op1, "my_key")
 
         @task(retry_delay=30)
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=xcomarg)
+        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
 
@@ -1691,7 +1689,7 @@ def test_mapped_decorator_serde():
         'mapped_kwargs': {},
         'mapped_op_kwargs': {
             'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
+            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
         },
         'operator_extra_links': [],
         'ui_color': '#ffefeb',
@@ -1709,7 +1707,7 @@ def test_mapped_decorator_serde():
 
     assert deserialized.mapped_op_kwargs == {
         "arg2": {"a": 1, "b": 2},
-        "arg3": _XComRef("op1", "my_key"),
+        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
     }
     assert deserialized.partial_kwargs == {
         "op_args": [],

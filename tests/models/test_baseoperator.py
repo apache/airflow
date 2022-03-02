@@ -33,7 +33,6 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, c
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
@@ -757,8 +756,7 @@ def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -816,8 +814,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 
@@ -861,7 +858,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1, XCOM_RETURN_KEY))
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 
