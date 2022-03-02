@@ -526,26 +526,27 @@ ARG_DB_VERSION = Arg(
         "-n",
         "--version",
     ),
-    help="The airflow version to downgrade to",
+    help="The airflow version to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_VERSION = Arg(
     ("--from-version",),
-    help="(Optional) if generating sql, may supply a _from_ version",
+    help="(Optional) If generating sql, may supply a _from_ version",
 )
 ARG_DB_REVISION = Arg(
     (
         "-r",
         "--revision",
     ),
-    help="The airflow revision to downgrade to",
+    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) if generating sql, may supply a _from_ revision",
+    help="(Optional) If generating sql, may supply a _from_ revision",
 )
 ARG_DB_SQL = Arg(
     ("-s", "--sql-only"),
-    help="Don't actually run migrations; just print out sql scripts for offline migration.",
+    help="Don't actually run migrations; just print out sql scripts for offline migration. "
+    "Required if using either `--from-version` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -1362,7 +1363,14 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name='downgrade',
-        help="Downgrade the schema of the metadata database",
+        help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--revision` or `--version`. "
+            "To print but not execute commands, use option `--sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
             ARG_DB_REVISION,
