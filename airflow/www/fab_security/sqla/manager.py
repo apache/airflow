@@ -23,10 +23,10 @@ from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.compat import sqlalchemy as sqla_compat
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -99,7 +99,7 @@ class SecurityManager(BaseSecurityManager):
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = Inspector.from_engine(engine)
+            inspector = sqla_compat.inspect(engine)
             if "ab_user" not in inspector.get_table_names():
                 log.info(c.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
