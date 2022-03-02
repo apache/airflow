@@ -2643,7 +2643,7 @@ class DAG(LoggingMixin):
         task_pools = {task.pool for task in self.tasks}
         diff = task_pools - pools
         if diff:
-            raise PoolNotFound(f"The following pools: `{sorted(diff)}` do not exist in the database")
+            raise PoolNotFound(f"The following pools do not exist in the database: `{sorted(diff)}`")
 
 
 class DagTag(Base):
