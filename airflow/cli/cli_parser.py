@@ -1364,6 +1364,13 @@ DB_COMMANDS = (
     ActionCommand(
         name='downgrade',
         help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--revision` or `--version`. "
+            "To print but not execute commands, use option `--sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
             ARG_DB_REVISION,
