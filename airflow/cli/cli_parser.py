@@ -248,11 +248,6 @@ ARG_REVISION_RANGE = Arg(
     ),
     default=None,
 )
-ARG_REVISION_RANGE = Arg(
-    ('--revision-range',),
-    help='Revision range(start:end) to use for offline sql generation',
-    default=None,
-)
 
 # list_dag_runs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
