@@ -26,7 +26,8 @@ Create Date: 2020-11-13 19:27:10.161814
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = '92c57b58940d'
@@ -39,7 +40,7 @@ airflow_version = '1.10.13'
 def upgrade():
     """Create FAB Tables"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
     if "ab_permission" not in tables:
         op.create_table(
@@ -153,7 +154,7 @@ def upgrade():
 def downgrade():
     """Drop FAB Tables"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
     fab_tables = [
         "ab_permission",

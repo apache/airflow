@@ -29,6 +29,7 @@ from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
@@ -1266,7 +1267,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if version.exists(connection):
+    if has_table(connection, version):
         version.drop(connection)
 
 
