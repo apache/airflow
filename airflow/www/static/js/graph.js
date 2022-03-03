@@ -24,7 +24,7 @@
   autoRefreshInterval, moment, convertSecsToHumanReadable
 */
 
-import { getMetaValue, finalStatesMap, getVisibilityVars } from './utils';
+import { getMetaValue, finalStatesMap } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 import { callModal } from './dag';
@@ -388,10 +388,9 @@ function startOrStopRefresh() {
   }
 }
 
-const { hidden, visibilityChange } = getVisibilityVars();
 // pause autorefresh when the page is not active
 const handleVisibilityChange = () => {
-  if (document[hidden]) {
+  if (document.hidden) {
     clearInterval(refreshInterval);
   } else {
     refreshInterval = setInterval(() => {
@@ -400,9 +399,7 @@ const handleVisibilityChange = () => {
   }
 };
 
-if (hidden) {
-  document.addEventListener(visibilityChange, handleVisibilityChange);
-}
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
 let prevTis;
 
