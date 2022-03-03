@@ -257,7 +257,7 @@ def generate_issue_content(
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
     else:
         excluded_prs = []
-    changes = get_changes(verbose, previous_release, current_release, is_helm_chart=is_helm_chart)
+    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
     change_prs = [change.pr for change in changes]
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 

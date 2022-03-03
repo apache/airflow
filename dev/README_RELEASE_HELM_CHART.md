@@ -255,7 +255,7 @@ Content is generated with:
 
 ```shell
 ./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
-    --current-release helm-chart/${VERSION}
+    --current-release helm-chart/${VERSION} --is-helm-chart
 
 ```
 
