@@ -19,6 +19,7 @@ from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
@@ -86,7 +87,11 @@ def get_task_instance(
             RTIF.task_id == TI.task_id,
         ),
     ).add_entity(RTIF)
-    task_instance = query.one_or_none()
+
+    try:
+        task_instance = query.one_or_none()
+    except MultipleResultsFound:
+        raise NotFound("Task instance not found", detail="Task instance is mapped, add the map_index value to the URL")
     if task_instance is None:
         raise NotFound("Task instance not found")
 

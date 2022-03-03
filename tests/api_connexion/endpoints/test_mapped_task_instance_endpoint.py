@@ -128,11 +128,10 @@ class TestMappedTaskInstanceEndpoint:
 class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
     @provide_session
     def test_mapped_task_instances(self, mapped_task_instances, session):
-        username = 'test'
         for instance, state in mapped_task_instances:
             response = self.client.get(
                 f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2/{instance}",
-                environ_overrides={"REMOTE_USER": username},
+                environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
             assert response.json == {
@@ -173,3 +172,16 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
+
+    def test_without_map_index_returns_custom_404(self, mapped_task_instances):
+        response = self.client.get(
+            f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json ==  {
+            'detail': 'Task instance is mapped, add the map_index value to the URL',
+            'status': 404,
+            'title': 'Task instance not found',
+            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound'
+        }
