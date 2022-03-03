@@ -1612,7 +1612,7 @@ Doc only changes
 - Add note extra links only render on when using RBAC webserver  (#8788)
 - Remove unused Airflow import from docs (#9274)
 - Add PR/issue note in Contribution Workflow Example (#9177)
-- Don't use the term "whitelist" - language matters (#9174)
+- Use inclusive language - language matters (#9174)
 - Add docs to change Colors on the Webserver (#9607)
 - Change 'initiate' to 'initialize' in installation.rst (#9619)
 - Replace old Variables View Screenshot with new (#9620)
