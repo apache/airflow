@@ -151,6 +151,7 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: Optional[bool] = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
+        python_command: str = "python3",
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
@@ -192,6 +193,7 @@ class TaskDecoratorCollection:
             with index as key. Dict will unroll to xcom values with keys as XCom keys.
             Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
+        :param python_command: Python command for executing functions, Default: python3
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically
