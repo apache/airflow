@@ -60,6 +60,7 @@ def create_context(task):
     task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
+        "run_id": dag_run.run_id,
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
