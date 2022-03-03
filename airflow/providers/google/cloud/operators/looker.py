@@ -37,15 +37,15 @@ class LookerStartPdtBuildOperator(BaseOperator):
     :param view: Required. The view of the PDT to start building.
     :param query_params: Optional. Additional materialization parameters.
     :param asynchronous: Optional. Flag indicating whether to wait for the job
-    to finish or return immediately.
-    This is useful for submitting long running jobs and
-    waiting on them asynchronously using the LookerCheckPdtBuildSensor
+        to finish or return immediately.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the LookerCheckPdtBuildSensor
     :param cancel_on_kill: Optional. Flag which indicates whether cancel the
-    hook's job or not, when on_kill is called.
+        hook's job or not, when on_kill is called.
     :param wait_time: Optional. Number of seconds between checks for job to be
-    ready. Used only if ``asynchronous`` is False.
+        ready. Used only if ``asynchronous`` is False.
     :param wait_timeout: Optional. How many seconds wait for job to be ready.
-    Used only if ``asynchronous`` is False.
+        Used only if ``asynchronous`` is False.
     """
 
     def __init__(

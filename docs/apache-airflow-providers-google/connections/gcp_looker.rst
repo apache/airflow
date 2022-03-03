@@ -22,7 +22,7 @@ Communication between Airflow and Looker is done via `Looker API <https://docs.l
 To facilitate the API communication Looker operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
 Before calling API, Looker SDK needs to authenticate itself using your Looker API credentials.
 
-* Obtain your Looker API credentials using instructions in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
+* Obtain your Looker API credentials using instructions in the `Looker API authentication documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
 
 * Obtain your Looker API path and port as described in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-getting-started#looker_api_path_and_port>`_.
 

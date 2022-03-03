@@ -35,7 +35,7 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
     :param materialization_id: Required. The materialization job ID to poll. (templated)
     :param looker_conn_id: Required. The connection ID to use connecting to Looker.
     :param cancel_on_kill: Optional. Flag which indicates whether cancel the hook's job or not,
-    when on_kill is called.
+        when on_kill is called.
     """
 
     template_fields = ["materialization_id"]

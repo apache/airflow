@@ -143,7 +143,7 @@ class LookerHook(BaseHook):
         :param materialization_id: Required. The materialization id to wait for.
         :param wait_time: Optional. Number of seconds between checks.
         :param timeout: Optional. How many seconds wait for job to be ready.
-        Used only if ``asynchronous`` is False.
+            Used only if ``asynchronous`` is False.
         """
         self.log.info('Waiting for PDT materialization job to complete. Job id: %s.', materialization_id)
 
