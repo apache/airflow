@@ -449,9 +449,9 @@ class MappedOperator(AbstractOperator):
         dag = self.dag
         if not dag:
             raise RuntimeError("Cannot unmap a task without a DAG")
-        dag._remove_task(self.task_id)
         if isinstance(self.operator_class, str):
             raise RuntimeError("Cannot unmap a deserialized operator")
+        dag._remove_task(self.task_id)
         return self.operator_class(**self._get_unmap_kwargs())
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
