@@ -1,19 +1,19 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 Google Cloud Looker Operators
 ===============================
@@ -39,7 +39,7 @@ To use these operators, you must do a few things:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`apache-airflow-providers-google:connections/gcp_looker`
+* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`connections/gcp_looker`
 
 Start a PDT materialization job
 -------------------------------
@@ -67,5 +67,4 @@ Alternatively, the job configuration can be submitted in asynchronous mode by us
     :end-before: [END cloud_looker_async_start_pdt_sensor]
 
 There are more arguments to provide in the jobs than the examples show.
-For the complete list of arguments take a look at Looker operator arguments at
-`GitHub <https://github.com/apache/airflow/blob/main/airflow/providers/google/cloud/operators/looker.py>`__
+For the complete list of arguments take a look at Looker operator arguments at :class:`airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator`
