@@ -1076,6 +1076,7 @@ def _validate_version_range(script_, version_range):
     _lower, _upper = REVISION_HEADS_MAP[lower], REVISION_HEADS_MAP[upper]
     revision = f"{_lower}:{_upper}"
     try:
+        # Check if there is history between the revisions
         list(script_.revision_map.iterate_revisions(_upper, _lower))
     except Exception:
         raise AirflowException(
@@ -1097,11 +1098,12 @@ def _validate_revision(script_, revision_range):
     rev_2_0_0_head = 'e959f08ac86c'
     _lowerband, _upperband = revision_range.split(':')
     if dbname == 'mssql':
-        rev_2_2_0_head = '7b2661a43ba3'
-        rev_2_0_0_head = rev_2_2_0_head
+        rev_2_0_0_head = '7b2661a43ba3'
         start_version = '2.2.0'
     for i in [_lowerband, _upperband]:
         try:
+            # Check if there is history between the revisions and the start revision
+            # This ensures that the revisions are above 2.0.0 head or 2.2.0 head if mssql
             list(script_.revision_map.iterate_revisions(upper=i, lower=rev_2_0_0_head))
         except Exception:
             raise AirflowException(
