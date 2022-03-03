@@ -39,6 +39,9 @@ operators:
   - integration-name: Alibaba Cloud OSS
     python-modules:
       - airflow.providers.alibaba.cloud.operators.oss
+  - integration-name: Alibaba Cloud EMR
+    python-modules:
+      - airflow.providers.alibaba.cloud.operators.aliyun_emr_operator
 
 sensors:
   - integration-name: Alibaba Cloud OSS
@@ -49,6 +52,9 @@ hooks:
   - integration-name: Alibaba Cloud OSS
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.oss
+  - integration-name: Alibaba Cloud EMR
+    python-modules:
+      - airflow.providers.alibaba.cloud.hooks.aliyun_emr_hook
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.alibaba.cloud.hooks.oss.OSSHook
