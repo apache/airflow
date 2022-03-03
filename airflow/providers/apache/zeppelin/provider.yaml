@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-apache-zeppelin
+name: Zeppelin
+description: |
+    Apache Zeppelin integration (including `Zeppelin <https://zeppelin.apache.org//>`__).
+
+versions:
+  - 1.0.1
+
+additional-dependencies:
+  - apache-airflow>=2.2.4
+
+integrations:
+  - integration-name: Apache Zeppelin
+    external-doc-url: http://zeppelin.apache.org
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-zeppelin/operators.rst
+    logo: /integration-logos/apache/zeppelin.png
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Zeppelin Operator
+    python-modules:
+      - airflow.providers.apache.zeppelin.operators.zeppelin_operator
+
+hooks:
+  - integration-name: Apache Zeppelin Hook
+    python-modules:
+      - airflow.providers.apache.zeppelin.hooks.zeppelin_hook
+
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+  - airflow.providers.apache.zeppelin.hooks.zeppelin_hook.ZeppelinHook

@@ -559,6 +559,9 @@ yandex = [
 zendesk = [
     'zenpy>=2.0.24',
 ]
+zeppelin = [
+    'pyzeppelin'
+]
 # End dependencies group
 
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
@@ -674,6 +677,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'apache.zeppelin': zeppelin,
     'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
