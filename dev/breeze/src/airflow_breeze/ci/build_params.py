@@ -17,11 +17,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
+from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -57,6 +56,8 @@ class BuildParams:
     additional_runtime_apt_command: str = ""
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
+    platform: str = "linux/amd64"
+    debian_version: str = "bullseye"
     upgrade_to_newer_dependencies: str = "true"
 
     @property
@@ -68,6 +69,18 @@ class BuildParams:
     def airflow_ci_image_name(self):
         """Construct CI image link"""
         image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
+        return image
+
+    @property
+    def airflow_ci_image_name_with_cache(self):
+        """Construct CI image link"""
+        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}:cache'
+        return image
+
+    @property
+    def airflow_ci_image_name_with_tag(self):
+        """Construct CI image link"""
+        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
         return image if not self.tag else image + f":{self.tag}"
 
     @property
@@ -77,8 +90,7 @@ class BuildParams:
     @property
     def python_base_image(self):
         """Construct Python Base Image"""
-        #  ghcr.io/apache/airflow/main/python:3.8-slim-bullseye
-        return f'{self.airflow_image_name}/{self.airflow_branch}/python:{self.python_version}-slim-bullseye'
+        return f'python:{self.python_version}-slim-{self.debian_version}'
 
     @property
     def airflow_ci_local_manifest_image(self):
@@ -107,7 +119,7 @@ class BuildParams:
         docker_cache_ci_directive = []
         if self.docker_cache == "pulled":
             docker_cache_ci_directive.append("--cache-from")
-            docker_cache_ci_directive.append(self.airflow_ci_image_name)
+            docker_cache_ci_directive.append(self.airflow_ci_image_name_with_cache)
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:
@@ -116,8 +128,4 @@ class BuildParams:
 
     @property
     def airflow_version(self):
-        airflow_setup_file = Path(get_airflow_sources_root()) / 'setup.py'
-        with open(airflow_setup_file) as setup_file:
-            for line in setup_file.readlines():
-                if "version =" in line:
-                    return line.split()[2][1:-1]
+        return get_airflow_version()

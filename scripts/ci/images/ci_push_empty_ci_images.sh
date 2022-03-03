@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
+# Pushes empty CI images with tags to registry in GitHub to stop waiting. They will fail validation
+# And whole job will fail
+function push_ci_image_with_tag_to_github() {
+    start_end::group_start "Prepare and push empty CI images"
+    docker_v build -t "${AIRFLOW_CI_IMAGE}" - <<EOF
+FROM scratch
+EOF
+    docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    start_end::group_end
+}
 
+build_images::prepare_ci_build
 
-def test_visuals():
-    assert 2051 == len(ASCIIART)
+build_images::login_to_docker_registry
 
-
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    selected = False
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 10
-    all = False
-    selected = True
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) > 60
-    all = False
-    selected = False
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 8
+push_ci_image_with_tag_to_github

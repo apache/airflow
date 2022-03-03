@@ -15,23 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
+from airflow_breeze.utils import host_info_utils
+
+SUPPORTED_OS = ['Linux', 'Darwin', 'Windows']
 
 
-def test_visuals():
-    assert 2051 == len(ASCIIART)
-
-
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    selected = False
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 10
-    all = False
-    selected = True
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) > 60
-    all = False
-    selected = False
-    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 8
+def test_get_host_os():
+    current_os = host_info_utils.get_host_os()
+    assert current_os in SUPPORTED_OS

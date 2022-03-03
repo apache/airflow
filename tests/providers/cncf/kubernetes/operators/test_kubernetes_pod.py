@@ -175,7 +175,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
     def test_labels_mapped(self):
@@ -193,7 +193,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
             "map_index": "10",
         }
 
@@ -211,10 +211,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         self.client_mock.return_value.list_namespaced_pod.assert_called_once()
         _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
-        assert (
-            kwargs['label_selector']
-            == 'dag_id=dag,execution_date=2016-01-01T0100000000-26816529d,task_id=task,already_checked!=True'
-        )
+        assert kwargs['label_selector'] == 'dag_id=dag,run_id=test,task_id=task,already_checked!=True'
 
     def test_image_pull_secrets_correctly_set(self):
         fake_pull_secrets = "fakeSecret"
@@ -353,7 +350,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
@@ -391,7 +388,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
     @pytest.fixture
@@ -461,7 +458,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
         assert pod.metadata.namespace == "mynamespace"
         assert pod.spec.containers[0].image == "ubuntu:16.04"
@@ -530,7 +527,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")

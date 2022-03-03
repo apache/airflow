@@ -91,9 +91,18 @@ option_limit_pr_count = click.option(
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
 
+option_is_helm_chart = click.option(
+    "--is-helm-chart",
+    is_flag=True,
+    help="Whether the release is for helm chart or not.",
+)
+
 
 def get_git_log_command(
-    verbose: bool, from_commit: Optional[str] = None, to_commit: Optional[str] = None
+    verbose: bool,
+    from_commit: Optional[str] = None,
+    to_commit: Optional[str] = None,
+    is_helm_chart: bool = True,
 ) -> List[str]:
     """
     Get git command to run for the current repo from the current folder (which is the package folder).
@@ -112,7 +121,10 @@ def get_git_log_command(
         git_cmd.append(f"{from_commit}...{to_commit}")
     elif from_commit:
         git_cmd.append(from_commit)
-    git_cmd.extend(['--', '.'])
+    if is_helm_chart:
+        git_cmd.extend(['--', 'chart/'])
+    else:
+        git_cmd.extend(['--', '.'])
     if verbose:
         console.print(f"Command to run: '{' '.join(git_cmd)}'")
     return git_cmd
@@ -146,9 +158,13 @@ def get_change_from_line(line: str):
     )
 
 
-def get_changes(verbose: bool, previous_release: str, current_release: str) -> List[Change]:
+def get_changes(
+    verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
+) -> List[Change]:
     change_strings = subprocess.check_output(
-        get_git_log_command(verbose, from_commit=previous_release, to_commit=current_release),
+        get_git_log_command(
+            verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
+        ),
         cwd=SOURCE_DIR_PATH,
         universal_newlines=True,
     )
@@ -188,7 +204,13 @@ def print_issue_content(
     pull_requests: Dict[int, PullRequestOrIssue],
     linked_issues: Dict[int, List[Issue.Issue]],
     users: Dict[int, Set[str]],
+    is_helm_chart: bool = False,
 ):
+    link = f"https://pypi.org/project/apache-airflow/{current_release}/"
+    link_text = f"Apache Airflow RC {current_release}"
+    if is_helm_chart:
+        link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
+        link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
     pr_list = list(pull_requests.keys())
     pr_list.sort()
     user_logins: Dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
@@ -199,7 +221,8 @@ def print_issue_content(
     content = render_template(
         template_name='ISSUE',
         context={
-            'version': current_release,
+            'link': link,
+            'link_text': link_text,
             'pr_list': pr_list,
             'pull_requests': pull_requests,
             'linked_issues': linked_issues,
@@ -220,6 +243,7 @@ def print_issue_content(
 @option_excluded_pr_list
 @option_verbose
 @option_limit_pr_count
+@option_is_helm_chart
 def generate_issue_content(
     github_token: str,
     previous_release: str,
@@ -227,12 +251,13 @@ def generate_issue_content(
     excluded_pr_list: str,
     verbose: bool,
     limit_pr_count: Optional[int],
+    is_helm_chart: bool,
 ):
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
     else:
         excluded_prs = []
-    changes = get_changes(verbose, previous_release, current_release)
+    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
     change_prs = [change.pr for change in changes]
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
@@ -291,7 +316,7 @@ def generate_issue_content(
             for linked_issue in linked_issues[pr_number]:
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
-    print_issue_content(current_release, pull_requests, linked_issues, users)
+    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
 
 
 if __name__ == "__main__":
