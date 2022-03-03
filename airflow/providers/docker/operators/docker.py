@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Unio
 
 from docker import APIClient, tls
 from docker.errors import APIError
-from docker.types import Mount
+from docker.types import Mount, DeviceRequest
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -176,7 +176,7 @@ class DockerOperator(BaseOperator):
         extra_hosts: Optional[Dict[str, str]] = None,
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
-        device_requests: Optional(List[docker.types.DeviceRequest]) = None,
+        device_requests: Optional(List[DeviceRequest]) = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
