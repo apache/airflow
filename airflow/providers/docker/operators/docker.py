@@ -294,6 +294,7 @@ class DockerOperator(BaseOperator):
                 cap_add=self.cap_add,
                 extra_hosts=self.extra_hosts,
                 privileged=self.privileged,
+                device_requests=self.device_requests,
             ),
             image=self.image,
             user=self.user,
