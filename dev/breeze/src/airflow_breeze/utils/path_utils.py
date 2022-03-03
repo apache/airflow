@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -55,4 +56,24 @@ def find_airflow_sources_root():
 
 
 find_airflow_sources_root()
-BUILD_CACHE_DIR = Path(get_airflow_sources_root(), '.build')
+AIRFLOW_SOURCE = get_airflow_sources_root()
+BUILD_CACHE_DIR = Path(AIRFLOW_SOURCE, '.build')
+FILES_DIR = Path(AIRFLOW_SOURCE, 'files')
+MSSQL_DATA_VOLUME = Path(BUILD_CACHE_DIR, 'tmp_mssql_volume')
+MYPY_CACHE_DIR = Path(AIRFLOW_SOURCE, '.mypy_cache')
+LOGS_DIR = Path(AIRFLOW_SOURCE, 'logs')
+DIST_DIR = Path(AIRFLOW_SOURCE, 'dist')
+SCRIPTS_CI_DIR = Path(AIRFLOW_SOURCE, 'scripts', 'ci')
+
+
+def create_directories():
+    BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    FILES_DIR.mkdir(parents=True, exist_ok=True)
+    MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
+    MYPY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
+    # add trap to this cache_tmp_file_dir
+    OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR, 'out.log')
+    OUTPUT_LOG.mkdir(parents=True, exist_ok=True)

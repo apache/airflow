@@ -24,6 +24,7 @@
   - [Pre-requisites](#pre-requisites)
   - [Build Changelog](#build-changelog)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -238,6 +239,27 @@ official Apache releases must not include the rcN suffix.
   cd ${AIRFLOW_REPO_ROOT}
   git push origin tag helm-chart/${VERSION}
   ```
+
+## Prepare issue for testing status of rc
+
+Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
+(for example 1.4.0).
+
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow Helm Chart ${VERSION}
+EOF
+```
+
+Content is generated with:
+
+```shell
+./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
+    --current-release helm-chart/${VERSION} --is-helm-chart
+
+```
+
+Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 

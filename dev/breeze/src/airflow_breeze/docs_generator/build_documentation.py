@@ -15,18 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow_breeze.docs_generator.doc_builder import DocBuilder
+from airflow_breeze.global_constants import MOUNT_ALL_LOCAL_SOURCES, MOUNT_SELECTED_LOCAL_SOURCES
 from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
 from airflow_breeze.utils.run_utils import run_command
 
 
 def build(
     verbose: bool,
-    mount_all_flag: bool,
     airflow_sources: str,
     airflow_ci_image_name: str,
     doc_builder: DocBuilder,
 ):
-    extra_docker_flags = get_extra_docker_flags(mount_all_flag, airflow_sources)
+    extra_docker_flags = get_extra_docker_flags(
+        MOUNT_ALL_LOCAL_SOURCES, MOUNT_SELECTED_LOCAL_SOURCES, airflow_sources
+    )
     cmd = []
     cmd.extend(["docker", "run"])
     cmd.extend(extra_docker_flags)

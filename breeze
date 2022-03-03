@@ -3501,8 +3501,12 @@ function breeze::run_breeze_command() {
     enter_breeze)
         docker_engine_resources::check_all_resources
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            ${run_command} "${SCRIPTS_CI_DIR}/tools/fix_ownership.sh"  || true
+            echo "${COLOR_RED}ERROR: Entering production image via breeze is not supported${COLOR_RESET}"
+            echo
+            echo "Please run ${COLOR_BLUE}docker run -it apache/airflow:latest bash${COLOR_RESET} instead"
+            echo
+            echo "See https://airflow.apache.org/docs/docker-stack/entrypoint.html#executing-commands for details"
+            exit 1
         else
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi

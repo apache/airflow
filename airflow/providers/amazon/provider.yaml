@@ -114,6 +114,12 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/redshift_sql.rst
       - /docs/apache-airflow-providers-amazon/operators/redshift_cluster.rst
     tags: [aws]
+  - integration-name: Amazon Redshift Data
+    external-doc-url: https://aws.amazon.com/redshift/
+    logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/redshift_data.rst
+    tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
     logo: /integration-logos/aws/Amazon-SageMaker_light-bg@4x.png
@@ -271,6 +277,7 @@ operators:
       - airflow.providers.amazon.aws.operators.redshift
       - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
+      - airflow.providers.amazon.aws.operators.redshift_data
 
 sensors:
   - integration-name: Amazon Athena
@@ -401,6 +408,7 @@ hooks:
       - airflow.providers.amazon.aws.hooks.redshift
       - airflow.providers.amazon.aws.hooks.redshift_sql
       - airflow.providers.amazon.aws.hooks.redshift_cluster
+      - airflow.providers.amazon.aws.hooks.redshift_data
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
@@ -505,6 +513,8 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftDataHook
+    connection-type: aws
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend

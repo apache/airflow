@@ -158,7 +158,7 @@ def upgrade():
                 mssql_where=sa.text("state='queued'"),
             )
     else:
-        # Make sure DagRun id columns are non-nullable
+        # Make sure DagRun PK columns are non-nullable
         with op.batch_alter_table('dag_run', schema=None) as batch_op:
             batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=False)
             batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)

@@ -28,9 +28,9 @@ Create Date: 2020-04-08 13:35:25.671327
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
+from airflow.compat.sqlalchemy import inspect
 from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
@@ -58,7 +58,7 @@ def upgrade():
     run_type_col_type = sa.String(length=50)
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     dag_run_columns = [col.get('name') for col in inspector.get_columns("dag_run")]
 
     if "run_type" not in dag_run_columns:
