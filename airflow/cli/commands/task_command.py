@@ -39,7 +39,7 @@ from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
+from airflow.models.xcom import IN_MEMORY_RUN_ID
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -98,7 +98,7 @@ def _get_dag_run(
             ) from None
 
     if execution_date is not None:
-        return DagRun(dag.dag_id, run_id=IN_MEMORY_DAGRUN_ID, execution_date=execution_date)
+        return DagRun(dag.dag_id, run_id=IN_MEMORY_RUN_ID, execution_date=execution_date)
     return DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=timezone.utcnow())
 
 

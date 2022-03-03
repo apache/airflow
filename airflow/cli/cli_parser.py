@@ -173,7 +173,7 @@ def string_list_type(val):
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
 ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
-ARG_EXECUTION_DATE_OR_DAGRUN_ID = Arg(
+ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
 )
 ARG_TASK_REGEX = Arg(
@@ -526,26 +526,27 @@ ARG_DB_VERSION = Arg(
         "-n",
         "--version",
     ),
-    help="The airflow version to downgrade to",
+    help="The airflow version to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_VERSION = Arg(
     ("--from-version",),
-    help="(Optional) if generating sql, may supply a _from_ version",
+    help="(Optional) If generating sql, may supply a _from_ version",
 )
 ARG_DB_REVISION = Arg(
     (
         "-r",
         "--revision",
     ),
-    help="The airflow revision to downgrade to",
+    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) if generating sql, may supply a _from_ revision",
+    help="(Optional) If generating sql, may supply a _from_ revision",
 )
 ARG_DB_SQL = Arg(
     ("-s", "--sql-only"),
-    help="Don't actually run migrations; just print out sql scripts for offline migration.",
+    help="Don't actually run migrations; just print out sql scripts for offline migration. "
+    "Required if using either `--from-version` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -1174,7 +1175,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1189,7 +1190,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
     ),
     ActionCommand(
         name='render',
@@ -1198,7 +1199,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1211,7 +1212,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
@@ -1242,7 +1243,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1255,7 +1256,7 @@ TASKS_COMMANDS = (
         name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -1362,7 +1363,14 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name='downgrade',
-        help="Downgrade the schema of the metadata database",
+        help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--revision` or `--version`. "
+            "To print but not execute commands, use option `--sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
             ARG_DB_REVISION,

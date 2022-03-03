@@ -2260,7 +2260,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
 
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
-        dag_run_id=run_id,
+        run_id=run_id,
         execution_date=execution_date,
         state=State.SUCCESS,
         session=session,

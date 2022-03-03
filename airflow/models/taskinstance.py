@@ -2077,11 +2077,13 @@ class TaskInstance(Base, LoggingMixin):
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(
             dag_id=self.dag_id,
+            run_id=self.run_id,
             task_id=self.task_id,
+            map_index=self.map_index,
+            date=None,
             pod_id=create_pod_id(self.dag_id, self.task_id),
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
-            date=self.execution_date,
             args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
             scheduler_job_id="0",

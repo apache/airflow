@@ -214,7 +214,7 @@ class TestSetTaskInstanceStateFormSchema:
             ({"include_future": "foo"},),
             ({"execution_date": "NOW"},),
             ({"new_state": "INVALID_STATE"},),
-            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "dagrun_id"},),
+            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},),
         ]
     )
     def test_validation_error(self, override_data):

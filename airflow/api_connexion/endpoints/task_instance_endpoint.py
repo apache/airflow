@@ -357,7 +357,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        dag_run_id=run_id,
+        run_id=run_id,
         execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],

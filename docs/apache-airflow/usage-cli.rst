@@ -199,3 +199,63 @@ Both ``json`` and ``yaml`` formats make it easier to manipulate the data using c
     "sd": "2020-11-29T14:53:56.931243+00:00",
     "ed": "2020-11-29T14:53:57.126306+00:00"
   }
+
+.. _cli-db-clean:
+
+Purge history from metadata database
+------------------------------------
+
+.. note::
+
+  It's strongly recommended that you backup the metadata database before running the ``db clean`` command.
+
+The ``db clean`` command works by deleting from each table the records older than the provided ``--clean-before-timestamp``.
+
+You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
+
+You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
+
+Beware cascading deletes
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Keep in mind that some tables have foreign key relationships defined with ``ON DELETE CASCADE`` so deletes in one table may trigger deletes in others.  For example, the ``task_instance`` table keys to the ``dag_run`` table, so if a DagRun record is deleted, all of its associated task instances will also be deleted.
+
+Special handling for DAG runs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all DAG runs, Airflow may schedule an old DAG run that was already completed, e.g. if you have set ``catchup=True``.  So the ``db clean`` command will preserve the latest non-manually-triggered DAG run to preserve continuity in scheduling.
+
+Considerations for backfillable DAGs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Not all DAGs are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have DAGs that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
+
+.. _cli-db-upgrade:
+
+Upgrading Airflow
+-----------------
+
+Run ``airflow db upgrade --help`` for usage details.
+
+Running migrations manually
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db upgrade``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref` for a mapping between revision and version.
+
+
+.. _cli-db-downgrade:
+
+Downgrading Airflow
+-------------------
+
+.. note::
+
+    It's recommended that you backup your database before running ``db downgrade`` or any other database operation.
+
+You can downgrade to a particular Airflow version with the ``db downgrade`` command.  Alternatively you may provide an Alembic revision id to downgrade to.
+
+If you want to preview the commands but not execute them, use option ``--sql-only``.
+
+Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
+
+For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref`.
