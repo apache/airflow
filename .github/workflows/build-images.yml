@@ -234,6 +234,14 @@ jobs:
         run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
       - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
+      - name: >
+          Push empty CI images to finish waiting jobs:
+          ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        if: failure() || cancelled()
+        run: ./scripts/ci/images/ci_push_empty_ci_images.sh
+      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+        if: failure() || cancelled()
+        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
 
   build-prod-images:
     permissions:
@@ -318,38 +326,8 @@ jobs:
         run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
       - name: "Push PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
-
-  cancel-on-ci-build:
-    permissions:
-      actions: write
-    name: "Cancel `Tests` jobs on workflow failed/cancelled"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
-    if: failure() || cancelled()
-    needs: [build-ci-images, build-prod-images]
-    env:
-      branch: ${{ github.event.pull_request.head.ref }}
-      thisRun: ${{ github.run_id }}
-    steps:
-      - name: "Find running `Tests` jobs for ${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: |
-          if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
-            event_filter="event=pull_request&"
-          else
-            branch="${GITHUB_REF#refs/heads/}"
-            event_filter=""
-          fi
-
-          for cancel_url in $(
-              gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
-                  jq -r '
-                    .workflow_runs[] |
-                    select(.head_sha == $ENV.GITHUB_REGISTRY_PUSH_IMAGE_TAG and .status != "completed") |
-                    .cancel_url
-                  ' \
-          ); do
-            # One of these URls will be _this_ workflow, so lets exclude that!
-            [[ $cancel_url  == */$thisRun/* ]] && continue
-
-            echo "Cancelling $cancel_url"
-            gh api -X POST --silent "$cancel_url"
-          done
+      - name: >
+          Push empty PROD images to finish waiting jobs:
+          ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        if: failure() || cancelled()
+        run: ./scripts/ci/images/ci_push_empty_prod_images.sh
