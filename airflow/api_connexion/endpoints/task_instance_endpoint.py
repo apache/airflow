@@ -93,6 +93,54 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def get_mapped_task_instance(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get task instance"""
+    query = (
+        session.query(TI)
+        .filter(
+            TI.dag_id == dag_id, DR.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index
+        )
+        .join(TI.dag_run)
+        .outerjoin(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.execution_date == DR.execution_date,
+                SlaMiss.task_id == TI.task_id,
+            ),
+        )
+        .add_entity(SlaMiss)
+    )
+    query = query.outerjoin(
+        RTIF,
+        and_(
+            RTIF.dag_id == TI.dag_id,
+            RTIF.execution_date == DR.execution_date,
+            RTIF.task_id == TI.task_id,
+        ),
+    ).add_entity(RTIF)
+    task_instance = query.one_or_none()
+    if task_instance is None:
+        raise NotFound("Task instance not found")
+
+    return task_instance_schema.dump(task_instance)
+
+
 def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
     if not states:
         return None
