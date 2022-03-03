@@ -17,10 +17,10 @@
 from pathlib import Path
 from typing import Dict, List
 
-from airflow_breeze.cache import check_cache_and_write_if_not_cached, write_to_cache_file
+from airflow_breeze.cache import check_cache_and_write_if_not_cached, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_params import BuildParams
 from airflow_breeze.console import console
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCE, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import filter_out_none, run_command
 
 PARAMS_CI_IMAGE = [
@@ -74,18 +74,25 @@ def construct_arguments_docker_command(ci_image: BuildParams) -> List[str]:
 def construct_docker_command(ci_image: BuildParams) -> List[str]:
     arguments = construct_arguments_docker_command(ci_image)
     final_command = []
-    final_command.extend(["docker", "build"])
+    final_command.extend(["docker", "buildx", "build", "--builder", "default", "--progress=tty", "--pull"])
     final_command.extend(arguments)
     final_command.extend(["-t", ci_image.airflow_ci_image_name, "--target", "main", "."])
-    final_command.extend(["-f", str(Path(get_airflow_sources_root(), 'Dockerfile.ci').resolve())])
+    final_command.extend(["-f", 'Dockerfile.ci'])
+    final_command.extend(["--platform", ci_image.platform])
     return final_command
 
 
 def build_image(verbose, **kwargs):
     parameters_passed = filter_out_none(**kwargs)
     ci_image_params = get_image_build_params(parameters_passed)
+    ci_image_cache_dir = Path(BUILD_CACHE_DIR, ci_image_params.airflow_branch)
+    ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
+    touch_cache_file(
+        f"built_{ci_image_params.python_version}",
+        root_dir=ci_image_cache_dir,
+    )
     cmd = construct_docker_command(ci_image_params)
-    output = run_command(cmd, verbose=verbose, text=True)
+    output = run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
     console.print(f"[blue]{output}")
 
 

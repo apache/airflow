@@ -584,7 +584,7 @@ class TestMLEngineStartTrainingJobOperator:
 
         assert (
             f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-            == ti.task.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name)
+            == ti.task.get_extra_links(ti, AIPlatformConsoleLink.name)
         )
 
     @pytest.mark.need_serialized_dag
@@ -618,7 +618,7 @@ class TestMLEngineStartTrainingJobOperator:
 
         assert (
             f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-            == simple_task.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name)
+            == simple_task.get_extra_links(ti, AIPlatformConsoleLink.name)
         )
 
 

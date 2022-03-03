@@ -59,11 +59,13 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
 STATE_MESSAGE = 'Waiting for cluster'
+ERROR_MESSAGE = "error message from databricks API"
 GET_RUN_RESPONSE = {
     'job_id': JOB_ID,
     'run_page_url': RUN_PAGE_URL,
     'state': {'life_cycle_state': LIFE_CYCLE_STATE, 'state_message': STATE_MESSAGE},
 }
+GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ''
@@ -103,6 +105,13 @@ def get_run_endpoint(host):
     Utility function to generate the get run endpoint given the host.
     """
     return f'https://{host}/api/2.1/jobs/runs/get'
+
+
+def get_run_output_endpoint(host):
+    """
+    Utility function to generate the get run output endpoint given the host.
+    """
+    return f'https://{host}/api/2.1/jobs/runs/get-output'
 
 
 def cancel_run_endpoint(host):
@@ -387,6 +396,22 @@ class TestDatabricksHook(unittest.TestCase):
         assert job_id == JOB_ID
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
+            json=None,
+            params={'run_id': RUN_ID},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
+    def test_get_run_output(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        run_output_error = self.hook.get_run_output(RUN_ID).get('error')
+
+        assert run_output_error == ERROR_MESSAGE
+        mock_requests.get.assert_called_once_with(
+            get_run_output_endpoint(HOST),
             json=None,
             params={'run_id': RUN_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),

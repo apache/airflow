@@ -16,7 +16,7 @@
 # under the License.
 
 
-"""kubernetes_resource_checkpointing
+"""Add Kubernetes resource check-pointing
 
 Revision ID: 33ae817a1ff4
 Revises: 947454bf1dff
@@ -32,6 +32,7 @@ revision = '33ae817a1ff4'
 down_revision = 'd2ae31099d61'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 RESOURCE_TABLE = "kube_resource_version"
 

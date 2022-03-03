@@ -64,3 +64,79 @@ annotations:
       url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/code.png
     - title: Task Instance Context Menu
       url: https://airflow.apache.org/docs/apache-airflow/2.2.4/_images/context.png
+  artifacthub.io/changes: |
+    - description: Add support for custom command and args in jobs
+      kind: added
+      links:
+      - name: '#20864'
+        url: https://github.com/apache/airflow/pull/20864
+    - description: Support for priorityClassName
+      kind: added
+      links:
+      - name: '#20794'
+        url: https://github.com/apache/airflow/pull/20794
+    - description: Add envFrom to the flower deployment
+      kind: added
+      links:
+      - name: '#21401'
+        url: https://github.com/apache/airflow/pull/21401
+    - description: Add annotations to cleanup pods
+      kind: added
+      links:
+      - name: '#21484'
+        url: https://github.com/apache/airflow/pull/21484
+    - description: Speedup liveness probe for scheduler and triggerer
+      kind: changed
+      links:
+      - name: '#20833'
+        url: https://github.com/apache/airflow/pull/20833
+    - description: Update git-sync to v3.4.0
+      kind: changed
+      links:
+      - name: '#21309'
+        url: https://github.com/apache/airflow/pull/21309
+    - description: Remove default auth backend setting
+      kind: changed
+      links:
+      - name: '#21640'
+        url: https://github.com/apache/airflow/pull/21640
+    - description: Fix elasticsearch URL when username/password are empty
+      kind: fixed
+      links:
+      - name: '#21222'
+        url: https://github.com/apache/airflow/pull/21222
+    - description: Mount `airflow.cfg` in wait-for-airflow-migrations containers
+      kind: fixed
+      links:
+      - name: '#20609'
+        url: https://github.com/apache/airflow/pull/20609
+    - description: Grant pod log reader to triggerer serviceaccount
+      kind: fixed
+      links:
+      - name: '#21111'
+        url: https://github.com/apache/airflow/pull/21111
+    - description: 'Docs: Simplify chart docs for configuring Airflow'
+      kind: changed
+      links:
+      - name: '#21747'
+        url: https://github.com/apache/airflow/pull/21747
+    - description: 'Docs: Add extra information about time synchronization needed'
+      kind: changed
+      links:
+      - name: '#21685'
+        url: https://github.com/apache/airflow/pull/21685
+    - description: 'Docs: Fix extra containers docs'
+      kind: changed
+      links:
+      - name: '#20787'
+        url: https://github.com/apache/airflow/pull/20787
+    - description: 'Misc: Use ``2.2.4`` as default Airflow version'
+      kind: changed
+      links:
+      - name: '#21745'
+        url: https://github.com/apache/airflow/pull/21745
+    - description: 'Misc: Change Redis image to bullseye'
+      kind: changed
+      links:
+      - name: '#21875'
+        url: https://github.com/apache/airflow/pull/21875

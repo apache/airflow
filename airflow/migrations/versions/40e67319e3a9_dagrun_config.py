@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""dagrun_config
+"""Add ``conf`` column in ``dag_run`` table
 
 Revision ID: 40e67319e3a9
 Revises: 2e541a1dcfed
@@ -31,6 +31,7 @@ revision = '40e67319e3a9'
 down_revision = '2e541a1dcfed'
 branch_labels = None
 depends_on = None
+airflow_version = '1.6.0'
 
 
 def upgrade():

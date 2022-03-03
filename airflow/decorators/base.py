@@ -49,7 +49,7 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
-    create_mocked_kwargs,
+    ensure_xcomarg_return_value,
     get_mappable_types,
     prevent_duplicates,
 )
@@ -266,9 +266,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
     @cached_property
     def _function_is_vararg(self):
-        return any(
-            v.kind == inspect.Parameter.VAR_KEYWORD for v in self.function_signature.parameters.values()
-        )
+        parameters = self.function_signature.parameters
+        return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values())
 
     @cached_property
     def _mappable_function_argument_names(self) -> Set[str]:
@@ -304,6 +303,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     def apply(self, **map_kwargs: "Mappable") -> XComArg:
         self._validate_arg_names("apply", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
+        ensure_xcomarg_return_value(map_kwargs)
 
         partial_kwargs = self.kwargs.copy()
 
@@ -410,29 +410,23 @@ class DecoratedMappedOperator(MappedOperator):
         """
         return self.mapped_op_kwargs
 
-    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
-        assert not isinstance(self.operator_class, str)
+    def _get_unmap_kwargs(self) -> Dict[str, Any]:
         partial_kwargs = self.partial_kwargs.copy()
-        if real:
-            mapped_op_kwargs: Dict[str, Any] = self.mapped_op_kwargs
-        else:
-            mapped_op_kwargs = create_mocked_kwargs(self.mapped_op_kwargs)
         op_kwargs = _merge_kwargs(
             partial_kwargs.pop("op_kwargs"),
-            mapped_op_kwargs,
+            self.mapped_op_kwargs,
             fail_reason="mapping already partial",
         )
-        return self.operator_class(
-            dag=self.dag,
-            task_group=self.task_group,
-            task_id=self.task_id,
-            op_kwargs=op_kwargs,
-            multiple_outputs=self.multiple_outputs,
-            python_callable=self.python_callable,
-            _airflow_map_validation=not real,
+        return {
+            "dag": self.dag,
+            "task_group": self.task_group,
+            "task_id": self.task_id,
+            "op_kwargs": op_kwargs,
+            "multiple_outputs": self.multiple_outputs,
+            "python_callable": self.python_callable,
             **partial_kwargs,
-            **mapped_kwargs,
-        )
+            **self.mapped_kwargs,
+        }
 
     def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
         if key != "op_kwargs" or not isinstance(content, collections.abc.Mapping):
@@ -476,7 +470,7 @@ class TaskDecorator(Protocol):
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool],
+        multiple_outputs: Optional[bool] = None,
         **kwargs: Any,
     ) -> Callable[[Function], Task[Function]]:
         """For the decorator factory ``@task()`` case."""

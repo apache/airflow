@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""rename user table
+"""Rename user table
 
 Revision ID: 2e82aab8ef20
 Revises: 1968acfc09e3
@@ -30,6 +30,7 @@ revision = '2e82aab8ef20'
 down_revision = '1968acfc09e3'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1'
 
 
 def upgrade():

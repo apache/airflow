@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase length of FAB ab_view_menu.name column
+"""Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column
 
 Revision ID: 03afc6b6f902
 Revises: 92c57b58940d
@@ -35,10 +35,11 @@ revision = '03afc6b6f902'
 down_revision = '92c57b58940d'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.13'
 
 
 def upgrade():
-    """Apply Increase length of FAB ab_view_menu.name column"""
+    """Apply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
@@ -69,7 +70,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Increase length of FAB ab_view_menu.name column"""
+    """Unapply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()

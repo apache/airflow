@@ -203,6 +203,7 @@ amazon = [
     'sqlalchemy_redshift>=0.8.6',
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
+    'mypy-boto3-redshift-data>=1.21.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -334,9 +335,7 @@ google = [
     'google-cloud-kms>=2.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=2.1.1',
-    # 1.1.0 removed field_mask and broke import for released providers
-    # We can remove the <1.1.0 limitation after we release new Google Provider
-    'google-cloud-memcache>=0.2.0,<1.1.0',
+    'google-cloud-memcache>=0.2.0',
     'google-cloud-monitoring>=2.0.0',
     'google-cloud-os-login>=2.0.0',
     'google-cloud-orchestration-airflow>=1.0.0,<2.0.0',
@@ -355,9 +354,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'httpx',
     'json-merge-patch>=0.2',
-    # pandas-gbq 0.15.0 release broke google provider's bigquery import
-    # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
-    'pandas-gbq<0.15.0',
+    'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
 ]
@@ -380,7 +377,11 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0;python_version<"3.9"',
+    'pyhive[hive]>=0.6.0',
+    # in case of Python 3.9 sasl library needs to be installed with version higher or equal than
+    # 0.3.1 because only that version supports Python 3.9. For other Python version pyhive[hive] pulls
+    # the sasl library anyway (and there sasl library version is not relevant)
+    'sasl>=0.3.1; python_version>="3.9"',
     'thrift>=0.9.2',
     pandas_requirement,
 ]
@@ -551,7 +552,9 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.122.0',
+    # Yandexcloud 0.142 broke logging of the yandexcloud provider. The limitation can be removed once
+    # https://github.com/yandex-cloud/python-sdk/issues/47 is fixed.
+    'yandexcloud>=0.122.0, <0.142.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',

@@ -36,8 +36,8 @@ def read_from_cache_file(param_name: str) -> Optional[str]:
         return None
 
 
-def touch_cache_file(param_name: str):
-    (Path(BUILD_CACHE_DIR) / f".{param_name}").touch()
+def touch_cache_file(param_name: str, root_dir: Path = BUILD_CACHE_DIR):
+    (Path(root_dir) / f".{param_name}").touch()
 
 
 def write_to_cache_file(param_name: str, param_value: str, check_allowed_values: bool = True) -> None:
@@ -47,7 +47,8 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         allowed, allowed_values = check_if_values_allowed(param_name, param_value)
     if allowed or not check_allowed_values:
         print('BUILD CACHE DIR:', BUILD_CACHE_DIR)
-        Path(BUILD_CACHE_DIR, f".{param_name}").write_text(param_value)
+        cache_file = Path(BUILD_CACHE_DIR, f".{param_name}").open("w+")
+        cache_file.write(param_value)
     else:
         console.print(f'[cyan]You have sent the {param_value} for {param_name}')
         console.print(f'[cyan]Allowed value for the {param_name} are {allowed_values}')
@@ -76,7 +77,7 @@ def check_cache_and_write_if_not_cached(
 def check_if_values_allowed(param_name: str, param_value: str) -> Tuple[bool, List[Any]]:
     allowed = False
     allowed_values: List[Any] = []
-    allowed_values = getattr(global_constants, f'ALLOWED_{param_name.upper()}')
+    allowed_values = getattr(global_constants, f'ALLOWED_{param_name.upper()}S')
     if param_value in allowed_values:
         allowed = True
     return allowed, allowed_values
@@ -88,3 +89,24 @@ def delete_cache(param_name: str) -> bool:
         (Path(BUILD_CACHE_DIR) / f".{param_name}").unlink()
         deleted = True
     return deleted
+
+
+def update_md5checksum_in_cache(file_content: str, cache_file_name: Path) -> bool:
+    modified = False
+    if cache_file_name.exists():
+        old_md5_checksum_content = Path(cache_file_name).read_text()
+        if old_md5_checksum_content.strip() != file_content.strip():
+            Path(cache_file_name).write_text(file_content)
+            modified = True
+    else:
+        Path(cache_file_name).write_text(file_content)
+        modified = True
+    return modified
+
+
+def write_env_in_cache(env_variables) -> Path:
+    shell_path = Path(BUILD_CACHE_DIR, "shell_command.env")
+    with open(shell_path, 'w') as shell_env_file:
+        for env_variable in env_variables:
+            shell_env_file.write(env_variable + '\n')
+    return shell_path

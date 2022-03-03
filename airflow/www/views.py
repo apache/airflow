@@ -100,7 +100,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.serialized_dag import SerializedDagModel
@@ -224,41 +224,47 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
+def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_item_or_group, BaseOperator):
+    if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
-            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_item_or_group.task_id],
+            'instances': [
+                wwwutils.encode_ti(ti, task_item_or_group.is_mapped, session)
+                for ti in tis
+                if ti.task_id == task_item_or_group.task_id
+            ],
             'label': task_item_or_group.label,
-            'extra_links': task_item_or_group.extra_links,
+            'extra_links': [],
+            'is_mapped': task_item_or_group.is_mapped,
         }
 
     # Task Group
     task_group = task_item_or_group
 
-    children = [task_group_to_tree(child, dag, dag_runs, tis) for child in task_group.children.values()]
+    children = [
+        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.children.values()
+    ]
 
     def get_summary(dag_run, children):
         priority = [
-            'failed',
-            'upstream_failed',
-            'up_for_retry',
-            'up_for_reschedule',
-            'queued',
-            'scheduled',
-            'deferred',
-            'sensing',
-            'running',
-            'shutdown',
-            'restarting',
-            'removed',
-            'no_status',
-            'success',
-            'skipped',
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UPSTREAM_FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SENSING,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.SHUTDOWN,
+            TaskInstanceState.RESTARTING,
+            TaskInstanceState.REMOVED,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SKIPPED,
         ]
 
         child_instances = [child['instances'] for child in children if 'instances' in child]
@@ -308,7 +314,7 @@ def task_group_to_dict(task_item_or_group):
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_item_or_group, BaseOperator):
+    if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
             'value': {
@@ -424,7 +430,7 @@ def dag_edges(dag):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, BaseOperator):
+        if isinstance(task_group, AbstractOperator):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -2215,7 +2221,7 @@ class Airflow(AirflowBaseView):
 
         altered = dag.set_task_instance_state(
             task_id=task_id,
-            dag_run_id=dag_run_id,
+            run_id=dag_run_id,
             state=state,
             upstream=upstream,
             downstream=downstream,
@@ -2277,7 +2283,7 @@ class Airflow(AirflowBaseView):
 
         to_be_altered = set_state(
             tasks=[task],
-            dag_run_id=dag_run_id,
+            run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
@@ -2471,7 +2477,7 @@ class Airflow(AirflowBaseView):
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
         data = {
-            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
             'dag_runs': encoded_runs,
         }
 
@@ -2645,12 +2651,16 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        task_instances = {
+            ti.task_id: wwwutils.get_instance_with_map(ti, session)
+            for ti in dag.get_task_instances(dttm, dttm)
+        }
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
                 'extra_links': t.extra_links,
+                'is_mapped': t.is_mapped,
             }
             for t in dag.tasks
         }
@@ -2897,6 +2907,8 @@ class Airflow(AirflowBaseView):
             y_points = []
             x_points = []
             for ti in tis:
+                if ti.task_id != task.task_id:
+                    continue
                 dttm = wwwutils.epoch(ti.execution_date)
                 x_points.append(dttm)
                 # y value should reflect completed tries to have a 0 baseline.
@@ -2988,6 +3000,8 @@ class Airflow(AirflowBaseView):
             y_points[task_id] = []
             x_points[task_id] = []
             for ti in tis:
+                if ti.task_id != task.task_id:
+                    continue
                 ts = dag.get_run_data_interval(ti.dag_run).end
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)
@@ -3170,7 +3184,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def extra_links(self):
+    @provide_session
+    def extra_links(self, session: "Session" = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
@@ -3206,9 +3221,24 @@ class Airflow(AirflowBaseView):
             response.status_code = 404
             return response
 
-        task = dag.get_task(task_id)
+        task: "AbstractOperator" = dag.get_task(task_id)
+
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                models.TaskInstance.dag_id == dag_id,
+                models.TaskInstance.task_id == task_id,
+                models.TaskInstance.execution_date == dttm,
+            )
+            .options(joinedload(TaskInstance.dag_run))
+            .first()
+        )
+        if not ti:
+            response = jsonify({'url': None, 'error': 'Task Instances not found'})
+            response.status_code = 404
+            return response
         try:
-            url = task.get_extra_links(dttm, link_name)
+            url = task.get_extra_links(ti, link_name)
         except ValueError as err:
             response = jsonify({'url': None, 'error': str(err)})
             response.status_code = 404
@@ -3241,7 +3271,11 @@ class Airflow(AirflowBaseView):
         else:
             return "Error: Invalid execution_date"
 
-        task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
+        with create_session() as session:
+            task_instances = {
+                ti.task_id: wwwutils.get_instance_with_map(ti, session)
+                for ti in dag.get_task_instances(dttm, dttm)
+            }
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
@@ -3252,7 +3286,6 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
-    @action_logging
     def tree_data(self):
         """Returns tree data"""
         dag_id = request.args.get('dag_id')
@@ -3290,7 +3323,7 @@ class Airflow(AirflowBaseView):
             min_date = min(dag_run_dates, default=None)
             tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
             data = {
-                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
                 'dag_runs': encoded_runs,
             }
 
@@ -3563,7 +3596,7 @@ class XComModelView(AirflowModelView):
 
     search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
     list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    base_order = ('dagrun_id', 'desc')
+    base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 

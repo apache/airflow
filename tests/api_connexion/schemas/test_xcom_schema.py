@@ -48,7 +48,7 @@ def create_xcom(create_task_instance, session):
         )
         run: DagRun = ti.dag_run
         xcom = XCom(
-            dagrun_id=run.id,
+            dag_run_id=run.id,
             task_id=ti.task_id,
             key=key,
             value=value,

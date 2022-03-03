@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add session table to db
+"""Create a ``session`` table to store web session data
 
 Revision ID: c381b21cb7e4
 Revises: be2bfac3da23
@@ -32,12 +32,13 @@ revision = 'c381b21cb7e4'
 down_revision = 'be2bfac3da23'
 branch_labels = None
 depends_on = None
+airflow_version = '2.2.4'
 
 TABLE_NAME = 'session'
 
 
 def upgrade():
-    """Apply add session table to db"""
+    """Apply Create a ``session`` table to store web session data"""
     op.create_table(
         TABLE_NAME,
         sa.Column('id', sa.Integer()),
@@ -50,5 +51,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add session table to db"""
+    """Unapply Create a ``session`` table to store web session data"""
     op.drop_table(TABLE_NAME)

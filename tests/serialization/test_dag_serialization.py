@@ -40,7 +40,7 @@ from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -54,7 +54,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
-from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink, MockOperator
+from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
@@ -828,7 +828,32 @@ class TestStringifiedDAGs:
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
-    def test_extra_serialized_field_and_operator_links(self, dag_maker):
+    @pytest.mark.parametrize(
+        ("bash_command", "serialized_links", "links"),
+        [
+            pytest.param(
+                "true",
+                [{'tests.test_utils.mock_operators.CustomOpLink': {}}],
+                {"Google Custom": "http://google.com/custom_base_link?search=true"},
+                id="non-indexed-link",
+            ),
+            pytest.param(
+                ["echo", "true"],
+                [
+                    {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 0}},
+                    {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 1}},
+                ],
+                {
+                    "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=echo",
+                    "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=true",
+                },
+                id="multiple-indexed-links",
+            ),
+        ],
+    )
+    def test_extra_serialized_field_and_operator_links(
+        self, bash_command, serialized_links, links, dag_maker
+    ):
         """
         Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
 
@@ -839,46 +864,50 @@ class TestStringifiedDAGs:
         in ``operator_extra_links`` and the same is also defined in
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
+
+        If CustomOperator is called with a string argument for bash_command it
+        has a single link, if called with an array it has one link per element.
+        We use this to test the serialization of link data.
         """
         test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
 
         with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
-            CustomOperator(task_id='simple_task', bash_command="true")
+            CustomOperator(task_id='simple_task', bash_command=bash_command)
 
         serialized_dag = SerializedDAG.to_dict(dag)
         assert "bash_command" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-        assert getattr(simple_task, "bash_command") == "true"
+        assert getattr(simple_task, "bash_command") == bash_command
 
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
         # Check Serialized version of operator link only contains the inbuilt Op Link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-            {'tests.test_utils.mock_operators.CustomOpLink': {}}
-        ]
+        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == serialized_links
 
         # Test all the extra_links are set
-        assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
+        assert set(simple_task.extra_links) == set(links.keys()) | {'airflow', 'github', 'google'}
 
-        dag_maker.create_dagrun(execution_date=test_date)
+        dr = dag_maker.create_dagrun(execution_date=test_date)
+        (ti,) = dr.task_instances
         XCom.set(
             key='search_query',
-            value="dummy_value_1",
+            value=bash_command,
             task_id=simple_task.task_id,
             dag_id=simple_task.dag_id,
             execution_date=test_date,
         )
 
         # Test Deserialized inbuilt link
-        custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
-        assert 'http://google.com/custom_base_link?search=dummy_value_1' == custom_inbuilt_link
+        for name, expected in links.items():
+            link = simple_task.get_extra_links(ti, name)
+            assert link == expected
 
         # Test Deserialized link registered via Airflow Plugin
-        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
-        assert "https://www.google.com" == google_link_from_plugin
+        link = simple_task.get_extra_links(ti, GoogleLink.name)
+        assert "https://www.google.com" == link
 
     def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
         """
@@ -914,68 +943,6 @@ class TestStringifiedDAGs:
             "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
         )
         assert expected_err_msg in caplog.text
-
-    def test_extra_serialized_field_and_multiple_operator_links(self, dag_maker):
-        """
-        Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
-
-        This tests also depends on GoogleLink() registered as a plugin
-        in tests/plugins/test_plugin.py
-
-        The function tests that if extra operator links are registered in plugin
-        in ``operator_extra_links`` and the same is also defined in
-        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
-        extra link.
-        """
-        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
-        with dag_maker(dag_id='simple_dag', start_date=test_date) as dag:
-            CustomOperator(task_id='simple_task', bash_command=["echo", "true"])
-
-        serialized_dag = SerializedDAG.to_dict(dag)
-        assert "bash_command" in serialized_dag["dag"]["tasks"][0]
-
-        dag = SerializedDAG.from_dict(serialized_dag)
-        simple_task = dag.task_dict["simple_task"]
-        assert getattr(simple_task, "bash_command") == ["echo", "true"]
-
-        #########################################################
-        # Verify Operator Links work with Serialized Operator
-        #########################################################
-        # Check Serialized version of operator link only contains the inbuilt Op Link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-            {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 0}},
-            {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 1}},
-        ]
-
-        # Test all the extra_links are set
-        assert set(simple_task.extra_links) == {
-            'BigQuery Console #1',
-            'BigQuery Console #2',
-            'airflow',
-            'github',
-            'google',
-        }
-
-        dag_maker.create_dagrun(execution_date=test_date)
-        XCom.set(
-            key='search_query',
-            value=["dummy_value_1", "dummy_value_2"],
-            task_id=simple_task.task_id,
-            dag_id=simple_task.dag_id,
-            execution_date=test_date,
-        )
-
-        # Test Deserialized inbuilt link #1
-        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
-        assert 'https://console.cloud.google.com/bigquery?j=dummy_value_1' == custom_inbuilt_link
-
-        # Test Deserialized inbuilt link #2
-        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #2")
-        assert 'https://console.cloud.google.com/bigquery?j=dummy_value_2' == custom_inbuilt_link
-
-        # Test Deserialized link registered via Airflow Plugin
-        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
-        assert "https://www.google.com" == google_link_from_plugin
 
     class ClassWithCustomAttributes:
         """
@@ -1363,14 +1330,8 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.edge_info == dag.edge_info
 
-    @pytest.mark.parametrize(
-        "mode, expect_custom_deps",
-        [
-            ("poke", False),
-            ("reschedule", True),
-        ],
-    )
-    def test_serialize_sensor(self, mode, expect_custom_deps):
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_serialize_sensor(self, mode):
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
@@ -1380,14 +1341,9 @@ class TestStringifiedDAGs:
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
 
         blob = SerializedBaseOperator.serialize_operator(op)
-
-        if expect_custom_deps:
-            assert "deps" in blob
-        else:
-            assert "deps" not in blob
+        assert "deps" in blob
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
-
         assert op.deps == serialized_op.deps
 
     @pytest.mark.parametrize(
@@ -1649,8 +1605,7 @@ def test_mapped_operator_xcomarg_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1659,7 +1614,7 @@ def test_mapped_operator_xcomarg_serde():
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
         'downstream_task_ids': [],
-        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'test_key'}}},
+        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
@@ -1674,7 +1629,7 @@ def test_mapped_operator_xcomarg_serde():
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
-    assert arg.key == 'test_key'
+    assert arg.key == XCOM_RETURN_KEY
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
@@ -1710,13 +1665,12 @@ def test_mapped_decorator_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         op1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(op1, "my_key")
 
         @task(retry_delay=30)
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=xcomarg)
+        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
 
@@ -1735,7 +1689,7 @@ def test_mapped_decorator_serde():
         'mapped_kwargs': {},
         'mapped_op_kwargs': {
             'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
+            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
         },
         'operator_extra_links': [],
         'ui_color': '#ffefeb',
@@ -1753,7 +1707,7 @@ def test_mapped_decorator_serde():
 
     assert deserialized.mapped_op_kwargs == {
         "arg2": {"a": 1, "b": 2},
-        "arg3": _XComRef("op1", "my_key"),
+        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
     }
     assert deserialized.partial_kwargs == {
         "op_args": [],

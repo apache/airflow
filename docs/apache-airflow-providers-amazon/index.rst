@@ -77,18 +77,19 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-=======================  ===================
-PIP package              Version required
-=======================  ===================
-``apache-airflow``       ``>=2.1.0``
-``boto3``                ``>=1.15.0,<2.0.0``
-``jsonpath_ng``          ``>=1.5.3``
-``pandas``               ``>=0.17.1, <1.4``
-``redshift_connector``   ``~=2.0.888``
-``sqlalchemy_redshift``  ``~=0.8.6``
-``watchtower``           ``~=2.0.1``
-``mypy-boto3-rds``       ``>=1.21.0``
-=======================  ===================
+============================  ===================
+PIP package                   Version required
+============================  ===================
+``apache-airflow``            ``>=2.1.0``
+``boto3``                     ``>=1.15.0,<2.0.0``
+``jsonpath_ng``               ``>=1.5.3``
+``pandas``                    ``>=0.17.1, <1.4``
+``redshift_connector``        ``~=2.0.888``
+``sqlalchemy_redshift``       ``~=0.8.6``
+``watchtower``                ``~=2.0.1``
+``mypy-boto3-rds``            ``>=1.21.0``
+``mypy-boto3-redshift-data``  ``>=1.21.0``
+============================  ===================
 
 Cross provider package dependencies
 -----------------------------------

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""TaskInstance keyed to DagRun
+"""Change ``TaskInstance`` and ``TaskReschedule`` tables from execution_date to run_id.
 
 Revision ID: 7b2661a43ba3
 Revises: 142555e44c17
@@ -39,6 +39,7 @@ revision = '7b2661a43ba3'
 down_revision = '142555e44c17'
 branch_labels = None
 depends_on = None
+airflow_version = '2.2.0'
 
 
 # Just Enough Table to run the conditions for update.
@@ -90,7 +91,7 @@ def get_table_constraints(conn, table_name):
 
 
 def upgrade():
-    """Apply TaskInstance keyed to DagRun"""
+    """Apply Change ``TaskInstance`` and ``TaskReschedule`` tables from execution_date to run_id."""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
 
@@ -157,7 +158,7 @@ def upgrade():
                 mssql_where=sa.text("state='queued'"),
             )
     else:
-        # Make sure DagRun id columns are non-nullable
+        # Make sure DagRun PK columns are non-nullable
         with op.batch_alter_table('dag_run', schema=None) as batch_op:
             batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=False)
             batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
@@ -311,7 +312,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply TaskInstance keyed to DagRun"""
+    """Unapply Change ``TaskInstance`` and ``TaskReschedule`` tables from execution_date to run_id."""
     dialect_name = op.get_bind().dialect.name
     dt_type = TIMESTAMP
     string_id_col_type = StringID()

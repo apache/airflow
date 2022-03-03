@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""increase_length_for_connection_password
+"""Increase length for connection password
 
 Revision ID: fe461863935f
 Revises: 08364691d074
@@ -32,10 +32,11 @@ revision = 'fe461863935f'
 down_revision = '08364691d074'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.7'
 
 
 def upgrade():
-    """Apply increase_length_for_connection_password"""
+    """Apply Increase length for connection password"""
     with op.batch_alter_table('connection', schema=None) as batch_op:
         batch_op.alter_column(
             'password',
@@ -46,7 +47,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply increase_length_for_connection_password"""
+    """Unapply Increase length for connection password"""
     with op.batch_alter_table('connection', schema=None) as batch_op:
         batch_op.alter_column(
             'password',

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add fractional seconds to mysql tables
+"""Add fractional seconds to MySQL tables
 
 Revision ID: 4addfa1236f1
 Revises: f2ca10b85618
@@ -32,6 +32,7 @@ revision = '4addfa1236f1'
 down_revision = 'f2ca10b85618'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

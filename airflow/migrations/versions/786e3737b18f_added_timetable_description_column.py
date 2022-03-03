@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Added timetable description column
+"""Add ``timetable_description`` column to DagModel for UI.
 
 Revision ID: 786e3737b18f
 Revises: 5e3ec427fdd3
@@ -32,15 +32,16 @@ revision = '786e3737b18f'
 down_revision = '5e3ec427fdd3'
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 def upgrade():
-    """Apply Added timetable description column"""
+    """Apply Add ``timetable_description`` column to DagModel for UI."""
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.add_column(sa.Column('timetable_description', sa.String(length=1000), nullable=True))
 
 
 def downgrade():
-    """Unapply Added timetable description column"""
+    """Unapply Add ``timetable_description`` column to DagModel for UI."""
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.drop_column('timetable_description')

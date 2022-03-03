@@ -38,6 +38,7 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
+OUTPUT_RUNS_JOB_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get-output')
 
 INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
 UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
@@ -261,6 +262,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: string with state message
         """
         return self.get_run_state(run_id).state_message
+
+    def get_run_output(self, run_id: int) -> dict:
+        """
+        Retrieves run output of the run.
+
+        :param run_id: id of the run
+        :return: output of the run
+        """
+        json = {'run_id': run_id}
+        run_output = self._do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
+        return run_output
 
     def cancel_run(self, run_id: int) -> None:
         """

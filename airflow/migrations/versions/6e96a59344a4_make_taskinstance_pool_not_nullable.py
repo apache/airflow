@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Make TaskInstance.pool not nullable
+"""Make ``TaskInstance.pool`` not nullable
 
 Revision ID: 6e96a59344a4
 Revises: 939bb1e647c8
@@ -37,6 +37,7 @@ revision = '6e96a59344a4'
 down_revision = '939bb1e647c8'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.4'
 
 Base = declarative_base()
 ID_LEN = 250

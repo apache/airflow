@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add scheduling_decision to DagRun and DAG
+"""Add ``scheduling_decision`` to ``DagRun`` and ``DAG``
 
 Revision ID: 98271e7606e2
 Revises: bef4f3d11e8b
@@ -34,10 +34,11 @@ revision = '98271e7606e2'
 down_revision = 'bef4f3d11e8b'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def upgrade():
-    """Apply Add scheduling_decision to DagRun and DAG"""
+    """Apply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``"""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
     is_mssql = bool(conn.dialect.name == "mssql")
@@ -87,7 +88,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add scheduling_decision to DagRun and DAG"""
+    """Unapply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``"""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 

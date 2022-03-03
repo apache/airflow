@@ -107,6 +107,7 @@ Name                                        Description
 ``dag.callback_exceptions``                 Number of exceptions raised from DAG callbacks. When this happens, it
                                             means DAG callback is not working.
 ``celery.task_timeout_error``               Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
+``celery.execute_command.failure``          Number of non-zero exit code from Celery task.
 ``task_removed_from_dag.<dag_id>``          Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
 ``task_restored_to_dag.<dag_id>``           Number of tasks restored for a given dag (i.e. task instance which was
                                             previously in REMOVED state in the DB is added to DAG file)
