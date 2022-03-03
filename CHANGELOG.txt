@@ -31,15 +31,15 @@ Bug Fixes
 - Bump croniter from ``<1.1`` to ``<1.2`` (#20489)
 - Avoid calling ``DAG.following_schedule()`` for ``TaskInstance.get_template_context()`` (#20486)
 - Fix(standalone): Remove hardcoded Webserver port (#20429)
-- Remove unnecssary logging in experimental API (#20356)
+- Remove unnecessary logging in experimental API (#20356)
 - Un-ignore DeprecationWarning (#20322)
 - Deepcopying Kubernetes Secrets attributes causing issues (#20318)
 - Fix(dag-dependencies): fix arrow styling (#20303)
 - Adds retry on taskinstance retrieval lock (#20030)
 - Correctly send timing metrics when using dogstatsd (fix schedule_delay metric) (#19973)
 - Enhance ``multiple_outputs`` inference of dict typing (#19608)
-- Fixing ses email backend (#18042)
-- Pin Markupsafe until we are able to upgrade Flask/Jinja (#21664)
+- Fixing Amazon SES email backend (#18042)
+- Pin MarkupSafe until we are able to upgrade Flask/Jinja (#21664)
 
 Doc only changes
 """"""""""""""""
@@ -79,7 +79,7 @@ Bug Fixes
 - Lazy Jinja2 context (#20217)
 - Exclude ``snowflake-sqlalchemy`` v1.2.5 (#20245)
 - Move away from legacy ``importlib.resources`` API (#19091)
-- Move setgid as the first command executed in forked task runner (#20040)
+- Move ``setgid`` as the first command executed in forked task runner (#20040)
 - Fix race condition when starting ``DagProcessorAgent`` (#19935)
 - Limit ``httpx`` to <0.20.0 (#20218)
 - Log provider import errors as debug warnings (#20172)
@@ -93,7 +93,7 @@ Bug Fixes
 - Fix possible reference to undeclared variable (#19933)
 - Validate ``DagRun`` state is valid on assignment (#19898)
 - Workaround occasional deadlocks with MSSQL (#19856)
-- Enable task run setting to be able reinitialise (#19845)
+- Enable task run setting to be able reinitialize (#19845)
 - Fix log endpoint for same task (#19672)
 - Cast macro datetime string inputs explicitly (#19592)
 - Do not crash with stacktrace when task instance is missing (#19478)
@@ -110,7 +110,7 @@ Bug Fixes
 - Declare data interval fields as serializable (#19616)
 - Relax timetable class validation (#19878)
 - Fix labels used to find queued ``KubernetesExecutor`` pods (#19904)
-- Fix moved data migration check for MySQL when replcation is used (#19999)
+- Fix moved data migration check for MySQL when replication is used (#19999)
 
 Doc only changes
 """"""""""""""""
@@ -133,7 +133,7 @@ Doc only changes
 - Adds back documentation about context usage in Python/@task (#18868)
 - Add release date for when an endpoint/field is added in the REST API (#19203)
 - Better ``pod_template_file`` examples (#19691)
-- Add decription on how you can customize image entrypoint (#18915)
+- Add description on how you can customize image entrypoint (#18915)
 - Dags-in-image pod template example should not have dag mounts (#19337)
 
 Airflow 2.2.2, 2021-11-15
@@ -177,7 +177,7 @@ Airflow 2.2.1, 2021-10-29
 Bug Fixes
 """""""""
 
-- Fix Unexpected commit error in schedulerjob (#19213)
+- Fix Unexpected commit error in SchedulerJob (#19213)
 - Add DagRun.logical_date as a property (#19198)
 - Clear ``ti.next_method`` and ``ti.next_kwargs`` on task finish (#19183)
 - Faster PostgreSQL db migration to Airflow 2.2 (#19166)
@@ -191,7 +191,7 @@ Bug Fixes
 - Fix catchup by limiting queued dagrun creation using ``max_active_runs`` (#18897)
 - Prevent scheduler crash when serialized dag is missing (#19113)
 - Don't install SQLAlchemy/Pendulum adapters for other DBs (#18745)
-- Workaround libstdcpp TLS error (#19010)
+- Workaround ``libstdcpp`` TLS error (#19010)
 - Change ``ds``, ``ts``, etc. back to use logical date (#19088)
 - Ensure task state doesn't change when marked as failed/success/skipped (#19095)
 - Relax packaging requirement (#19087)
@@ -201,7 +201,7 @@ Bug Fixes
 - Don't bake ENV and _cmd into tmp config for non-sudo (#18772)
 - CLI: Fail ``backfill`` command before loading DAGs if missing args (#18994)
 - BugFix: Null execution date on insert to ``task_fail`` violating NOT NULL (#18979)
-- Try to move "dangling" rows in upgradedb (#18953)
+- Try to move "dangling" rows in db upgrade (#18953)
 - Row lock TI query in ``SchedulerJob._process_executor_events`` (#18975)
 - Sentry before send fallback (#18980)
 - Fix ``XCom.delete`` error in Airflow 2.2.0 (#18956)
@@ -335,7 +335,7 @@ Improvements
 - Rename DAG concurrency (``[core] dag_concurrency``) settings for easier understanding (#16267, #18730)
 - Calendar UI improvements (#16226)
 - Refactor: ``SKIPPED`` should not be logged again as ``SUCCESS`` (#14822)
-- Remove  version limits for dnspython (#18046, #18162)
+- Remove  version limits for ``dnspython`` (#18046, #18162)
 - Accept custom run ID in TriggerDagRunOperator (#18788)
 
 Bug Fixes
@@ -436,7 +436,7 @@ Doc only changes
 - Adds Github Oauth example with team based authorization (#17896)
 - Update docker.rst (#17882)
 - Example xcom update (#17749)
-- Add doc warning about connections added via envvars (#17915)
+- Add doc warning about connections added via env vars (#17915)
 - fix wrong documents around upgrade-check.rst (#17903)
 - Add Brent to Committers list (#17873)
 - Improves documentation about modules management (#17757)
@@ -444,8 +444,8 @@ Doc only changes
 - Make sure "production-readiness" of docker-compose is well explained (#17731)
 - Doc: Update Upgrade to v2 docs with Airflow 1.10.x EOL dates (#17710)
 - Doc: Replace deprecated param from docstrings (#17709)
-- docs(dagowner): describe dag owner more carefully (#17699)
-- docs(impersonation): update note so avoid misintrepretation (#17701)
+- Describe dag owner more carefully (#17699)
+- Update note so avoid misinterpretation (#17701)
 - Docs: Make ``DAG.is_active`` read-only in API (#17667)
 - Update documentation regarding Python 3.9 support (#17611)
 - Fix MySQL database character set instruction (#17603)
@@ -458,7 +458,7 @@ Doc only changes
 - Update warning about MariaDB and multiple schedulers (#17287)
 - Doc: Recommend using same configs on all Airflow components (#17146)
 - Move docs about masking to a new page (#17007)
-- Docs: Suggest use of Env vars instead of Airflow Vars in best practises doc (#16926)
+- Suggest use of Env vars instead of Airflow Vars in best practices doc (#16926)
 - Docs: Better description for ``pod_template_file`` (#16861)
 - Add Aneesh Joseph as Airflow Committer (#16835)
 - Docs: Added new pipeline example for the tutorial docs (#16548)
@@ -490,8 +490,8 @@ Misc/Internal
 - Remove unnecessary css state colors (#18461)
 - Update ``boto3`` to ``<1.19`` (#18389)
 - Improve coverage for ``airflow.security.kerberos module`` (#18258)
-- Fix kinesis test (#18337)
-- Fix provider test accessing importlib-resources (#18228)
+- Fix Amazon Kinesis test (#18337)
+- Fix provider test accessing ``importlib-resources`` (#18228)
 - Silence warnings in tests from using SubDagOperator (#18275)
 - Fix usage of ``range(len())`` to ``enumerate`` (#18174)
 - Test coverage on the autocomplete view (#15943)
@@ -608,7 +608,7 @@ Bug Fixes
 - fix(smart_sensor): Unbound variable errors (#14774)
 - Add back missing permissions to ``UserModelView`` controls. (#17431)
 - Better diagnostics and self-healing of docker-compose (#17484)
-- Improve diagnostics message when users have ``secret_key`` mis-configured (#17410)
+- Improve diagnostics message when users have ``secret_key`` misconfigured (#17410)
 - Stop checking ``execution_date`` in ``task_instance.refresh_from_db`` (#16809)
 
 Improvements
