@@ -766,6 +766,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
+        print("# SET_TASK 6")
         self.task = task
         self.project_id = project_id
         self.task_name = task_name

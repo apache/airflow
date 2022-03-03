@@ -45,7 +45,7 @@ from typing import (
     Union,
 )
 from urllib.parse import quote
-from weakref import WeakKeyDictionary
+from weakref import WeakKeyDictionary, finalize
 
 import dill
 import jinja2
@@ -806,6 +806,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
+        print("# SET_TASK 1")
         self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
@@ -1329,6 +1330,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
+                print("# SET_TASK 2")
                 self.task = self.task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
                 self._execute_task_with_callbacks(context)
@@ -1537,6 +1539,18 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 result = execute_callable(context=context)
         except:  # noqa: E722
+            print(
+                f"# EXECUTION_FRAME_MAPPING set: {task_copy}: "
+                f"{task_copy}: id: {id(task_copy)} hash: {task_copy.__hash__()}"
+            )
+            finalize(
+                task_copy,
+                lambda a, b, c, d: print(a, b, c, d),
+                "FINALIZING_TASK",
+                task_copy.task_id,
+                id(task_copy),
+                task_copy.__hash__(),
+            )
             _EXECUTION_FRAME_MAPPING[task_copy] = currentframe()
             raise
         # If the task returns a result, push an XCom containing it
@@ -1676,6 +1690,7 @@ class TaskInstance(Base, LoggingMixin):
         """Only Renders Templates for the TI"""
         from airflow.models.baseoperator import BaseOperator
 
+        print("# SET_TASK 3")
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         assert isinstance(self.task, BaseOperator)  # For Mypy.
@@ -1745,16 +1760,28 @@ class TaskInstance(Base, LoggingMixin):
             test_mode = self.test_mode
 
         if error:
+            test = 0
             if isinstance(error, BaseException):
                 execution_frame = _EXECUTION_FRAME_MAPPING.get(self.task)
+                if not execution_frame:
+                    print(
+                        f"# EXECUTION_FRAME_MAPPING: get {self.task}: "
+                        f"id: {id(self.task)} hash: {self.task.__hash__()}-> None"
+                    )
+                    for index, t in enumerate(_EXECUTION_FRAME_MAPPING.keys()):
+                        print(f"# [{index}: {t}: id: {id(t)} hash: {t.__hash__()} ")
+                    test += 1
                 tb = error.__traceback__
                 while tb is not None:
                     if tb.tb_frame is execution_frame:
+                        test += 2
                         tb = tb.tb_next
                         break
                     tb = tb.tb_next
-                tb = tb or error.__traceback__
-                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
+                if not tb:
+                    tb = error.__traceback__
+                    test += 4
+                self.log.error(f"Task failed with exception ({test})", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
@@ -2024,6 +2051,7 @@ class TaskInstance(Base, LoggingMixin):
             task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
+            print("# SET_TASK 4")
             self.task = task
         try:
             self.render_templates()
@@ -2064,6 +2092,7 @@ class TaskInstance(Base, LoggingMixin):
             context = self.get_template_context()
         task = self.task.render_template_fields(context)
         if task is not None:
+            print("# SET_TASK 5")
             self.task = task
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
