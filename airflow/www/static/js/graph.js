@@ -393,9 +393,7 @@ const handleVisibilityChange = () => {
   if (document.hidden) {
     clearInterval(refreshInterval);
   } else {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 1000);
+    initRefresh();
   }
 };
 
