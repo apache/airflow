@@ -244,7 +244,7 @@ ARG_REVISION_RANGE = Arg(
     ('--revision-range',),
     help=(
         "Migration revision range(start:end) to use for offline sql generation. "
-        "Example: 'a13f7613ad25:7b2661a43ba3'"
+        "Example: `a13f7613ad25:7b2661a43ba3`"
     ),
     default=None,
 )
