@@ -17,10 +17,9 @@
 # under the License.
 """This module contains Google Dataplex links."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -30,11 +29,12 @@ DATAPLEX_TASK_LINK = DATAPLEX_BASE_LINK + "/{lake_id}.{task_id};location={region
 DATAPLEX_TASKS_LINK = DATAPLEX_BASE_LINK + "?project={project_id}&qLake={lake_id}.{region}"
 
 
-class DataplexTaskLink(BaseOperatorLink):
+class DataplexTaskLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Task link"""
 
     name = "Dataplex Task"
     key = "task_conf"
+    format_str = DATAPLEX_TASK_LINK
 
     @staticmethod
     def persist(
@@ -52,30 +52,13 @@ class DataplexTaskLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        task_conf = XCom.get_one(
-            key=DataplexTaskLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return (
-            DATAPLEX_TASK_LINK.format(
-                lake_id=task_conf["lake_id"],
-                task_id=task_conf["task_id"],
-                region=task_conf["region"],
-                project_id=task_conf["project_id"],
-            )
-            if task_conf
-            else ""
-        )
 
-
-class DataplexTasksLink(BaseOperatorLink):
+class DataplexTasksLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Tasks link"""
 
     name = "Dataplex Tasks"
     key = "tasks_conf"
+    format_str = DATAPLEX_TASKS_LINK
 
     @staticmethod
     def persist(
@@ -90,21 +73,4 @@ class DataplexTasksLink(BaseOperatorLink):
                 "lake_id": task_instance.lake_id,
                 "region": task_instance.region,
             },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        tasks_conf = XCom.get_one(
-            key=DataplexTasksLink.key,
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return (
-            DATAPLEX_TASKS_LINK.format(
-                project_id=tasks_conf["project_id"],
-                lake_id=tasks_conf["lake_id"],
-                region=tasks_conf["region"],
-            )
-            if tasks_conf
-            else ""
         )
