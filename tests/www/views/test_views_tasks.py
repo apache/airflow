@@ -647,6 +647,11 @@ def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_use
     check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
 
 
+def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
+    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
+
+
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
 def test_show_external_log_redirect_link_with_local_log_handler(capture_templates, admin_client, endpoint):
     """Do not show external links if log handler is local."""
