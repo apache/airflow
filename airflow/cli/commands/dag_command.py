@@ -315,6 +315,12 @@ def dag_next_execution(args):
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
+    if dagbag.import_errors:
+        from rich import print as rich_print
+
+        rich_print("[red][bold]Error:[bold] The following dags failed to load [red]")
+        for filename, stacktrace in dagbag.import_errors.items():
+            rich_print(f"[red][bold]Broken DAG: {filename}: {stacktrace}[bold][red]")
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=lambda d: d.dag_id),
         output=args.output,
