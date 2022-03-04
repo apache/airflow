@@ -35,9 +35,7 @@ from tests.test_utils.db import clear_db_connections
 class TestCliGetConnection:
     parser = cli_parser.get_parser()
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
+    def setup_method(self):
         clear_db_connections(add_default_connections_back=True)
 
     def test_cli_connection_get(self):
@@ -71,9 +69,7 @@ class TestCliListConnections:
         ('vertica_default', 'vertica'),
     ]
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
+    def setup_method(self):
         clear_db_connections(add_default_connections_back=True)
 
     def test_cli_connections_list_as_json(self):
@@ -100,12 +96,8 @@ class TestCliListConnections:
 class TestCliExportConnections:
     parser = cli_parser.get_parser()
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
-        clear_db_connections(add_default_connections_back=False)
-
     def setup_method(self):
+        clear_db_connections(add_default_connections_back=False)
         merge_conn(
             Connection(
                 conn_id="airflow_db",
@@ -312,9 +304,7 @@ TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
 class TestCliAddConnections:
     parser = cli_parser.get_parser()
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
+    def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
     @pytest.mark.parametrize(
@@ -507,9 +497,7 @@ class TestCliAddConnections:
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
+    def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
     @provide_session
@@ -548,9 +536,7 @@ class TestCliDeleteConnections:
 class TestCliImportConnections:
     parser = cli_parser.get_parser()
 
-    @pytest.fixture(autouse=True)
-    def clear_connections(self):
-        yield
+    def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
     @mock.patch('os.path.exists')
