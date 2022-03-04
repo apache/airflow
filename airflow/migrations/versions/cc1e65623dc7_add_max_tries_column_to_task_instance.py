@@ -26,10 +26,10 @@ Create Date: 2017-06-19 16:53:12.851141
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
+from airflow.compat.sqlalchemy import inspect
 from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.
@@ -62,7 +62,7 @@ def upgrade():
     # Checking task_instance table exists prevent the error of querying
     # non-existing task_instance table.
     connection = op.get_bind()
-    inspector = Inspector.from_engine(connection)
+    inspector = inspect(connection)
     tables = inspector.get_table_names()
 
     if 'task_instance' in tables:
