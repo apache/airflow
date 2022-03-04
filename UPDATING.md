@@ -226,7 +226,7 @@ To support operator-mapping (AIP 42), the `deps` attribute on operator class mus
 
 ### Smart sensors deprecated
 
-Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferrable Operators, added in Airflow 2.2.0.
 
 See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
@@ -1159,7 +1159,7 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
 `airflow.utils.helpers` module.
 
-The baseoperator module seems to be a better choice to keep
+The `baseoperator` module seems to be a better choice to keep
 closely coupled methods together. Helpers module is supposed to contain standalone helper methods
 that can be imported by all classes.
 
@@ -1291,13 +1291,13 @@ See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
 
 #### `airflow.operators.latest_only_operator.LatestOnlyOperator`
 
-In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and indirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
 
 No change is needed if only the default trigger rule `all_success` is being used.
 
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to accommodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
-The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+The goal of this change is to achieve a more consistent and configurable cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
 ### Changes to the core Python API
 
@@ -1446,7 +1446,7 @@ scheduled
 
 #### `airflow.utils.file.TemporaryDirectory`
 
-We remove airflow.utils.file.TemporaryDirectory
+We remove `airflow.utils.file.TemporaryDirectory`
 Since Airflow dropped support for Python < 3.5 there's no need to have this custom
 implementation of `TemporaryDirectory` because the same functionality is provided by
 `tempfile.TemporaryDirectory`.
@@ -2211,9 +2211,9 @@ Previously, the `list_prefixes` and `list_keys` methods returned `None` when the
 results. The behavior has been changed to return an empty list instead of `None` in this
 case.
 
-#### Removed Hipchat integration
+#### Removed HipChat integration
 
-Hipchat has reached end of life and is no longer available.
+HipChat has reached end of life and is no longer available.
 
 For more information please see
 https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
@@ -2285,9 +2285,9 @@ When initializing a Snowflake hook or operator, the value used for `snowflake_co
 
 This release also includes changes that fall outside any of the sections above.
 
-#### Standardised "extra" requirements
+#### Standardized "extra" requirements
 
-We standardised the Extras names and synchronized providers package names with the main airflow extras.
+We standardized the Extras names and synchronized providers package names with the main airflow extras.
 
 We deprecated a number of extras in 2.0.
 
@@ -2460,7 +2460,7 @@ defaulting to the `default_timezone` in the global config.
 
 ### Removed Kerberos support for HDFS hook
 
-The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+The HDFS hook's Kerberos support has been removed due to removed `python-krbV` dependency from PyPI
 and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
 support for SSL connection to HDFS).
 
@@ -2469,7 +2469,7 @@ SSL support still works for WebHDFS hook.
 ### Unify user session lifetime configuration
 
 In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+`session_lifetime_days` and `force_log_out_after` options. In practice only `session_lifetime_days`
 had impact on session lifetime, but it was limited to values in day.
 We have removed mentioned options and introduced new `session_lifetime_minutes`
 option which simplify session lifetime configuration.
@@ -2623,10 +2623,10 @@ passed in the request body.  It will also now be possible to have the execution_
 keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
 behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
 
-### Infinite pool size and pool size query optimisation
+### Infinite pool size and pool size query optimization
 
 Pool size can now be set to -1 to indicate infinite size (it also includes
-optimisation of pool query which lead to poor task n^2 performance of task
+optimization of pool query which lead to poor task n^2 performance of task
 pool queries in MySQL).
 
 ### Viewer won't have edit permissions on DAG view.
@@ -2793,7 +2793,7 @@ MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
 ### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
 
 It is no longer required to set one of the environment variables to avoid
-a GPL dependency. Airflow will now always use text-unidecode if unidecode
+a GPL dependency. Airflow will now always use `text-unidecode` if `unidecode`
 was not installed before.
 
 ### New `sync_parallelism` config option in `[celery]` section
@@ -3109,7 +3109,7 @@ https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
-dependency (python-nvd3 -> python-slugify -> unidecode).
+dependency `(python-nvd3 -> python-slugify -> unidecode)`.
 
 ### Replace DataProcHook.await calls to DataProcHook.wait
 
@@ -3217,7 +3217,7 @@ elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
-The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
+The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storage. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
 
 #### Change of per-task log path
 
@@ -3236,8 +3236,8 @@ SSH Hook now uses the Paramiko library to create an ssh client connection, inste
 
 - update SSHHook constructor
 - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
-- SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py for usage info.
-- No updates are required if you are using ftpHook, it will continue to work as is.
+- SFTPOperator is added to perform secure file transfer from server A to server B. Refer to test_sftp_operator.py for usage info.
+- No updates are required if you are using `ftpHook`, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
 

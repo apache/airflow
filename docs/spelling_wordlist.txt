@@ -12,6 +12,7 @@ Analytics
 AnalyzeEntitiesResponse
 AnalyzeSentimentResponse
 AnalyzeSyntaxResponse
+Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
@@ -33,6 +34,7 @@ Backfill
 BackfillJobTest
 Backfills
 Banco
+Bas
 BaseClient
 BaseObject
 BaseOperator
@@ -176,6 +178,7 @@ Gunicorn
 Gzip
 HCatalog
 HTTPBasicAuth
+Harenslak
 Hashable
 Hashicorp
 Highcharts
@@ -183,6 +186,7 @@ Hiveserver
 Hoc
 HostAliases
 Hostname
+Hou
 Http
 HttpError
 HttpRequest
@@ -195,8 +199,10 @@ InspectContentResponse
 InspectTemplate
 Investorise
 JPype
+Jarek
 Jdbc
 JenkinsRequest
+Jiajie
 Jinja
 Jinjafied
 Jinjafy
@@ -210,6 +216,7 @@ Json
 Jupyter
 KYLIN
 Kalibrr
+Kamil
 Kerberized
 Kerberos
 KerberosClient
@@ -239,6 +246,7 @@ Makefile
 Mapreduce
 Mariadb
 MarketingTeam
+MarkupSafe
 Masternode
 Maxime
 Memorystore
@@ -289,6 +297,7 @@ Pinot
 Popen
 Postgres
 Postgresql
+Potiuk
 Pre
 Precommit
 PredictionServiceClient
@@ -303,6 +312,7 @@ Py
 PyPI
 Pyarrow
 PythonOperator
+Qingping
 Qplum
 Quantopian
 Qubole
@@ -420,12 +430,14 @@ XComArgs
 XComs
 Xcom
 Xero
+Xiaodong
 Yamllint
 Yandex
 Yieldr
 Zego
 Zendesk
 Zenpy
+Zhong
 Zsh
 Zymergen
 abc
@@ -530,6 +542,7 @@ behaviours
 bigquery
 bigtable
 bitshift
+bitwise
 booktabs
 bool
 boolean
@@ -681,6 +694,7 @@ decrypted
 deduplicate
 deduplication
 deepcopy
+deepcopying
 deferrable
 deidentify
 del
@@ -702,6 +716,7 @@ dimensionX
 dingding
 dir
 dirs
+discoverability
 discoverable
 displayName
 distcp
@@ -739,6 +754,7 @@ eg
 eks
 eladkal
 elasticsearch
+emailer
 emr
 enableAutoScale
 encryptor
@@ -842,6 +858,7 @@ grpc
 gz
 hadoop
 hadoopcmd
+hardcoded
 hashicorp
 hasn
 hcatalog
@@ -859,6 +876,7 @@ hiveserver
 hmsclient
 homebrew
 honoured
+hookable
 hostPath
 hostname
 hostnames
@@ -1028,6 +1046,7 @@ moto
 mouseover
 msg
 mssql
+muldelete
 mutex
 mv
 mypy
@@ -1377,6 +1396,7 @@ tagKey
 tagValue
 task_group
 taskflow
+taskgroup
 taskinstance
 taskmeta
 taskmixin
@@ -1445,6 +1465,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unprocessable
 unqueued
 unterminated
 untransformed

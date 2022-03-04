@@ -115,7 +115,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Remove id column from xcom"""
+    conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
-        bop.drop_constraint('pk_xcom', type_='primary')
-        bop.add_column(Column('id', Integer, primary_key=True))
+        if conn.dialect.name != 'mssql':
+            bop.drop_constraint('pk_xcom', type_='primary')
+        bop.add_column(Column('id', Integer, nullable=False))
+        bop.create_primary_key('id', ['id'])
         bop.create_index('idx_xcom_dag_task_date', ['dag_id', 'task_id', 'key', 'execution_date'])
