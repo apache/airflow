@@ -568,7 +568,8 @@ class TestShouldRetryEni(unittest.TestCase):
         self.assertTrue(
             should_retry_eni(
                 EcsTaskFailToStart(
-                    "The task failed to start due to: Timeout waiting for network interface provisioning to complete."
+                    "The task failed to start due to: "
+                    "Timeout waiting for network interface provisioning to complete."
                 )
             )
         )
@@ -577,7 +578,9 @@ class TestShouldRetryEni(unittest.TestCase):
         self.assertFalse(
             should_retry_eni(
                 EcsTaskFailToStart(
-                    "The task failed to start due to: CannotPullContainerError: ref pull has been retried 5 time(s): failed to resolve reference"
+                    "The task failed to start due to: "
+                    "CannotPullContainerError: "
+                    "ref pull has been retried 5 time(s): failed to resolve reference"
                 )
             )
         )
