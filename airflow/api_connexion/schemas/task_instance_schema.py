@@ -60,7 +60,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     pid = auto_field()
     executor_config = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
-    rendered_fields = JsonObjectField()
+    rendered_fields = JsonObjectField(default={})
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -70,7 +70,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
         elif attr == "rendered_fields":
-            return get_value(obj[2], attr, None)
+            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
         return get_value(obj[0], attr, default)
 
 

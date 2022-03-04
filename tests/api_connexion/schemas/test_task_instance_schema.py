@@ -107,8 +107,8 @@ class TestTaskInstanceSchema:
             setattr(ti, key, value)
         self.task.template_fields = ["partitions"]
         setattr(self.task, "partitions", "data/ds=2022-02-17")
-        rendered_fields = RTIF(ti, render_templates=False)
-        serialized_ti = task_instance_schema.dump((ti, sla_miss, rendered_fields))
+        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        serialized_ti = task_instance_schema.dump((ti, sla_miss))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
