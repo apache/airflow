@@ -42,6 +42,10 @@ class EmrAddStepsOperator(BaseOperator):
     """
     An operator that adds steps to an existing EMR job_flow.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrAddStepsOperator`
+
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
     :param job_flow_name: name of the JobFlow to add steps to. Use as an alternative to passing
         job_flow_id. will search for id of JobFlow with matching name in one of the states in
@@ -264,6 +268,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
     A dictionary of JobFlow overrides can be passed that override
     the config from the connection.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrCreateJobFlowOperator`
+
     :param aws_conn_id: aws connection to uses
     :param emr_conn_id: emr connection to use
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
@@ -320,6 +328,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
 class EmrModifyClusterOperator(BaseOperator):
     """
     An operator that modifies an existing EMR cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrModifyClusterOperator`
+
     :param cluster_id: cluster identifier
     :param step_concurrency_level: Concurrency of the cluster
     :param aws_conn_id: aws connection to uses
@@ -363,6 +376,10 @@ class EmrModifyClusterOperator(BaseOperator):
 class EmrTerminateJobFlowOperator(BaseOperator):
     """
     Operator to terminate EMR JobFlows.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrTerminateJobFlowOperator`
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
     :param aws_conn_id: aws connection to uses
