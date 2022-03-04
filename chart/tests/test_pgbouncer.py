@@ -395,6 +395,28 @@ class PgbouncerConfigTest(unittest.TestCase):
         assert "server_tls_sslmode = verify-full" in ini
         assert "server_tls_ciphers = secure" in ini
 
+    def test_auth_type_file_defaults(self):
+        values = {
+            "pgbouncer": {"enabled": True},
+            "ports": {"pgbouncer": 7777},
+            "data": {"metadataConnection": {"user": "someuser"}},
+        }
+        ini = self._get_pgbouncer_ini(values)
+
+        assert "auth_type = md5" in ini
+        assert "auth_file = /etc/pgbouncer/users.txt" in ini
+
+    def test_auth_type_file_overrides(self):
+        values = {
+            "pgbouncer": {"enabled": True, "auth_type": "any", "auth_file": "/home/auth.txt"},
+            "ports": {"pgbouncer": 7777},
+            "data": {"metadataConnection": {"user": "someuser"}},
+        }
+        ini = self._get_pgbouncer_ini(values)
+
+        assert "auth_type = any" in ini
+        assert "auth_file = /home/auth.txt" in ini
+
     def test_ssl_defaults_dont_create_cert_secret(self):
         docs = render_chart(
             values={"pgbouncer": {"enabled": True}},
