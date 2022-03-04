@@ -44,4 +44,5 @@ def upgrade():
 
 def downgrade():
     """Unapply Add ``queued_at`` column in ``dag_run`` table"""
-    op.drop_column('dag_run', "queued_at")
+    with op.batch_alter_table('dag_run') as batch_op:
+        batch_op.drop_column('queued_at')

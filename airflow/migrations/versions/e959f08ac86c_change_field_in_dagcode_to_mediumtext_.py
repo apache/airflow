@@ -43,6 +43,5 @@ def upgrade():
 
 
 def downgrade():
-    conn = op.get_bind()
-    if conn.dialect.name == "mysql":
-        op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.TEXT, nullable=False)
+    # Do not downgrade to TEXT as it will break data
+    pass

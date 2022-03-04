@@ -53,7 +53,8 @@ def upgrade():
 
 def downgrade():
     """Unapply Add ``max_active_runs`` column to ``dag_model`` table"""
-    op.drop_column('dag', 'max_active_runs')
+    with op.batch_alter_table('dag') as batch_op:
+        batch_op.drop_column('max_active_runs')
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         # Drop index to dag_run.dag_id and also drop index to dag_run.state where state==running
         batch_op.drop_index('idx_dag_run_dag_id')

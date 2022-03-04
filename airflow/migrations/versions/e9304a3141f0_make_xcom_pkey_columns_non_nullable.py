@@ -49,14 +49,11 @@ def downgrade():
     """Unapply Make XCom primary key columns non-nullable"""
     conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
+        # regardless of what the model defined, the `key` and `execution_date`
+        # columns were always non-nullable for mysql, sqlite and postgres, so leave them alone
+
         if conn.dialect.name == 'mssql':
             bop.drop_constraint('pk_xcom', 'primary')
-
-        # regardless of what the model defined, the `key` and `execution_date`
-        # columns were always non-nullable for sqlite and postgres, so leave them alone
-
-        if conn.dialect.name in ['mysql', 'mssql']:
+            # execution_date and key wasn't nullable in the other databases
             bop.alter_column("key", type_=StringID(length=512), nullable=True)
-        if conn.dialect.name == 'mssql':
-            # execution_date wasn't nullable in the other databases
             bop.alter_column("execution_date", type_=TIMESTAMP, nullable=True)
