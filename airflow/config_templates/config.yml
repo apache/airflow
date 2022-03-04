@@ -1588,15 +1588,15 @@
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
       version_added: 2.0.0
       type: integer
-      example: "1"
-      default: ~
+      example: ~
+      default: "1"
     - name: worker_enable_remote_control
       description: |
         Specify if remote control of the workers is enabled.
-        When using SQS as the broker, Celery creates lots of .*reply-celery-pidbox queues. You can turn off
-        this by setting this value as false. However, if the value is false, the flower won't work.
+        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
+        prevent this by setting this to false. However, with this disabled Flower won't work.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "true"
     - name: worker_umask
