@@ -274,23 +274,21 @@ class TestDagParamRuntime:
         assert ti.xcom_pull() == 'test'
 
     @pytest.mark.parametrize(
-        'default, context_manager',
+        'default, should_warn',
         [
             pytest.param(
                 {0, 1, 2},
-                pytest.warns(
-                    DeprecationWarning, match='The use of non-json-serializable params is deprecated'
-                ),
+                True,
                 id='default-non-JSON-serializable',
             ),
-            pytest.param(None, nullcontext(), id='default-None'),  # Param init should not warn
-            pytest.param(
-                {"b": 1}, nullcontext(), id='default-JSON-serializable'
-            ),  # Param init should not warn
+            pytest.param(None, False, id='default-None'),  # Param init should not warn
+            pytest.param({"b": 1}, False, id='default-JSON-serializable'),  # Param init should not warn
         ],
     )
-    def test_param_json_warning(self, default, context_manager):
-        with context_manager:
+    def test_param_json_warning(self, default, should_warn):
+        warning_msg = 'The use of non-json-serializable params is deprecated'
+        cm = pytest.warns(DeprecationWarning, match=warning_msg) if should_warn else nullcontext()
+        with cm:
             p = Param(default=default)
         p.resolve()  # when resolved with NOTSET, should not warn.
         p.resolve(value={'a': 1})  # when resolved with JSON-serializable, should not warn.
