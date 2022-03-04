@@ -127,8 +127,9 @@ def connections_export(args):
     provided_format = None if args.format is None else f".{args.format.lower()}"
     default_format = provided_format or '.json'
 
+    file_is_stdout = _is_stdout(args.file)
     with create_session() as session:
-        if _is_stdout(args.file):
+        if file_is_stdout:
             filetype = default_format
         elif provided_format is not None:
             filetype = provided_format
@@ -144,6 +145,9 @@ def connections_export(args):
         connections = session.query(Connection).order_by(Connection.conn_id).all()
         msg = _format_connections(connections, filetype)
         args.file.write(msg)
+        if file_is_stdout:
+            args.file.write('\n')
+        args.file.close()
 
         if _is_stdout(args.file):
             print("Connections successfully exported.", file=sys.stderr)
