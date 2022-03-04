@@ -32,6 +32,12 @@ from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
 
+@pytest.fixture(scope='class', autouse=True)
+def clear_connections():
+    yield
+    clear_db_connections(add_default_connections_back=False)
+
+
 class TestCliGetConnection:
     parser = cli_parser.get_parser()
 
