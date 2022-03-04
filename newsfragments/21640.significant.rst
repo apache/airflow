@@ -1,0 +1,3 @@
+``auth_backends`` includes session
+
+To allow the Airflow UI to use the API, the previous default authorization backend ``airflow.api.auth.backend.deny_all`` is changed to ``airflow.api.auth.backend.session``\ , and this is automatically added to the list of API authorization backends if a non-default value is set.

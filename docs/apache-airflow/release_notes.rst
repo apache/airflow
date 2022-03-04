@@ -17,7 +17,7 @@
 
 
 
-Changelog
-=========
+Release Notes
+=============
 
-.. include:: ../../CHANGELOG.txt
+.. include:: ../../RELEASE_NOTES.rst

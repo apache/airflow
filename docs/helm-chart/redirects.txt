@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,25 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-include NOTICE
-include LICENSE
-include RELEASE_NOTES.rst
-include README.md
-graft licenses
-graft airflow/www
-graft airflow/www/static
-graft airflow/www/templates
-graft scripts/systemd
-graft airflow/config_templates
-recursive-exclude airflow/www/node_modules *
-global-exclude __pycache__  *.pyc
-exclude airflow/www/yarn.lock
-exclude airflow/www/*.sh
-include airflow/alembic.ini
-include airflow/api_connexion/openapi/v1.yaml
-include airflow/git_version
-include airflow/provider_info.schema.json
-include airflow/customized_form_field_behaviours.schema.json
-include airflow/serialization/schema.json
-include airflow/utils/python_virtualenv_script.jinja2
-include airflow/utils/context.pyi
+# Release Notes
+changelog.rst release_notes.rst
+updating.rst release_notes.rst
