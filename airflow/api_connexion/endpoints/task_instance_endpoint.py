@@ -94,6 +94,8 @@ def get_task_instance(
         raise NotFound("Task instance not found", detail="Task instance is mapped, add the map_index value to the URL")
     if task_instance is None:
         raise NotFound("Task instance not found")
+    if task_instance[0].map_index != -1:
+        raise NotFound("Task instance not found", detail="Task instance is mapped, add the map_index value to the URL")
 
     return task_instance_schema.dump(task_instance)
 
