@@ -158,6 +158,7 @@ class LookerHook(BaseHook):
         ):
 
             if timeout and start + timeout < time.monotonic():
+                self.stop_pdt_build(materialization_id=materialization_id)
                 raise AirflowException(
                     f"Timeout: PDT materialization job is not ready after {timeout}s. "
                     f"Job id: {materialization_id}."
