@@ -120,6 +120,13 @@ class TestFTPHook(unittest.TestCase):
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
 
+    def test_connection_success(self):
+
+        hook = fh.FTPHook()
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
 
 class TestIntegrationFTPHook(unittest.TestCase):
     def setUp(self):
