@@ -218,37 +218,39 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
 
     def test_without_map_index_returns_custom_404(self, mapped_task_instances):
         response = self.client.get(
-            f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2",
+            "/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json ==  {
+        assert response.json == {
             'detail': 'Task instance is mapped, add the map_index value to the URL',
             'status': 404,
             'title': 'Task instance not found',
-            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound'
+            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
+            'apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound',
         }
 
     def test_one_mapped_task_works(self, single_mapped_task_instance):
         # Should work for this URL, not for task_instance
         response = self.client.get(
-            f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2/0",
+            "/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2/0",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         response = self.client.get(
-            f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2/1",
+            "/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2/1",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         response = self.client.get(
-            f"/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2",
+            "/api/v1/dags/mapped_tis/dagRuns/test_dagrun/taskInstances/task_2",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json ==  {
+        assert response.json == {
             'detail': 'Task instance is mapped, add the map_index value to the URL',
             'status': 404,
             'title': 'Task instance not found',
-            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound'
+            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
+            'apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound',
         }
