@@ -29,7 +29,12 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.operators.ecs import EcsOperator, EcsTaskLogFetcher, should_retry, should_retry_eni
+from airflow.providers.amazon.aws.operators.ecs import (
+    EcsOperator,
+    EcsTaskLogFetcher,
+    should_retry,
+    should_retry_eni,
+)
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {
@@ -560,10 +565,22 @@ class TestShouldRetry(unittest.TestCase):
 
 class TestShouldRetryEni(unittest.TestCase):
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(should_retry_eni(EcsTaskFailToStart("The task failed to start due to: Timeout waiting for network interface provisioning to complete.")))
+        self.assertTrue(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: Timeout waiting for network interface provisioning to complete."
+                )
+            )
+        )
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(should_retry_eni(EcsTaskFailToStart("The task failed to start due to: CannotPullContainerError: ref pull has been retried 5 time(s): failed to resolve reference")))
+        self.assertFalse(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: CannotPullContainerError: ref pull has been retried 5 time(s): failed to resolve reference"
+                )
+            )
+        )
 
 
 class TestEcsTaskLogFetcher(unittest.TestCase):

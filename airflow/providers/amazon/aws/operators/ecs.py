@@ -51,10 +51,7 @@ def should_retry(exception: Exception):
 def should_retry_eni(exception: Exception):
     """Check if exception is related to ENI (Elastic Network Interfaces)."""
     if isinstance(exception, EcsTaskFailToStart):
-        return any(
-            eni_reason in exception.message
-            for eni_reason in ['network interface provisioning']
-        )
+        return any(eni_reason in exception.message for eni_reason in ['network interface provisioning'])
     return False
 
 
