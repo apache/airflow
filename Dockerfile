@@ -301,8 +301,7 @@ ARG INSTALL_FROM_PYPI="true"
 # * certifi<2021.0.0 required to keep snowflake happy
 # * dill<0.3.3 required by apache-beam
 # * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
-# * apache-beam==2.35.0 required as apache-beam 2.36.0 depends on cloudpickle<3 and >=2.0.0 an CI needs cloudpickle<1.5.0
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1 apache-beam==2.35.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \
