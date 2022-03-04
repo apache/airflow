@@ -190,7 +190,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 encrypt=conf.getboolean('logging', 'ENCRYPT_S3_LOGS'),
             )
         except Exception:
-            self.log.warn('Failed first attempt to write logs to %s, retrying', remote_log_location)
+            self.log.warning('Failed first attempt to write logs to %s, retrying', remote_log_location)
 
             try:
                 self.hook.load_string(
