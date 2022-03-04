@@ -276,11 +276,7 @@ class TestDagParamRuntime:
     @pytest.mark.parametrize(
         'default, should_warn',
         [
-            pytest.param(
-                {0, 1, 2},
-                True,
-                id='default-non-JSON-serializable',
-            ),
+            pytest.param({0, 1, 2}, True, id='default-non-JSON-serializable'),
             pytest.param(None, False, id='default-None'),  # Param init should not warn
             pytest.param({"b": 1}, False, id='default-JSON-serializable'),  # Param init should not warn
         ],
