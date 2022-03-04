@@ -62,7 +62,8 @@ class Param:
         from jsonschema.exceptions import ValidationError
 
         try:
-            json.dumps(value)
+            if value is not NOTSET:
+                json.dumps(value)
         except Exception:
             warnings.warn(
                 "The use of non-json-serializable params is deprecated and will be removed in "
