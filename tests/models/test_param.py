@@ -292,5 +292,5 @@ class TestDagParamRuntime:
             p = Param(default=default)
         p.resolve()  # when resolved with NOTSET, should not warn.
         p.resolve(value={'a': 1})  # when resolved with JSON-serializable, should not warn.
-        with pytest.warns(DeprecationWarning, match='The use of non-json-serializable params is deprecated'):
+        with pytest.warns(DeprecationWarning, match=warning_msg):
             p.resolve(value={1, 2, 3})  # when resolved with not JSON-serializable, should warn.
