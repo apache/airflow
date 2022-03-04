@@ -27,14 +27,13 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**, or **MSSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
 * PostgreSQL:  9.6, 10, 11, 12, 13
 * MySQL: 5.7, 8
-* MsSQL: 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -272,42 +271,6 @@ However if you want to use other drivers visit the `MySQL Dialect <https://docs.
 and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
-
-Setting up a MsSQL Database
----------------------------
-
-You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.
-Note, that in case of MsSQL, Airflow uses ``READ COMMITTED`` transaction isolation and it must have
-``READ_COMMITTED_SNAPSHOT`` feature enabled, otherwise read transactions might generate deadlocks
-(especially in case of backfill). Airflow will refuse to use database that has the feature turned off.
-You can read more about transaction isolation and snapshot features at
-`Transaction isolation level <https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql>`_
-
-.. code-block:: sql
-
-   CREATE DATABASE airflow;
-   ALTER DATABASE airflow SET READ_COMMITTED_SNAPSHOT ON;
-   CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
-   USE airflow;
-   CREATE USER airflow_user FROM LOGIN airflow_user;
-   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
-
-
-We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
-
-.. code-block:: text
-
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>?[driver=<driver>]
-
-
-You do not need to specify the Driver if you have default driver configured in your system. For the
-Official Docker image we have ODBC driver installed, so you need to specify the ODBC driver to use:
-
-.. code-block:: text
-
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
-
 
 Other configuration options
 ---------------------------
