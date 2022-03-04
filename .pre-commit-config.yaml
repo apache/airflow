@@ -406,8 +406,7 @@ repos:
           ^tests/providers/apache/cassandra/hooks/test_cassandra\.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
-          git|
-          ^CHANGELOG\.txt$
+          git
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports

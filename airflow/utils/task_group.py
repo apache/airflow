@@ -216,7 +216,6 @@ class TaskGroup(DAGNode):
 
         self.used_group_ids.remove(key)
         del self.children[key]
-        task.task_group = None
 
     @property
     def group_id(self) -> Optional[str]:

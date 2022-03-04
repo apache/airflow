@@ -28,7 +28,8 @@ from collections import defaultdict
 
 from alembic import op
 from sqlalchemy import Column, Integer
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'
@@ -97,7 +98,7 @@ def create_constraints(operator, column_name, constraint_dict):
 def upgrade():
     """Apply Remove id column from xcom"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
 
     with op.batch_alter_table('xcom') as bop:
         xcom_columns = [col.get('name') for col in inspector.get_columns("xcom")]
@@ -114,7 +115,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Remove id column from xcom"""
+    conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
-        bop.drop_constraint('pk_xcom', type_='primary')
-        bop.add_column(Column('id', Integer, primary_key=True))
+        if conn.dialect.name != 'mssql':
+            bop.drop_constraint('pk_xcom', type_='primary')
+        bop.add_column(Column('id', Integer, nullable=False))
+        bop.create_primary_key('id', ['id'])
         bop.create_index('idx_xcom_dag_task_date', ['dag_id', 'task_id', 'key', 'execution_date'])

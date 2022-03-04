@@ -25,7 +25,8 @@ Create Date: 2019-01-24 15:30:35.834740
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'cf5dc11e79ad'
@@ -43,7 +44,7 @@ def upgrade():
     # But before we can delete the users table we need to drop the FK
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
 
     if 'known_event' in tables:
