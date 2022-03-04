@@ -238,7 +238,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
                 if ti.task_id == task_item_or_group.task_id
             ],
             'label': task_item_or_group.label,
-            'extra_links': [],
+            'extra_links': task_item_or_group.extra_links,
             'is_mapped': task_item_or_group.is_mapped,
         }
 

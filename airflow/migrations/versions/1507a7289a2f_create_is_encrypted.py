@@ -25,7 +25,8 @@ Create Date: 2015-08-18 18:57:51.927315
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = '1507a7289a2f'
@@ -44,7 +45,7 @@ def upgrade():
     # true for users who are upgrading from a previous version of Airflow
     # that predates Alembic integration
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
 
     # this will only be true if 'connection' already exists in the db,
     # but not if alembic created it in a previous migration

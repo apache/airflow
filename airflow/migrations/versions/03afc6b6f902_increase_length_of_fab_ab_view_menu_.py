@@ -26,8 +26,8 @@ Create Date: 2020-11-13 22:21:41.619565
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
 
+from airflow.compat.sqlalchemy import inspect
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
@@ -41,7 +41,7 @@ airflow_version = '1.10.13'
 def upgrade():
     """Apply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
 
     if "ab_view_menu" in tables:
@@ -72,7 +72,7 @@ def upgrade():
 def downgrade():
     """Unapply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
     if "ab_view_menu" in tables:
         if conn.dialect.name == "sqlite":
