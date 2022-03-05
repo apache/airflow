@@ -39,7 +39,7 @@ To use these operators, you must do a few things:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`connections/gcp_looker`
+* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`/connections/gcp_looker`
 
 Start a PDT materialization job
 -------------------------------

@@ -209,7 +209,7 @@ class LookerApiSettings(api_settings.ApiSettings):
         self.conn = conn  # need to init before `read_config` is called in super
         super().__init__()
 
-    def read_config(self) -> Dict[str, str]:
+    def read_config(self):
         """
         Overrides the default logic of getting connection settings. Fetches
         the connection settings from Airflow's connection object.
