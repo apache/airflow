@@ -1,4 +1,4 @@
-Airflow 2.2.4, 2021-02-22
+Airflow 2.2.4, 2022-02-22
 -------------------------
 
 Bug Fixes
@@ -29,7 +29,6 @@ Bug Fixes
 - Bump flask-appbuilder to ``>=3.3.4`` (#20628)
 - upgrade celery to ``5.2.3`` (#19703)
 - Bump croniter from ``<1.1`` to ``<1.2`` (#20489)
-- Lift off upper bound for MarkupSafe (#20113)
 - Avoid calling ``DAG.following_schedule()`` for ``TaskInstance.get_template_context()`` (#20486)
 - Fix(standalone): Remove hardcoded Webserver port (#20429)
 - Remove unnecssary logging in experimental API (#20356)
@@ -61,8 +60,6 @@ Doc only changes
 - Add docker-compose explanation to conn localhost (#19076)
 - Update CSV ingest code for tutorial (#18960)
 - Adds Pendulum 1.x -> 2.x upgrade documentation (#18955)
-- Updating explicit arg example in TaskFlow API tutorial doc (#18907)
-- Adds back documentation about context usage in Python/@task (#18868)
 - Clean up dynamic `start_date` values from docs (#19607)
 - Docs for multiple pool slots (#20257)
 - Update upgrading.rst with detailed code example of how to resolve post-upgrade warning (#19993)
