@@ -52,8 +52,7 @@ We approached the problem by:
    "Providers", "WWW" or "CLI". This solution is not yet perfect as there are likely some edge cases but
    it is easy to maintain and we have an escape-hatch - all the tests are always executed in main pushes,
    so contributors can easily spot if there is a "missed" case and fix it - both by fixing the problem and
-   adding those exceptions to the code. More about it can be found in the
-   `Selective CI checks <#selective-ci-checks>`_ chapter.
+   adding those exceptions to the code. More about it can be found in `Selective checks <SELECTIVE_CHECKS.md>`_
 
 3) Even more optimisation came from limiting the scope of tests to only "default" matrix parameters. So far
    in Airflow we always run all tests for all matrix combinations. The primary matrix components are:
@@ -85,108 +84,6 @@ We approached the problem by:
    and whenever the PRs are done by one of the maintainers. Maintainers can force using Public GitHub runners
    by applying "use public runners" label to the PR before submitting it.
 
-Selective CI Checks
--------------------
-
-In order to optimise our CI jobs, we've implemented optimisations to only run selected checks for some
-kind of changes. The logic implemented reflects the internal architecture of Airflow 2.0 packages
-and it helps to keep down both the usage of jobs in GitHub Actions as well as CI feedback time to
-contributors in case of simpler changes.
-
-We have the following test types (separated by packages in which they are):
-
-* Always - those are tests that should be always executed (always folder)
-* Core - for the core Airflow functionality (core folder)
-* API - Tests for the Airflow API (api and api_connexion folders)
-* CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www folder)
-* Providers - Tests for all Providers of Airflow (providers folder)
-* Other - all other tests (all other folders that are not part of any of the above)
-
-We also have several special kinds of tests that are not separated by packages but they are marked with
-pytest markers. They can be found in any of those packages and they can be selected by the appropriate
-pytest custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
-
-* Integration - tests that require external integration images running in docker-compose
-* Quarantined - tests that are flaky and need to be fixed
-* Postgres - tests that require Postgres database. They are only run when backend is Postgres
-* MySQL - tests that require MySQL database. They are only run when backend is MySQL
-
-Even if the types are separated, In case they share the same backend version/python version, they are
-run sequentially in the same job, on the same CI machine. Each of them in a separate ``docker run`` command
-and with additional docker cleaning between the steps to not fall into the trap of exceeding resource
-usage in one big test run, but also not to increase the number of jobs per each Pull Request.
-
-The logic implemented for the changes works as follows:
-
-1) In case of direct push (so when PR gets merged) or scheduled run, we always run all tests and checks.
-   This is in order to make sure that the merge did not miss anything important. The remainder of the logic
-   is executed only in case of Pull Requests. We do not add providers tests in case DEFAULT_BRANCH is
-   different than main, because providers are only important in main branch and PRs to main branch.
-
-2) We retrieve which files have changed in the incoming Merge Commit (github.sha is a merge commit
-   automatically prepared by GitHub in case of Pull Request, so we can retrieve the list of changed
-   files from that commit directly).
-
-3) If any of the important, environment files changed (Dockerfile, ci scripts, setup.py, GitHub workflow
-   files), then we again run all tests and checks. Those are cases where the logic of the checks changed
-   or the environment for the checks changed so we want to make sure to check everything. We do not add
-   providers tests in case DEFAULT_BRANCH is different than main, because providers are only
-   important in main branch and PRs to main branch.
-
-4) If any of py files changed: we need to have CI image and run full static checks so we enable image building
-
-5) If any of docs changed: we need to have CI image so we enable image building
-
-6) If any of chart files changed, we need to run helm tests so we enable helm unit tests
-
-7) If any of API files changed, we need to run API tests so we enable them
-
-8) If any of the relevant source files that trigger the tests have changed at all. Those are airflow
-   sources, chart, tests and kubernetes_tests. If any of those files changed, we enable tests and we
-   enable image building, because the CI images are needed to run tests.
-
-9) Then we determine which types of the tests should be run. We count all the changed files in the
-   relevant airflow sources (airflow, chart, tests, kubernetes_tests) first and then we count how many
-   files changed in different packages:
-
-   a) in any case tests in ``Always`` folder are run. Those are special tests that should be run any time
-      modifications to any Python code occurs. Example test of this type is verifying proper structure of
-      the project including proper naming of all files.
-   b) if any of the Airflow API files changed we enable ``API`` test type
-   c) if any of the Airflow CLI files changed we enable ``CLI`` test type and Kubernetes tests (the
-      K8S tests depend on CLI changes as helm chart uses CLI to run Airflow).
-   d) if this is a main branch and if any of the Provider files changed we enable ``Providers`` test type
-   e) if any of the WWW files changed we enable ``WWW`` test type
-   f) if any of the Kubernetes files changed we enable ``Kubernetes`` test type
-   g) Then we subtract count of all the ``specific`` above per-type changed files from the count of
-      all changed files. In case there are any files changed, then we assume that some unknown files
-      changed (likely from the core of airflow) and in this case we enable all test types above and the
-      Core test types - simply because we do not want to risk to miss anything.
-   h) In all cases where tests are enabled we also add Integration and - depending on
-      the backend used = Postgres or MySQL types of tests.
-
-10) Quarantined tests are always run when tests are run - we need to run them often to observe how
-    often they fail so that we can decide to move them out of quarantine. Details about the
-    Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
-
-11) There is a special case of static checks. In case the above logic determines that the CI image
-    needs to be built, we run long and more comprehensive version of static checks - including
-    Mypy, Flake8. And those tests are run on all files, no matter how many files changed.
-    In case the image is not built, we run only simpler set of changes - the longer static checks
-    that require CI image are skipped, and we only run the tests on the files that changed in the incoming
-    commit - unlike flake8/mypy, those static checks are per-file based and they should not miss any
-    important change.
-
-Similarly to selective tests we also run selective security scans. In Pull requests,
-the Python scan will only run when there is a python code change and JavaScript scan will only run if
-there is a JavaScript or yarn.lock file change. For main builds, all scans are always executed.
-
-The selective check algorithm is shown here:
-
-.. image:: images/pr/selective_checks.png
-    :align: center
-    :alt: Selective check algorithm
 
 Approval Workflow and Matrix tests
 ----------------------------------
@@ -194,7 +91,7 @@ Approval Workflow and Matrix tests
 As explained above the approval and matrix tests workflow works according to the algorithm below:
 
 1) In case of "no-code" changes - so changes that do not change any of the code or environment of
-   the application, no test are run (this is done via selective checks above). Also no CI/PROD images are
+   the application, no test are run (this is done via selective checks). Also no CI/PROD images are
    build saving extra minutes. Such build takes less than 2 minutes currently and only few jobs are run
    which is a very small fraction of the "full build" time.
 

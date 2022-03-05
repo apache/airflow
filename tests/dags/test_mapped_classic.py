@@ -22,13 +22,13 @@ from airflow.utils.dates import days_ago
 
 
 @task
-def make_list():
-    return [1, 2, {'a': 'b'}]
+def make_arg_lists():
+    return [[1], [2], [{'a': 'b'}]]
 
 
-def consumer(*args):
-    print(repr(args))
+def consumer(value):
+    print(repr(value))
 
 
 with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
-    PythonOperator.partial(task_id='consumer', python_callable=consumer).map(op_args=make_list())
+    PythonOperator.partial(task_id='consumer', python_callable=consumer).apply(op_args=make_arg_lists())

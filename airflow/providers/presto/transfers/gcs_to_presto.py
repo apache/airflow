@@ -18,8 +18,9 @@
 """This module contains Google Cloud Storage to Presto operator."""
 
 import csv
+import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -33,8 +34,9 @@ class GCSToPrestoOperator(BaseOperator):
     """
     Loads a csv file from Google Cloud Storage into a Presto table.
     Assumptions:
-    1. First row of the csv contains headers
+    1. CSV file should not have headers
     2. Presto table with requisite columns is already created
+    3. Optionally, a separate JSON file with headers or list of headers can be provided
 
     :param source_bucket: Source GCS bucket that contains the csv
     :param source_object: csv file including the path
@@ -55,6 +57,12 @@ class GCSToPrestoOperator(BaseOperator):
         account from the list granting this role to the originating account.
     """
 
+    template_fields: Sequence[str] = (
+        'source_bucket',
+        'source_object',
+        'presto_table',
+    )
+
     def __init__(
         self,
         *,
@@ -63,6 +71,8 @@ class GCSToPrestoOperator(BaseOperator):
         presto_table: str,
         presto_conn_id: str = "presto_default",
         gcp_conn_id: str = "google_cloud_default",
+        schema_fields: Optional[Iterable[str]] = None,
+        schema_object: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -73,6 +83,8 @@ class GCSToPrestoOperator(BaseOperator):
         self.presto_table = presto_table
         self.presto_conn_id = presto_conn_id
         self.gcp_conn_id = gcp_conn_id
+        self.schema_fields = schema_fields
+        self.schema_object = schema_object
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -93,11 +105,18 @@ class GCSToPrestoOperator(BaseOperator):
                 filename=temp_file.name,
             )
 
-            data = list(csv.reader(temp_file))
-            fields = tuple(data[0])
-            rows = []
-            for row in data[1:]:
-                rows.append(tuple(row))
-
+            data = csv.reader(temp_file)
+            rows = (tuple(row) for row in data)
             self.log.info("Inserting data into %s", self.presto_table)
-            presto_hook.insert_rows(table=self.presto_table, rows=rows, target_fields=fields)
+
+            if self.schema_fields:
+                presto_hook.insert_rows(table=self.presto_table, rows=rows, target_fields=self.schema_fields)
+            elif self.schema_object:
+                blob = gcs_hook.download(
+                    bucket_name=self.source_bucket,
+                    object_name=self.schema_object,
+                )
+                schema_fields = json.loads(blob.decode("utf-8"))
+                presto_hook.insert_rows(table=self.presto_table, rows=rows, target_fields=schema_fields)
+            else:
+                presto_hook.insert_rows(table=self.presto_table, rows=rows)

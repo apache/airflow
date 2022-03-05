@@ -27,6 +27,11 @@ def test_visuals():
 def test_get_extra_docker_flags():
     airflow_sources = get_airflow_sources_root()
     all = True
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) < 10
+    selected = False
+    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 10
     all = False
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) > 60
+    selected = True
+    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) > 60
+    all = False
+    selected = False
+    assert len(get_extra_docker_flags(all, selected, str(airflow_sources))) < 8

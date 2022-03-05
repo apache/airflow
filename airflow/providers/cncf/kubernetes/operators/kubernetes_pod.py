@@ -89,9 +89,9 @@ class KubernetesPodOperator(BaseOperator):
         The docker images's entrypoint is used if this is not provided.
     :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
-    :param ports: ports for launched pod.
-    :param volume_mounts: volumeMounts for launched pod.
-    :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
+    :param ports: ports for the launched pod.
+    :param volume_mounts: volumeMounts for the launched pod.
+    :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
     :param env_vars: Environment variables initialized in the container. (templated)
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
@@ -106,11 +106,8 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param resources: A dict containing resources requests and limits.
-        Possible keys are request_memory, request_cpu, limit_memory, limit_cpu,
-        and limit_gpu, which will be used to generate airflow.kubernetes.pod.Resources.
-        See also kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
-    :param affinity: A dict containing a group of affinity scheduling rules.
+    :param resources: resources for the launched pod.
+    :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
     :param node_selector: A dict containing a group of scheduling rules.
@@ -136,7 +133,6 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
-
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -286,13 +282,18 @@ class KubernetesPodOperator(BaseOperator):
         if not context:
             return {}
 
-        labels = {
-            'dag_id': context['dag'].dag_id,
-            'task_id': context['task'].task_id,
-            'execution_date': context['ts'],
-        }
+        ti = context['ti']
+        run_id = getattr(ti, 'run_id') or context['run_id']
+
+        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
+
+        # If running on Airflow 2.3+:
+        map_index = getattr(ti, 'map_index', -1)
+        if map_index >= 0:
+            labels['map_index'] = map_index
+
         if include_try_number:
-            labels.update(try_number=context['ti'].try_number)
+            labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
             labels['parent_dag_id'] = context['dag'].parent_dag.dag_id

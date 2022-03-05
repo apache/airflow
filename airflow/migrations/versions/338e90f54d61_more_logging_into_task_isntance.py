@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""More logging into task_instance
+"""Add ``operator`` and ``queued_dttm`` to ``task_instance`` table
 
 Revision ID: 338e90f54d61
 Revises: 13eb55f81627
@@ -31,6 +31,7 @@ revision = '338e90f54d61'
 down_revision = '13eb55f81627'
 branch_labels = None
 depends_on = None
+airflow_version = '1.5.0'
 
 
 def upgrade():

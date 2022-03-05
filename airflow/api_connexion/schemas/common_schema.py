@@ -17,6 +17,7 @@
 
 import datetime
 import inspect
+import json
 import typing
 
 import marshmallow
@@ -165,3 +166,17 @@ class ClassReferenceSchema(Schema):
         if isinstance(obj, type):
             return obj.__name__
         return type(obj).__name__
+
+
+class JsonObjectField(fields.Field):
+    """JSON object field."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if not value:
+            return {}
+        return json.loads(value) if isinstance(value, str) else value
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, str):
+            return json.loads(value)
+        return value

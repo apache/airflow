@@ -211,6 +211,20 @@ class AirflowConfigParser(ConfigParser):
                 3.0,
             ),
         },
+        'api': {
+            'auth_backends': (
+                re.compile(r'^airflow\.api\.auth\.backend\.deny_all$|^$'),
+                'airflow.api.auth.backend.session',
+                '3.0',
+            ),
+        },
+        'elasticsearch': {
+            'log_id_template': (
+                re.compile('^' + re.escape('{dag_id}-{task_id}-{run_id}-{try_number}') + '$'),
+                '{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}',
+                3.0,
+            )
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -281,7 +295,27 @@ class AirflowConfigParser(ConfigParser):
                         version=version,
                     )
 
+        self._upgrade_auth_backends()
         self.is_validated = True
+
+    def _upgrade_auth_backends(self):
+        """
+        Ensure a custom auth_backends setting contains session,
+        which is needed by the UI for ajax queries.
+        """
+        old_value = self.get("api", "auth_backends", fallback="")
+        if old_value in ('airflow.api.auth.backend.default', ''):
+            # handled by deprecated_values
+            pass
+        elif old_value.find('airflow.api.auth.backend.session') == -1:
+            new_value = old_value + "\nairflow.api.auth.backend.session"
+            self._update_env_var(section="api", name="auth_backends", new_value=new_value)
+            warnings.warn(
+                'The auth_backends setting in [api] has had airflow.api.auth.backend.session added '
+                'in the running config, which is needed by the UI. Please update your config before '
+                'Apache Airflow 3.0.',
+                FutureWarning,
+            )
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
@@ -324,10 +358,11 @@ class AirflowConfigParser(ConfigParser):
         return old.search(current_value) is not None
 
     def _update_env_var(self, section, name, new_value):
-        # Make sure the env var option is removed, otherwise it
-        # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
-        os.environ.pop(env_var, None)
+        # If the config comes from environment, set it there so that any subprocesses keep the same override!
+        if env_var in os.environ:
+            os.environ[env_var] = new_value
+            return
         if not self.has_section(section):
             self.add_section(section)
         self.set(section, name, new_value)

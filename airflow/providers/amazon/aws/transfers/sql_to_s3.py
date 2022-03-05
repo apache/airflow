@@ -37,14 +37,15 @@ if TYPE_CHECKING:
 
 FILE_FORMAT = Enum(
     "FILE_FORMAT",
-    "CSV, PARQUET",
+    "CSV, JSON, PARQUET",
 )
 
-FileOptions = namedtuple('FileOptions', ['mode', 'suffix'])
+FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions('r+', '.csv'),
-    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet'),
+    FILE_FORMAT.CSV: FileOptions('r+', '.csv', 'to_csv'),
+    FILE_FORMAT.JSON: FileOptions('r+', '.json', 'to_json'),
+    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet', 'to_parquet'),
 }
 
 
@@ -69,8 +70,8 @@ class SqlToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                 You can specify this argument if you want to use a different
                 CA cert bundle than the one used by botocore.
-    :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
-    :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or ``DataFrame.to_csv()``.
+    :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
+    :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
     """
 
     template_fields: Sequence[str] = (
@@ -81,7 +82,6 @@ class SqlToS3Operator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {
         "query": "sql",
-        "pd_csv_kwargs": "json",
         "pd_kwargs": "json",
     }
 
@@ -96,7 +96,7 @@ class SqlToS3Operator(BaseOperator):
         replace: bool = False,
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
-        file_format: Literal['csv', 'parquet'] = 'csv',
+        file_format: Literal['csv', 'json', 'parquet'] = 'csv',
         pd_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> None:
@@ -111,13 +111,12 @@ class SqlToS3Operator(BaseOperator):
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
 
-        if file_format == "csv":
-            self.file_format = FILE_FORMAT.CSV
-            if "path_or_buf" in self.pd_kwargs:
-                raise AirflowException('The argument path_or_buf is not allowed, please remove it')
-        elif file_format == "parquet":
-            self.file_format = FILE_FORMAT.PARQUET
-        else:
+        if "path_or_buf" in self.pd_kwargs:
+            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
+
+        self.file_format = getattr(FILE_FORMAT, file_format.upper(), None)
+
+        if self.file_format is None:
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
@@ -147,11 +146,10 @@ class SqlToS3Operator(BaseOperator):
 
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
 
-            if self.file_format == FILE_FORMAT.CSV:
-                data_df.to_csv(tmp_file.name, **self.pd_kwargs)
-            else:
-                data_df.to_parquet(tmp_file.name, **self.pd_kwargs)
+            self.log.info("Writing data to temp file")
+            getattr(data_df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
+            self.log.info("Uploading data to S3")
             s3_conn.load_file(
                 filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
             )

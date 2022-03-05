@@ -19,7 +19,7 @@
 import datetime
 import json
 import time
-from typing import Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
@@ -35,6 +35,11 @@ XCOM_EXECUTION_DATE_ISO = "trigger_execution_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
 
 
+if TYPE_CHECKING:
+    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskinstance import TaskInstanceKey
+
+
 class TriggerDagRunLink(BaseOperatorLink):
     """
     Operator link for TriggerDagRunOperator. It allows users to access
@@ -43,14 +48,16 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = 'Triggered DAG'
 
-    def get_link(self, operator, dttm):
+    def get_link(
+        self,
+        operator: "AbstractOperator",
+        *,
+        ti_key: "TaskInstanceKey",
+    ) -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
-        trigger_execution_date_iso = XCom.get_one(
-            execution_date=dttm, key=XCOM_EXECUTION_DATE_ISO, task_id=operator.task_id, dag_id=operator.dag_id
-        )
-
-        query = {"dag_id": operator.trigger_dag_id, "base_date": trigger_execution_date_iso}
+        when = XCom.get_one(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
+        query = {"dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
         return build_airflow_url_with_query(query)
 
 

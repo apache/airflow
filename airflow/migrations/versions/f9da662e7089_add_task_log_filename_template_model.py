@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add model for task log filename template.
+"""Add ``LogTemplate`` table to track changes to config values ``log_filename_template``
 
 Revision ID: f9da662e7089
 Revises: 786e3737b18f
@@ -33,6 +33,7 @@ revision = "f9da662e7089"
 down_revision = "786e3737b18f"
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 def upgrade():
@@ -56,5 +57,6 @@ def upgrade():
 def downgrade():
     """Remove fk on task instance and model for task log filename template."""
     with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.drop_constraint("task_instance_log_template_id_fkey", type_="foreignkey")
         batch_op.drop_column("log_template_id")
     op.drop_table("log_template")

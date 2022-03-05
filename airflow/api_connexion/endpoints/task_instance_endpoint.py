@@ -39,6 +39,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -77,6 +78,14 @@ def get_task_instance(
         )
         .add_entity(SlaMiss)
     )
+    query = query.outerjoin(
+        RTIF,
+        and_(
+            RTIF.dag_id == TI.dag_id,
+            RTIF.execution_date == DR.execution_date,
+            RTIF.task_id == TI.task_id,
+        ),
+    ).add_entity(RTIF)
     task_instance = query.one_or_none()
     if task_instance is None:
         raise NotFound("Task instance not found")
@@ -178,8 +187,15 @@ def get_task_instances(
             SlaMiss.execution_date == DR.execution_date,
         ),
         isouter=True,
-    )
-    ti_query = base_query.add_entity(SlaMiss)
+    ).add_entity(SlaMiss)
+    ti_query = base_query.outerjoin(
+        RTIF,
+        and_(
+            RTIF.dag_id == TI.dag_id,
+            RTIF.task_id == TI.task_id,
+            RTIF.execution_date == DR.execution_date,
+        ),
+    ).add_entity(RTIF)
     task_instances = ti_query.offset(offset).limit(limit).all()
 
     return task_instance_collection_schema.dump(
@@ -237,8 +253,15 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             SlaMiss.execution_date == DR.execution_date,
         ),
         isouter=True,
-    )
-    ti_query = base_query.add_entity(SlaMiss)
+    ).add_entity(SlaMiss)
+    ti_query = base_query.outerjoin(
+        RTIF,
+        and_(
+            RTIF.dag_id == TI.dag_id,
+            RTIF.task_id == TI.task_id,
+            RTIF.execution_date == DR.execution_date,
+        ),
+    ).add_entity(RTIF)
     task_instances = ti_query.all()
 
     return task_instance_collection_schema.dump(
@@ -334,7 +357,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        dag_run_id=run_id,
+        run_id=run_id,
         execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],

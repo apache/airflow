@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""fix mysql not null constraint
+"""Fix MySQL not null constraint
 
 Revision ID: f23433877c24
 Revises: 05f30312d566
@@ -30,6 +30,7 @@ revision = 'f23433877c24'
 down_revision = '05f30312d566'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 
 def upgrade():

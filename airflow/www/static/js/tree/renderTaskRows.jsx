@@ -34,7 +34,7 @@ import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import useTreeData from './useTreeData';
 import StatusBox from './StatusBox';
 
-import getMetaValue from '../meta_value';
+import { getMetaValue } from '../utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -53,7 +53,7 @@ const renderTaskRows = ({
 ));
 
 const TaskName = ({
-  isGroup, onToggle, isOpen, level, taskName,
+  isGroup = false, isMapped = false, onToggle, isOpen, level, taskName,
 }) => (
   <Box _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s">
     <Flex
@@ -74,6 +74,9 @@ const TaskName = ({
         isTruncated
       >
         {taskName}
+        {isMapped && (
+          ' [ ]'
+        )}
       </Text>
       {isGroup && (
         isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
@@ -107,6 +110,7 @@ const Row = ({
 }) => {
   const { data: { dagRuns = [] } } = useTreeData();
   const isGroup = !!task.children;
+
   const taskName = prevTaskId ? task.id.replace(`${prevTaskId}.`, '') : task.id;
 
   const storageKey = `${dagId}-open-groups`;
@@ -148,6 +152,7 @@ const Row = ({
             <TaskName
               onToggle={onToggle}
               isGroup={isGroup}
+              isMapped={task.isMapped}
               taskName={taskName}
               isOpen={isOpen}
               level={level}

@@ -102,6 +102,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         'email_on_failure',
     )
 
+    # Adds one additional dependency for all sensor operators that checks if a
+    # sensor task instance can be rescheduled.
+    deps = BaseOperator.deps | {ReadyToRescheduleDep()}
+
     def __init__(
         self,
         *,
@@ -309,16 +313,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def reschedule(self):
         """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
-
-    @property
-    def deps(self):
-        """
-        Adds one additional dependency for all sensor operators that
-        checks if a sensor task instance can be rescheduled.
-        """
-        if self.reschedule:
-            return super().deps | {ReadyToRescheduleDep()}
-        return super().deps
 
 
 def poke_mode_only(cls):

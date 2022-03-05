@@ -36,6 +36,7 @@ from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMeta
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -78,13 +79,22 @@ class DataprocMetastoreLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreLink.key,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            conf = XCom.get_one(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            conf = XCom.get_one(
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+                key=self.key,
+            )
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -124,13 +134,22 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreDetailedLink.key,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            conf = XCom.get_one(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            conf = XCom.get_one(
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+                key=DataprocMetastoreDetailedLink.key,
+            )
         return (
             conf["url"].format(
                 region=conf["region"],

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""improve mssql compatibility
+"""Improve MSSQL compatibility
 
 Revision ID: 83f031fd9f1c
 Revises: ccde3e26fe78
@@ -37,6 +37,7 @@ revision = '83f031fd9f1c'
 down_revision = 'ccde3e26fe78'
 branch_labels = None
 depends_on = None
+airflow_version = '2.2.0'
 
 
 def is_table_empty(conn, table_name):

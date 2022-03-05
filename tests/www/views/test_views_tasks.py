@@ -25,7 +25,7 @@ import pytest
 
 from airflow import settings
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DagBag, DagModel, TaskInstance, TaskReschedule
+from airflow.models import DAG, DagBag, DagModel, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -600,6 +600,56 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
     resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response(f'/delete?dag_id={test_dag_id}', resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
+
+
+@pytest.fixture()
+def new_dag_to_delete():
+    dag = DAG('new_dag_to_delete', is_paused_upon_creation=True)
+    session = settings.Session()
+    dag.sync_to_db(session=session)
+    return dag
+
+
+@pytest.fixture()
+def per_dag_perm_user_client(app, new_dag_to_delete):
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
+
+    create_user(
+        app,
+        username="test_user_per_dag_perms",
+        role_name="User with some perms",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, perm),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+    )
+
+    sm.find_user(username="test_user_per_dag_perms")
+
+    yield client_with_login(
+        app,
+        username="test_user_per_dag_perms",
+        password="test_user_per_dag_perms",
+    )
+
+    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app)
+
+
+def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
+    resp = per_dag_perm_user_client.post(
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
+    )
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
+
+
+def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
+    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])

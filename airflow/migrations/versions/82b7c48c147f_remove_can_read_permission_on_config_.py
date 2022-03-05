@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Remove can_read permission on config resource for User and Viewer role
+"""Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role
 
 Revision ID: 82b7c48c147f
 Revises: e959f08ac86c
@@ -33,6 +33,7 @@ revision = '82b7c48c147f'
 down_revision = 'e959f08ac86c'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.1'
 
 
 def upgrade():

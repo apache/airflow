@@ -42,8 +42,8 @@ from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type, Union
 
-import click
 import jsonschema
+import rich_click as click
 from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
@@ -1039,7 +1039,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
         if not git_update:
             return
     except subprocess.CalledProcessError as ex:
-        if ex.returncode == 128:
+        if ex.returncode == 128 or ex.returncode == 2:
             remote_add_command = [
                 "git",
                 "remote",

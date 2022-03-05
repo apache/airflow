@@ -98,6 +98,10 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
+class UnmappableOperator(AirflowException):
+    """Raise when an operator is not implemented to be mappable."""
+
+
 class UnmappableXComTypePushed(AirflowException):
     """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
 

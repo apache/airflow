@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add TaskMap and map_index on TaskInstance.
+"""Add ``map_index`` column to TaskInstance to identify task-mapping,
+and a ``task_map`` table to track mapping values from XCom.
 
 Revision ID: e655c0453f75
 Revises: f9da662e7089
@@ -34,10 +35,14 @@ revision = "e655c0453f75"
 down_revision = "f9da662e7089"
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 def upgrade():
-    """Add TaskMap and map_index on TaskInstance."""
+    """
+    Add ``map_index`` column to TaskInstance to identify task-mapping,
+    and a ``task_map`` table to track mapping values from XCom.
+    """
     # We need to first remove constraints on task_reschedule since they depend on task_instance.
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
@@ -97,13 +102,13 @@ def downgrade():
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
         batch_op.drop_index("idx_task_reschedule_dag_task_run")
-        batch_op.drop_column("map_index")
+        batch_op.drop_column("map_index", mssql_drop_default=True)
 
     op.execute("DELETE FROM task_instance WHERE map_index != -1")
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_pkey", type_="primary")
-        batch_op.drop_column("map_index")
+        batch_op.drop_column("map_index", mssql_drop_default=True)
         batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id"])
 
     with op.batch_alter_table("task_reschedule") as batch_op:

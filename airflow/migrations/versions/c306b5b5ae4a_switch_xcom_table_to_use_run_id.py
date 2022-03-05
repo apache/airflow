@@ -25,15 +25,17 @@ Create Date: 2022-01-19 03:20:35.329037
 from typing import Sequence
 
 from alembic import op
-from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, select
+from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, and_, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
+from airflow.migrations.utils import get_mssql_table_constraints
 
 # Revision identifiers, used by Alembic.
 revision = "c306b5b5ae4a"
 down_revision = "a3bcd0914482"
 branch_labels = None
 depends_on = None
+airflow_version = '2.3.0'
 
 
 metadata = MetaData()
@@ -41,7 +43,7 @@ metadata = MetaData()
 
 def _get_new_xcom_columns() -> Sequence[Column]:
     return [
-        Column("dagrun_id", Integer(), nullable=False),
+        Column("dag_run_id", Integer(), nullable=False),
         Column("task_id", StringID(), nullable=False),
         Column("key", StringID(length=512), nullable=False),
         Column("value", LargeBinary),
@@ -53,12 +55,12 @@ def _get_new_xcom_columns() -> Sequence[Column]:
 
 def _get_old_xcom_columns() -> Sequence[Column]:
     return [
-        Column("key", StringID(length=512), nullable=False),
+        Column("key", StringID(length=512), nullable=False, primary_key=True),
         Column("value", LargeBinary),
         Column("timestamp", TIMESTAMP, nullable=False),
-        Column("task_id", StringID(), nullable=False),
-        Column("dag_id", StringID(), nullable=False),
-        Column("execution_date", StringID(), nullable=False),
+        Column("task_id", StringID(length=250), nullable=False, primary_key=True),
+        Column("dag_id", StringID(length=250), nullable=False, primary_key=True),
+        Column("execution_date", TIMESTAMP, nullable=False, primary_key=True),
     ]
 
 
@@ -80,6 +82,9 @@ def upgrade():
     data pre-populated, adding back constraints we need, and renaming it to
     replace the existing XCom table.
     """
+    conn = op.get_bind()
+    is_sqlite = conn.dialect.name == "sqlite"
+
     op.create_table("__airflow_tmp_xcom", *_get_new_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_old_xcom_columns())
@@ -96,18 +101,24 @@ def upgrade():
         ],
     ).select_from(
         xcom.join(
-            dagrun,
-            xcom.c.dag_id == dagrun.c.dag_id,
-            xcom.c.execution_date == dagrun.c.execution_date,
+            right=dagrun,
+            onclause=and_(
+                xcom.c.dag_id == dagrun.c.dag_id,
+                xcom.c.execution_date == dagrun.c.execution_date,
+            ),
         ),
     )
     op.execute(f"INSERT INTO __airflow_tmp_xcom {query.selectable.compile(op.get_bind())}")
 
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=off")
     op.drop_table("xcom")
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=on")
     op.rename_table("__airflow_tmp_xcom", "xcom")
 
     with op.batch_alter_table("xcom") as batch_op:
-        batch_op.create_primary_key("xcom_pkey", ["dagrun_id", "task_id", "key"])
+        batch_op.create_primary_key("xcom_pkey", ["dag_run_id", "task_id", "key"])
         batch_op.create_index("idx_xcom_key", ["key"])
         batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
 
@@ -117,6 +128,7 @@ def downgrade():
 
     Basically an inverse operation.
     """
+    conn = op.get_bind()
     op.create_table("__airflow_tmp_xcom", *_get_old_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_new_xcom_columns())
@@ -132,13 +144,19 @@ def downgrade():
         ],
     ).select_from(
         xcom.join(
-            dagrun,
-            xcom.c.dag_id == dagrun.c.dag_id,
-            xcom.c.run_id == dagrun.c.run_id,
+            right=dagrun,
+            onclause=and_(
+                xcom.c.dag_id == dagrun.c.dag_id,
+                xcom.c.run_id == dagrun.c.run_id,
+            ),
         ),
     )
     op.execute(f"INSERT INTO __airflow_tmp_xcom {query.selectable.compile(op.get_bind())}")
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
-    op.create_primary_key("xcom_pkey", "xcom", ["dag_id", "task_id", "execution_date", "key"])
+    if conn.dialect.name == 'mssql':
+        constraints = get_mssql_table_constraints(conn, 'xcom')
+        pk, _ = constraints['PRIMARY KEY'].popitem()
+        op.drop_constraint(pk, 'xcom', type_='primary')
+        op.create_primary_key("pk_xcom", "xcom", ["dag_id", "task_id", "execution_date", "key"])
