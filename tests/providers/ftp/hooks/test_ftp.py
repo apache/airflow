@@ -121,16 +121,16 @@ class TestFTPHook(unittest.TestCase):
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
 
     def test_connection_success(self):
-        hook = fh.FTPHook()
-        status, msg = hook.test_connection()
-        assert status is True
-        assert msg == 'Connection successfully tested'
-    
+        with fh.FTPHook as ftp_hook:
+            status, msg = ftp_hook.test_connection()
+            assert status is True
+            assert msg == 'Connection successfully tested'
+        
     def test_connection_failure(self):
-        self.conn_mock.pwd.raiseError.side_effect = mock(side_effect=Exception('Test'))
-        hook = fh.FTPHook()
-        status, msg = hook.test_connection()
-        assert status is False
+        self.conn_mock = mock.MagicMock(name='conn_mock', side_effect=Exception('Test'))
+        with fh.FTPHook() as ftp_hook:
+            status, msg = ftp_hook.test_connection()
+            assert status is False
 
 
 class TestIntegrationFTPHook(unittest.TestCase):
