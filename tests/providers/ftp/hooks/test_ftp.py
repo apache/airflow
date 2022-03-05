@@ -121,7 +121,7 @@ class TestFTPHook(unittest.TestCase):
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
 
     def test_connection_success(self):
-        with fh.FTPHook as ftp_hook:
+        with fh.FTPHook() as ftp_hook:
             status, msg = ftp_hook.test_connection()
             assert status is True
             assert msg == 'Connection successfully tested'
