@@ -619,9 +619,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Moto3 is limited for unknown reason
-    # TODO: attempt to remove the limitation
-    'moto~=2.2,>=2.2.12',
+    'moto>=3.0.3',
     'parameterized',
     'paramiko',
     'pipdeptree',
