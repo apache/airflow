@@ -1359,8 +1359,21 @@ DB_COMMANDS = (
     ActionCommand(
         name='upgrade',
         help="Upgrade the metadata database to latest version",
+        description=(
+            "Upgrade the schema of the metadata database. "
+            "To print but not execute commands, use option `--sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-        args=(ARG_VERSION_RANGE, ARG_REVISION_RANGE),
+        args=(
+            ARG_DB_REVISION,
+            ARG_DB_VERSION,
+            ARG_DB_SQL,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+        ),
     ),
     ActionCommand(
         name='downgrade',

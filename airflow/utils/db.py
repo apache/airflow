@@ -1046,21 +1046,29 @@ def _offline_migration(migration_func: Callable, config, revision):
         logging.disable(logging.NOTSET)
 
 
-def _validate_version_range(script_, version_range):
-    if ':' not in version_range:
+def _validate_version(from_version):
+    dbname = settings.engine.dialect.name
+    if dbname == 'sqlite':
+        raise AirflowException('SQLite is not supported for offline migration.')
+    elif dbname == 'mssql' and (from_version != '2.2.0' or int(from_version.split('.')[1]) < 2):
         raise AirflowException(
-            'Please provide Airflow version range with the format "old_version:new_version"'
+            'MSSQL is not supported for offline migration in Airflow versions less than 2.2.0.'
         )
-    lower, upper = version_range.split(':')
 
-    if not REVISION_HEADS_MAP.get(lower) or not REVISION_HEADS_MAP.get(upper):
+
+def _revision_range_from_version_range(script_, from_version, to_version):
+    if not REVISION_HEADS_MAP.get(from_version) or not REVISION_HEADS_MAP.get(to_version):
         raise AirflowException('Please provide valid Airflow versions above 2.0.0.')
-    if REVISION_HEADS_MAP.get(lower) == REVISION_HEADS_MAP.get(upper):
+    if REVISION_HEADS_MAP.get(from_version) == REVISION_HEADS_MAP.get(to_version):
         if sys.stdout.isatty():
             size = os.get_terminal_size().columns
         else:
             size = 0
-        print(f"Hey this is your migration script from {lower}, to {upper}, but guess what?".center(size))
+        print(
+            f"Hey this is your migration script from {from_version}, to {to_version}, but guess what?".center(
+                size
+            )
+        )
         print(
             "There is no migration needed as the database has not changed between those versions. "
             "You are done.".center(size)
@@ -1070,79 +1078,75 @@ def _validate_version_range(script_, version_range):
         print("""(,(") (")""".center(size))
         print("""^^^""".center(size))
         return
-    dbname = settings.engine.dialect.name
-    if dbname == 'sqlite':
-        raise AirflowException('SQLite is not supported for offline migration.')
-    elif dbname == 'mssql' and (lower != '2.2.0' or int(lower.split('.')[1]) < 2):
-        raise AirflowException(
-            'MSSQL is not supported for offline migration in Airflow versions less than 2.2.0.'
-        )
-    _lower, _upper = REVISION_HEADS_MAP[lower], REVISION_HEADS_MAP[upper]
-    revision = f"{_lower}:{_upper}"
+    _validate_version(from_version)
+    from_revision, to_revision = REVISION_HEADS_MAP[from_version], REVISION_HEADS_MAP[to_version]
     try:
         # Check if there is history between the revisions
-        list(script_.revision_map.iterate_revisions(_upper, _lower))
+        list(script_.revision_map.iterate_revisions(to_revision, from_revision))
     except Exception:
         raise AirflowException(
-            f"Error while checking history for revision range {revision}. "
+            f"Error while checking history for revision range {from_revision}:{to_revision}. "
             f"Check that the supplied airflow version is in the format 'old_version:new_version'."
         )
-    return revision
+    return from_revision, to_revision
 
 
-def _validate_revision(script_, revision_range):
-    if ':' not in revision_range:
-        raise AirflowException(
-            'Please provide Airflow revision range with the format "old_revision:new_revision"'
-        )
+def _validate_revision_range(script_, from_revision, to_revision):
     dbname = settings.engine.dialect.name
+
     if dbname == 'sqlite':
-        raise AirflowException('SQLite is not supported for offline migration.')
-    start_version = '2.0.0'
-    rev_2_0_0_head = 'e959f08ac86c'
-    _lowerband, _upperband = revision_range.split(':')
-    if dbname == 'mssql':
-        rev_2_0_0_head = '7b2661a43ba3'
-        start_version = '2.2.0'
-    for i in [_lowerband, _upperband]:
+        raise AirflowException('Offline migration not supported for SQLite.')
+
+    min_version, min_revision = ('7b2661a43ba3', '2.2.0') if dbname == 'mssql' else ('2.0.0', 'e959f08ac86c')
+
+    for i in (from_revision, to_revision):
         try:
             # Check if there is history between the revisions and the start revision
-            # This ensures that the revisions are above 2.0.0 head or 2.2.0 head if mssql
-            list(script_.revision_map.iterate_revisions(upper=i, lower=rev_2_0_0_head))
+            # This ensures that the revisions are above `min_revision`
+            list(script_.revision_map.iterate_revisions(upper=i, lower=min_revision))
         except Exception:
             raise AirflowException(
-                f"Error while checking history for revision range {rev_2_0_0_head}:{i}. "
+                f"Error while checking history for revision range {min_revision}:{i}. "
                 f"Check that {i} is a valid revision. "
-                f"Supported revision for offline migration is from {rev_2_0_0_head} "
-                f"which is airflow {start_version} head"
+                f"Supported revision for offline migration is from {min_revision} "
+                f"which is airflow {min_version} head"
             )
+
+def upgradedb_with_version(version, from_version):
+    if from_version and version:
+        from_revision, revision = _revision_range_from_version_range(script_, from_version, version)
+        if not (from_revision, revision):
+            raise Exception('unexpected')
+        log.info("Running offline migrations for version range %s:%s", from_version, version)
+    else:
+        log.info("Running offline migrations for revision range %s:%s", from_revision, revision)
 
 
 @provide_session
 def upgradedb(
-    version_range: Optional[str] = None, revision_range: Optional[str] = None, session: Session = NEW_SESSION
+    revision: Optional[str] = None,
+    from_revision: Optional[str] = None,
+    sql_only: bool = False,
+    session: Session = NEW_SESSION,
 ):
     """Upgrade the database."""
+    if (revision or from_revision) and not sql_only:
+        raise Exception("`revision` and `from_revision` only supported with `sql_only=True`.")
+
     # alembic adds significant import time, so we import it lazily
     if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is critical assertion.")
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
     from alembic import command
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
-    if version_range:
-        revision = _validate_version_range(script_, version_range)
-        if not revision:
-            return
-        log.info("Running offline migrations for version range %s", version_range)
-        return _offline_migration(command.upgrade, config, revision)
-    elif revision_range:
-        _validate_revision(script_, revision_range)
-        log.info("Running offline migrations for revision range %s", revision_range)
-        return _offline_migration(command.upgrade, config, revision_range)
+
+    if sql_only:
+        _validate_revision_range(script_, from_revision, revision)
+        _offline_migration(command.upgrade, config, f"{from_revision}:{revision}")
+        return
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
