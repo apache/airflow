@@ -134,7 +134,6 @@ class TestFTPHook(unittest.TestCase):
             assert status is False
             assert msg == 'Test'
 
-
 class TestIntegrationFTPHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
