@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-05T17:20:45Z
+# This constraints file was automatically generated on 2022-03-05T18:18:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -85,20 +85,14 @@ apache-airflow-providers-docker==2.4.1
 apache-airflow-providers-elasticsearch==2.2.0
 apache-airflow-providers-exasol==2.1.0
 apache-airflow-providers-facebook==2.2.0
-apache-airflow-providers-ftp==2.0.1
-apache-airflow-providers-github==1.0.0
 apache-airflow-providers-google==6.4.0
 apache-airflow-providers-grpc==2.0.1
 apache-airflow-providers-hashicorp==2.1.1
-apache-airflow-providers-http==2.0.3
-apache-airflow-providers-imap==2.2.0
-apache-airflow-providers-influxdb==1.1.0
 apache-airflow-providers-jdbc==2.1.0
 apache-airflow-providers-jenkins==2.0.4
 apache-airflow-providers-jira==2.0.1
 apache-airflow-providers-microsoft-azure==3.6.0
 apache-airflow-providers-microsoft-mssql==2.1.0
-apache-airflow-providers-microsoft-psrp==1.1.0
 apache-airflow-providers-microsoft-winrm==2.0.2
 apache-airflow-providers-mongo==2.3.0
 apache-airflow-providers-mysql==2.2.0
@@ -117,12 +111,10 @@ apache-airflow-providers-redis==2.0.1
 apache-airflow-providers-salesforce==3.4.0
 apache-airflow-providers-samba==3.0.1
 apache-airflow-providers-segment==2.0.1
-apache-airflow-providers-sendgrid==2.0.1
 apache-airflow-providers-sftp==2.4.1
 apache-airflow-providers-singularity==2.0.1
 apache-airflow-providers-slack==4.2.0
 apache-airflow-providers-snowflake==2.5.0
-apache-airflow-providers-sqlite==2.1.0
 apache-airflow-providers-ssh==2.4.0
 apache-airflow-providers-tableau==2.1.4
 apache-airflow-providers-telegram==2.0.1
