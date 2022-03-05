@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-05T04:10:13Z
+# This constraints file was automatically generated on 2022-03-05T17:20:53Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -277,7 +277,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==2.3.2
+moto==3.0.5
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
@@ -347,7 +347,7 @@ pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.8.0
-pycountry==22.1.10
+pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.14.1
 pycryptodomex==3.14.1
@@ -392,7 +392,7 @@ pytzdata==2020.1
 pywinrm==0.4.2
 pyzmq==22.3.0
 qds-sdk==1.16.1
-readme-renderer==32.0
+readme-renderer==33.0
 redis==3.5.3
 redshift-connector==2.0.904
 requests-file==1.5.1
