@@ -132,6 +132,7 @@ class TestFTPHook(unittest.TestCase):
         with fh.FTPHook() as ftp_hook:
             status, msg = ftp_hook.test_connection()
             assert status is False
+            assert msg == 'Test'
 
 
 class TestIntegrationFTPHook(unittest.TestCase):
