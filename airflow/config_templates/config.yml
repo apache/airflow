@@ -1528,6 +1528,21 @@
       type: string
       example: ~
       default: ~
+- name: local_kubernetes_executor
+  description: |
+    This section only applies if you are using the ``LocalKubernetesExecutor`` in
+    ``[core]`` section above
+  options:
+    - name: kubernetes_queue
+      description: |
+        Define when to send a task to ``KubernetesExecutor`` when using ``LocalKubernetesExecutor``.
+        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+        the task is executed via ``KubernetesExecutor``,
+        otherwise via ``LocalExecutor``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "kubernetes"
 - name: celery_kubernetes_executor
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
