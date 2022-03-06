@@ -251,10 +251,9 @@ cloudant = [
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
-    # TODO: upgrade libraries used or maybe deprecate and drop DASK support
-    'cloudpickle>=1.4.1, <1.5.0',
-    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
-    'distributed>=2.11.1, <2.20',
+    'cloudpickle>=1.4.1',
+    'dask>=2.9.0',
+    'distributed>=2.11.1',
 ]
 databricks = [
     'requests>=2.26.0, <3',
