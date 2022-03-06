@@ -26,8 +26,8 @@ Create Date: 2019-06-07 04:03:17.003939
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
-from sqlalchemy.engine.reflection import Inspector
 
+from airflow.compat.sqlalchemy import inspect
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
@@ -41,7 +41,7 @@ airflow_version = '2.0.0'
 def upgrade():
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
     if 'sensor_instance' in tables:
         return
@@ -74,7 +74,7 @@ def upgrade():
 
 def downgrade():
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
     if 'sensor_instance' in tables:
         op.drop_table('sensor_instance')

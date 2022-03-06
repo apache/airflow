@@ -144,6 +144,7 @@ def connections_export(args):
         connections = session.query(Connection).order_by(Connection.conn_id).all()
         msg = _format_connections(connections, filetype)
         args.file.write(msg)
+        args.file.close()
 
         if _is_stdout(args.file):
             print("Connections successfully exported.", file=sys.stderr)

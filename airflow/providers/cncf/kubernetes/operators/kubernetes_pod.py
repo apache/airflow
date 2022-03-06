@@ -283,8 +283,9 @@ class KubernetesPodOperator(BaseOperator):
             return {}
 
         ti = context['ti']
+        run_id = getattr(ti, 'run_id') or context['run_id']
 
-        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'execution_date': context['ts']}
+        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
 
         # If running on Airflow 2.3+:
         map_index = getattr(ti, 'map_index', -1)

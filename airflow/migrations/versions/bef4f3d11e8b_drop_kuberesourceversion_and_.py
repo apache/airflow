@@ -26,7 +26,8 @@ Create Date: 2020-09-22 18:45:28.011654
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bef4f3d11e8b'
@@ -43,7 +44,7 @@ WORKER_RESOURCEVERSION_TABLE = "kube_resource_version"
 def upgrade():
     """Apply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
 
     if WORKER_UUID_TABLE in tables:
@@ -55,7 +56,7 @@ def upgrade():
 def downgrade():
     """Unapply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables"""
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     tables = inspector.get_table_names()
 
     if WORKER_UUID_TABLE not in tables:
