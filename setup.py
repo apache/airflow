@@ -552,9 +552,7 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    # Yandexcloud 0.142 broke logging of the yandexcloud provider. The limitation can be removed once
-    # https://github.com/yandex-cloud/python-sdk/issues/47 is fixed.
-    'yandexcloud>=0.122.0, <0.142.0',
+    'yandexcloud>=0.146.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',
