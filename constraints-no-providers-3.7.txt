@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-05T18:22:22Z
+# This constraints file was automatically generated on 2022-03-06T08:48:44Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -36,7 +36,7 @@ SQLAlchemy==1.4.9
 WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.7.6
-amqp==5.0.9
+amqp==5.1.0
 anyio==3.5.0
 apispec==3.3.2
 argcomplete==1.12.3
@@ -100,7 +100,7 @@ importlib-resources==5.4.0
 inflection==0.5.1
 itsdangerous==1.1.0
 jsonschema==4.4.0
-kombu==5.2.3
+kombu==5.2.4
 krb5==0.3.0
 kubernetes==23.3.0
 lazy-object-proxy==1.7.1

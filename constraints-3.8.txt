@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-05T18:18:31Z
+# This constraints file was automatically generated on 2022-03-06T08:44:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -54,7 +54,7 @@ alabaster==0.7.12
 alembic==1.7.6
 aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.15.0
-amqp==5.0.9
+amqp==5.1.0
 analytics-python==1.4.0
 ansiwrap==0.8.4
 anyio==3.5.0
@@ -323,7 +323,7 @@ jupyter-client==7.1.2
 jupyter-core==4.9.2
 jwcrypto==1.0
 keyring==23.5.0
-kombu==5.2.3
+kombu==5.2.4
 krb5==0.3.0
 kubernetes==23.3.0
 kylinpy==2.8.4
@@ -341,7 +341,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.0.5
+moto==3.0.6
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
