@@ -155,6 +155,43 @@ This Operator leverages the AWS CLI
 `delete-event-subscription <https://docs.aws.amazon.com/cli/latest/reference/rds/delete-event-subscription.html>`__ API
 
 
+RDS management sensors
+=====================================
+
+.. contents::
+  :depth: 1
+  :local:
+
+
+.. _howto/operator:RdsSnapshotExistenceSensor:
+
+DB snapshot sensor
+""""""""""""""""""
+
+To wait a snapshot with certain statuses of AWS RDS DB instance or DB cluster snapshot you can use
+:class:`~airflow.providers.amazon.aws.sensors.rds.RdsSnapshotExistenceSensor`.
+By default, sensor waits existence of snapshot with status ``available``.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds.py
+    :language: python
+    :start-after: [START howto_guide_rds_snapshot_sensor]
+    :end-before: [END howto_guide_rds_snapshot_sensor]
+
+
+.. _howto/operator:RdsExportTaskExistenceSensor:
+
+Export task sensor
+""""""""""""""""""
+
+To wait a snapshot export task with certain statuses you can use
+:class:`~airflow.providers.amazon.aws.sensors.rds.RdsExportTaskExistenceSensor`.
+By default, sensor waits existence of export task with status ``available``.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds.py
+    :language: python
+    :start-after: [START howto_guide_rds_export_sensor]
+    :end-before: [END howto_guide_rds_export_sensor]
+
 Reference
 ---------
 

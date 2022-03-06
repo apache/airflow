@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteEventSubscriptionOperator,
     RdsStartExportTaskOperator,
 )
+from airflow.providers.amazon.aws.sensors.rds import RdsExportTaskExistenceSensor, RdsSnapshotExistenceSensor
 
 # [START rds_snapshots_howto_guide]
 with DAG(
@@ -125,3 +126,26 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
 
     create_subscription >> delete_subscription
 # [END rds_events_howto_guide]
+
+# [START rds_sensors_howto_guide]
+with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval=None, catchup=False) as dag:
+    # [START howto_guide_rds_snapshot_sensor]
+    snapshot_sensor = RdsSnapshotExistenceSensor(
+        task_id='snapshot_sensor',
+        db_type='instance',
+        db_snapshot_identifier='auth-db-snap-{{ ds }}',
+        target_statuses=['available'],
+        aws_conn_id='aws_default',
+        hook_params={'region_name': 'us-east-1'},
+    )
+    # [END howto_guide_rds_snapshot_sensor]
+
+    # [START howto_guide_rds_export_sensor]
+    export_sensor = RdsExportTaskExistenceSensor(
+        task_id='export_sensor',
+        export_task_identifier='export-auth-db-snap-{{ ds }}',
+        aws_conn_id='aws_default',
+        hook_params={'region_name': 'us-east-1'},
+    )
+    # [END howto_guide_rds_export_sensor]
+# [END rds_sensors_howto_guide]
