@@ -125,6 +125,7 @@ class TestFTPHook(unittest.TestCase):
             status, msg = ftp_hook.test_connection()
             assert status is True
             assert msg == 'Connection successfully tested'
+
     def test_connection_failure(self):
         self.conn_mock = mock.MagicMock(name='conn_mock', side_effect=Exception('Test'))
         fh.FTPHook.get_conn = self.conn_mock
@@ -132,6 +133,7 @@ class TestFTPHook(unittest.TestCase):
             status, msg = ftp_hook.test_connection()
             assert status is False
             assert msg == 'Test'
+
 
 class TestIntegrationFTPHook(unittest.TestCase):
     def setUp(self):
