@@ -58,6 +58,14 @@ def test_trigger_dag_button(admin_client, req, expected_run_id):
     assert expected_run_id in run.run_id
 
 
+def test_duplicate_run_id(admin_client):
+    test_dag_id = 'example_bash_operator'
+    run_id = 'test_run'
+    admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    response = admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    check_content_in_response(f'The run_id {run_id} already exists', response)
+
+
 def test_trigger_dag_conf(admin_client):
     test_dag_id = "example_bash_operator"
     conf_dict = {'string': 'Hello, World!'}
