@@ -32,7 +32,7 @@ try:
 
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests
-    from distributed.utils_test import cluster as dask_testing_cluster, get_cert, tls_security
+    from distributed.utils_test import cluster as dask_testing_cluster, tls_security
 
     from airflow.executors.dask_executor import DaskExecutor
 
@@ -112,9 +112,9 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     @conf_vars(
         {
-            ('dask', 'tls_ca'): get_cert('tls-ca-cert.pem'),
-            ('dask', 'tls_cert'): get_cert('tls-key-cert.pem'),
-            ('dask', 'tls_key'): get_cert('tls-key.pem'),
+            ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
+            ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
+            ('dask', 'tls_key'): 'certs/tls-key.pem',
         }
     )
     def test_tls(self):
