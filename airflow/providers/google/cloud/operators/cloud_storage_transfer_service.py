@@ -326,6 +326,64 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         return hook.update_transfer_job(job_name=self.job_name, body=self.body)
 
 
+class CloudDataTransferServiceRunJobOperator(BaseOperator):
+    """
+    Runs a transfer job in Google Storage Transfer Service.
+
+    :param job_name: (Required) Name of the transfer job.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1).
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gcp_transfer_job_run_template_fields]
+    template_fields: Sequence[str] = (
+        "job_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
+    )
+    # [END gcp_transfer_job_run_template_fields]
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        project_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        self.job_name = job_name
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
+        self.google_impersonation_chain = google_impersonation_chain
+        self.body = {PROJECT_ID: project_id}
+        self._validate_inputs()
+        super().__init__(**kwargs)
+
+    def _validate_inputs(self) -> None:
+        if not self.job_name:
+            raise AirflowException("The required parameter 'job_name' is empty or None")
+
+    def execute(self, context: "Context") -> None:
+        hook = CloudDataTransferServiceHook(
+            api_version=self.api_version,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.google_impersonation_chain,
+        )
+        hook.run_transfer_job(job_name=self.job_name, body=self.body)
+
+
 class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     """
     Delete a transfer job. This is a soft delete. After a transfer job is

@@ -215,6 +215,19 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
+    def run_transfer_job(self, job_name: str, body: dict) -> None:
+        """
+        Runs a transfer job in Google Storage Transfer Service.
+
+        :param job_name: (Required) Name of the transfer job to be run.
+        :param body: (Required) A request body, as described in
+            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run#request-body
+        """
+        self.get_conn().transferJobs().run(
+            jobName=job_name,
+            body=body,
+        ).execute(num_retries=self.num_retries)    
+
     def list_transfer_job(self, request_filter: Optional[dict] = None, **kwargs) -> List[dict]:
         """
         Lists long-running operations in Google Storage Transfer
