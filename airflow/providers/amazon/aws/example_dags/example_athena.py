@@ -20,7 +20,6 @@ from os import getenv
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
@@ -132,14 +131,14 @@ with DAG(
     # Using a task-decorated function to delete the S3 file we created earlier
     remove_sample_data_from_s3 = remove_sample_data_from_s3()
 
-    chain(
-        add_sample_data_to_s3,
-        create_table,
-        read_table,
-        get_read_state,
-        read_results_from_s3,
-        drop_table,
-        remove_sample_data_from_s3,
+    (
+        add_sample_data_to_s3  # type: ignore
+        >> create_table
+        >> read_table
+        >> get_read_state
+        >> read_results_from_s3
+        >> drop_table
+        >> remove_sample_data_from_s3
     )
     # [END howto_athena_operator_and_sensor]
 
