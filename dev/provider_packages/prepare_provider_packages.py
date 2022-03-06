@@ -1903,7 +1903,7 @@ def generate_setup_files(
                 console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
                 # Returns 1 in case of skipped package
                 sys.exit(1)
-        elif update_setup_files(provider_package_id, version_suffix):
+        if update_setup_files(provider_package_id, version_suffix):
             console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
         else:
             # Returns 64 in case of skipped package
