@@ -116,7 +116,7 @@ class TestQuicksight:
             ingestion_id="DemoDataSet_Ingestion",
             aws_account_id="123456789012",
         )
-        assert result == 'COMPLETED'
+        assert result == "COMPLETED"
 
     @mock.patch.object(QuickSightHook, "get_conn")
     def test_get_job_status_failed(self, mock_conn):
@@ -130,4 +130,4 @@ class TestQuicksight:
             ingestion_id="DemoDataSet_Ingestion",
             aws_account_id="123456789012",
         )
-        assert result == 'Failed'
+        assert result == "Failed"

@@ -68,7 +68,7 @@ class QuickSightSensor(BaseSensorOperator):
         quicksight_ingestion_state = hook.get_status(self.aws_account_id, self.data_set_id, self.ingestion_id)
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
-            raise AirflowException('The QuickSight Ingestion failed!')
+            raise AirflowException("The QuickSight Ingestion failed!")
         return quicksight_ingestion_state == self.success_status
 
     def get_hook(self) -> QuickSightHook:

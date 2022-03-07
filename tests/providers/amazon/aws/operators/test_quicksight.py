@@ -39,14 +39,14 @@ MOCK_RESPONSE = {
 class TestQuicksightCreateIngestionOperator(unittest.TestCase):
     def setUp(self):
         self.quicksight = QuickSightCreateIngestionOperator(
-            task_id='test_quicksight_operator',
+            task_id="test_quicksight_operator",
             data_set_id=DATA_SET_ID,
             ingestion_id=INGESTION_ID,
             aws_account_id=AWS_ACCOUNT_ID,
         )
 
-    @mock.patch.object(QuickSightHook, 'get_conn')
-    @mock.patch.object(QuickSightHook, 'create_ingestion')
+    @mock.patch.object(QuickSightHook, "get_conn")
+    @mock.patch.object(QuickSightHook, "create_ingestion")
     def test_execute(self, mock_create_ingestion, mock_client):
         mock_create_ingestion.return_value = MOCK_RESPONSE
         self.quicksight.execute(None)
