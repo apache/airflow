@@ -38,12 +38,25 @@ class Param:
     CLASS_IDENTIFIER = '__class'
 
     def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
+        if default is not NOTSET:
+            self._warn_if_not_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
     def __copy__(self) -> "Param":
         return Param(self.value, self.description, schema=self.schema)
+
+    @staticmethod
+    def _warn_if_not_json(value):
+        try:
+            json.dumps(value)
+        except Exception:
+            warnings.warn(
+                "The use of non-json-serializable params is deprecated and will be removed in "
+                "a future release",
+                DeprecationWarning,
+            )
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
@@ -61,14 +74,8 @@ class Param:
         from jsonschema import FormatChecker
         from jsonschema.exceptions import ValidationError
 
-        try:
-            json.dumps(value)
-        except Exception:
-            warnings.warn(
-                "The use of non-json-serializable params is deprecated and will be removed in "
-                "a future release",
-                DeprecationWarning,
-            )
+        if value is not NOTSET:
+            self._warn_if_not_json(value)
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:

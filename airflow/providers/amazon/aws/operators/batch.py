@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -40,6 +39,10 @@ if TYPE_CHECKING:
 class BatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BatchOperator`
 
     :param job_name: the name for the job that will run on AWS Batch (templated)
 

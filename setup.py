@@ -251,10 +251,9 @@ cloudant = [
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
-    # TODO: upgrade libraries used or maybe deprecate and drop DASK support
-    'cloudpickle>=1.4.1, <1.5.0',
-    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
-    'distributed>=2.11.1, <2.20',
+    'cloudpickle>=1.4.1',
+    'dask>=2.9.0',
+    'distributed>=2.11.1',
 ]
 databricks = [
     'requests>=2.26.0, <3',
@@ -552,9 +551,7 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    # Yandexcloud 0.142 broke logging of the yandexcloud provider. The limitation can be removed once
-    # https://github.com/yandex-cloud/python-sdk/issues/47 is fixed.
-    'yandexcloud>=0.122.0, <0.142.0',
+    'yandexcloud>=0.146.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',
@@ -619,9 +616,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Moto3 is limited for unknown reason
-    # TODO: attempt to remove the limitation
-    'moto~=2.2,>=2.2.12',
+    'moto>=3.0.3',
     'parameterized',
     'paramiko',
     'pipdeptree',

@@ -15,24 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using `RedshiftSQLOperator` to authenticate with Amazon Redshift
-then execute a simple select statement
-"""
+
 from datetime import datetime
 
-# [START redshift_operator_howto_guide]
 from airflow import DAG
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 
 with DAG(
-    dag_id="redshift",
+    dag_id="example_redshift_sql",
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_operator_redshift_create_table]
     setup__task_create_table = RedshiftSQLOperator(
         task_id='setup__create_table',
         sql="""
@@ -43,10 +39,9 @@ with DAG(
             );
         """,
     )
-    # [END howto_operator_redshift_create_table]
-    # [START howto_operator_redshift_populate_table]
-    task_insert_data = RedshiftSQLOperator(
-        task_id='task_insert_data',
+
+    setup__task_insert_data = RedshiftSQLOperator(
+        task_id='setup__task_insert_data',
         sql=[
             "INSERT INTO fruit VALUES ( 1, 'Banana', 'Yellow');",
             "INSERT INTO fruit VALUES ( 2, 'Apple', 'Red');",
@@ -56,19 +51,29 @@ with DAG(
             "INSERT INTO fruit VALUES ( 6, 'Strawberry', 'Red');",
         ],
     )
-    # [END howto_operator_redshift_populate_table]
-    # [START howto_operator_redshift_get_all_rows]
-    task_get_all_table_data = RedshiftSQLOperator(
-        task_id='task_get_all_table_data', sql="CREATE TABLE more_fruit AS SELECT * FROM fruit;"
+
+    # [START howto_operator_redshift_sql]
+    task_select_data = RedshiftSQLOperator(
+        task_id='task_get_all_table_data', sql="""CREATE TABLE more_fruit AS SELECT * FROM fruit;"""
     )
-    # [END howto_operator_redshift_get_all_rows]
-    # [START howto_operator_redshift_get_with_filter]
-    task_get_with_filter = RedshiftSQLOperator(
-        task_id='task_get_with_filter',
-        sql="CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';",
+    # [END howto_operator_redshift_sql]
+
+    # [START howto_operator_redshift_sql_with_params]
+    task_select_filtered_data = RedshiftSQLOperator(
+        task_id='task_get_filtered_table_data',
+        sql="""CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';""",
         params={'color': 'Red'},
     )
-    # [END howto_operator_redshift_get_with_filter]
+    # [END howto_operator_redshift_sql_with_params]
 
-    setup__task_create_table >> task_insert_data >> task_get_all_table_data >> task_get_with_filter
-# [END redshift_operator_howto_guide]
+    teardown__task_drop_table = RedshiftSQLOperator(
+        task_id='teardown__drop_table',
+        sql='DROP TABLE IF EXISTS fruit',
+    )
+
+    chain(
+        setup__task_create_table,
+        setup__task_insert_data,
+        [task_select_data, task_select_filtered_data],
+        teardown__task_drop_table,
+    )

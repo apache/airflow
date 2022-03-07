@@ -599,6 +599,7 @@ LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallbac
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
+    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')

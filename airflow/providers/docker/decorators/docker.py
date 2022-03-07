@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def _generate_decode_command(env_var, file):
+def _generate_decode_command(env_var, file, python_command):
     # We don't need `f.close()` as the interpreter is about to exit anyway
     return (
-        f'python -c "import base64, os;'
+        f'{python_command} -c "import base64, os;'
         rf'x = base64.b64decode(os.environ[\"{env_var}\"]);'
         rf'f = open(\"{file}\", \"wb\"); f.write(x);"'
     )
@@ -71,12 +71,22 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     def __init__(
         self,
         use_dill=False,
+        python_command='python3',
         **kwargs,
     ) -> None:
         command = "dummy command"
+        self.python_command = python_command
         self.pickling_library = dill if use_dill else pickle
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
+        )
+
+    def generate_command(self):
+        return (
+            f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
+                                                     self.python_command)} &&"""
+            f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
+            f'{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out\''
         )
 
     def execute(self, context: 'Context'):
@@ -109,11 +119,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             else:
                 self.environment["__PYTHON_INPUT"] = ""
 
-            self.command = (
-                f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} &&"""
-                f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in")} &&'
-                f'python /tmp/script.py /tmp/script.in /tmp/script.out\''
-            )
+            self.command = self.generate_command()
             return super().execute(context)
 
     def _get_python_source(self):

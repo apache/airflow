@@ -28,8 +28,13 @@ from botocore.exceptions import ClientError
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError
-from airflow.providers.amazon.aws.operators.ecs import EcsOperator, EcsTaskLogFetcher, should_retry
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
+from airflow.providers.amazon.aws.operators.ecs import (
+    EcsOperator,
+    EcsTaskLogFetcher,
+    should_retry,
+    should_retry_eni,
+)
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {
@@ -261,7 +266,7 @@ class TestEcsOperator(unittest.TestCase):
             ]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(EcsTaskFailToStart) as ctx:
             self.ecs._check_success_task()
 
         assert str(ctx.value) == "The task failed to start due to: Task failed to start"
@@ -556,6 +561,29 @@ class TestShouldRetry(unittest.TestCase):
 
     def test_return_false_on_invalid_reason(self):
         self.assertFalse(should_retry(EcsOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
+
+
+class TestShouldRetryEni(unittest.TestCase):
+    def test_return_true_on_valid_reason(self):
+        self.assertTrue(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: "
+                    "Timeout waiting for network interface provisioning to complete."
+                )
+            )
+        )
+
+    def test_return_false_on_invalid_reason(self):
+        self.assertFalse(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: "
+                    "CannotPullContainerError: "
+                    "ref pull has been retried 5 time(s): failed to resolve reference"
+                )
+            )
+        )
 
 
 class TestEcsTaskLogFetcher(unittest.TestCase):
