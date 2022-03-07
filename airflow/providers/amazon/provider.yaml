@@ -163,6 +163,8 @@ integrations:
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
     logo: /integration-logos/aws/AWS-Batch_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/batch.rst
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
