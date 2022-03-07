@@ -1504,6 +1504,20 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "exec": {
+                            "description": "Custom exec command for livenessProbe",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "command": {
+                                    "description": "Array of command to execute for livenessProbe",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                             }
                         }
                     }
                 },
@@ -1808,6 +1822,20 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "exec": {
+                            "description": "Custom exec command for livenessProbe",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "command": {
+                                    "description": "Array of command to execute for livenessProbe",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                             }
                         }
                     }
                 },
