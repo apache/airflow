@@ -348,6 +348,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/vertex_ai.rst
     tags: [gcp]
+  - integration-name: Google Looker
+    external-doc-url: https://cloud.google.com/looker
+    logo: /integration-logos/gcp/Cloud-Looker.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/looker.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -483,6 +489,9 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.dataset
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.operators.looker
 
 sensors:
   - integration-name: Google BigQuery
@@ -527,6 +536,9 @@ sensors:
   - integration-name: Google Search Ads 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.search_ads
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.sensors.looker
 
 hooks:
   - integration-name: Google Ads
@@ -685,6 +697,9 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.dataset
       - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
       - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.hooks.looker
 
 transfers:
   - source-integration-name: Presto

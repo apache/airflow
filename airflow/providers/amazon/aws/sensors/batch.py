@@ -30,6 +30,10 @@ class BatchSensor(BaseSensorOperator):
     Asks for the state of the Batch Job execution until it reaches a failure state or success state.
     If the job fails, the task will fail.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BatchSensor`
+
     :param job_id: Batch job_id to check the state for
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """

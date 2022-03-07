@@ -90,6 +90,13 @@ class DockerOperator(BaseOperator):
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
     :param network_mode: Network mode for the container.
+        It can be one of the following:
+        bridge - Create new network stack for the container with default docker bridge network
+        None - No networking for this container
+        container:<name|id> - Use the network stack of another container specified via <name|id>
+        host - Use the host network stack. Incompatible with `port_bindings`
+        '<network-name>|<network-id>' - Connects the container to user created network
+        (using `docker network create` command)
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
     :param tls_client_cert: Path to the PEM-encoded certificate

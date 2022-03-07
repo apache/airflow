@@ -254,7 +254,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
-        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -341,6 +341,8 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
+        if default_args and not isinstance(default_args, dict):
+            raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
