@@ -16,41 +16,41 @@
     under the License.
 
 
-.. _howto/operator:S3ToRedshiftOperator:
+.. _howto/operator:RedshiftToS3Operator:
 
-Amazon S3 to Redshift Transfer Operator
+Amazon Redshift to S3 Transfer Operator
 =======================================
 
-Use the S3ToRedshiftOperator transfer to copy the data from an Amazon Simple Storage Service (S3) file into an
-Amazon Redshift table.
+Use the RedshiftToS3Operator transfer to copy the data from an Amazon Redshift table into an Amazon Simple Storage
+Service (S3) file.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
-Amazon S3 To Amazon Redshift
+Amazon Redshift To Amazon S3
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This operator loads data from Amazon S3 to an existing Amazon Redshift table.
+This operator loads data from an Amazon Redshift table to an existing Amazon S3 bucket.
 
 To get more information about this operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`
+:class:`~airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator`
 
 Example usage:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_to_s3.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_s3_to_redshift]
-    :end-before: [END howto_transfer_s3_to_redshift]
+    :start-after: [START howto_transfer_redshift_to_s3]
+    :end-before: [END howto_transfer_redshift_to_s3]
 
-You can find more information to the ``COPY`` command used
-`here <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__.
+You can find more information to the ``UNLOAD`` command used
+`here <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__.
 
 Reference
 ^^^^^^^^^
 
-* `AWS COPY from Amazon S3 Documentation <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS UNLOAD from Amazon Redshift Documentation <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__
 * `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
+* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
