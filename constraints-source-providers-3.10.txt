@@ -390,7 +390,7 @@ requests-ntlm==1.1.0
 requests-oauthlib==1.3.0
 requests-toolbelt==0.9.1
 requests==2.27.1
-responses==0.17.0
+responses==0.18.0
 rfc3986==1.5.0
 rich==11.0.0
 rsa==4.8
