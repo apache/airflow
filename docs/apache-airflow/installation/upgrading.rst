@@ -21,9 +21,9 @@ Upgrading Airflow to a newer version
 Why you need to upgrade
 =======================
 
-Newer Airflow versions can contain Database migrations so it is recommended that you run
-``airflow db upgrade`` to Upgrade your Database with the schema changes in the Airflow version
-you are upgrading to.
+Newer Airflow versions can contain database migrations so you must run ``airflow db upgrade``
+to upgrade your database with the schema changes in the Airflow version you are upgrading to.
+Don't worry, it's safe to run even if there are no migrations to perform.
 
 When you need to upgrade
 ========================
