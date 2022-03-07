@@ -472,7 +472,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.redshift_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Amazon Redshift
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/s3_to_redshift.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_redshift.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)
