@@ -27,7 +27,6 @@ from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
-from tests.test_utils.config import conf_vars
 
 try:
     # utility functions imported from the dask testing suite to instantiate a test
@@ -118,13 +117,13 @@ class TestDaskExecutorTLS(TestBaseDask):
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
 
-    @conf_vars(
-        {
-            ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
-            ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
-            ('dask', 'tls_key'): 'certs/tls-key.pem',
-        }
-    )
+    # @conf_vars(
+    #     {
+    #         ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
+    #         ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
+    #         ('dask', 'tls_key'): 'certs/tls-key.pem',
+    #     }
+    # )
     # def test_tls(self):
     #     # These use test certs that ship with dask/distributed and should not be
     #     #  used in production
