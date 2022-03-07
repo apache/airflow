@@ -215,18 +215,20 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def run_transfer_job(self, job_name: str, body: dict) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_transfer_job(self, job_name: str, project_id: str) -> None:
         """
         Runs a transfer job in Google Storage Transfer Service.
 
         :param job_name: (Required) Name of the transfer job to be run.
-        :param body: (Required) A request body, as described in
-            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run#request-body
+        :param project_id: (Optional) the ID of the project that owns the Transfer
+            Job. If set to None or missing, the default project_id from the Google Cloud
+            connection is used.
         """
         self.get_conn().transferJobs().run(
             jobName=job_name,
-            body=body,
-        ).execute(num_retries=self.num_retries)    
+            body={PROJECT_ID: project_id},
+        ).execute(num_retries=self.num_retries)
 
     def list_transfer_job(self, request_filter: Optional[dict] = None, **kwargs) -> List[dict]:
         """

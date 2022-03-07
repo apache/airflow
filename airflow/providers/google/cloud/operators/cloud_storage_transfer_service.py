@@ -331,6 +331,9 @@ class CloudDataTransferServiceRunJobOperator(BaseOperator):
     Runs a transfer job in Google Storage Transfer Service.
 
     :param job_name: (Required) Name of the transfer job.
+    :param project_id: (Optional) the ID of the project that owns the Transfer
+        Job. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param api_version: API version used (e.g. v1).
     :param google_impersonation_chain: Optional Google service account to impersonate using
@@ -356,9 +359,9 @@ class CloudDataTransferServiceRunJobOperator(BaseOperator):
         self,
         *,
         job_name: str,
-        project_id: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
+        project_id: Optional[str] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -367,7 +370,6 @@ class CloudDataTransferServiceRunJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
-        self.body = {PROJECT_ID: project_id}
         self._validate_inputs()
         super().__init__(**kwargs)
 
@@ -381,7 +383,7 @@ class CloudDataTransferServiceRunJobOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        hook.run_transfer_job(job_name=self.job_name, body=self.body)
+        hook.run_transfer_job(job_name=self.job_name, project_id=self.project_id)
 
 
 class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
