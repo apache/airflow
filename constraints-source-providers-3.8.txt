@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-07T14:26:15Z
+# This constraints file was automatically generated on 2022-03-07T15:35:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -186,7 +186,7 @@ google-cloud-audit-log==0.2.0
 google-cloud-automl==2.7.1
 google-cloud-bigquery-datatransfer==3.6.0
 google-cloud-bigquery-storage==2.12.0
-google-cloud-bigquery==2.34.1
+google-cloud-bigquery==2.34.2
 google-cloud-bigtable==1.7.0
 google-cloud-build==3.8.0
 google-cloud-container==1.0.1
@@ -267,6 +267,7 @@ lazy-object-proxy==1.7.1
 ldap3==2.9.1
 locket==0.2.1
 lockfile==0.12.2
+looker-sdk==22.2.1
 lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
@@ -503,7 +504,7 @@ urllib3==1.26.8
 userpath==1.8.0
 vertica-python==1.0.3
 vine==5.0.0
-virtualenv==20.13.2
+virtualenv==20.13.3
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
