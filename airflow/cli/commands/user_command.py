@@ -198,7 +198,7 @@ def _import_users(users_list: List[Dict[str, Any]]):
         UserSchema(many=True).load(users_list)
     except ValidationError as e:
         msg = []
-        for row_num, failure in e.messages.items():
+        for row_num, failure in e.normalized_messages().items():
             msg.append(f'[Item {row_num}]')
             for key, value in failure.items():
                 msg.append(f'\t{key}: {value}')
