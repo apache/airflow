@@ -67,7 +67,7 @@ Use the following code to install the chart with Example DAGs:
   helm install $RELEASE_NAME apache-airflow/airflow \
     --namespace $NAMESPACE \
     --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
-    --set-string "env[0].value=True" 
+    --set-string "env[0].value=True"
 
 It may take a few minutes. Confirm the pods are up:
 
