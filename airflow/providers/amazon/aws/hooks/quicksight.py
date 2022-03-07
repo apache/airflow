@@ -35,8 +35,8 @@ class QuickSightHook(AwsBaseHook):
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    non_terminal_states = {'INITIALIZED', 'QUEUED', 'RUNNING'}
-    failed_states = {'Failed'}
+    non_terminal_states = {"INITIALIZED", "QUEUED", "RUNNING"}
+    failed_states = {"FAILED"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="quicksight", *args, **kwargs)
@@ -68,7 +68,7 @@ class QuickSightHook(AwsBaseHook):
          ingestion ID and ingestion status.
         :rtype: Dict
         """
-        self.log.info('Creating QuickSight Ingestion for data set id %s.', data_set_id)
+        self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
             create_ingestion_response = quicksight_client.create_ingestion(
@@ -140,7 +140,7 @@ class QuickSightHook(AwsBaseHook):
             self.log.info("Current status is %s", status)
             time.sleep(check_interval)
             sec += check_interval
-            if status == "FAILED":
+            if status in self.failed_states:
                 raise AirflowException("QuickSight SPICE ingestion failed")
             if status == "CANCELLED":
                 raise AirflowException("QuickSight SPICE ingestion cancelled")

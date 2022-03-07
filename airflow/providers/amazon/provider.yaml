@@ -373,6 +373,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.quicksight
 
 hooks:
   - integration-name: Amazon Athena
