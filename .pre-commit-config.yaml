@@ -84,8 +84,8 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$.*\\.jinja2"
-        exclude: ^\.github/.*$^airflow/_vendor/
+        files: ^airflow/www/templates/.*\.html$
+        exclude: ^\.github/.*$|^airflow/_vendor/
         args:
           - --comment-style
           - "{#||#}"
@@ -212,7 +212,7 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-        files: \.py|\.pyi$
+        files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^\.tox/.*$|^venv/.*$|^airflow/_vendor/
   - repo: https://github.com/pycqa/pydocstyle
@@ -266,7 +266,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG\.txt|^airflow/www/static/css/material-icons\.css
+        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
@@ -315,7 +315,7 @@ repos:
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
         language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete|^Dockerfile$
+        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$|^Dockerfile$
         pass_filenames: false
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -571,7 +571,7 @@ repos:
         name: Checks providers available when declared by extras in setup.py
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: setup\.py|^airflow/providers/.*\.py
+        files: setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich']
@@ -603,7 +603,7 @@ repos:
           - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
-        files: scripts/ci/kubernetes/nodeport.yaml
+        files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -656,7 +656,7 @@ repos:
           - airflow/config_templates/config.yml.schema.json
         language: python
         pass_filenames: true
-        files: airflow/config_templates/config\.yml$
+        files: ^airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: persist-credentials-disabled
@@ -664,7 +664,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_checkout_no_credentials.py
         language: python
         pass_filenames: true
-        files: \.github/workflows/.*\.yml$
+        files: ^\.github/workflows/.*\.yml$
         additional_dependencies: ['PyYAML', 'rich']
       - id: docstring-params
         name: Check that docstrings do not specify param types
@@ -686,20 +686,20 @@ repos:
         language: node
         'types_or': [javascript, tsx, ts]
         files: ^airflow/ui/
-        entry: scripts/ci/static_checks/ui_lint.sh
+        entry: ./scripts/ci/static_checks/ui_lint.sh
         pass_filenames: false
       - id: www-lint
         name: ESLint against current UI js files
         language: node
         'types_or': [javascript]
         files: ^airflow/www/static/js/
-        entry: scripts/ci/static_checks/www_lint.sh
+        entry: ./scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
       - id: changelog-duplicates
         name: Check changelogs for duplicate entries
         language: python
         files: CHANGELOG\.txt$|CHANGELOG\.rst$
-        entry: scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
+        entry: ./scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
         pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
@@ -734,7 +734,6 @@ repos:
         name: Update migration ref doc
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.sh
-        files: \.py$
         pass_filenames: false
-        files: ^airflow/migrations/versions/.*\.(py)$|^docs/apache-airflow/migrations-ref.rst$
+        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref.rst$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
