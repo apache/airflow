@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-07T21:04:14Z
+# This constraints file was automatically generated on 2022-03-07T23:36:04Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -33,7 +33,7 @@ Mako==1.1.6
 Markdown==3.3.6
 MarkupSafe==2.0.1
 PyGithub==1.54.1
-PyHive==0.6.4
+PyHive==0.6.5
 PyJWT==1.7.1
 PyNaCl==1.5.0
 PyYAML==5.4.1
@@ -79,6 +79,7 @@ apache-airflow-providers-cloudant==2.0.1
 apache-airflow-providers-cncf-kubernetes==3.0.2
 apache-airflow-providers-databricks==2.2.0
 apache-airflow-providers-datadog==2.0.1
+apache-airflow-providers-dbt-cloud==1.0.0rc1
 apache-airflow-providers-dingding==2.0.1
 apache-airflow-providers-discord==2.0.1
 apache-airflow-providers-docker==2.4.1
