@@ -35,6 +35,11 @@ if sys.version_info >= (3,6):
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
     arg_dict = {{ pickling_library }}.load(file)
+    {% if "macros" in op_kwargs %}
+    {# Because we have set macros to 'macros' during pickling, here we set it to real macros#}
+    import airflow.macros
+    arg_dict["macros"] = airflow.macros
+    {% endif %}
 {% else %}
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
@@ -51,5 +56,6 @@ res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
 
 # Write output
 with open(sys.argv[2], "wb") as file:
+    print(res)
     if res is not None:
         {{ pickling_library }}.dump(res, file)

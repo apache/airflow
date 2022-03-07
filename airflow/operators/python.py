@@ -484,6 +484,10 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _write_args(self, filename):
         if self.op_args or self.op_kwargs:
+            # macros is a module object and cannot be pickled by (pickle)
+            # -> thus use string 'macros' here and import it when loading
+            if 'macros' in self.op_kwargs:
+                self.op_kwargs['macros'] = 'macros'
             with open(filename, 'wb') as file:
                 self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
 
@@ -516,6 +520,16 @@ class PythonVirtualenvOperator(PythonOperator):
         # module objects can't be copied _at all__
         memo[id(self.pickling_library)] = self.pickling_library
         return super().__deepcopy__(memo)
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        del state['pickling_library']
+
+        return state
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.pickling_library = dill if self.use_dill else pickle
 
 
 def get_current_context() -> Context:
