@@ -341,6 +341,8 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
+        if default_args and not isinstance(default_args, dict):
+            raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
