@@ -33,8 +33,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
     DataprocGetBatchOperator,
-    DataprocInstantiateWorkflowTemplateOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
+    DataprocInstantiateWorkflowTemplateOperator,
     DataprocListBatchesOperator,
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
@@ -259,9 +259,8 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
-        task_id='instantiate_inline_workflow_template',
-        template=WORKFLOW_TEMPLATE,
-        region=REGION)
+        task_id='instantiate_inline_workflow_template', template=WORKFLOW_TEMPLATE, region=REGION
+    )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
     pig_task = DataprocSubmitJobOperator(
