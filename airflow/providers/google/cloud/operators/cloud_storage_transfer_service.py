@@ -348,10 +348,11 @@ class CloudDataTransferServiceRunJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_run_template_fields]
     template_fields: Sequence[str] = (
-        "job_name",
-        "gcp_conn_id",
-        "api_version",
-        "google_impersonation_chain",
+        'job_name',
+        'project_id',
+        'gcp_conn_id',
+        'api_version',
+        'google_impersonation_chain',
     )
     # [END gcp_transfer_job_run_template_fields]
 
