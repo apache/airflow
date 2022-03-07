@@ -64,7 +64,7 @@ Package apache-airflow-providers-sqlite
 `SQLite <https://www.sqlite.org/>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------

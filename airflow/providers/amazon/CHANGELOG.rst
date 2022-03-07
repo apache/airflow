@@ -19,6 +19,54 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Added AWS RDS sensors (#21231)``
+* ``Added AWS RDS operators (#20907)``
+* ``Add RedshiftDataHook (#19137)``
+* ``Feature: Add invoke lambda function operator (#21686)``
+* ``Add JSON output on SqlToS3Operator (#21779)``
+* ``Add SageMakerDeleteModelOperator (#21673)``
+* ``Added Hook for Amazon RDS. Added 'boto3_stub' library for autocomplete. (#20642)``
+* ``Added SNS example DAG and rst (#21475)``
+* ``retry on very specific eni provision failures (#22002)``
+* ``Configurable AWS Session Factory (#21778)``
+* ``S3KeySensor to use S3Hook url parser (#21500)``
+* ``Get log events after sleep to get all logs (#21574)``
+* ``Use temporary file in GCSToS3Operator (#21295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the Type Hints in ''RedshiftSQLOperator'' (#21885)``
+* ``Bug Fix - S3DeleteObjectsOperator will try and delete all keys (#21458)``
+* ``Fix Amazon SES emailer signature (#21681)``
+* ``Fix EcsOperatorError, so it can be loaded from a picklefile (#21441)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``[doc] Improve s3 operator example by adding task upload_keys (#21422)``
+* ``Add docs and sample dags for AWS Batch (#22010)``
+* ``Cleanup RedshiftSQLOperator documentation (#21976)``
+* ``Move S3ToRedshiftOperator documentation to transfer dir (#21975)``
+* ``Rename 'S3' hook name to 'Amazon S3' (#21988)``
+* ``Update ECS sample DAG and Docs to new standards (#21828)``
+* ``Update EKS sample DAGs and docs (#21523)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Resolve mypy issue in athena example dag (#22020)``
+
 3.0.0
 .....
 

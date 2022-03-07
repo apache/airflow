@@ -52,7 +52,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 2.0.1
+Release: 2.1.0
 
 Provider package
 ----------------

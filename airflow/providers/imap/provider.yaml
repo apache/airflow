@@ -22,6 +22,7 @@ description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 versions:
+  - 2.2.1
   - 2.2.0
   - 2.1.0
   - 2.0.1

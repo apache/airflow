@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+
 2.0.1
 .....
 
