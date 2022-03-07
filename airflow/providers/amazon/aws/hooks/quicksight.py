@@ -35,6 +35,9 @@ class QuickSightHook(AwsBaseHook):
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    non_terminal_states = {'INITIALIZED', 'QUEUED', 'RUNNING'}
+    failed_states = {'Failed'}
+
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="quicksight", *args, **kwargs)
 
@@ -75,10 +78,11 @@ class QuickSightHook(AwsBaseHook):
                 IngestionType=ingestion_type,
             )
             if wait_for_completion:
-                self.check_status(
+                self.wait_for_state(
                     aws_account_id=aws_account_id,
-                    ingestion_id=ingestion_id,
                     data_set_id=data_set_id,
+                    ingestion_id=ingestion_id,
+                    target_state={"COMPLETED"},
                     check_interval=check_interval,
                     max_ingestion_time=max_ingestion_time,
                 )
@@ -87,21 +91,42 @@ class QuickSightHook(AwsBaseHook):
             self.log.error("Failed to run QuickSight create_ingestion API, error: %s", general_error)
             raise
 
-    def check_status(
+    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):
+        """
+        Get the current status of QuickSight Create Ingestion API.
+
+        :param aws_account_id: An AWS Account ID
+        :param data_set_id: QuickSight Data Set ID
+        :param ingestion_id: QuickSight Ingestion ID
+        :return: An QuickSight Ingestion Status
+        :rtype: str
+        """
+        try:
+            describe_ingestion_response = self.get_conn().describe_ingestion(
+                AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
+            )
+            return describe_ingestion_response["Ingestion"]["IngestionStatus"]
+        except KeyError:
+            raise AirflowException("Could not get status of the QuickSight Ingestion")
+        except ClientError:
+            raise AirflowException("AWS request failed, check logs for more info")
+
+    def wait_for_state(
         self,
         aws_account_id: str,
-        ingestion_id: str,
         data_set_id: str,
+        ingestion_id: str,
+        target_state: set,
         check_interval: int,
         max_ingestion_time: Optional[int] = None,
     ):
         """
         Check status of a QuickSight Create Ingestion API
 
-        :param ingestion_id: name of the job to check status
-        :param aws_account_id: the key of the response dict
-            that points to the state
-        :param data_set_id: the function used to retrieve the status
+        :param aws_account_id: An AWS Account ID
+        :param data_set_id: QuickSight Data Set ID
+        :param ingestion_id: QuickSight Ingestion ID
+        :param target_state: Describes the QuickSight Job's Target State
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
         :param max_ingestion_time: the maximum ingestion time in seconds. QuickSight API if
@@ -110,36 +135,18 @@ class QuickSightHook(AwsBaseHook):
         """
 
         sec = 0
-        running = True
-        while running:
+        status = self.get_status(aws_account_id, data_set_id, ingestion_id)
+        while status in self.non_terminal_states and status != target_state:
+            self.log.info("Current status is %s", status)
             time.sleep(check_interval)
             sec += check_interval
-            try:
-                describe_ingestion_response = self.get_conn().describe_ingestion(
-                    AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
-                )
-                status = describe_ingestion_response["Ingestion"]["IngestionStatus"]
-                self.log.info("Job still running for %s seconds... current status is %s", sec, status)
-            except KeyError:
-                raise AirflowException("Could not get status of the QuickSight Ingestion")
-            except ClientError:
-                raise AirflowException("AWS request failed, check logs for more info")
-
-            if status in {"INITIALIZED", "QUEUED", "RUNNING"}:
-                running = True
-            elif status == "FAILED":
-                raise AirflowException(
-                    f"QuickSight SPICE ingestion failed: "
-                    f"{describe_ingestion_response['Ingestion']['ErrorInfo']}"
-                )
-            elif status == "CANCELLED":
+            if status == "FAILED":
+                raise AirflowException("QuickSight SPICE ingestion failed")
+            if status == "CANCELLED":
                 raise AirflowException("QuickSight SPICE ingestion cancelled")
-            else:
-                running = False
-
             if max_ingestion_time and sec > max_ingestion_time:
-                # ensure that the job gets killed if the max ingestion time is exceeded
                 raise AirflowException(f"QuickSight Ingestion took more than {max_ingestion_time} seconds")
+            status = self.get_status(aws_account_id, data_set_id, ingestion_id)
 
         self.log.info("QuickSight Ingestion completed")
-        return describe_ingestion_response
+        return status

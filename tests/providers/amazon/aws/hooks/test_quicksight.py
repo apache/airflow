@@ -30,12 +30,46 @@ MOCK_DATA = {
     "IngestionType": "INCREMENTAL_REFRESH",
 }
 
-MOCK_RESPONSE = {
+MOCK_CREATE_INGESTION_RESPONSE = {
     "Status": 201,
     "Arn": "arn:aws:quicksight:us-east-1:123456789012:dataset/DemoDataSet/ingestion/DemoDataSet3_Ingestion",
     "IngestionId": "DemoDataSet_Ingestion",
     "IngestionStatus": "INITIALIZED",
     "RequestId": "fc1f7eea-1327-41d6-9af7-c12f097ed343",
+}
+
+MOCK_DESCRIBE_INGESTION_SUCCESS = {
+    "Status": 200,
+    "Ingestion": {
+        "Arn": "arn:aws:quicksight:region:123456789012:dataset/DemoDataSet/ingestion/DemoDataSet3_Ingestion",
+        "IngestionId": "DemoDataSet_Ingestion",
+        "IngestionStatus": "COMPLETED",
+        "ErrorInfo": {},
+        "RowInfo": {"RowsIngested": 228, "RowsDropped": 0, "TotalRowsInDataset": 228},
+        "CreatedTime": 1646589017.05,
+        "IngestionTimeInSeconds": 17,
+        "IngestionSizeInBytes": 27921,
+        "RequestSource": "MANUAL",
+        "RequestType": "FULL_REFRESH",
+    },
+    "RequestId": "DemoDataSet_Ingestion_Request_ID",
+}
+
+MOCK_DESCRIBE_INGESTION_FAILURE = {
+    "Status": 403,
+    "Ingestion": {
+        "Arn": "arn:aws:quicksight:region:123456789012:dataset/DemoDataSet/ingestion/DemoDataSet3_Ingestion",
+        "IngestionId": "DemoDataSet_Ingestion",
+        "IngestionStatus": "Failed",
+        "ErrorInfo": {},
+        "RowInfo": {"RowsIngested": 228, "RowsDropped": 0, "TotalRowsInDataset": 228},
+        "CreatedTime": 1646589017.05,
+        "IngestionTimeInSeconds": 17,
+        "IngestionSizeInBytes": 27921,
+        "RequestSource": "MANUAL",
+        "RequestType": "FULL_REFRESH",
+    },
+    "RequestId": "DemoDataSet_Ingestion_Request_ID",
 }
 
 
@@ -46,7 +80,7 @@ class TestQuicksight:
 
     @mock.patch.object(QuickSightHook, "get_conn")
     def test_create_ingestion(self, mock_conn):
-        mock_conn.return_value.create_ingestion.return_value = MOCK_RESPONSE
+        mock_conn.return_value.create_ingestion.return_value = MOCK_CREATE_INGESTION_RESPONSE
         quicksight_hook = QuickSightHook(aws_conn_id="aws_default", region_name="us-east-1")
         result = quicksight_hook.create_ingestion(
             data_set_id="DemoDataSet",
@@ -56,7 +90,7 @@ class TestQuicksight:
         )
         expected_call_params = MOCK_DATA
         mock_conn.return_value.create_ingestion.assert_called_with(**expected_call_params)
-        assert result == MOCK_RESPONSE
+        assert result == MOCK_CREATE_INGESTION_RESPONSE
 
     def test_create_ingestion_exception(self):
         hook = QuickSightHook(aws_conn_id="aws_default")
@@ -69,4 +103,31 @@ class TestQuicksight:
             )
         ex = raised_exception.value
         assert ex.operation_name == "CreateIngestion"
-        assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+
+    @mock.patch.object(QuickSightHook, "get_conn")
+    def test_get_job_status(self, mock_conn):
+        """
+        Test get job status
+        """
+        mock_conn.return_value.describe_ingestion.return_value = MOCK_DESCRIBE_INGESTION_SUCCESS
+        quicksight_hook = QuickSightHook(aws_conn_id="aws_default", region_name="us-east-1")
+        result = quicksight_hook.get_status(
+            data_set_id="DemoDataSet",
+            ingestion_id="DemoDataSet_Ingestion",
+            aws_account_id="123456789012",
+        )
+        assert result == 'COMPLETED'
+
+    @mock.patch.object(QuickSightHook, "get_conn")
+    def test_get_job_status_failed(self, mock_conn):
+        """
+        Test get job status
+        """
+        mock_conn.return_value.describe_ingestion.return_value = MOCK_DESCRIBE_INGESTION_FAILURE
+        quicksight_hook = QuickSightHook(aws_conn_id="aws_default", region_name="us-east-1")
+        result = quicksight_hook.get_status(
+            data_set_id="DemoDataSet",
+            ingestion_id="DemoDataSet_Ingestion",
+            aws_account_id="123456789012",
+        )
+        assert result == 'Failed'
