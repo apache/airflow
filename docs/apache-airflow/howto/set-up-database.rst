@@ -171,7 +171,7 @@ in the Postgres documentation to learn more.
 
 .. warning::
 
-   When you use SQLAlchemy 1.4.0+, you need ot use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
    In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
    SQLAlchemy 1.4.0+ results in:
 
