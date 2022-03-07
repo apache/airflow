@@ -17,6 +17,7 @@
 # under the License.
 """Base operator for all operators."""
 import abc
+import collections
 import contextlib
 import copy
 import functools
@@ -136,6 +137,8 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     if task_group:
+        if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
         dag_args.update(task_group.default_args)
     return dag_args, dag_params
 
@@ -148,9 +151,11 @@ def _merge_defaults(
 ) -> Tuple[dict, ParamsDict]:
     if task_params:
         dag_params.update(task_params)
+    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
+        raise TypeError("default_args must be a mapping")
+    dag_args.update(task_default_args)
     with contextlib.suppress(KeyError):
         dag_params.update(task_default_args.pop("params"))
-    dag_args.update(task_default_args)
     return dag_args, dag_params
 
 
