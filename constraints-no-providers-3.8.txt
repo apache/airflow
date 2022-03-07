@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-06T16:41:44Z
+# This constraints file was automatically generated on 2022-03-07T10:57:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -57,7 +57,7 @@ click-plugins==1.1.1
 click-repl==0.2.0
 click==8.0.4
 clickclick==20.10.2
-cloudpickle==1.4.1
+cloudpickle==2.0.0
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
@@ -65,13 +65,13 @@ connexion==2.12.0
 cron-descriptor==1.2.24
 croniter==1.3.4
 cryptography==36.0.1
-dask==2021.6.0
+dask==2022.2.1
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.4
-distributed==2.19.0
-dnspython==2.2.0
+distributed==2022.2.1
+dnspython==2.2.1
 docutils==0.18.1
 email-validator==1.1.3
 eventlet==0.33.0
@@ -166,7 +166,7 @@ thrift-sasl==0.4.3
 thrift==0.15.0
 toolz==0.11.2
 tornado==6.1
-typing_extensions==4.1.1
+typing-extensions==3.10.0.2
 unicodecsv==0.14.1
 urllib3==1.26.8
 vine==5.0.0
