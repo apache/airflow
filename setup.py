@@ -618,6 +618,10 @@ devel_only = [
     'jsondiff',
     'mongomock',
     'moto>=3.0.3',
+    # moto is broken due to new release of responses.
+    # responses limit be removed when https://github.com/spulec/moto/issues/4913 is fixed
+    # when this happens we will need to bump minimum moto version
+    'responses<0.19.0',
     'parameterized',
     'paramiko',
     'pipdeptree',
