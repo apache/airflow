@@ -17,7 +17,6 @@
 # under the License.
 
 import time
-from typing import Optional
 
 from botocore.exceptions import ClientError
 
@@ -35,8 +34,8 @@ class QuickSightHook(AwsBaseHook):
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    non_terminal_states = {"INITIALIZED", "QUEUED", "RUNNING"}
-    failed_states = {"FAILED"}
+    NON_TERMINAL_STATES = {"INITIALIZED", "QUEUED", "RUNNING"}
+    FAILED_STATES = {"FAILED"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="quicksight", *args, **kwargs)
@@ -49,7 +48,6 @@ class QuickSightHook(AwsBaseHook):
         ingestion_type: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
     ):
         """
         Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
@@ -61,11 +59,8 @@ class QuickSightHook(AwsBaseHook):
         :param wait_for_completion: if the program should keep running until job finishes
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
-        :param max_ingestion_time: the maximum ingestion time in seconds. If QuickSight ingestion runs
-         longer than this will fail. Setting this to None implies no timeout for Ingestion.
-         :return: Returns descriptive information about the created data ingestion
-         having Ingestion ARN, HTTP status,
-         ingestion ID and ingestion status.
+        :return: Returns descriptive information about the created data ingestion
+            having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
         :rtype: Dict
         """
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
@@ -84,7 +79,6 @@ class QuickSightHook(AwsBaseHook):
                     ingestion_id=ingestion_id,
                     target_state={"COMPLETED"},
                     check_interval=check_interval,
-                    max_ingestion_time=max_ingestion_time,
                 )
             return create_ingestion_response
         except Exception as general_error:
@@ -118,7 +112,6 @@ class QuickSightHook(AwsBaseHook):
         ingestion_id: str,
         target_state: set,
         check_interval: int,
-        max_ingestion_time: Optional[int] = None,
     ):
         """
         Check status of a QuickSight Create Ingestion API
@@ -129,23 +122,19 @@ class QuickSightHook(AwsBaseHook):
         :param target_state: Describes the QuickSight Job's Target State
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
-        :param max_ingestion_time: the maximum ingestion time in seconds. QuickSight API if
-         run longer than this will fail. Setting this to None implies no timeout.
         :return: response of describe_ingestion call after Ingestion is is done
         """
 
         sec = 0
         status = self.get_status(aws_account_id, data_set_id, ingestion_id)
-        while status in self.non_terminal_states and status != target_state:
+        while status in self.NON_TERMINAL_STATES and status != target_state:
             self.log.info("Current status is %s", status)
             time.sleep(check_interval)
             sec += check_interval
-            if status in self.failed_states:
+            if status in self.FAILED_STATES:
                 raise AirflowException("QuickSight SPICE ingestion failed")
             if status == "CANCELLED":
                 raise AirflowException("QuickSight SPICE ingestion cancelled")
-            if max_ingestion_time and sec > max_ingestion_time:
-                raise AirflowException(f"QuickSight Ingestion took more than {max_ingestion_time} seconds")
             status = self.get_status(aws_account_id, data_set_id, ingestion_id)
 
         self.log.info("QuickSight Ingestion completed")

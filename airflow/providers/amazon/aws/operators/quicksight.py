@@ -40,9 +40,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         that the operation waits to check the status of the QuickSight Ingestion.
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the QuickSight Ingestion
-    :param max_ingestion_time: If wait is set to True, the operation fails if the Ingestion
-        doesn"t finish within max_ingestion_time seconds. If you set this parameter to None,
-        the operation does not timeout.
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -59,7 +56,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         "ingestion_type",
         "wait_for_completion",
         "check_interval",
-        "max_ingestion_time",
         "aws_conn_id",
         "region",
     )
@@ -73,7 +69,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         ingestion_type: str = "FULL_REFRESH",
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -84,7 +79,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         self.ingestion_type = ingestion_type
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
-        self.max_ingestion_time = max_ingestion_time
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -102,6 +96,5 @@ class QuickSightCreateIngestionOperator(BaseOperator):
             ingestion_type=self.ingestion_type,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time,
         )
         return create_ingestion_response

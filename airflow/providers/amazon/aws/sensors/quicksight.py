@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class QuickSightSensor(BaseSensorOperator):
     """
-    Watches the status of a QuickSight Ingestion.
+    Watches for the status of a QuickSight Ingestion.
 
     :param aws_account_id: An AWS Account ID
     :param data_set_id: QuickSight Data Set ID

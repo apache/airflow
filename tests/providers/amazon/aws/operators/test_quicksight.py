@@ -57,5 +57,4 @@ class TestQuicksightCreateIngestionOperator(unittest.TestCase):
             ingestion_type="FULL_REFRESH",
             wait_for_completion=True,
             check_interval=30,
-            max_ingestion_time=None,
         )
