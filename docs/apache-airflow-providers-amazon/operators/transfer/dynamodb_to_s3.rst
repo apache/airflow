@@ -32,10 +32,15 @@ Prerequisite Tasks
 DynamoDB To S3 Operator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-This operator transfers an Amazon DynamoDB table to an existing Amazon Simple Storage Service (S3)
-bucket as a json-serialized file.
+This operator replicates records from a DynamoDB table to a file in an S3 bucket.
+It scans a DynamoDB table and writes the received records to a file on the local
+filesystem. It flushes the file to S3 once the file size exceeds the file size limit
+specified by the user.
 
-To get more information about operator visit:
+Users can also specify a filtering criteria using dynamodb_scan_kwargs to only replicate
+records that satisfy the criteria.
+
+To get more information visit:
 :class:`~airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator`
 
 Example usage:
@@ -45,3 +50,12 @@ Example usage:
     :dedent: 4
     :start-after: [START howto_transfer_dynamodb_to_s3]
     :end-before: [END howto_transfer_dynamodb_to_s3]
+
+To parallelize the replication, users can create multiple DynamoDBToS3Operator tasks using the
+``TotalSegments`` parameter.  For instance to replicate with parallelism of 2, create two tasks:
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dynamodb_to_s3_segmented.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_transfer_dynamodb_to_s3_segmented]
+    :end-before: [END howto_transfer_dynamodb_to_s3_segmented]
