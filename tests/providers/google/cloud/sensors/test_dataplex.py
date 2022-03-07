@@ -39,11 +39,9 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestDataplexTaskStateSensor(unittest.TestCase):
-    def create_task(self, state: str):
-        md = {"state": state}
+    def create_task(self, state: int):
         task = mock.Mock()
-        task.__getitem__ = mock.Mock()
-        task.__getitem__.side_effect = md.__getitem__
+        task.state = state
         return task
 
     @mock.patch(DATAPLEX_HOOK)
@@ -65,7 +63,13 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
         result = sensor.poke(context={})
 
         mock_hook.return_value.get_task.assert_called_once_with(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
         assert result
@@ -91,5 +95,11 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             sensor.poke(context={})
 
         mock_hook.return_value.get_task.assert_called_once_with(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
+            retry=None,
+            timeout=None,
+            metadata=(),
         )

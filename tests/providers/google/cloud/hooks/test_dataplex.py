@@ -34,12 +34,6 @@ DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-def get_tasks_return_value(conn):
-    return (
-        conn.return_value.projects.return_value.locations.return_value.lakes.return_value.tasks.return_value
-    )
-
-
 class TestDataplexHook(TestCase):
     def setUp(self):
         with mock.patch(
@@ -52,8 +46,8 @@ class TestDataplexHook(TestCase):
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_conn"))
-    def test_create_task(self, get_conn_mock):
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_create_task(self, mock_client):
         self.hook.create_task(
             project_id=PROJECT_ID,
             region=REGION,
@@ -64,35 +58,63 @@ class TestDataplexHook(TestCase):
         )
 
         parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
-        get_tasks_return_value(get_conn_mock).create.assert_called_once_with(
-            parent=parent, body=BODY, taskId=DATAPLEX_TASK_ID, validateOnly=None
+        mock_client.return_value.create_task.assert_called_once_with(
+            request=dict(
+                parent=parent,
+                task_id=DATAPLEX_TASK_ID,
+                task=BODY,
+            ),
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_conn"))
-    def test_delete_task(self, get_conn_mock):
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_delete_task(self, mock_client):
         self.hook.delete_task(
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
         name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
-        get_tasks_return_value(get_conn_mock).delete.assert_called_once_with(name=name)
-
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_conn"))
-    def test_list_tasks(self, get_conn_mock):
-        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
-
-        self.hook.list_tasks(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
-
-        get_tasks_return_value(get_conn_mock).list.assert_called_once_with(
-            parent=parent, pageSize=None, pageToken=None, filter=None, orderBy=None
+        mock_client.return_value.delete_task.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_conn"))
-    def test_get_tasks(self, get_conn_mock):
-        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_list_tasks(self, mock_client):
+        self.hook.list_tasks(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
+        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
+        mock_client.return_value.list_tasks.assert_called_once_with(
+            request=dict(
+                parent=parent,
+                page_size=None,
+                page_token=None,
+                filter=None,
+                order_by=None,
+            ),
+            retry=None,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_get_task(self, mock_client):
         self.hook.get_task(
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
-        get_tasks_return_value(get_conn_mock).get.assert_called_once_with(name=name)
+        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+        mock_client.return_value.get_task.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=None,
+            timeout=None,
+            metadata=(),
+        )
