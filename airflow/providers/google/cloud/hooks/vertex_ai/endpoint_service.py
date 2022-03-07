@@ -24,7 +24,7 @@ from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import EndpointServiceClient
 from google.cloud.aiplatform_v1.services.endpoint_service.pagers import ListEndpointsPager
-from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
+from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
@@ -136,7 +136,7 @@ class EndpointServiceHook(GoogleBaseHook):
         region: str,
         endpoint: str,
         deployed_model: Union[DeployedModel, Dict],
-        traffic_split: Union[Sequence[endpoint_service.DeployModelRequest.TrafficSplitEntry], Dict] = None,
+        traffic_split: Optional[Union[Sequence, Dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -285,7 +285,7 @@ class EndpointServiceHook(GoogleBaseHook):
         region: str,
         endpoint: str,
         deployed_model_id: str,
-        traffic_split: Union[Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry], Dict] = None,
+        traffic_split: Optional[Union[Sequence, Dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),

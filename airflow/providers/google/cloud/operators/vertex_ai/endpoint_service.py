@@ -25,56 +25,12 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
+from airflow.providers.google.cloud.links.vertex_ai import VertexAIEndpointLink, VertexAIEndpointListLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
-VERTEX_AI_ENDPOINT_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/endpoints/{endpoint_id}?project={project_id}"
-)
-VERTEX_AI_ENDPOINT_LIST_LINK = VERTEX_AI_BASE_LINK + "/endpoints?project={project_id}"
-
-
-class VertexAIEndpointLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI Endpoint link"""
-
-    name = "Endpoint"
-
-    def get_link(self, operator, dttm):
-        endpoint_conf = XCom.get_one(
-            key='endpoint_conf', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_ENDPOINT_LINK.format(
-                region=endpoint_conf["region"],
-                endpoint_id=endpoint_conf["endpoint_id"],
-                project_id=endpoint_conf["project_id"],
-            )
-            if endpoint_conf
-            else ""
-        )
-
-
-class VertexAIEndpointListLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI EndpointList link"""
-
-    name = "Endpoint List"
-
-    def get_link(self, operator, dttm):
-        project_id = XCom.get_one(
-            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_ENDPOINT_LIST_LINK.format(
-                project_id=project_id,
-            )
-            if project_id
-            else ""
-        )
 
 
 class CreateEndpointOperator(BaseOperator):
@@ -152,15 +108,7 @@ class CreateEndpointOperator(BaseOperator):
         self.log.info("Endpoint was created. Endpoint ID: %s", endpoint_id)
 
         self.xcom_push(context, key="endpoint_id", value=endpoint_id)
-        self.xcom_push(
-            context,
-            key="endpoint_conf",
-            value={
-                "endpoint_id": endpoint_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        VertexAIEndpointLink.persist(context=context, task_instance=self, endpoint_id=endpoint_id)
         return endpoint
 
 
@@ -287,7 +235,7 @@ class DeployModelOperator(BaseOperator):
         project_id: str,
         endpoint_id: str,
         deployed_model: Union[DeployedModel, Dict],
-        traffic_split: Union[Sequence[endpoint_service.DeployModelRequest.TrafficSplitEntry], Dict] = None,
+        traffic_split: Optional[Union[Sequence, Dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -406,15 +354,7 @@ class GetEndpointOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.xcom_push(
-                context,
-                key="endpoint_conf",
-                value={
-                    "endpoint_id": self.endpoint_id,
-                    "project_id": self.project_id,
-                    "region": self.region,
-                },
-            )
+            VertexAIEndpointLink.persist(context=context, task_instance=self, endpoint_id=self.endpoint_id)
             self.log.info("Endpoint was gotten.")
             return Endpoint.to_dict(endpoint_obj)
         except NotFound:
@@ -520,11 +460,7 @@ class ListEndpointsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.xcom_push(
-            context,
-            key="project_id",
-            value=self.project_id,
-        )
+        VertexAIEndpointListLink.persist(context=context, task_instance=self)
         return [Endpoint.to_dict(result) for result in results]
 
 
@@ -570,7 +506,7 @@ class UndeployModelOperator(BaseOperator):
         project_id: str,
         endpoint_id: str,
         deployed_model_id: str,
-        traffic_split: Union[Sequence[endpoint_service.UndeployModelRequest.TrafficSplitEntry], Dict] = None,
+        traffic_split: Optional[Union[Sequence, Dict]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),

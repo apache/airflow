@@ -97,6 +97,11 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
         mock_client.return_value.list_models.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
+                filter=None,
+                page_size=None,
+                page_token=None,
+                read_mask=None,
+                order_by=None,
             ),
             metadata=(),
             retry=None,
@@ -181,6 +186,11 @@ class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
         mock_client.return_value.list_models.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
+                filter=None,
+                page_size=None,
+                page_token=None,
+                read_mask=None,
+                order_by=None,
             ),
             metadata=(),
             retry=None,

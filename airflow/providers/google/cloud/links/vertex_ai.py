@@ -42,6 +42,15 @@ VERTEX_AI_DATASET_LIST_LINK = VERTEX_AI_BASE_LINK + "/datasets?project={project_
 VERTEX_AI_HYPERPARAMETER_TUNING_JOB_LIST_LINK = (
     VERTEX_AI_BASE_LINK + "/training/hyperparameter-tuning-jobs?project={project_id}"
 )
+VERTEX_AI_BATCH_PREDICTION_JOB_LINK = (
+    VERTEX_AI_BASE_LINK
+    + "/locations/{region}/batch-predictions/{batch_prediction_job_id}?project={project_id}"
+)
+VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/batch-predictions?project={project_id}"
+VERTEX_AI_ENDPOINT_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{region}/endpoints/{endpoint_id}?project={project_id}"
+)
+VERTEX_AI_ENDPOINT_LIST_LINK = VERTEX_AI_BASE_LINK + "/endpoints?project={project_id}"
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -218,6 +227,96 @@ class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=VertexAIHyperparameterTuningJobListLink.key,
+            value={
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIBatchPredictionJobLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI BatchPredictionJob link"""
+
+    name = "Batch Prediction Job"
+    key = "batch_prediction_job_conf"
+    format_str = VERTEX_AI_BATCH_PREDICTION_JOB_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+        batch_prediction_job_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIBatchPredictionJobLink.key,
+            value={
+                "batch_prediction_job_id": batch_prediction_job_id,
+                "region": task_instance.region,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI BatchPredictionJobList link"""
+
+    name = "Batch Prediction Job List"
+    key = "batch_prediction_jobs_conf"
+    format_str = VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIBatchPredictionJobListLink.key,
+            value={
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIEndpointLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Endpoint link"""
+
+    name = "Endpoint"
+    key = "endpoint_conf"
+    format_str = VERTEX_AI_ENDPOINT_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+        endpoint_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIEndpointLink.key,
+            value={
+                "endpoint_id": endpoint_id,
+                "region": task_instance.region,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIEndpointListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI EndpointList link"""
+
+    name = "Endpoint List"
+    key = "endpoints_conf"
+    format_str = VERTEX_AI_ENDPOINT_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: "Context",
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIEndpointListLink.key,
             value={
                 "project_id": task_instance.project_id,
             },

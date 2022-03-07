@@ -25,60 +25,15 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform import Model, explain
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIBatchPredictionJobLink,
+    VertexAIBatchPredictionJobListLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
-VERTEX_AI_BATCH_PREDICTION_JOB_LINK = (
-    VERTEX_AI_BASE_LINK
-    + "/locations/{region}/batch-predictions/{batch_prediction_job_id}?project={project_id}"
-)
-VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/batch-predictions?project={project_id}"
-
-
-class VertexAIBatchPredictionJobLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI BatchPredictionJob link"""
-
-    name = "Batch Prediction Job"
-
-    def get_link(self, operator, dttm):
-        batch_prediction_job_conf = XCom.get_one(
-            key='batch_prediction_job_conf',
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-        )
-        return (
-            VERTEX_AI_BATCH_PREDICTION_JOB_LINK.format(
-                region=batch_prediction_job_conf["region"],
-                batch_prediction_job_id=batch_prediction_job_conf["batch_prediction_job_id"],
-                project_id=batch_prediction_job_conf["project_id"],
-            )
-            if batch_prediction_job_conf
-            else ""
-        )
-
-
-class VertexAIBatchPredictionJobListLink(BaseOperatorLink):
-    """Helper class for constructing Vertex AI BatchPredictionJobList link"""
-
-    name = "Batch Prediction Job List"
-
-    def get_link(self, operator, dttm):
-        project_id = XCom.get_one(
-            key='project_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK.format(
-                project_id=project_id,
-            )
-            if project_id
-            else ""
-        )
 
 
 class CreateBatchPredictionJobOperator(BaseOperator):
@@ -285,19 +240,13 @@ class CreateBatchPredictionJobOperator(BaseOperator):
             sync=self.sync,
         )
 
-        batch_prediction_job = BatchPredictionJob.to_dict(result)
+        batch_prediction_job = result.to_dict()
         batch_prediction_job_id = self.hook.extract_batch_prediction_job_id(batch_prediction_job)
         self.log.info("Batch prediction job was created. Job id: %s", batch_prediction_job_id)
 
         self.xcom_push(context, key="batch_prediction_job_id", value=batch_prediction_job_id)
-        self.xcom_push(
-            context,
-            key="batch_prediction_job_conf",
-            value={
-                "batch_prediction_job_id": batch_prediction_job_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
+        VertexAIBatchPredictionJobLink.persist(
+            context=context, task_instance=self, batch_prediction_job_id=batch_prediction_job_id
         )
         return batch_prediction_job
 
@@ -315,7 +264,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param batch_prediction_job: The name of the BatchPredictionJob resource to be deleted.
+    :param batch_prediction_job_id: The ID of the BatchPredictionJob resource to be deleted.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -333,14 +282,14 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "batch_prediction_job", "impersonation_chain")
+    template_fields = ("region", "project_id", "batch_prediction_job_id", "impersonation_chain")
 
     def __init__(
         self,
         *,
         region: str,
         project_id: str,
-        batch_prediction_job: str,
+        batch_prediction_job_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -352,7 +301,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         super().__init__(**kwargs)
         self.region = region
         self.project_id = project_id
-        self.batch_prediction_job = batch_prediction_job
+        self.batch_prediction_job_id = batch_prediction_job_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -368,11 +317,11 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         )
 
         try:
-            self.log.info("Deleting batch prediction job: %s", self.batch_prediction_job)
+            self.log.info("Deleting batch prediction job: %s", self.batch_prediction_job_id)
             operation = hook.delete_batch_prediction_job(
                 project_id=self.project_id,
                 region=self.region,
-                batch_prediction_job=self.batch_prediction_job,
+                batch_prediction_job=self.batch_prediction_job_id,
                 retry=self.retry,
                 timeout=self.timeout,
                 metadata=self.metadata,
@@ -380,7 +329,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
             self.log.info("Batch prediction job was deleted.")
         except NotFound:
-            self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job)
+            self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job_id)
 
 
 class GetBatchPredictionJobOperator(BaseOperator):
@@ -494,6 +443,7 @@ class ListBatchPredictionJobsOperator(BaseOperator):
     """
 
     template_fields = ("region", "project_id", "impersonation_chain")
+    operator_extra_links = (VertexAIBatchPredictionJobListLink(),)
 
     def __init__(
         self,
@@ -543,5 +493,5 @@ class ListBatchPredictionJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info(f"List: {[BatchPredictionJob.to_dict(result) for result in results]}")
+        VertexAIBatchPredictionJobListLink.persist(context=context, task_instance=self)
         return [BatchPredictionJob.to_dict(result) for result in results]

@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 """
 Example Airflow DAG that demonstrates operators for the Google Vertex AI service in the Google
 Cloud Platform.
@@ -183,12 +186,11 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
 
-MODEL_ID = "2141958602070425600"
+MODEL_ID = "9182492194534064128"
 MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
 JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
-GCS_SOURCE = "gs://vertex-ai-system-tests/batch_prediction_input.jsonl"
-BIGQUERY_SOURCE = "bq://bigquery-public-data:iowa_liquor_sales_forecasting.2021_sales_predict"
-GCS_DESTINATION_PREFIX = "gs://vertex-ai-system-tests/output"
+BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
+GCS_DESTINATION_PREFIX = "gs://test-vertex-ai-bucket-us/output"
 MODEL_PARAMETERS = json_format.ParseDict({}, Value())
 
 ENDPOINT_CONF = {
@@ -556,7 +558,6 @@ with models.DAG(
         model_name=MODEL_NAME,
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
-        # gcs_source=GCS_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
         model_parameters=MODEL_PARAMETERS,
         region=REGION,
@@ -575,7 +576,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
     delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job",
-        batch_prediction_job=create_batch_prediction_job.output['batch_prediction_job_id'],
+        batch_prediction_job_id=create_batch_prediction_job.output['batch_prediction_job_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
