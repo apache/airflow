@@ -27,7 +27,6 @@ Create Date: 2022-01-28 21:11:11.857010
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
-from sqlalchemy.engine.reflection import Inspector
 
 from airflow.migrations.db_types import TIMESTAMP
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -43,20 +42,16 @@ TABLE_NAME = 'callback_request'
 
 
 def upgrade():
-    conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
-    tables = inspector.get_table_names()
-    if TABLE_NAME not in tables:
-        op.create_table(
-            TABLE_NAME,
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
-            sa.Column('priority_weight', sa.Integer(), default=1, nullable=False),
-            sa.Column('callback_data', ExtendedJSON, nullable=False),
-            sa.Column('callback_type', sa.String(20), nullable=False),
-            sa.Column('dag_directory', sa.String(length=1000), nullable=True),
-            sa.PrimaryKeyConstraint('id'),
-        )
+    op.create_table(
+        TABLE_NAME,
+        sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
+        sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
+        sa.Column('priority_weight', sa.Integer(), default=1, nullable=False),
+        sa.Column('callback_data', ExtendedJSON, nullable=False),
+        sa.Column('callback_type', sa.String(20), nullable=False),
+        sa.Column('dag_directory', sa.String(length=1000), nullable=True),
+        sa.PrimaryKeyConstraint('id'),
+    )
 
 
 def downgrade():
