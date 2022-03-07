@@ -265,12 +265,17 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('height', cellSize)
       .attr('class', 'day')
       .attr('fill', (data) => {
-        const runningCount = (data.dagStates.running || [{ count: 0 }])[0].count;
+        const getCount = (state) => (data.dagStates[state] || [{ count: 0 }])[0].count;
+        const runningCount = getCount('running');
         if (runningCount > 0) return statesColors.running;
 
-        const successCount = (data.dagStates.success || [{ count: 0 }])[0].count;
-        const failedCount = (data.dagStates.failed || [{ count: 0 }])[0].count;
-        if (successCount + failedCount === 0) return statesColors.no_status;
+        const successCount = getCount('success');
+        const failedCount = getCount('failed');
+        if (successCount + failedCount === 0) {
+          const plannedCount = getCount('planned');
+          if (plannedCount > 0) return statesColors.planned;
+          return statesColors.no_status;
+        }
 
         let ratioFailures;
         if (failedCount === 0) ratioFailures = 0;
