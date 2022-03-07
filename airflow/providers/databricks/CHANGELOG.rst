@@ -19,6 +19,33 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add-showing-runtime-error-feature-to-DatabricksSubmitRunOperator (#21709)``
+* ``Databricks: add support for triggering jobs by name (#21663)``
+* ``Added template_ext = ('.json') to databricks operators #18925 (#21530)``
+* ``Databricks SQL operators (#21363)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Updated Databricks docs for correct jobs 2.1 API and links (#21494)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.2.0
 .....
 

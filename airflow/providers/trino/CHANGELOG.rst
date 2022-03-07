@@ -19,6 +19,30 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GCSToTrinoOperator (#21704)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix mypy providers (#20190)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Replaced hql references to sql in TrinoHook and PrestoHook (#21630)``
+   * ``Pass Trino hook params to DbApiHook (#21479)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.0.2
 .....
 
