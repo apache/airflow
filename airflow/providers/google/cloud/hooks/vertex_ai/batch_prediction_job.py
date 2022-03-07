@@ -16,7 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google Cloud Vertex AI hook."""
+"""This module contains a Google Cloud Vertex AI hook.
+
+.. spelling::
+
+    jsonl
+    codepoints
+    aiplatform
+    gapic
+"""
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
@@ -161,12 +169,11 @@ class BatchPredictionJobHook(GoogleBaseHook):
         :param generate_explanation: Optional. Generate explanation along with the batch prediction results.
             This will cause the batch prediction output to include explanations based on the
             `prediction_format`:
-                - `bigquery`: output includes a column named `explanation`. The value is a struct that
-                    conforms to the [aiplatform.gapic.Explanation] object.
-                - `jsonl`: The JSON objects on each line include an additional entry keyed `explanation`. The
-                    value of the entry is a JSON object that conforms to the [aiplatform.gapic.Explanation]
-                    object.
-                - `csv`: Generating explanations for CSV format is not supported.
+            - `bigquery`: output includes a column named `explanation`. The value is a struct that conforms
+            to the [aiplatform.gapic.Explanation] object.
+            - `jsonl`: The JSON objects on each line include an additional entry keyed `explanation`. The
+            value of the entry is a JSON object that conforms to the [aiplatform.gapic.Explanation] object.
+            - `csv`: Generating explanations for CSV format is not supported.
         :param explanation_metadata: Optional. Explanation metadata configuration for this
             BatchPredictionJob. Can be specified only if `generate_explanation` is set to `True`.
             This value overrides the value of `Model.explanation_metadata`. All fields of
@@ -307,14 +314,14 @@ class BatchPredictionJobHook(GoogleBaseHook):
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param filter: The standard list filter.
             Supported fields:
-                -  ``display_name`` supports = and !=.
-                -  ``state`` supports = and !=.
-                -  ``model_display_name`` supports = and !=
+            -  ``display_name`` supports = and !=.
+            -  ``state`` supports = and !=.
+            -  ``model_display_name`` supports = and !=
             Some examples of using the filter are:
-                -  ``state="JOB_STATE_SUCCEEDED" AND display_name="my_job"``
-                -  ``state="JOB_STATE_RUNNING" OR display_name="my_job"``
-                -  ``NOT display_name="my_job"``
-                -  ``state="JOB_STATE_FAILED"``
+            -  ``state="JOB_STATE_SUCCEEDED" AND display_name="my_job"``
+            -  ``state="JOB_STATE_RUNNING" OR display_name="my_job"``
+            -  ``NOT display_name="my_job"``
+            -  ``state="JOB_STATE_FAILED"``
         :param page_size: The standard list page size.
         :param page_token: The standard list page token.
         :param read_mask: Mask specifying which fields to read.

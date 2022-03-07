@@ -32,7 +32,7 @@ TEST_ENDPOINT: dict = {}
 TEST_ENDPOINT_NAME: str = "test_endpoint_name"
 TEST_DEPLOYED_MODEL: dict = {}
 TEST_DEPLOYED_MODEL_ID: str = "test-deployed-model-id"
-TEST_TRAFFIC_SPLIT = {}
+TEST_TRAFFIC_SPLIT: dict = {}
 TEST_UPDATE_MASK: dict = {}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"

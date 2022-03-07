@@ -16,7 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains Google Vertex AI operators."""
+"""This module contains Google Vertex AI operators.
+
+.. spelling::
+
+    irreproducible
+    codepoints
+    Tensorboard
+    aiplatform
+    myVPC
+"""
 
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -121,7 +130,7 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
         your service account please visit:
         https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
     :param sync: Whether to execute this method synchronously. If False, this method will unblock and it
-    will be executed in a concurrent Future.
+        will be executed in a concurrent Future.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -419,14 +428,14 @@ class ListHyperparameterTuningJobOperator(BaseOperator):
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param filter: The standard list filter.
         Supported fields:
-            -  ``display_name`` supports = and !=.
-            -  ``state`` supports = and !=.
-            -  ``model_display_name`` supports = and !=
+        -  ``display_name`` supports = and !=.
+        -  ``state`` supports = and !=.
+        -  ``model_display_name`` supports = and !=
         Some examples of using the filter are:
-            -  ``state="JOB_STATE_SUCCEEDED" AND display_name="my_job"``
-            -  ``state="JOB_STATE_RUNNING" OR display_name="my_job"``
-            -  ``NOT display_name="my_job"``
-            -  ``state="JOB_STATE_FAILED"``
+        -  ``state="JOB_STATE_SUCCEEDED" AND display_name="my_job"``
+        -  ``state="JOB_STATE_RUNNING" OR display_name="my_job"``
+        -  ``NOT display_name="my_job"``
+        -  ``state="JOB_STATE_FAILED"``
     :param page_size: The standard list page size.
     :param page_token: The standard list page token.
     :param read_mask: Mask specifying which fields to read.

@@ -307,7 +307,7 @@ After creating an endpoint you can use it to deploy some model using
     :start-after: [START how_to_cloud_vertex_ai_deploy_model_operator]
     :end-before: [END how_to_cloud_vertex_ai_deploy_model_operator]
 
-To undeploy model you can use
+To un deploy model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UndeployModelOperator`.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py

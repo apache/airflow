@@ -16,7 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""This module contains a Google Cloud Vertex AI hook."""
+"""This module contains a Google Cloud Vertex AI hook.
+
+.. spelling::
+
+    aiplatform
+    camelCase
+"""
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
@@ -150,9 +156,9 @@ class ModelServiceHook(GoogleBaseHook):
             Model's [resource name][google.cloud.aiplatform.v1.Model.name].
             -  ``display_name`` supports = and !=
             -  ``labels`` supports general map functions that is:
-             -  ``labels.key=value`` - key:value equality
-             -  \`labels.key:\* or labels:key - key existence
-             -  A key including a space must be quoted. ``labels."a key"``.
+            --  ``labels.key=value`` - key:value equality
+            --  \`labels.key:\* or labels:key - key existence
+            --  A key including a space must be quoted. ``labels."a key"``.
         :param page_size: The standard list page size.
         :param page_token: The standard list page token. Typically obtained via
             [ListModelsResponse.next_page_token][google.cloud.aiplatform.v1.ListModelsResponse.next_page_token]
