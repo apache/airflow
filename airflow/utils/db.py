@@ -1077,10 +1077,21 @@ def print_happy_cat(message):
     return
 
 
-def _revisions_above_min_for_offline(revisions):
+def _revision_greater(script, this_rev, base_rev):
+    # Check if there is history between the revisions and the start revision
+    # This ensures that the revisions are above `min_revision`
+    try:
+        list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev))
+        return True
+    except Exception:
+        return False
+
+
+def _revisions_above_min_for_offline(config, revisions):
     """
     Checks that all supplied revision ids are above the minimum revision for the dialect.
 
+    :param config: Alembic config
     :param revisions: list of Alembic revision ids
     :return: None
     :rtype: None
@@ -1090,19 +1101,17 @@ def _revisions_above_min_for_offline(revisions):
         raise AirflowException('Offline migration not supported for SQLite.')
     min_version, min_revision = ('7b2661a43ba3', '2.2.0') if dbname == 'mssql' else ('2.0.0', 'e959f08ac86c')
 
-    script = _get_script_object()
+    script = _get_script_object(config)
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
     for rev in revisions:
-        try:
-            list(script.revision_map.iterate_revisions(upper=rev, lower=min_revision))
-        except Exception:
-            raise AirflowException(
+        if not _revision_greater(script, rev, min_revision):
+            raise ValueError(
                 f"Error while checking history for revision range {min_revision}:{rev}. "
                 f"Check that {rev} is a valid revision. "
                 f"For dialect {dbname!r}, supported revision for offline migration is from {min_revision} "
-                f"which is airflow {min_version} head"
+                f"which corresponds to Airflow {min_version}."
             )
 
 
@@ -1110,19 +1119,19 @@ def _revisions_above_min_for_offline(revisions):
 def upgradedb(
     to_revision: Optional[str] = None,
     from_revision: Optional[str] = None,
-    sql_only: bool = False,
+    sql: bool = False,
     session: Session = NEW_SESSION,
 ):
     """
 
     :param to_revision: Optional Alembic revision ID to upgrade *to*.  If omitted, upgrades to latest revision.
     :param from_revision: Optional Alembic revision ID to upgrade *from*.  Not compatible with ``sql_only=False``.
-    :param sql_only: if True, migration statements will be printed but not executed.
+    :param sql: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
     :rtype: None
     """
-    if from_revision and not sql_only:
+    if from_revision and not sql:
         raise Exception("`from_revision` only supported with `sql_only=True`.")
 
     # alembic adds significant import time, so we import it lazily
@@ -1131,12 +1140,11 @@ def upgradedb(
     from alembic import command
 
     config = _get_alembic_config()
-    script = _get_script_object(config)
 
-    if sql_only:
+    if sql:
         # _validate_version_for_offline_migration(from_version)  # only for offline migration
         # if no changes between revisions, raise: list(script.revision_map.iterate_revisions(to_revision, from_revision))
-        _revisions_above_min_for_offline(script=script, revisions=[from_revision, to_revision])
+        _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
         if not (from_revision, to_revision):
             raise Exception('unexpected')
         if to_revision == from_revision:
