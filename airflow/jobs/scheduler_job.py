@@ -839,9 +839,7 @@ class SchedulerJob(BaseJob):
         :rtype: int
         """
         # Put a check in place to make sure we don't commit unexpectedly
-        callbacks_to_send = []
         with prohibit_commit(session) as guard:
-
             if settings.USE_JOB_SCHEDULE:
                 self._create_dagruns_for_dags(guard, session)
 
@@ -858,26 +856,27 @@ class SchedulerJob(BaseJob):
 
             guard.commit()
 
-            # Send the callbacks after we commit to ensure the context is up to date when it gets run
-            for dag_run, callback_to_run in callback_tuples:
-                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if not dag:
-                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                    continue
+        # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        for dag_run, callback_to_run in callback_tuples:
+            dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                continue
+            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+            # so it must be done outside of prohibit_commit.
+            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
-                callbacks_to_send.append((dag, callback_to_run))
-
+        with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
             # END: schedule TIs
 
-            try:
-                if self.executor.slots_available <= 0:
-                    # We know we can't do anything here, so don't even try!
-                    self.log.debug("Executor full, skipping critical section")
-                    num_queued_tis = 0
-                else:
-
+            if self.executor.slots_available <= 0:
+                # We know we can't do anything here, so don't even try!
+                self.log.debug("Executor full, skipping critical section")
+                num_queued_tis = 0
+            else:
+                try:
                     timer = Stats.timer('scheduler.critical_section_duration')
                     timer.start()
 
@@ -887,21 +886,17 @@ class SchedulerJob(BaseJob):
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
                     timer.stop(send=True)
-            except OperationalError as e:
-                timer.stop(send=False)
+                except OperationalError as e:
+                    timer.stop(send=False)
 
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Critical section lock held by another Scheduler")
-                    Stats.incr('scheduler.critical_section_busy')
-                    session.rollback()
-                    return 0
-                raise
+                    if is_lock_not_available_error(error=e):
+                        self.log.debug("Critical section lock held by another Scheduler")
+                        Stats.incr('scheduler.critical_section_busy')
+                        session.rollback()
+                        return 0
+                    raise
 
             guard.commit()
-        # Sending callbacks there as in standalone_dag_processor they are adding to the database,
-        # so it must be done outside of prohibit_commit.
-        for (dag, callback_to_run) in callbacks_to_send:
-            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
         return num_queued_tis
 
@@ -1097,7 +1092,6 @@ class SchedulerJob(BaseJob):
             )
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
-            self.log.info("DagCallbackRequest %s", callback_to_execute)
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
             # Because we send the callback here, we need to return None
             return callback
@@ -1143,7 +1137,7 @@ class SchedulerJob(BaseJob):
         if callback:
             self.executor.send_callback(callback)
         else:
-            self.log.info("callback is empty")
+            self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""

@@ -51,6 +51,7 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
 if TYPE_CHECKING:
     import pathlib
@@ -490,7 +491,9 @@ class DagFileProcessorManager(LoggingMixin):
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._signal_conn in ready:
-                self._fetch_callbacks(maxCallbacksPerLoop)
+                if not conf.getboolean("scheduler", "standalone_dag_processor"):
+                    # Nothing to do if callbacks are not stored in the database
+                    self._fetch_callbacks(maxCallbacksPerLoop)
                 agent_signal = self._signal_conn.recv()
 
                 self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
@@ -596,22 +599,23 @@ class DagFileProcessorManager(LoggingMixin):
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
         """Fetches callbacks from database and add them to the internal pipe for execution."""
-        if not conf.getboolean("scheduler", "standalone_dag_processor"):
-            # Nothing to do if callbacks are not stored in the database
-            return
         self.log.debug("Fetching callbacks from the database.")
-        callbacks = (
-            session.query(DbCallbackRequest)
-            .order_by(DbCallbackRequest.priority_weight.asc())
-            .limit(max_callbacks)
-            .all()
-        )
-        for callback in callbacks:
-            try:
-                self._signal_conn.send(callback.get_callback_request())
-                session.delete(callback)
-            except Exception as e:
-                self.log.warning("Error adding callback for execution: %s, %s", callback, e)
+        with prohibit_commit(session) as guard:
+            query = (
+                session.query(DbCallbackRequest)
+                .order_by(DbCallbackRequest.priority_weight.asc())
+                .limit(max_callbacks)
+            )
+            callbacks = with_row_locks(
+                query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
+            ).all()
+            for callback in callbacks:
+                try:
+                    self._signal_conn.send(callback.get_callback_request())
+                    session.delete(callback)
+                except Exception as e:
+                    self.log.warning("Error adding callback for execution: %s, %s", callback, e)
+            guard.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):
         self._callback_to_execute[request.full_filepath].append(request)
