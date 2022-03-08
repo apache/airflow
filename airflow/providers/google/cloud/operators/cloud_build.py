@@ -188,7 +188,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             return
         with open(self.build_raw) as file:
             if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
-                self.build = yaml.load(file.read(), Loader=yaml.FullLoader)
+                self.build = yaml.safe_load_all(file.read())
             if self.build_raw.endswith('.json'):
                 self.build = json.loads(file.read())
 
