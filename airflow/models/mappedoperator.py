@@ -414,7 +414,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def executor_config(self) -> dict:
-        return self.partial_kwargs.get("run_as_user", {})
+        return self.partial_kwargs.get("executor_config", {})
 
     @property
     def inlets(self) -> Optional[Any]:

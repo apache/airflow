@@ -188,6 +188,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": None,
             "pid": 100,
@@ -220,6 +221,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
@@ -264,6 +266,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
@@ -302,6 +305,24 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
+
+    def test_unmapped_map_index_should_return_404(self, session):
+        self.create_task_instances(session)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+
+    def test_should_return_404_for_mapped_endpoint(self, session):
+        self.create_task_instances(session)
+        for index in ['0', '1', '2']:
+            response = self.client.get(
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
+                f"taskInstances/print_the_context/{index}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 404
 
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
