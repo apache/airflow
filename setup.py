@@ -275,6 +275,8 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
+    # we can remove the upper limit when we will apply the fix as explained in the change log:
+    # https://github.com/tardyp/sphinx-jinja/blob/d4f3ba9aa2b6a1217dfd90c676475d516e69b306/ChangeLog#L8-L16
     'sphinx-jinja>=1.1, <2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
