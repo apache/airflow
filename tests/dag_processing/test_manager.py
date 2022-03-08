@@ -665,8 +665,12 @@ class TestDagFileProcessorManager:
         # assert code not deleted
         assert DagCode.has_dag(dag.fileloc)
 
-    @conf_vars({('scheduler', 'standalone_dag_processor'): 'True'})
-    @conf_vars({('core', 'load_examples'): 'False'})
+    @conf_vars(
+        {
+            ('core', 'load_examples'): 'False',
+            ('scheduler', 'standalone_dag_processor'): 'True',
+        }
+    )
     def test_fetch_callbacks_from_database(self, tmpdir):
         """Test DagFileProcessorManager._fetch_callbacks method"""
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
@@ -713,9 +717,13 @@ class TestDagFileProcessorManager:
         with create_session() as session:
             assert session.query(DbCallbackRequest).count() == 0
 
-    @conf_vars({('scheduler', 'standalone_dag_processor'): 'True'})
-    @conf_vars({('scheduler', 'max_callbacks_per_loop'): '2'})
-    @conf_vars({('core', 'load_examples'): 'False'})
+    @conf_vars(
+        {
+            ('scheduler', 'standalone_dag_processor'): 'True',
+            ('scheduler', 'max_callbacks_per_loop'): '2',
+            ('core', 'load_examples'): 'False',
+        }
+    )
     def test_fetch_callbacks_from_database_max_per_loop(self, tmpdir):
         """Test DagFileProcessorManager._fetch_callbacks method"""
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
@@ -751,8 +759,12 @@ class TestDagFileProcessorManager:
             assert (len(results)) == 2
             assert session.query(DbCallbackRequest).count() == 1
 
-    @conf_vars({('scheduler', 'standalone_dag_processor'): 'False'})
-    @conf_vars({('core', 'load_examples'): 'False'})
+    @conf_vars(
+        {
+            ('scheduler', 'standalone_dag_processor'): 'False',
+            ('core', 'load_examples'): 'False',
+        }
+    )
     def test_fetch_callbacks_from_database_not_standalone(self, tmpdir):
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 

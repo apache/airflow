@@ -491,7 +491,7 @@ class DagFileProcessorManager(LoggingMixin):
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._signal_conn in ready:
-                if not conf.getboolean("scheduler", "standalone_dag_processor"):
+                if conf.getboolean("scheduler", "standalone_dag_processor"):
                     # Nothing to do if callbacks are not stored in the database
                     self._fetch_callbacks(maxCallbacksPerLoop)
                 agent_signal = self._signal_conn.recv()
