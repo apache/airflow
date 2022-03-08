@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary/stale comments (#21572)``
+
 2.0.2
 .....
 

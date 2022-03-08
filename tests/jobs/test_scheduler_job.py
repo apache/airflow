@@ -37,6 +37,8 @@ import airflow.example_dags
 import airflow.smart_sensor_dags
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -418,6 +420,22 @@ class TestSchedulerJob:
         ti1.refresh_from_db()
         assert State.SCHEDULED == ti1.state
         session.rollback()
+
+    @conf_vars({('scheduler', 'standalone_dag_processor'): 'False'})
+    def test_setup_callback_sink_not_standalone_dag_processor(self):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull, num_runs=1)
+
+        self.scheduler_job._execute()
+
+        assert isinstance(self.scheduler_job.executor.callback_sink, PipeCallbackSink)
+
+    @conf_vars({('scheduler', 'standalone_dag_processor'): 'True'})
+    def test_setup_callback_sink_standalone_dag_processor(self):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull, num_runs=1)
+
+        self.scheduler_job._execute()
+
+        assert isinstance(self.scheduler_job.executor.callback_sink, DatabaseCallbackSink)
 
     def test_find_executable_task_instances_backfill(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_backfill'
@@ -1500,15 +1518,15 @@ class TestSchedulerJob:
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
             "airflow.jobs.scheduler_job.prohibit_commit"
-        ) as mock_gaurd:
-            mock_gaurd.return_value.__enter__.return_value.commit.side_effect = session.commit
+        ) as mock_guard:
+            mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
 
             def mock_schedule_dag_run(*args, **kwargs):
-                mock_gaurd.reset_mock()
+                mock_guard.reset_mock()
                 return None
 
             def mock_send_dag_callbacks_to_processor(*args, **kwargs):
-                mock_gaurd.return_value.__enter__.return_value.commit.assert_called_once()
+                mock_guard.return_value.__enter__.return_value.commit.assert_called()
 
             self.scheduler_job._send_dag_callbacks_to_processor.side_effect = (
                 mock_send_dag_callbacks_to_processor
@@ -3597,7 +3615,7 @@ class TestSchedulerJob:
             expected_failure_callback_requests = [
                 TaskCallbackRequest(
                     full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
+                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
                     msg="Message",
                 )
             ]

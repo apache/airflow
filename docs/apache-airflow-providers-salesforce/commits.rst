@@ -28,16 +28,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.1
+.....
+
+Latest change: 2022-02-08
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`6c3a67d4fc <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`cb73053211 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`602abe8394 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`92bc8047cf <https://github.com/apache/airflow/commit/92bc8047cf822bcedfecb8cbdc82a83dc7ea43ad>`_  2021-12-16   ``Fix mypy in  providers/salesforce (#20325)``
+`2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+=================================================================================================  ===========  ==========================================================================
+
 3.4.0
 .....
 
-Latest change: 2021-11-11
+Latest change: 2021-11-30
 
-=================================================================================================  ===========  =========================================================
+=================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =========================================================
+=================================================================================================  ===========  ======================================================================
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `a24066bc4c <https://github.com/apache/airflow/commit/a24066bc4c3d8a218bd29f6c8fef80781488dd55>`_  2021-11-11   ``Do not require all extras for SalesforceHook (#19530)``
-=================================================================================================  ===========  =========================================================
+=================================================================================================  ===========  ======================================================================
 
 3.3.0
 .....

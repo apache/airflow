@@ -108,7 +108,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance via local or kubernetes executor"""
-        executor = self._router(SimpleTaskInstance(task_instance))
+        executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )

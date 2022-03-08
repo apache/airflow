@@ -59,7 +59,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------
@@ -80,7 +80,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``pymssql``         ``~=2.1,>=2.1.5``
+``pymssql``         ``>=2.1.5``
 ==================  ==================
 
 .. include:: ../../airflow/providers/microsoft/mssql/CHANGELOG.rst

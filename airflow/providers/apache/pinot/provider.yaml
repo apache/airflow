@@ -22,6 +22,7 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 versions:
+  - 2.0.2
   - 2.0.1
   - 2.0.0
   - 1.0.1

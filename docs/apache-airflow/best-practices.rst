@@ -337,7 +337,7 @@ want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG generate simpler structure. Every task dependency adds additional processing overhead for
   scheduling and execution. The DAG that has simple linear structure ``A -> B -> C`` will experience
-  less delays in task scheduling that DAG that has a deeply nested tree structure with exponentially growing
+  less delays in task scheduling than DAG that has a deeply nested tree structure with exponentially growing
   number of depending tasks for example. If you can make your DAGs more linear - where at single point in
   execution there are as few potential candidates to run among the tasks, this will likely improve overall
   scheduling performance.
