@@ -28,6 +28,7 @@ from airflow.executors.executor_constants import (
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
+    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.utils.module_loading import import_string
@@ -53,6 +54,7 @@ class ExecutorLoader:
     _default_executor: Optional["BaseExecutor"] = None
     executors = {
         LOCAL_EXECUTOR: 'airflow.executors.local_executor.LocalExecutor',
+        LOCAL_KUBERNETES_EXECUTOR: 'airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor',
         SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor.SequentialExecutor',
         CELERY_EXECUTOR: 'airflow.executors.celery_executor.CeleryExecutor',
         CELERY_KUBERNETES_EXECUTOR: 'airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor',
@@ -89,6 +91,9 @@ class ExecutorLoader:
         """
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
+        elif executor_name == LOCAL_KUBERNETES_EXECUTOR:
+            return cls.__load_local_kubernetes_executor()
+
         try:
             executor_cls, import_source = cls.import_executor_cls(executor_name)
             log.debug("Loading executor %s from %s", executor_name, import_source.value)
@@ -136,6 +141,15 @@ class ExecutorLoader:
 
         celery_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
         return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
+
+    @classmethod
+    def __load_local_kubernetes_executor(cls) -> "BaseExecutor":
+        """:return: an instance of LocalKubernetesExecutor"""
+        local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
+        kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
+
+        local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
+        return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
 
 
 UNPICKLEABLE_EXECUTORS = (

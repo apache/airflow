@@ -18,58 +18,37 @@
 
 .. _howto/operator:S3ToRedshiftOperator:
 
-S3 To Redshift Transfer Operator
-================================
+Amazon Redshift to S3 Transfer Operator
+=======================================
 
-Overview
---------
+Use the S3ToRedshiftOperator transfer to copy the data from a Amazon S3 file into an Amazon Redshift table.
 
-The ``S3ToRedshiftOperator`` copies data from a S3 Bucket into a Redshift table.
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
 
-The example dag provided showcases the
+.. include:: ../_partials/prerequisite_tasks.rst
+
+S3 To Redshift
+^^^^^^^^^^^^^^
+
+This operator loads data from S3 to an existing Amazon Redshift table.
+
+To get more information about operator visit:
 :class:`~airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`
-in action.
 
- - example_s3_to_redshift.py
-
-example_s3_to_redshift.py
--------------------------
-
-Purpose
-"""""""
-
-This is a basic example dag for using ``S3ToRedshiftOperator`` to copies data from a S3 Bucket into a Redshift table.
-
-Environment variables
-"""""""""""""""""""""
-
-This example relies on the following variables, which can be passed via OS environment variables.
+Example usage:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
     :language: python
-    :start-after: [START howto_operator_s3_to_redshift_env_variables]
-    :end-before: [END howto_operator_s3_to_redshift_env_variables]
-
-You need to set at least the ``S3_BUCKET``.
-
-Copy S3 key into Redshift table
-"""""""""""""""""""""""""""""""
-
-In the following code we are copying the S3 key ``s3://{S3_BUCKET}/{S3_KEY}`` into the Redshift table
-``PUBLIC.{REDSHIFT_TABLE}``.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
-    :language: python
-    :start-after: [START howto_operator_s3_to_redshift_task_1]
-    :end-before: [END howto_operator_s3_to_redshift_task_1]
+    :dedent: 4
+    :start-after: [START howto_transfer_s3_to_redshift]
+    :end-before: [END howto_transfer_s3_to_redshift]
 
 You can find more information to the ``COPY`` command used
 `here <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__.
 
 Reference
----------
-
-For further information, look at:
+^^^^^^^^^
 
 * `AWS COPY from Amazon S3 Documentation <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__
 * `AWS boto3 Library Documentation for S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

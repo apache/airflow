@@ -674,14 +674,14 @@ class TestConnection(unittest.TestCase):
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_URI_HOOK_METHOD_MISSING': 'ftp://',
+            'AIRFLOW_CONN_TEST_URI_HOOK_METHOD_MISSING': 'grpc://',
         },
     )
     def test_connection_test_hook_method_missing(self):
-        conn = Connection(conn_id='test_uri_hook_method_mising', conn_type='ftp')
+        conn = Connection(conn_id='test_uri_hook_method_missing', conn_type='grpc')
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == "Hook FTPHook doesn't implement or inherit test_connection method"
+        assert res[1] == "Hook GrpcHook doesn't implement or inherit test_connection method"
 
     def test_extra_warnings_non_json(self):
         with pytest.warns(DeprecationWarning, match='non-JSON'):
