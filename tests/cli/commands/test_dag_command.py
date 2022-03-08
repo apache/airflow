@@ -36,22 +36,15 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
-dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
-
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
-TEST_DAG_FOLDER = os.path.join(os.path.dirname(dag_folder_path), 'dags')
-TEST_DAG_ID = 'unit_tests'
-
-
-EXAMPLE_DAGS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), "airflow/example_dags"
-)
-
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
+
+
 class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -413,6 +406,16 @@ class TestCliDags(unittest.TestCase):
         assert "paused" in out
         assert "airflow/example_dags/example_complex.py" in out
         assert "- dag_id:" in out
+
+    @conf_vars({('core', 'load_examples'): 'false'})
+    def test_cli_list_import_errors(self):
+        dag_path = os.path.join(TEST_DAGS_FOLDER, 'test_invalid_cron.py')
+        args = self.parser.parse_args(['dags', 'list', '--output', 'yaml', '--subdir', dag_path])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_list_import_errors(args)
+            out = temp_stdout.getvalue()
+        assert 'Invalid timetable expression' in out
+        assert dag_path in out
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
