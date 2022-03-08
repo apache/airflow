@@ -126,6 +126,92 @@ COPY_OPTIONS ('force' = 'true')
 """.strip()
         )
 
+    def test_copy_with_credential(self):
+        expression = "col1, col2"
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            expression_list=expression,
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_encryption(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}' WITH ( ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_encryption_and_credential(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') """
+            """ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_validate_all(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='JSON',
+            table_name='test',
+            task_id=TASK_ID,
+            validate=True,
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}'
+FILEFORMAT = JSON
+VALIDATE ALL
+""".strip()
+        )
+
+    def test_copy_with_validate_N_rows(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='JSON',
+            table_name='test',
+            task_id=TASK_ID,
+            validate=10,
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}'
+FILEFORMAT = JSON
+VALIDATE 10 ROWS
+""".strip()
+        )
+
     def test_incorrect_params_files_patterns(self):
         exception_message = "Only one of 'pattern' or 'files' should be specified"
         with pytest.raises(AirflowException, match=exception_message):
