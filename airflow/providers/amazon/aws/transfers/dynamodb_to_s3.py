@@ -25,7 +25,7 @@ import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 from uuid import uuid4
 
 from airflow.models import BaseOperator
@@ -78,6 +78,14 @@ class DynamoDBToS3Operator(BaseOperator):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     """
+
+    template_fields: Sequence[str] = (
+        's3_bucket_name',
+        'dynamodb_table_name',
+    )
+    template_fields_renderers = {
+        "dynamodb_scan_kwargs": "json",
+    }
 
     def __init__(
         self,
