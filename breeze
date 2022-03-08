@@ -836,7 +836,7 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        ---platform)
+        --platform)
             export PLATFORM="${2}"
             echo "Backend: ${PLATFORM}"
             echo
