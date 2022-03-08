@@ -1841,10 +1841,7 @@ class Airflow(AirflowBaseView):
             )
         # if run_id is not None, filter dag runs based on run id and ignore execution date
         dr = DagRun.find(
-            dag_id=dag_id,
-            run_type=DagRunType.MANUAL,
-            run_id=run_id,
-            execution_date=execution_date if run_id is None else None,
+            dag_id=dag_id, run_type=DagRunType.MANUAL, run_id=run_id, execution_date=execution_date
         )
         if dr:
             flash(f"The run_id {run_id} already exists", "error")

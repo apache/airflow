@@ -333,15 +333,16 @@ class DagRun(Base, LoggingMixin):
         dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
         if dag_ids:
             qry = qry.filter(cls.dag_id.in_(dag_ids))
-
+        if run_id is not None or execution_date is not None:
+            qry = qry.filter((cls.run_id == run_id) | (cls.execution_date == execution_date))
+        elif execution_date is not None and run_id is None:
+            qry = qry.filter(cls.execution_date == execution_date)
+        elif run_id is not None and execution_date is None:
+            qry = qry.filter(cls.run_id == run_id)
         if is_container(run_id):
             qry = qry.filter(cls.run_id.in_(run_id))
-        elif run_id is not None:
-            qry = qry.filter(cls.run_id == run_id)
         if is_container(execution_date):
             qry = qry.filter(cls.execution_date.in_(execution_date))
-        elif execution_date is not None:
-            qry = qry.filter(cls.execution_date == execution_date)
         if execution_start_date and execution_end_date:
             qry = qry.filter(cls.execution_date.between(execution_start_date, execution_end_date))
         elif execution_start_date:
@@ -356,7 +357,6 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(cls.run_type == run_type)
         if no_backfills:
             qry = qry.filter(cls.run_type != DagRunType.BACKFILL_JOB)
-
         return qry.order_by(cls.execution_date).all()
 
     @classmethod
