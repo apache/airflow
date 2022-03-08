@@ -1,4 +1,4 @@
-Airflow Helm Chart 1.5.0, 2022-03-07
+Airflow Helm Chart 1.5.0, 2022-03-11
 ------------------------------------
 
 New Features
