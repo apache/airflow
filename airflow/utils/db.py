@@ -1077,9 +1077,10 @@ def print_happy_cat(message):
     return
 
 
-def _revision_greater(script, this_rev, base_rev):
+def _revision_greater(config, this_rev, base_rev):
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
+    script = _get_script_object(config)
     try:
         list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev))
         return True
@@ -1099,14 +1100,14 @@ def _revisions_above_min_for_offline(config, revisions):
     dbname = settings.engine.dialect.name
     if dbname == 'sqlite':
         raise AirflowException('Offline migration not supported for SQLite.')
-    min_version, min_revision = ('7b2661a43ba3', '2.2.0') if dbname == 'mssql' else ('2.0.0', 'e959f08ac86c')
-
-    script = _get_script_object(config)
+    min_version, min_revision = ('2.2.0', '7b2661a43ba3') if dbname == 'mssql' else ('2.0.0', 'e959f08ac86c')
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
     for rev in revisions:
-        if not _revision_greater(script, rev, min_revision):
+        if not rev:
+            raise ValueError('unexpected')
+        if not _revision_greater(config, rev, min_revision):
             raise ValueError(
                 f"Error while checking history for revision range {min_revision}:{rev}. "
                 f"Check that {rev} is a valid revision. "
@@ -1144,14 +1145,22 @@ def upgradedb(
     if sql:
         # _validate_version_for_offline_migration(from_version)  # only for offline migration
         # if no changes between revisions, raise: list(script.revision_map.iterate_revisions(to_revision, from_revision))
-        _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
-        if not (from_revision, to_revision):
-            raise Exception('unexpected')
-        if to_revision == from_revision:
-            print_happy_cat("No migrations to apply; nothing to do.")
-
         if not from_revision:
             from_revision = _get_current_revision(session)
+
+        if not from_revision and to_revision:
+            raise Exception('unexpected')
+
+        if to_revision == from_revision:
+            print_happy_cat("No migrations to apply; nothing to do.")
+            return
+
+        if not _revision_greater(config, to_revision, from_revision):
+            raise ValueError(
+                f'Requested *to* revision {to_revision} is older than *from* revision {from_revision}. '
+                'Please check your requested versions / revisions.'
+            )
+        _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
 
         _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
         return

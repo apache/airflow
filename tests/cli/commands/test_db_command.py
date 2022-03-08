@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
+from pytest import param
 from sqlalchemy.engine.url import make_url
 
 from airflow.cli import cli_parser
@@ -88,10 +89,22 @@ class TestCliDb:
     @pytest.mark.parametrize(
         'args, pattern',
         [
-            (['--version', '2.1.25'], 'not supported'),
-            (['--revision', 'abc', '--from-revision', 'abc123'], 'used with `--sql-only`'),
-            (['--revision', 'abc', '--from-version', '2.0.2'], 'used with `--sql-only`'),
-            (['--revision', 'abc', '--from-version', '2.1.25', '--sql-only'], 'Unknown version'),
+            param(['--version', '2.1.25'], 'not supported', id='bad version'),
+            param(
+                ['--revision', 'abc', '--from-revision', 'abc123'],
+                'used with `--sql-only`',
+                id='requires offline',
+            ),
+            param(
+                ['--revision', 'abc', '--from-version', '2.0.2'],
+                'used with `--sql-only`',
+                id='requires offline',
+            ),
+            param(
+                ['--revision', 'abc', '--from-version', '2.1.25', '--sql-only'],
+                'Unknown version',
+                id='bad version',
+            ),
         ],
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
