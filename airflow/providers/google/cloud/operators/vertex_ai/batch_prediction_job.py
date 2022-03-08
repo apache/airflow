@@ -214,14 +214,15 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.hook = None  # type: Optional[BatchPredictionJobHook]
+
+    def execute(self, context: 'Context'):
+        self.log.info("Creating Batch prediction job")
         self.hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-
-    def execute(self, context: 'Context'):
-        self.log.info("Creating Batch prediction job")
         result = self.hook.create_batch_prediction_job(
             region=self.region,
             project_id=self.project_id,
@@ -262,7 +263,8 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         Callback called when the operator is killed.
         Cancel any running job.
         """
-        self.hook.cancel_batch_prediction_job()
+        if self.hook:
+            self.hook.cancel_batch_prediction_job()
 
 
 class DeleteBatchPredictionJobOperator(BaseOperator):
