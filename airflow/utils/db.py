@@ -1056,7 +1056,7 @@ def _validate_version(from_version):
         )
 
 
-def _revision_range_from_version_range(script_, from_version, to_version):
+def _revision_range_from_version_range(script, from_version, to_version):
     if not REVISION_HEADS_MAP.get(from_version) or not REVISION_HEADS_MAP.get(to_version):
         raise AirflowException('Please provide valid Airflow versions above 2.0.0.')
     if REVISION_HEADS_MAP.get(from_version) == REVISION_HEADS_MAP.get(to_version):
@@ -1082,7 +1082,7 @@ def _revision_range_from_version_range(script_, from_version, to_version):
     from_revision, to_revision = REVISION_HEADS_MAP[from_version], REVISION_HEADS_MAP[to_version]
     try:
         # Check if there is history between the revisions
-        list(script_.revision_map.iterate_revisions(to_revision, from_revision))
+        list(script.revision_map.iterate_revisions(to_revision, from_revision))
     except Exception:
         raise AirflowException(
             f"Error while checking history for revision range {from_revision}:{to_revision}. "
@@ -1091,7 +1091,7 @@ def _revision_range_from_version_range(script_, from_version, to_version):
     return from_revision, to_revision
 
 
-def _validate_revision_range(script_, from_revision, to_revision):
+def _validate_revision_range(script, from_revision, to_revision):
     dbname = settings.engine.dialect.name
 
     if dbname == 'sqlite':
@@ -1103,7 +1103,7 @@ def _validate_revision_range(script_, from_revision, to_revision):
         try:
             # Check if there is history between the revisions and the start revision
             # This ensures that the revisions are above `min_revision`
-            list(script_.revision_map.iterate_revisions(upper=i, lower=min_revision))
+            list(script.revision_map.iterate_revisions(upper=i, lower=min_revision))
         except Exception:
             raise AirflowException(
                 f"Error while checking history for revision range {min_revision}:{i}. "
@@ -1112,14 +1112,15 @@ def _validate_revision_range(script_, from_revision, to_revision):
                 f"which is airflow {min_version} head"
             )
 
-def upgradedb_with_version(version, from_version):
+
+def upgradedb_with_version(script, version, from_version):
     if from_version and version:
-        from_revision, revision = _revision_range_from_version_range(script_, from_version, version)
+        from_revision, revision = _revision_range_from_version_range(script, from_version, version)
         if not (from_revision, revision):
             raise Exception('unexpected')
-        log.info("Running offline migrations for version range %s:%s", from_version, version)
-    else:
-        log.info("Running offline migrations for revision range %s:%s", from_revision, revision)
+    #     log.info("Running offline migrations for version range %s:%s", from_version, version)
+    # else:
+    #     log.info("Running offline migrations for revision range %s:%s", from_revision, revision)
 
 
 @provide_session
@@ -1140,11 +1141,11 @@ def upgradedb(
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
-    script_ = ScriptDirectory.from_config(config)
+    script = ScriptDirectory.from_config(config)
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
 
     if sql_only:
-        _validate_revision_range(script_, from_revision, revision)
+        _validate_revision_range(script, from_revision, revision)
         _offline_migration(command.upgrade, config, f"{from_revision}:{revision}")
         return
 

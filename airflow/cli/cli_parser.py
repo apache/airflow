@@ -1370,7 +1370,6 @@ DB_COMMANDS = (
             ARG_DB_REVISION,
             ARG_DB_VERSION,
             ARG_DB_SQL,
-            ARG_YES,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
         ),

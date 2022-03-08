@@ -50,11 +50,54 @@ class TestCliDb:
 
         mock_wait_for_migrations.assert_called_once_with(timeout=60)
 
+    @pytest.mark.parametrize(
+        'args, called_with',
+        [
+            ([], dict(to_revision=None, from_revision=None, sql=False)),
+            (['--sql-only'], dict(to_revision=None, from_revision=None, sql=True)),
+            (['--revision', 'abc'], dict(to_revision='abc', from_revision=None, sql=False)),
+            (['--revision', 'abc', '--sql-only'], dict(to_revision='abc', from_revision=None, sql=True)),
+            (['--version', '2.2.2'], dict(to_revision='7b2661a43ba3', from_revision=None, sql=False)),
+            (
+                ['--version', '2.2.2', '--sql-only'],
+                dict(to_revision='7b2661a43ba3', from_revision=None, sql=True),
+            ),
+            (
+                ['--revision', 'abc', '--from-revision', 'abc123', '--sql-only'],
+                dict(to_revision='abc', from_revision='abc123', sql=True),
+            ),
+            (
+                ['--revision', 'abc', '--from-version', '2.2.2', '--sql-only'],
+                dict(to_revision='abc', from_revision='7b2661a43ba3', sql=True),
+            ),
+            (
+                ['--version', '2.2.4', '--from-revision', 'abc123', '--sql-only'],
+                dict(to_revision='587bdf053233', from_revision='abc123', sql=True),
+            ),
+            (
+                ['--version', '2.2.4', '--from-version', '2.2.2', '--sql-only'],
+                dict(to_revision='587bdf053233', from_revision='7b2661a43ba3', sql=True),
+            ),
+        ],
+    )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
-    def test_cli_upgradedb(self, mock_upgradedb):
-        db_command.upgradedb(self.parser.parse_args(['db', 'upgrade']))
+    def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
+        db_command.upgradedb(self.parser.parse_args(['db', 'upgrade', *args]))
+        mock_upgradedb.assert_called_once_with(**called_with)
 
-        mock_upgradedb.assert_called_once_with(version_range=None, revision_range=None)
+    @pytest.mark.parametrize(
+        'args, pattern',
+        [
+            (['--version', '2.1.25'], 'not supported'),
+            (['--revision', 'abc', '--from-revision', 'abc123'], 'used with `--sql-only`'),
+            (['--revision', 'abc', '--from-version', '2.0.2'], 'used with `--sql-only`'),
+            (['--revision', 'abc', '--from-version', '2.1.25', '--sql-only'], 'Unknown version'),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
+    def test_cli_upgrade_failure(self, mock_upgradedb, args, pattern):
+        with pytest.raises(SystemExit, match=pattern):
+            db_command.upgradedb(self.parser.parse_args(['db', 'upgrade', *args]))
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
