@@ -112,6 +112,13 @@ class TestEcsOperator(unittest.TestCase):
                 {'launchType': 'EC2'},
             ],
             [
+                'EXTERNAL',
+                None,
+                None,
+                None,
+                {'launchType': 'EXTERNAL'},
+            ],
+            [
                 'FARGATE',
                 None,
                 'LATEST',
