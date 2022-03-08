@@ -20,6 +20,8 @@ import textwrap
 import typing
 from tempfile import NamedTemporaryFile
 
+from packaging.version import parse as parse_version
+
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
@@ -62,6 +64,8 @@ def upgradedb(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
+        if parse_version(args.from_version) < parse_version('2.0.0'):
+            raise SystemExit("From version must be greater than 2.0.0")
         from_revision = REVISION_HEADS_MAP.get(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
