@@ -12,7 +12,7 @@ New Features
 Improvements
 """"""""""""
 
-- Speedup liveness probe for scheduler and triggerer (#20833, #21108)
+- Speedup liveness probe for scheduler and triggerer (#20833, #21108, #22041)
 - Update git-sync to v3.4.0 (#21309)
 - Remove default auth backend setting (#21640)
 
