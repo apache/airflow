@@ -322,7 +322,7 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         :param key: oss bucket key
         """
-        self.log.info("Head Object oss key: " + key)
+        self.log.info("Head Object oss key: %s", key)
         try:
             return self.get_bucket(bucket_name).head_object(key)
         except Exception as e:
@@ -339,7 +339,7 @@ class OSSHook(BaseHook):
         :param key: oss bucket key
         """
         # full_path = None
-        self.log.info(f"Looking up oss bucket {bucket_name} for bucket key {key} ...")
+        self.log.info('Looking up oss bucket %s for bucket key %s ...', bucket_name, key)
         try:
             return self.get_bucket(bucket_name).object_exists(key)
         except Exception as e:

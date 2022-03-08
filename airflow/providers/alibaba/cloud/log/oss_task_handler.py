@@ -149,7 +149,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             oss_remote_log_location = self.base_folder + '/' + remote_log_location
-            self.log.info("read remote log: " + oss_remote_log_location)
+            self.log.info("read remote log: %s", oss_remote_log_location)
             return self.hook.read_key(self.bucket_name, oss_remote_log_location)
         except Exception:
             msg = f'Could not read logs from {oss_remote_log_location}'
