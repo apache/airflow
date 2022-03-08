@@ -27,11 +27,13 @@ from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 try:
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests
-    pass
+    from distributed import tests  # noqa
+    from distributed.utils_test import cluster as dask_testing_cluster, get_cert, tls_security
 
     skip_tls_tests = False
 except ImportError:
@@ -117,29 +119,29 @@ class TestDaskExecutorTLS(TestBaseDask):
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
 
-    # @conf_vars(
-    #     {
-    #         ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
-    #         ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
-    #         ('dask', 'tls_key'): 'certs/tls-key.pem',
-    #     }
-    # )
-    # def test_tls(self):
-    #     # These use test certs that ship with dask/distributed and should not be
-    #     #  used in production
-    #     with dask_testing_cluster(
-    #         worker_kwargs={'security': tls_security(), "protocol": "tls"},
-    #         scheduler_kwargs={'security': tls_security(), "protocol": "tls"},
-    #     ) as (cluster, _):
-    #
-    #         executor = DaskExecutor(cluster_address=cluster['address'])
-    #
-    #         self.assert_tasks_on_executor(executor, timeout_executor=120)
-    #
-    #         executor.end()
-    #         # close the executor, the cluster context manager expects all listeners
-    #         # and tasks to have completed.
-    #         executor.client.close()
+    @conf_vars(
+        {
+            ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
+            ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
+            ('dask', 'tls_key'): 'certs/tls-key.pem',
+        }
+    )
+    def test_tls(self):
+        # These use test certs that ship with dask/distributed and should not be
+        #  used in production
+        with dask_testing_cluster(
+            worker_kwargs={'security': tls_security(), "protocol": "tls"},
+            scheduler_kwargs={'security': tls_security(), "protocol": "tls"},
+        ) as (cluster, _):
+
+            executor = DaskExecutor(cluster_address=cluster['address'])
+
+            self.assert_tasks_on_executor(executor, timeout_executor=120)
+
+            executor.end()
+            # close the executor, the cluster context manager expects all listeners
+            # and tasks to have completed.
+            executor.client.close()
 
     @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
