@@ -168,26 +168,9 @@ spec:
             periodSeconds: {{ .Values.triggerer.livenessProbe.periodSeconds }}
             exec:
               command:
-                - sh
-                - -c
-                - exec
-                - |
-                  CONNECTION_CHECK_MAX_COUNT=0 /entrypoint python -Wignore -c "
-                  import os
-                  os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-                  os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-
-                  from airflow.jobs.triggerer_job import TriggererJob
-                  from airflow.utils.db import create_session
-                  from airflow.utils.net import get_hostname
-                  import sys
-
-                  with create_session() as session:
-                      job = session.query(TriggererJob).filter_by(hostname=get_hostname()).order_by(
-                          TriggererJob.latest_heartbeat.desc()).limit(1).first()
-
-                  sys.exit(0 if job.is_alive() else 1)
-                  "
+{{- with .Values.triggerer.livenessProbe.command }}
+{{ toYaml . | indent 16 }}
+{{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}

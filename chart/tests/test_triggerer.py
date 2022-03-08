@@ -219,6 +219,7 @@ class TriggererTest(unittest.TestCase):
                         "timeoutSeconds": 222,
                         "failureThreshold": 333,
                         "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
                     }
                 },
             },
@@ -235,6 +236,10 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]
         )
         assert 444 == jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0])
+
+        assert ["sh", "-c", "echo", "wow such test"] == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+        )
 
     @parameterized.expand(
         [

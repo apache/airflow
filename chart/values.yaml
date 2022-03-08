@@ -563,6 +563,23 @@ scheduler:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command:
+      - sh
+      - -c
+      - |
+        CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+        import os
+        os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+        os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+        from airflow.jobs.scheduler_job import SchedulerJob
+        from airflow.utils.db import create_session
+        from airflow.utils.net import get_hostname
+        import sys
+        with create_session() as session:
+            job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+                SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+        sys.exit(0 if job.is_alive() else 1)"
+
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -943,6 +960,26 @@ triggerer:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command:
+      - sh
+      - -c
+      - |
+        CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+        import os
+        os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+        os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+
+        from airflow.jobs.triggerer_job import TriggererJob
+        from airflow.utils.db import create_session
+        from airflow.utils.net import get_hostname
+        import sys
+
+        with create_session() as session:
+            job = session.query(TriggererJob).filter_by(hostname=get_hostname()).order_by(
+                TriggererJob.latest_heartbeat.desc()).limit(1).first()
+
+        sys.exit(0 if job.is_alive() else 1)
+        "
 
   # Create ServiceAccount
   serviceAccount:

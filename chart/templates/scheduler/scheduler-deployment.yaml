@@ -165,26 +165,9 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-                - sh
-                - -c
-                - exec
-                - |
-                  CONNECTION_CHECK_MAX_COUNT=0 /entrypoint python -Wignore -c "
-                  import os
-                  os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-                  os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-
-                  from airflow.jobs.scheduler_job import SchedulerJob
-                  from airflow.utils.db import create_session
-                  from airflow.utils.net import get_hostname
-                  import sys
-
-                  with create_session() as session:
-                      job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-                          SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-
-                  sys.exit(0 if job.is_alive() else 1)
-                  "
+{{- with .Values.scheduler.livenessProbe.command }}
+{{ toYaml . | indent 16 }}
+{{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:
