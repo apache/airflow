@@ -244,9 +244,9 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
       }
 
    Then, if it were placed in ``airflow_local_settings.py``, the config import path would be:
-   
+
    .. code-block:: text
-    
+
       sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
 
 
