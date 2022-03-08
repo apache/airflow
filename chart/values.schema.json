@@ -1505,19 +1505,12 @@
                             "type": "integer",
                             "default": 60
                         },
-                        "exec": {
-                            "description": "Custom exec command for livenessProbe",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "command": {
-                                    "description": "Array of command to execute for livenessProbe",
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                }
-                             }
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
