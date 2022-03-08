@@ -31,5 +31,5 @@ fi
 
 python_version=$1
 
-./breeze prepare-build-cache --python "${python_version}" --verbose
-./breeze prepare-build-cache --python "${python_version}" --production-image --verbose
+./breeze prepare-build-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose
+./breeze prepare-build-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --production-image --verbose

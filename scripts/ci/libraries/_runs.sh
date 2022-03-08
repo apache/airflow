@@ -21,10 +21,9 @@ function runs::run_docs() {
     start_end::group_start "Run build docs"
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
         -e "GITHUB_ACTIONS=${GITHUB_ACTIONS="false"}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
+        "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
     start_end::group_end
 }
 
@@ -32,10 +31,9 @@ function runs::run_docs() {
 function runs::run_generate_constraints() {
     start_end::group_start "Run generate constraints"
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
+        "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
     start_end::group_end
 }
 
@@ -43,12 +41,11 @@ function runs::run_generate_constraints() {
 function runs::run_prepare_airflow_packages() {
     start_end::group_start "Run prepare airflow packages"
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"
+        "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"
     start_end::group_end
 }
 
@@ -57,12 +54,11 @@ function runs::run_prepare_airflow_packages() {
 function runs::run_prepare_provider_packages() {
     # No group here - groups are added internally
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh" "${@}"
+        "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh" "${@}"
 }
 
 # Docker command to generate release notes for provider packages
@@ -73,7 +69,6 @@ function runs::run_prepare_provider_documentation() {
     fi
     # No group here - groups are added internally
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         "${term_flag}" \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         -e "NON_INTERACTIVE" \
@@ -81,5 +76,5 @@ function runs::run_prepare_provider_documentation() {
         -e "GITHUB_TOKEN" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh" "${@}"
+        "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh" "${@}"
 }

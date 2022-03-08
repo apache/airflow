@@ -67,6 +67,11 @@ install_mysql_client() {
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    # disable MYSQL for ARM64
+    INSTALL_MYSQL_CLIENT="false"
+fi
+
 # Install MySQL client from Oracle repositories (Debian installs mariadb)
 # But only if it is not disabled
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then

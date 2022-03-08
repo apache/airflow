@@ -482,16 +482,8 @@ ARG AIRFLOW_VERSION
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
 # Also set airflow as nice PROMPT message.
-# LD_PRELOAD is to workaround https://github.com/apache/airflow/issues/17546
-# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
-# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
-# by users of the prod image, we implement the workaround now.
-# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
-# binary started and a little memory used for Heap allocated by initialization of libstdc++
-# This overhead is not happening for binaries that already link dynamically libstdc++
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
-    LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PIP_USER="true"

@@ -420,7 +420,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
-leveldb = ['plyvel']
+leveldb = ['plyvel; platform_machine != "aarch64"']
 mongo = [
     'dnspython>=1.13.0',
     # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
@@ -428,11 +428,11 @@ mongo = [
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
-    'pymssql>=2.1.5',
+    'pymssql>=2.1.5; platform_machine != "aarch64"',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11',
-    'mysqlclient>=1.3.6',
+    'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+    'mysqlclient>=1.3.6; platform_machine != "aarch64"',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
