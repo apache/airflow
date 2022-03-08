@@ -99,11 +99,6 @@ class TestCliDb:
         with pytest.raises(SystemExit, match=pattern):
             db_command.upgradedb(self.parser.parse_args(['db', 'upgrade', *args]))
 
-    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
-    def test_no_changes(self, mock_upgradedb, args, pattern):
-        """test that when from rev and to rev are same, throw error or something"""
-        raise Exception()
-
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
     @mock.patch(
