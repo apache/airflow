@@ -134,6 +134,11 @@ annotations:
       links:
       - name: '#20787'
         url: https://github.com/apache/airflow/pull/20787
+    - description: 'Docs: Fix example DAGs env var in quickstart'
+      kind: changed
+      links:
+      - name: '#21990'
+        url: https://github.com/apache/airflow/pull/21990
     - description: 'Misc: Use ``2.2.4`` as default Airflow version'
       kind: changed
       links:

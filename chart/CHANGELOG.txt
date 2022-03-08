@@ -27,6 +27,7 @@ Doc only changes
 - Simplify chart docs for configuring Airflow (#21747)
 - Add extra information about time synchronization needed (#21685)
 - Fix extra containers docs (#20787)
+- Fix example DAGs env var in quickstart (#21990)
 
 Misc
 """"
