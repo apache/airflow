@@ -320,7 +320,7 @@ def dag_list_dags(args):
 
         rich_print(
             "[red][bold]Error:[/bold] Failed to load all files. "
-            "For details, run airflow dags list-import-errors",
+            "For details, run `airflow dags list-import-errors`",
             file=sys.stderr,
         )
     AirflowConsole().print_as(
