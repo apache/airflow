@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-08T12:30:31Z
+# This constraints file was automatically generated on 2022-03-08T16:42:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -64,7 +64,7 @@ appdirs==1.4.4
 argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.3
-asn1crypto==1.4.0
+asn1crypto==1.5.0
 astroid==2.10.0
 asttokens==2.0.5
 async-timeout==4.0.2
@@ -278,7 +278,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.0.6
+moto==3.0.7
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
@@ -489,7 +489,7 @@ types-python-slugify==5.0.3
 types-pytz==2021.3.5
 types-redis==4.1.17
 types-requests==2.27.11
-types-setuptools==57.4.9
+types-setuptools==57.4.10
 types-six==1.16.11
 types-tabulate==0.8.5
 types-termcolor==1.1.3
