@@ -12,7 +12,7 @@ New Features
 Improvements
 """"""""""""
 
-- Speedup liveness probe for scheduler and triggerer (#20833, #21108)
+- Speedup liveness probe for scheduler and triggerer (#20833, #21108, #22041)
 - Update git-sync to v3.4.0 (#21309)
 - Remove default auth backend setting (#21640)
 
@@ -27,6 +27,7 @@ Doc only changes
 - Simplify chart docs for configuring Airflow (#21747)
 - Add extra information about time synchronization needed (#21685)
 - Fix extra containers docs (#20787)
+- Fix example DAGs env var in quickstart (#21990)
 
 Misc
 """"
