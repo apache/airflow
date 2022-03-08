@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-08T19:53:45Z
+# This constraints file was automatically generated on 2022-03-08T21:53:14Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -101,9 +101,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.14
+boto3==1.21.15
 boto==2.49.0
-botocore==1.24.14
+botocore==1.24.15
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -146,7 +146,7 @@ distributed==2022.2.1
 dnspython==2.2.1
 docker==5.0.3
 docopt==0.6.2
-docutils==0.16
+docutils==0.17.1
 ecdsa==0.17.0
 elasticsearch-dbapi==0.2.9
 elasticsearch-dsl==7.4.0
@@ -214,7 +214,7 @@ google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
 google-cloud-workflows==1.6.1
 google-crc32c==1.3.0
-google-resumable-media==2.3.1
+google-resumable-media==2.3.2
 googleapis-common-protos==1.55.0
 graphviz==0.19.1
 greenlet==1.1.2
@@ -430,7 +430,7 @@ sphinx-airflow-theme==0.0.6
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.5.0
-sphinx-jinja==1.4.0
+sphinx-jinja==2.0.1
 sphinx-rtd-theme==1.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
