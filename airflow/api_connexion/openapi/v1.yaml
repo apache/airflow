@@ -127,15 +127,6 @@ info:
     - APIs are designed to be backward compatible.
     - Any changes to the API will first go through a deprecation phase.
 
-    # Summary of Changes
-
-    | Airflow version | Description |
-    |-|-|
-    | v2.0 | Initial release |
-    | v2.0.2    | Added /plugins endpoint |
-    | v2.1 | New providers endpoint |
-    | v2.3.0 | New mapped task instance endpoint |
-
     # Trying the API
 
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
