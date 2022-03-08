@@ -197,7 +197,7 @@ From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
 Step 2: Configure Your Environment
 ----------------------------------
 
-You can use use several development environments for Airflow. If you prefer to have development environments
+You can use several development environments for Airflow. If you prefer to have development environments
 on your local machine, you might choose Local Virtualenv, or dockerized Breeze environment, however we
 also have support for popular remote development environments: GitHub Codespaces and GitPodify.
 You can see the differences between the various environments
