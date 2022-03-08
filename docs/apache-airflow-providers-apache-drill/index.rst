@@ -58,7 +58,7 @@ Package apache-airflow-providers-apache-drill
 `Apache Drill <https://drill.apache.org/>`__.
 
 
-Release: 1.0.1
+Release: 1.0.2
 
 Provider package
 ----------------

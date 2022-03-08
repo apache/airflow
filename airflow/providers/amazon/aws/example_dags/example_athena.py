@@ -132,7 +132,7 @@ with DAG(
     remove_sample_data_from_s3 = remove_sample_data_from_s3()
 
     (
-        add_sample_data_to_s3
+        add_sample_data_to_s3  # type: ignore
         >> create_table
         >> read_table
         >> get_read_state

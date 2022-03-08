@@ -376,6 +376,29 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let refreshInterval;
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 1000);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 let prevTis;
 
 function handleRefresh() {
@@ -411,18 +434,6 @@ function handleRefresh() {
       $('#chart_section').hide(1000);
       $('#datatable_section').hide(1000);
     });
-}
-
-let refreshInterval;
-
-function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 1000);
-  } else {
-    clearInterval(refreshInterval);
-  }
 }
 
 $('#auto_refresh').change(() => {

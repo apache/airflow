@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -17,10 +18,24 @@
 
 
 Package apache-airflow-providers-dbt-cloud
-------------------------------------------
+------------------------------------------------------
 
-`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
+`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__).
 
 
-This is detailed commit list of changes for versions provider package: ``dbt-cloud``.
+This is detailed commit list of changes for versions provider package: ``dbt.cloud``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2022-03-01
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`08575ddd8a <https://github.com/apache/airflow/commit/08575ddd8a72f96a3439f73e973ee9958188eb83>`_  2022-03-01   ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+`e782b37a3f <https://github.com/apache/airflow/commit/e782b37a3fdf58e60cdefea33b5b865deb69b1d7>`_  2022-02-27   ``Add dbt Cloud provider (#20998)``
+=================================================================================================  ===========  ===============================================================================

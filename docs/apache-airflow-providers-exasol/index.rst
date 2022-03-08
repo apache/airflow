@@ -51,7 +51,7 @@ Package apache-airflow-providers-exasol
 `Exasol <https://docs.exasol.com/home.htm>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------
@@ -73,7 +73,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
 ``pandas``          ``>=0.17.1, <1.4``
-``pyexasol``        ``>=0.5.1,<1.0.0``
+``pyexasol``        ``>=0.5.1``
 ==================  ==================
 
 .. include:: ../../airflow/providers/exasol/CHANGELOG.rst

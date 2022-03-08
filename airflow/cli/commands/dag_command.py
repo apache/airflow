@@ -329,6 +329,20 @@ def dag_list_dags(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+def dag_list_import_errors(args):
+    """Displays dags with import errors on the command line"""
+    dagbag = DagBag(process_subdir(args.subdir))
+    data = []
+    for filename, errors in dagbag.import_errors.items():
+        data.append({"filepath": filename, "error": errors})
+    AirflowConsole().print_as(
+        data=data,
+        output=args.output,
+    )
+
+
+@cli_utils.action_cli
+@suppress_logs_and_warning
 def dag_report(args):
     """Displays dagbag stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
