@@ -69,10 +69,7 @@ def main():
 
 
 option_verbose = click.option(
-    "-v",
-    "--verbose",
-    is_flag=True,
-    help="Print verbose information about performed steps",
+    "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps", envvar='VERBOSE'
 )
 
 option_python_version = click.option(
