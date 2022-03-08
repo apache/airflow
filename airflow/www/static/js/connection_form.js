@@ -21,7 +21,7 @@
  */
 
 /* global document, DOMParser, $ */
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
 const connectionTestUrl = getMetaValue('test_url');
@@ -158,7 +158,7 @@ $(document).ready(() => {
   if (!restApiEnabled) {
     $(testConnBtn).prop('disabled', true)
       .attr('title', 'Airflow REST APIs have been disabled. '
-        + 'See api->auth_backend section of the Airflow configuration.');
+        + 'See api->auth_backends section of the Airflow configuration.');
   }
 
   $(testConnBtn).insertAfter($('form#model_form div.well.well-sm button:submit'));
@@ -190,29 +190,6 @@ $(document).ready(() => {
   }
 
   /**
-   * Produces JSON stringified data from a html form data
-   *
-   * @param {string} selector Jquery from selector string.
-   * @returns {string} Form data as a JSON string
-   */
-  function getSerializedFormData(selector) {
-    const outObj = {};
-    const inArray = $(selector).serializeArray();
-
-    $.each(inArray, function () {
-      if (this.name === 'conn_id') {
-        outObj.connection_id = this.value;
-      } else if (this.value !== '' && this.name === 'port') {
-        outObj[this.name] = Number(this.value);
-      } else if (this.value !== '' && this.name !== 'csrf_token' && !this.name.match('extra__')) {
-        outObj[this.name] = this.value;
-      }
-    });
-
-    return JSON.stringify(outObj);
-  }
-
-  /**
    * Displays the Flask style alert on UI via JS
    *
    * @param {boolean} status - true for success, false for error
@@ -232,6 +209,70 @@ $(document).ready(() => {
 
       $('.container .row').prepend(alertBox).show();
     }
+  }
+
+  /**
+   * Produces JSON stringified data from a html form data
+   *
+   * @param {string} selector Jquery from selector string.
+   * @returns {string} Form data as a JSON string
+   */
+  function getSerializedFormData(selector) {
+    const outObj = {};
+    const extrasObj = {};
+    const inArray = $(selector).serializeArray();
+
+    /*
+    Form data fields are processed in the below order:
+        - csrf_token
+        - conn_id
+        - conn_type
+        - description
+        - host
+        - schema
+        - login
+        - password
+        - port
+        - extra
+        - All other custom form fields (i.e. fields that are named ``extra__...``) in
+          alphabetical order
+    */
+    $.each(inArray, function () {
+      if (this.name === 'conn_id') {
+        outObj.connection_id = this.value;
+      } else if (this.value !== '' && this.name === 'port') {
+        outObj[this.name] = Number(this.value);
+      } else if (this.value !== '' && this.name !== 'csrf_token') {
+        // Check if there are values in the classic Extra form field. These values come in
+        // stringified and need to be converted to a JSON object in case there are custom form
+        // field values that also need to be included in the ``extra`` object for the output
+        // payload.
+        if (this.name === 'extra') {
+          let extra;
+          try {
+            extra = JSON.parse(this.value);
+          } catch (e) {
+            if (e instanceof SyntaxError) {
+              displayAlert(false, 'Extra field value is not valid JSON.');
+            }
+            throw e;
+          }
+
+          Object.entries(extra).forEach(([key, val]) => {
+            extrasObj[key] = val;
+          });
+        // Check if field is a custom form field.
+        } else if (this.name.startsWith('extra__')) {
+          extrasObj[this.name] = this.value;
+        } else {
+          outObj[this.name] = this.value;
+        }
+      }
+    });
+
+    // Stringify all extras for the AJAX call payload.
+    outObj.extra = JSON.stringify(extrasObj);
+    return JSON.stringify(outObj);
   }
 
   // Bind click event to Test Connection button & perform an AJAX call via REST API

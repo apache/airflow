@@ -53,7 +53,7 @@ Package apache-airflow-providers-odbc
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------

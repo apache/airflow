@@ -607,15 +607,15 @@ This is the full list of those extras:
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
-cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
-devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
-hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb,
-microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
-openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto,
-qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
-slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv,
-webhdfs, winrm, yandex, zendesk
+cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api,
+devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch,
+exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
+leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql,
+neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus,
+postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
+sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
+virtualenv, webhdfs, winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -679,6 +679,7 @@ apache.beam                google
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
+dbt.cloud                  http
 dingding                   http
 discord                    http
 google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
@@ -686,10 +687,12 @@ hashicorp                  google
 microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
 postgres                   amazon
+presto                     google
 salesforce                 tableau
 sftp                       ssh
 slack                      http
 snowflake                  slack
+trino                      google
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
@@ -1437,7 +1440,7 @@ We are using certain prefixes for email subjects for different purposes. Start y
 Voting is governed by the rules described in `Voting <https://www.apache.org/foundation/voting.html>`_
 
 We are all devoting our time for community as individuals who except for being active in Apache Airflow have
-families, daily jobs, right for vacation. Sometimes we are in different time zones or simply are
+families, daily jobs, right for vacation. Sometimes we are in different timezones or simply are
 busy with day-to-day duties that our response time might be delayed. For us it's crucial
 to remember to respect each other in the project with no formal structure.
 There are no managers, departments, most of us is autonomous in our opinions, decisions.

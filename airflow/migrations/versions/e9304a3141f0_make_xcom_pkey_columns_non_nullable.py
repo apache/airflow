@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""make xcom pkey columns non-nullable
+"""Make XCom primary key columns non-nullable
 
 Revision ID: e9304a3141f0
 Revises: 83f031fd9f1c
@@ -32,10 +32,11 @@ revision = 'e9304a3141f0'
 down_revision = '83f031fd9f1c'
 branch_labels = None
 depends_on = None
+airflow_version = '2.2.0'
 
 
 def upgrade():
-    """Apply make xcom pkey columns non-nullable"""
+    """Apply Make XCom primary key columns non-nullable"""
     conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
         bop.alter_column("key", type_=StringID(length=512), nullable=False)
@@ -45,17 +46,14 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply make xcom pkey columns non-nullable"""
+    """Unapply Make XCom primary key columns non-nullable"""
     conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
+        # regardless of what the model defined, the `key` and `execution_date`
+        # columns were always non-nullable for mysql, sqlite and postgres, so leave them alone
+
         if conn.dialect.name == 'mssql':
             bop.drop_constraint('pk_xcom', 'primary')
-
-        # regardless of what the model defined, the `key` and `execution_date`
-        # columns were always non-nullable for sqlite and postgres, so leave them alone
-
-        if conn.dialect.name in ['mysql', 'mssql']:
+            # execution_date and key wasn't nullable in the other databases
             bop.alter_column("key", type_=StringID(length=512), nullable=True)
-        if conn.dialect.name == 'mssql':
-            # execution_date wasn't nullable in the other databases
             bop.alter_column("execution_date", type_=TIMESTAMP, nullable=True)

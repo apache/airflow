@@ -28,7 +28,7 @@ field (see connection `wasb_default` for an example).
 
 from typing import Any, Dict, List, Optional
 
-from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
@@ -102,11 +102,15 @@ class WasbHook(BaseHook):
             },
         }
 
-    def __init__(self, wasb_conn_id: str = default_conn_name, public_read: bool = False) -> None:
+    def __init__(
+        self,
+        wasb_conn_id: str = default_conn_name,
+        public_read: bool = False,
+    ) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.connection = self.get_conn()
+        self.blob_service_client = self.get_conn()
 
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
@@ -134,11 +138,15 @@ class WasbHook(BaseHook):
             tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
+
         sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
-        if sas_token and sas_token.startswith('https'):
-            return BlobServiceClient(account_url=sas_token)
-        if sas_token and not sas_token.startswith('https'):
-            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
+        if sas_token:
+            if sas_token.startswith('https'):
+                return BlobServiceClient(account_url=sas_token)
+            else:
+                return BlobServiceClient(
+                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}'
+                )
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
@@ -158,7 +166,7 @@ class WasbHook(BaseHook):
         :param container_name: The name of the container
         :return: ContainerClient
         """
-        return self.connection.get_container_client(container_name)
+        return self.blob_service_client.get_container_client(container_name)
 
     def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
@@ -167,8 +175,7 @@ class WasbHook(BaseHook):
         :param container_name: The name of the blob container
         :param blob_name: The name of the blob. This needs not be existing
         """
-        container_client = self._get_container_client(container_name)
-        return container_client.get_blob_client(blob_name)
+        return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
     def check_for_blob(self, container_name: str, blob_name: str, **kwargs) -> bool:
         """
@@ -225,29 +232,59 @@ class WasbHook(BaseHook):
             blob_list.append(blob.name)
         return blob_list
 
-    def load_file(self, file_path: str, container_name: str, blob_name: str, **kwargs) -> None:
+    def load_file(
+        self,
+        file_path: str,
+        container_name: str,
+        blob_name: str,
+        create_container: bool = False,
+        **kwargs,
+    ) -> None:
         """
         Upload a file to Azure Blob Storage.
 
         :param file_path: Path to the file to load.
         :param container_name: Name of the container.
         :param blob_name: Name of the blob.
+        :param create_container: Attempt to create the target container prior to uploading the blob. This is
+            useful if the target container may not exist yet. Defaults to False.
         :param kwargs: Optional keyword arguments that ``BlobClient.upload_blob()`` takes.
         """
         with open(file_path, 'rb') as data:
-            self.upload(container_name=container_name, blob_name=blob_name, data=data, **kwargs)
+            self.upload(
+                container_name=container_name,
+                blob_name=blob_name,
+                data=data,
+                create_container=create_container,
+                **kwargs,
+            )
 
-    def load_string(self, string_data: str, container_name: str, blob_name: str, **kwargs) -> None:
+    def load_string(
+        self,
+        string_data: str,
+        container_name: str,
+        blob_name: str,
+        create_container: bool = False,
+        **kwargs,
+    ) -> None:
         """
         Upload a string to Azure Blob Storage.
 
         :param string_data: String to load.
         :param container_name: Name of the container.
         :param blob_name: Name of the blob.
+        :param create_container: Attempt to create the target container prior to uploading the blob. This is
+            useful if the target container may not exist yet. Defaults to False.
         :param kwargs: Optional keyword arguments that ``BlobClient.upload()`` takes.
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
-        self.upload(container_name, blob_name, string_data, **kwargs)
+        self.upload(
+            container_name=container_name,
+            blob_name=blob_name,
+            data=string_data,
+            create_container=create_container,
+            **kwargs,
+        )
 
     def get_file(self, file_path: str, container_name: str, blob_name: str, **kwargs):
         """
@@ -274,11 +311,12 @@ class WasbHook(BaseHook):
 
     def upload(
         self,
-        container_name,
-        blob_name,
-        data,
+        container_name: str,
+        blob_name: str,
+        data: Any,
         blob_type: str = 'BlockBlob',
         length: Optional[int] = None,
+        create_container: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -291,9 +329,13 @@ class WasbHook(BaseHook):
             ``PageBlob`` or ``AppendBlob``. The default value is ``BlockBlob``.
         :param length: Number of bytes to read from the stream. This is optional,
             but should be supplied for optimal performance.
+        :param create_container: Attempt to create the target container prior to uploading the blob. This is
+            useful if the target container may not exist yet. Defaults to False.
         """
-        container_client = self.create_container(container_name)
-        blob_client = container_client.get_blob_client(blob_name)
+        if create_container:
+            self.create_container(container_name)
+
+        blob_client = self._get_blob_client(container_name, blob_name)
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
@@ -311,7 +353,7 @@ class WasbHook(BaseHook):
         blob_client = self._get_blob_client(container_name, blob_name)
         return blob_client.download_blob(offset=offset, length=length, **kwargs)
 
-    def create_container(self, container_name: str) -> ContainerClient:
+    def create_container(self, container_name: str) -> None:
         """
         Create container object if not already existing
 
@@ -322,12 +364,24 @@ class WasbHook(BaseHook):
             self.log.debug('Attempting to create container: %s', container_name)
             container_client.create_container()
             self.log.info("Created container: %s", container_name)
-            return container_client
         except ResourceExistsError:
-            self.log.debug("Container %s already exists", container_name)
-            return container_client
-        except:  # noqa: E722
-            self.log.info('Error creating container: %s', container_name)
+            self.log.info(
+                "Attempted to create container %r but it already exists. If it is expected that this "
+                "container will always exist, consider setting create_container to False.",
+                container_name,
+            )
+        except HttpResponseError as e:
+            self.log.info(
+                "Received an HTTP response error while attempting to creating container %r: %s"
+                "\nIf the error is related to missing permissions to create containers, please consider "
+                "setting create_container to False or supplying connection credentials with the "
+                "appropriate permission for connection ID %r.",
+                container_name,
+                e.response,
+                self.conn_id,
+            )
+        except Exception as e:
+            self.log.info('Error while attempting to create container %r: %s', container_name, e)
             raise
 
     def delete_container(self, container_name: str) -> None:

@@ -66,18 +66,18 @@ class BaseHook(LoggingMixin):
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)
-        if conn.host:
-            log.info(
-                "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
-                "extra: %s",
-                conn.conn_id,
-                conn.host,
-                conn.port,
-                conn.schema,
-                conn.login,
-                redact(conn.password),
-                redact(conn.extra_dejson),
-            )
+        log.info("Using connection ID '%s' for task execution.", conn.conn_id)
+        log.debug(
+            "Connection details for '%s':: Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
+            "Extra: %s",
+            conn.conn_id,
+            conn.host,
+            conn.port,
+            conn.schema,
+            conn.login,
+            redact(conn.password),
+            redact(conn.extra_dejson),
+        )
         return conn
 
     @classmethod

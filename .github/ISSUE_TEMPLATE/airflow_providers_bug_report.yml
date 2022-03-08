@@ -44,6 +44,7 @@ body:
         - cncf-kubernetes
         - databricks
         - datadog
+        - dbt-cloud
         - dingding
         - discord
         - docker
@@ -110,7 +111,8 @@ body:
         discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
       multiple: false
       options:
-        - "2.2.3 (latest released)"
+        - "2.2.4 (latest released)"
+        - "2.2.3"
         - "2.2.2"
         - "2.2.1"
         - "2.2.0"

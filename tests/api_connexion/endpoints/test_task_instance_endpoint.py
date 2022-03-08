@@ -22,6 +22,7 @@ from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
 from airflow.models import DagRun, SlaMiss, TaskInstance
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
@@ -29,7 +30,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
-from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
+from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -105,6 +106,7 @@ class TestTaskInstanceEndpoint:
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
+        clear_rendered_ti_fields()
         self.dagbag = dagbag
 
     def create_task_instances(
@@ -127,6 +129,7 @@ class TestTaskInstanceEndpoint:
         execution_date = self.ti_init.pop("execution_date", self.default_time)
         dr = None
 
+        tis = []
         for i in range(counter):
             if task_instances is None:
                 pass
@@ -155,8 +158,10 @@ class TestTaskInstanceEndpoint:
             for key, value in self.ti_extras.items():
                 setattr(ti, key, value)
             session.add(ti)
+            tis.append(ti)
 
         session.commit()
+        return tis
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
@@ -198,6 +203,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -229,10 +235,11 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
         }
 
-    def test_should_respond_200_task_instance_with_sla(self, session):
-        self.create_task_instances(session)
+    def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
+        tis = self.create_task_instances(session)
         session.query()
         sla_miss = SlaMiss(
             task_id="print_the_context",
@@ -241,6 +248,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             timestamp=self.default_time,
         )
         session.add(sla_miss)
+        rendered_fields = RTIF(tis[0], render_templates=False)
+        session.add(rendered_fields)
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -278,6 +287,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {'op_args': [], 'op_kwargs': {}},
         }
 
     def test_should_raises_401_unauthenticated(self):
@@ -1116,7 +1126,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=None,
+            run_id=None,
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
@@ -1165,7 +1175,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=run_id,
+            run_id=run_id,
             execution_date=None,
             future=True,
             past=True,

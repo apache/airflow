@@ -39,7 +39,7 @@ from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
+from airflow.models.xcom import IN_MEMORY_RUN_ID
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -98,7 +98,7 @@ def _get_dag_run(
             ) from None
 
     if execution_date is not None:
-        return DagRun(dag.dag_id, run_id=IN_MEMORY_DAGRUN_ID, execution_date=execution_date)
+        return DagRun(dag.dag_id, run_id=IN_MEMORY_RUN_ID, execution_date=execution_date)
     return DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=timezone.utcnow())
 
 
@@ -113,9 +113,9 @@ def _get_ti(
 ) -> TaskInstance:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     if task.is_mapped:
-        if map_index == -1:
+        if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
-    elif map_index != -1:
+    elif map_index >= 0:
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run = _get_dag_run(
         dag=task.dag,
@@ -224,8 +224,6 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
-    if ti.task.is_mapped:
-        ti.task = ti.task.unmap()
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -319,11 +317,11 @@ def task_run(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
+    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
     # behind multiple open sleeping connections while heartbeating, which could
     # easily exceed the database connection limit when
     # processing hundreds of simultaneous tasks.
-    settings.configure_orm(disable_connection_pool=True)
+    settings.reconfigure_orm(disable_connection_pool=True)
 
     if args.pickle:
         print(f'Loading pickle id: {args.pickle}')

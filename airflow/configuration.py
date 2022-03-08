@@ -31,6 +31,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from contextlib import suppress
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -184,6 +185,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
         ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
         ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
+        ('api', 'auth_backends'): ('api', 'auth_backend', '2.3'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -202,6 +204,27 @@ class AirflowConfigParser(ConfigParser):
                 '2.1',
             ),
         },
+        'logging': {
+            'log_filename_template': (
+                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                "XX-set-after-default-config-loaded-XX",
+                3.0,
+            ),
+        },
+        'api': {
+            'auth_backends': (
+                re.compile(r'^airflow\.api\.auth\.backend\.deny_all$|^$'),
+                'airflow.api.auth.backend.session',
+                '3.0',
+            ),
+        },
+        'elasticsearch': {
+            'log_id_template': (
+                re.compile('^' + re.escape('{dag_id}-{task_id}-{run_id}-{try_number}') + '$'),
+                '{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}',
+                3.0,
+            )
+        },
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
@@ -211,7 +234,12 @@ class AirflowConfigParser(ConfigParser):
         ("scheduler", "file_parsing_sort_mode"): ["modified_time", "random_seeded_by_host", "alphabetical"],
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
+        # celery_logging_level can be empty, which uses logging_level as fallback
+        ("logging", "celery_logging_level"): _available_logging_levels + [''],
     }
+
+    upgraded_values: Dict[Tuple[str, str], str]
+    """Mapping of (section,option) to the old value that was upgraded"""
 
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
@@ -221,10 +249,27 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.upgraded_values = {}
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
             self.airflow_defaults.read_string(default_config)
+            # Set the upgrade value based on the current loaded default
+            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None, raw=True)
+            if default:
+                replacement = self.deprecated_values['logging']['log_filename_template']
+                self.deprecated_values['logging']['log_filename_template'] = (
+                    replacement[0],
+                    default,
+                    replacement[2],
+                )
+            else:
+                # In case of tests it might not exist
+                with suppress(KeyError):
+                    del self.deprecated_values['logging']['log_filename_template']
+        else:
+            with suppress(KeyError):
+                del self.deprecated_values['logging']['log_filename_template']
 
         self.is_validated = False
 
@@ -239,6 +284,7 @@ class AirflowConfigParser(ConfigParser):
                 old, new, version = info
                 current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
+                    self.upgraded_values[(section, name)] = current_value
                     new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
@@ -249,7 +295,27 @@ class AirflowConfigParser(ConfigParser):
                         version=version,
                     )
 
+        self._upgrade_auth_backends()
         self.is_validated = True
+
+    def _upgrade_auth_backends(self):
+        """
+        Ensure a custom auth_backends setting contains session,
+        which is needed by the UI for ajax queries.
+        """
+        old_value = self.get("api", "auth_backends", fallback="")
+        if old_value in ('airflow.api.auth.backend.default', ''):
+            # handled by deprecated_values
+            pass
+        elif old_value.find('airflow.api.auth.backend.session') == -1:
+            new_value = old_value + "\nairflow.api.auth.backend.session"
+            self._update_env_var(section="api", name="auth_backends", new_value=new_value)
+            warnings.warn(
+                'The auth_backends setting in [api] has had airflow.api.auth.backend.session added '
+                'in the running config, which is needed by the UI. Please update your config before '
+                'Apache Airflow 3.0.',
+                FutureWarning,
+            )
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
@@ -292,10 +358,11 @@ class AirflowConfigParser(ConfigParser):
         return old.search(current_value) is not None
 
     def _update_env_var(self, section, name, new_value):
-        # Make sure the env var option is removed, otherwise it
-        # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
-        os.environ.pop(env_var, None)
+        # If the config comes from environment, set it there so that any subprocesses keep the same override!
+        if env_var in os.environ:
+            os.environ[env_var] = new_value
+            return
         if not self.has_section(section):
             self.add_section(section)
         self.set(section, name, new_value)

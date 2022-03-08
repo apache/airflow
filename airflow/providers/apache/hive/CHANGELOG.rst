@@ -19,6 +19,31 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Set larger limit get_partitions_by_filter in HiveMetastoreHook (#21504)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Python 3.9 support in Hive (#21893)``
+* ``Fix key typo in 'template_fields_renderers' for 'HiveOperator' (#21525)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Add how-to guide for hive operator (#21590)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy issues in 'example_twitter_dag' (#21571)``
+   * ``Remove unnecessary/stale comments (#21572)``
+
 2.2.0
 .....
 

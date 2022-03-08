@@ -24,7 +24,7 @@
   autoRefreshInterval, moment, convertSecsToHumanReadable
 */
 
-import getMetaValue from './meta_value';
+import { getMetaValue, finalStatesMap } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 import { callModal } from './dag';
@@ -58,6 +58,13 @@ const stateFocusMap = {
   deferred: false,
   no_status: false,
 };
+
+const checkRunState = () => {
+  const states = Object.values(taskInstances).map((ti) => ti.state);
+  return !states.some((state) => (
+    ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1));
+};
+
 const taskTip = d3.tip()
   .attr('class', 'tooltip d3-tip')
   .html((toolTipHtml) => toolTipHtml);
@@ -74,6 +81,23 @@ const g = new dagreD3.graphlib.Graph({ compound: true }).setGraph({
 const render = dagreD3.render();
 const svg = d3.select('#graph-svg');
 let innerSvg = d3.select('#graph-svg g');
+
+// We modify the label of task map nodes to include the brackets and a count of mapped tasks
+// returns true if at least one node is changed
+const updateNodeLabels = (node, instances) => {
+  let haveLabelsChanged = false;
+  const label = tasks[node.id] && tasks[node.id].is_mapped
+    ? `${node.id} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
+    : node.value.label;
+
+  if (g.node(node.id) && g.node(node.id).label !== label) {
+    g.node(node.id).label = label;
+    haveLabelsChanged = true;
+  }
+
+  if (node.children) return node.children.some((n) => updateNodeLabels(n, instances));
+  return haveLabelsChanged;
+};
 
 // Remove the node with this nodeId from g.
 function removeNode(nodeId) {
@@ -363,13 +387,15 @@ function handleRefresh() {
         if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
           taskInstances = JSON.parse(tis);
-          const states = Object.values(taskInstances).map((ti) => ti.state);
           updateNodesStates(taskInstances);
 
+          // Only redraw the graph if labels have changed
+          const haveLabelsChanged = updateNodeLabels(nodes, taskInstances);
+          if (haveLabelsChanged) draw();
+
           // end refresh if all states are final
-          if (!states.some((state) => (
-            ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1))
-          ) {
+          const isFinal = checkRunState();
+          if (isFinal) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
           }
@@ -411,29 +437,16 @@ $('#auto_refresh').change(() => {
 });
 
 function initRefresh() {
-  if (localStorage.getItem('disableAutoRefresh')) {
-    $('#auto_refresh').prop('checked', false);
-  }
+  const isDisabled = localStorage.getItem('disableAutoRefresh');
+  const isFinal = checkRunState();
+  $('#auto_refresh').prop('checked', !(isDisabled || isFinal));
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }
 
 // Generate tooltip for a group node
 function groupTooltip(node, tis) {
-  const numMap = new Map([
-    ['success', 0],
-    ['failed', 0],
-    ['upstream_failed', 0],
-    ['up_for_retry', 0],
-    ['up_for_reschedule', 0],
-    ['running', 0],
-    ['deferred', 0],
-    ['sensing', 0],
-    ['queued', 0],
-    ['scheduled', 0],
-    ['skipped', 0],
-    ['no_status', 0],
-  ]);
+  const numMap = finalStatesMap();
 
   let minStart;
   let maxEnd;
@@ -472,14 +485,15 @@ function groupTooltip(node, tis) {
 // Initiating the tooltips
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
-    const { elem } = g.node(nodeId);
+    const node = g.node(nodeId);
+    const { elem } = node;
+    const taskId = nodeId;
+
     if (elem) {
       const classes = `node enter ${getNodeState(nodeId, tis)}`;
       elem.setAttribute('class', classes);
       elem.setAttribute('data-toggle', 'tooltip');
 
-      const taskId = nodeId;
-      const node = g.node(nodeId);
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
@@ -714,6 +728,7 @@ expandGroup(null, nodes);
 expandSavedGroups(expandedGroups, nodes);
 
 // Draw once after all groups have been expanded
+updateNodeLabels(nodes, taskInstances);
 draw();
 
 // Restore focus (if available)

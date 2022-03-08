@@ -216,7 +216,6 @@ class TaskGroup(DAGNode):
 
         self.used_group_ids.remove(key)
         del self.children[key]
-        task.task_group = None
 
     @property
     def group_id(self) -> Optional[str]:
@@ -231,7 +230,12 @@ class TaskGroup(DAGNode):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
+    def update_relative(
+        self,
+        other: DependencyMixin,
+        upstream=True,
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -256,10 +260,18 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
+                # Do not set a relationship between a TaskGroup and a Label's roots
+                if self == task:
+                    continue
+
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
                 else:
                     self.downstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
 
     def _set_relatives(
         self,
@@ -282,7 +294,7 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
+            self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
     def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)
@@ -380,7 +392,7 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
-    def map(self, arg: Iterable) -> "MappedTaskGroup":
+    def apply(self, arg: Iterable) -> "MappedTaskGroup":
         if self.children:
             raise RuntimeError("Cannot map a TaskGroup that already has children")
         if not self.group_id:

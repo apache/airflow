@@ -390,7 +390,11 @@ def test_trigger_failing(session):
         # Wait for up to 3 seconds for it to fire and appear in the event queue
         for _ in range(30):
             if job.runner.failed_triggers:
-                assert list(job.runner.failed_triggers) == [1]
+                assert len(job.runner.failed_triggers) == 1
+                trigger_id, exc = list(job.runner.failed_triggers)[0]
+                assert trigger_id == 1
+                assert isinstance(exc, ValueError)
+                assert exc.args[0] == "Deliberate trigger failure"
                 break
             time.sleep(0.1)
         else:
@@ -448,7 +452,7 @@ def test_invalid_trigger(session, dag_maker):
     job.load_triggers()
 
     # Make sure it turned up in the failed queue
-    assert list(job.runner.failed_triggers) == [1]
+    assert len(job.runner.failed_triggers) == 1
 
     # Run the failed trigger handler
     job.handle_failed_triggers()
@@ -458,4 +462,5 @@ def test_invalid_trigger(session, dag_maker):
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method == "__fail__"
-    assert task_instance.next_kwargs == {'error': 'Trigger failure'}
+    assert task_instance.next_kwargs['error'] == 'Trigger failure'
+    assert task_instance.next_kwargs['traceback'][-1] == "ModuleNotFoundError: No module named 'fake'\n"

@@ -26,6 +26,8 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
+import lazy_object_proxy
+
 from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
@@ -162,11 +164,16 @@ def positive_int(*, allow_zero):
     return _check
 
 
+def string_list_type(val):
+    """Parses comma-separated list and returns list of string (strips whitespace)"""
+    return [x.strip() for x in val.split(',')]
+
+
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
 ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
-ARG_EXECUTION_DATE_OR_DAGRUN_ID = Arg(
+ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
 )
 ARG_TASK_REGEX = Arg(
@@ -205,7 +212,10 @@ ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
 ARG_YES = Arg(
-    ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
+    ("-y", "--yes"),
+    help="Do not prompt to confirm. Use with care!",
+    action="store_true",
+    default=False,
 )
 ARG_OUTPUT = Arg(
     (
@@ -222,6 +232,21 @@ ARG_COLOR = Arg(
     help="Do emit colored output (default: auto)",
     choices={ColorMode.ON, ColorMode.OFF, ColorMode.AUTO},
     default=ColorMode.AUTO,
+)
+
+# DB args
+ARG_VERSION_RANGE = Arg(
+    ("-r", "--range"),
+    help="Version range(start:end) for offline sql generation. Example: '2.0.2:2.2.3'",
+    default=None,
+)
+ARG_REVISION_RANGE = Arg(
+    ('--revision-range',),
+    help=(
+        "Migration revision range(start:end) to use for offline sql generation. "
+        "Example: ``a13f7613ad25:7b2661a43ba3``"
+    ),
+    default=None,
 )
 
 # list_dag_runs
@@ -378,6 +403,30 @@ ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(('-c', '--conf'), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
 
+# db
+ARG_DB_TABLES = Arg(
+    ("-t", "--tables"),
+    help=lazy_object_proxy.Proxy(
+        lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
+        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+    ),
+    type=string_list_type,
+)
+ARG_DB_CLEANUP_TIMESTAMP = Arg(
+    ("--clean-before-timestamp",),
+    help="The date or timestamp before which data should be purged.\n"
+    "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
+    "Example: '2022-01-01 00:00:00+01:00'",
+    type=parsedate,
+    required=True,
+)
+ARG_DB_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+
+
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
@@ -459,11 +508,42 @@ ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(('--map-index',), type=int, default=-1, help="Mapped task index")
 
+
+# database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
     type=int,
     default=60,
+)
+ARG_DB_VERSION = Arg(
+    (
+        "-n",
+        "--version",
+    ),
+    help="The airflow version to downgrade to. Note: must provide either `--revision` or `--version`.",
+)
+ARG_DB_FROM_VERSION = Arg(
+    ("--from-version",),
+    help="(Optional) If generating sql, may supply a _from_ version",
+)
+ARG_DB_REVISION = Arg(
+    (
+        "-r",
+        "--revision",
+    ),
+    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
+)
+ARG_DB_FROM_REVISION = Arg(
+    ("--from-revision",),
+    help="(Optional) If generating sql, may supply a _from_ revision",
+)
+ARG_DB_SQL = Arg(
+    ("-s", "--sql-only"),
+    help="Don't actually run migrations; just print out sql scripts for offline migration. "
+    "Required if using either `--from-version` or `--from-version`.",
+    action="store_true",
+    default=False,
 )
 
 # webserver
@@ -799,7 +879,7 @@ ARG_INCLUDE_DAGS = Arg(
 # triggerer
 ARG_CAPACITY = Arg(
     ("--capacity",),
-    type=str,
+    type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
@@ -1090,7 +1170,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1105,7 +1185,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
     ),
     ActionCommand(
         name='render',
@@ -1114,7 +1194,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1127,7 +1207,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
@@ -1158,7 +1238,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1171,7 +1251,7 @@ TASKS_COMMANDS = (
         name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -1274,7 +1354,27 @@ DB_COMMANDS = (
         name='upgrade',
         help="Upgrade the metadata database to latest version",
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-        args=(),
+        args=(ARG_VERSION_RANGE, ARG_REVISION_RANGE),
+    ),
+    ActionCommand(
+        name='downgrade',
+        help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--revision` or `--version`. "
+            "To print but not execute commands, use option `--sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
+        func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
+        args=(
+            ARG_DB_REVISION,
+            ARG_DB_VERSION,
+            ARG_DB_SQL,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+        ),
     ),
     ActionCommand(
         name='shell',
@@ -1287,6 +1387,18 @@ DB_COMMANDS = (
         help="Check if the database can be reached",
         func=lazy_load_command('airflow.cli.commands.db_command.check'),
         args=(),
+    ),
+    ActionCommand(
+        name='clean',
+        help="Purge old records in metastore tables",
+        func=lazy_load_command('airflow.cli.commands.db_command.cleanup_tables'),
+        args=(
+            ARG_DB_TABLES,
+            ARG_DB_DRY_RUN,
+            ARG_DB_CLEANUP_TIMESTAMP,
+            ARG_VERBOSE,
+            ARG_YES,
+        ),
     ),
 )
 CONNECTIONS_COMMANDS = (

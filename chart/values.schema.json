@@ -67,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.2.3",
+            "default": "2.2.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.2.3",
+            "default": "2.2.4",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -568,7 +568,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-buster"
+                            "default": "6-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -2003,6 +2003,45 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "command": {
+                    "description": "Command to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "--",
+                        "-r",
+                        "{{ .Values.webserver.defaultUser.role }}",
+                        "-u",
+                        "{{ .Values.webserver.defaultUser.username }}",
+                        "-e",
+                        "{{ .Values.webserver.defaultUser.email }}",
+                        "-f",
+                        "{{ .Values.webserver.defaultUser.firstName }}",
+                        "-l",
+                        "{{ .Values.webserver.defaultUser.lastName }}",
+                        "-p",
+                        "{{ .Values.webserver.defaultUser.password }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the create user job pod.",
                     "type": "object",
@@ -2138,6 +2177,32 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "command": {
+                    "description": "Command to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\" }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod.",
                     "type": "object",

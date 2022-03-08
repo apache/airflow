@@ -301,7 +301,7 @@ to a TaskFlow function which parses the response as JSON.
     )
 
 
-    @task(max_retries=2)
+    @task
     def parse_results(api_results):
         return json.loads(api_results)
 
@@ -312,7 +312,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
 .. code-block:: python
 
-    @task
+    @task(retries=3)
     def create_queue():
         """This is a Python function that creates an SQS queue"""
         hook = SqsHook()

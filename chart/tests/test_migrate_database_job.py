@@ -17,6 +17,7 @@
 
 import jmespath
 import pytest
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -200,3 +201,52 @@ class TestMigrateDatabaseJob:
         assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
+
+    @parameterized.expand(
+        [
+            ("1.10.14", "airflow upgradedb"),
+            ("2.0.2", "airflow db upgrade"),
+        ],
+    )
+    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert [
+            "bash",
+            "-c",
+            f"exec \\\n{expected_arg}",
+        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"command": command, "args": args}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])

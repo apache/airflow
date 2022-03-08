@@ -32,6 +32,8 @@ However part of the philosophy we have is that we are not tightly coupled with a
 environments we use. Most of our CI jobs are written as bash scripts which are executed as steps in
 the CI jobs. And we have  a number of variables determine build behaviour.
 
+You can also take a look at the `CI Sequence Diagrams <CI_DIAGRAMS.md>`_ for more graphical overview
+of how Airlfow's CI works.
 
 GitHub Actions runs
 -------------------
@@ -605,11 +607,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-buster                                 | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-buster                | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
@@ -670,38 +672,11 @@ this case, you do not need to checkout the sources that were used for that run -
 the image - but remember that any changes you make in those sources are lost when you leave the image as
 the sources are not mapped from your host machine.
 
-CI Sequence diagrams
-====================
-
-Sequence diagrams are shown of the flow happening during the CI Jobs.
-
-Pull request flow from fork
----------------------------
-
-.. image:: images/ci/pull_request_ci_flow.png
-    :align: center
-    :alt: Pull request flow from fork
-
-
-Direct Push/Merge flow
-----------------------
-
-.. image:: images/ci/push_ci_flow.png
-    :align: center
-    :alt: Direct Push/Merge flow
-
-Scheduled build flow
----------------------
-
-.. image:: images/ci/scheduled_ci_flow.png
-    :align: center
-    :alt: Scheduled build flow
-
 
 Adding new Python versions to CI
 --------------------------------
 
-In 2.0 line we currently support Python 3.6, 3.7, 3.8, 3.9.
+In the ``main`` branch of development line we currently support Python 3.7, 3.8, 3.9.
 
 In order to add a new version the following operations should be done (example uses Python 3.10)
 
@@ -724,6 +699,6 @@ In order to add a new version the following operations should be done (example u
 
   ./breeze push-image --python 3.10
 
-* Find the 4 new images (main, ci, build, ci-manifest) created in
+* Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
   go to Package Settings and turn on ``Public Visibility`` and set "Inherit access from Repository" flag.

@@ -22,6 +22,7 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 versions:
+  - 2.4.1
   - 2.4.0
   - 2.3.0
   - 2.2.0

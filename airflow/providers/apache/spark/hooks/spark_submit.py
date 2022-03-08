@@ -48,7 +48,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         comma. Files will be placed in the working directory of each executor.
         For example, serialized objects.
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
-    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+    :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
     :param driver_class_path: Additional, driver-specific, classpath settings.
     :param jars: Submit additional jars to upload and place them in executor classpath.

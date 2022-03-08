@@ -221,7 +221,7 @@ class TestWorkerStart(unittest.TestCase):
                 '--hostname',
                 celery_hostname,
                 '--loglevel',
-                conf.get('logging', 'LOGGING_LEVEL'),
+                conf.get('logging', 'CELERY_LOGGING_LEVEL'),
                 '--pidfile',
                 pid_file,
                 '--autoscale',

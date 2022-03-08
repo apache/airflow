@@ -26,6 +26,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 from freezegun import freeze_time
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
@@ -205,6 +206,55 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
+
+    @patch("airflow.models.dagbag.timeout")
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_process_dag_file_without_timeout(self, mocked_get_dagbag_import_timeout, mocked_timeout):
+        """
+        Test dag file parsing without timeout
+        """
+        mocked_get_dagbag_import_timeout.return_value = 0
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+        mocked_timeout.assert_not_called()
+
+        mocked_get_dagbag_import_timeout.return_value = -1
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+        mocked_timeout.assert_not_called()
+
+    @patch("airflow.models.dagbag.timeout")
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_process_dag_file_with_non_default_timeout(
+        self, mocked_get_dagbag_import_timeout, mocked_timeout
+    ):
+        """
+        Test customized dag file parsing timeout
+        """
+        timeout_value = 100
+        mocked_get_dagbag_import_timeout.return_value = timeout_value
+
+        # ensure the test value is not equal to the default value
+        assert timeout_value != settings.conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+
+        mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
+
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_check_value_type_from_get_dagbag_import_timeout(self, mocked_get_dagbag_import_timeout):
+        """
+        Test correctness of value from get_dagbag_import_timeout
+        """
+        mocked_get_dagbag_import_timeout.return_value = '1'
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        with pytest.raises(
+            TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
+        ):
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
 
     def test_process_file_cron_validity_check(self):
         """

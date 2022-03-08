@@ -116,12 +116,26 @@ class TestXComArgBuild:
 
         assert op_a.output == XComArg(op_a)
 
+    def test_xcom_key_getitem_not_str(self, dag_maker):
+        python_op = build_python_op(dag_maker)
+        actual = XComArg(python_op)
+        with pytest.raises(ValueError) as ctx:
+            actual[1]
+        assert str(ctx.value) == "XComArg only supports str lookup, received int"
+
     def test_xcom_key_getitem(self, dag_maker):
         python_op = build_python_op(dag_maker)
         actual = XComArg(python_op, key="another_key")
         assert actual.key == "another_key"
         actual_new_key = actual["another_key_2"]
         assert actual_new_key.key == "another_key_2"
+
+    def test_xcom_not_iterable(self, dag_maker):
+        python_op = build_python_op(dag_maker)
+        actual = XComArg(python_op)
+        with pytest.raises(TypeError) as ctx:
+            list(actual)
+        assert str(ctx.value) == "'XComArg' object is not iterable"
 
 
 @pytest.mark.system("core")

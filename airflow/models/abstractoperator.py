@@ -17,16 +17,23 @@
 # under the License.
 
 import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, List, Optional, Set, Type, Union
+import inspect
+from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
+
+from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
+from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -34,17 +41,18 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER = conf.get("operators", "default_owner")
-DEFAULT_POOL_SLOTS = 1
-DEFAULT_PRIORITY_WEIGHT = 1
-DEFAULT_QUEUE = conf.get("operators", "default_queue")
-DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY = datetime.timedelta(seconds=300)
-DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
-DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
-
-TaskStateChangeCallback = Callable[[Context], None]
+DEFAULT_OWNER: str = conf.get("operators", "default_owner")
+DEFAULT_POOL_SLOTS: int = 1
+DEFAULT_PRIORITY_WEIGHT: int = 1
+DEFAULT_QUEUE: str = conf.get("operators", "default_queue")
+DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
+    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+)
+DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -235,17 +243,168 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def extra_links(self) -> List[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
-    def get_extra_links(self, dttm: datetime.datetime, link_name: str) -> Optional[Dict[str, Any]]:
+    def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
 
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
-        :param dttm: The datetime parsed execution date for the URL being searched for.
+        :param ti: The TaskInstance for the URL being searched for.
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        if link_name in self.operator_extra_link_dict:
-            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
-        elif link_name in self.global_operator_extra_link_dict:
-            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
+        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+        # Check for old function signature
+        parameters = inspect.signature(link.get_link).parameters
+        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
+        if "ti_key" in args:
+            return link.get_link(self, ti_key=ti.key)
+        else:
+            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
         return None
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+    ) -> Optional["BaseOperator"]:
+        """Template all attributes listed in template_fields.
+
+        If the operator is mapped, this should return the unmapped, fully
+        rendered, and map-expanded operator. The mapped operator should not be
+        modified.
+
+        If the operator is not mapped, this should modify the operator in-place
+        and return either *None* (for backwards compatibility) or *self*.
+        """
+        raise NotImplementedError()
+
+    @provide_session
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: "jinja2.Environment",
+        seen_oids: Set,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        for attr_name in template_fields:
+            try:
+                value = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {parent.task_type} does not have this attribute."
+                )
+            if not value:
+                continue
+            rendered_content = self._render_template_field(
+                attr_name,
+                value,
+                context,
+                jinja_env,
+                seen_oids,
+                session=session,
+            )
+            setattr(parent, attr_name, rendered_content)
+
+    def _render_template_field(
+        self,
+        key: str,
+        value: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+        *,
+        session: Session,
+    ) -> Any:
+        """Override point for MappedOperator to perform further resolution."""
+        return self.render_template(value, context, jinja_env, seen_oids)
+
+    def render_template(
+        self,
+        content: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+    ) -> Any:
+        """Render a templated string.
+
+        If *content* is a collection holding multiple templated strings, strings
+        in the collection will be templated recursively.
+
+        :param content: Content to template. Only strings can be templated (may
+            be inside a collection).
+        :param context: Dict with values to apply on templated content
+        :param jinja_env: Jinja environment. Can be provided to avoid
+            re-creating Jinja environments during recursion.
+        :param seen_oids: template fields already rendered (to avoid
+            *RecursionError* on circular dependencies)
+        :return: Templated content
+        """
+        # "content" is a bad name, but we're stuck to it being public API.
+        value = content
+        del content
+
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+
+        from airflow.models.param import DagParam
+        from airflow.models.xcom_arg import XComArg
+
+        if isinstance(value, str):
+            if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
+                template = jinja_env.get_template(value)
+            else:
+                template = jinja_env.from_string(value)
+            dag = self.get_dag()
+            if dag and dag.render_template_as_native_obj:
+                return render_template_as_native(template, context)
+            return render_template_to_string(template, context)
+
+        if isinstance(value, (DagParam, XComArg)):
+            return value.resolve(context)
+
+        # Fast path for common built-in collections.
+        if value.__class__ is tuple:
+            return tuple(self.render_template(element, context, jinja_env) for element in value)
+        elif isinstance(value, tuple):  # Special case for named tuples.
+            return value.__class__(*(self.render_template(el, context, jinja_env) for el in value))
+        elif isinstance(value, list):
+            return [self.render_template(element, context, jinja_env) for element in value]
+        elif isinstance(value, dict):
+            return {key: self.render_template(value, context, jinja_env) for key, value in value.items()}
+        elif isinstance(value, set):
+            return {self.render_template(element, context, jinja_env) for element in value}
+
+        # More complex collections.
+        if seen_oids is None:
+            oids = set()
+        else:
+            oids = seen_oids
+        self._render_nested_template_fields(value, context, jinja_env, oids)
+        return value
+
+    def _render_nested_template_fields(
+        self,
+        value: Any,
+        context: Context,
+        jinja_env: "jinja2.Environment",
+        seen_oids: Set[int],
+    ) -> None:
+        if id(value) in seen_oids:
+            return
+        seen_oids.add(id(value))
+        try:
+            nested_template_fields = value.template_fields
+        except AttributeError:
+            # content has no inner template fields
+            return
+        self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)

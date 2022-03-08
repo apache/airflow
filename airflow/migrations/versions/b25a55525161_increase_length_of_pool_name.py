@@ -34,6 +34,7 @@ revision = 'b25a55525161'
 down_revision = 'bbf4a7ad0465'
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 
 def upgrade():
@@ -45,6 +46,5 @@ def upgrade():
 
 def downgrade():
     """Revert Increased length of pool name from 256 to 50 characters"""
-    # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('slot_pool', table_args=sa.UniqueConstraint('pool')) as batch_op:
         batch_op.alter_column('pool', type_=sa.String(50))

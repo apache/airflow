@@ -31,6 +31,12 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
+from airflow.callbacks.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    SlaCallbackRequest,
+    TaskCallbackRequest,
+)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
@@ -38,12 +44,6 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.callback_requests import (
-    CallbackRequest,
-    DagCallbackRequest,
-    SlaCallbackRequest,
-    TaskCallbackRequest,
-)
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
@@ -445,7 +445,7 @@ class DagFileProcessor(LoggingMixin):
             blocking_tis: List[TI] = []
             for ti in fetched_tis:
                 if ti.task_id in dag.task_ids:
-                    ti.task = dag.get_task(ti.task_id)  # type: ignore[assignment]  # TODO: Fix task: Operator
+                    ti.task = dag.get_task(ti.task_id)
                     blocking_tis.append(ti)
                 else:
                     session.delete(ti)

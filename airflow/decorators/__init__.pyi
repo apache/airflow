@@ -20,9 +20,10 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
 
 from airflow.decorators.base import Function, Task, TaskDecorator
+from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
@@ -37,6 +38,7 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "branch_task",
 ]
 
 class TaskDecoratorCollection:
@@ -125,12 +127,31 @@ class TaskDecoratorCollection:
         """
     @overload
     def virtualenv(self, python_callable: Function) -> Task[Function]: ...
+    @overload
+    def branch(
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ) -> TaskDecorator:
+        """Wraps a python function into a BranchPythonOperator
+
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonOperator`
+        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
+    @overload
+    def branch(self, python_callable: Function) -> Task[Function]: ...
     # [START decorator_signature]
     def docker(
         self,
         *,
         multiple_outputs: Optional[bool] = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
+        python_command: str = "python3",
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
@@ -172,6 +193,7 @@ class TaskDecoratorCollection:
             with index as key. Dict will unroll to xcom values with keys as XCom keys.
             Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
+        :param python_command: Python command for executing functions, Default: python3
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically
@@ -190,6 +212,12 @@ class TaskDecoratorCollection:
         :param host_tmp_dir: Specify the location of the temporary directory on the host which will
             be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
         :param network_mode: Network mode for the container.
+            It can be one of the following:
+            bridge - Create new network stack for the container with default docker bridge network
+            None - No networking for this container
+            container:<name|id> - Use the network stack of another container specified via <name|id>
+            host - Use the host network stack. Incompatible with `port_bindings`
+            '<network-name>|<network-id>' - Connects the container to user created network(using `docker network create` command)
         :param tls_ca_cert: Path to a PEM-encoded certificate authority
             to secure the docker connection.
         :param tls_client_cert: Path to the PEM-encoded certificate

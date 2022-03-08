@@ -46,15 +46,12 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import (
-    GbqConnector,
-    _check_google_client_version as gbq_check_google_client_version,
-    _test_google_api_imports as gbq_test_google_api_imports,
-)
+from pandas_gbq.gbq import GbqConnector  # noqa
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -146,7 +143,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         return Client(
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             project=project_id,
             location=location,
             credentials=self._get_credentials(),
@@ -163,6 +160,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if engine_kwargs is None:
+            engine_kwargs = {}
         connection = self.get_connection(self.gcp_conn_id)
         if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
             credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
@@ -186,6 +185,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 ", extra__google_cloud_platform__key_path"
                 "and extra__google_cloud_platform__keyfile_dict"
             )
+
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise AirflowException("Need to specify 'location' to use BigQueryHook.get_records()")
+        return super().get_records(sql, parameters=parameters)
 
     @staticmethod
     def _resolve_table_reference(
@@ -2183,28 +2187,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
         return job.job_id
-
-
-class BigQueryPandasConnector(GbqConnector):
-    """
-    This connector behaves identically to GbqConnector (from Pandas), except
-    that it allows the service to be injected, and disables a call to
-    self.get_credentials(). This allows Airflow to use BigQuery with Pandas
-    without forcing a three legged OAuth connection. Instead, we can inject
-    service account credentials into the binding.
-    """
-
-    def __init__(
-        self, project_id: str, service: str, reauth: bool = False, verbose: bool = False, dialect="legacy"
-    ) -> None:
-        super().__init__(project_id)
-        gbq_check_google_client_version()
-        gbq_test_google_api_imports()
-        self.project_id = project_id
-        self.reauth = reauth
-        self.service = service
-        self.verbose = verbose
-        self.dialect = dialect
 
 
 class BigQueryConnection:

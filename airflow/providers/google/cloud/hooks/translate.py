@@ -20,6 +20,7 @@ from typing import List, Optional, Sequence, Union
 
 from google.cloud.translate_v2 import Client
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -52,7 +53,7 @@ class CloudTranslateHook(GoogleBaseHook):
         :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
-            self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = Client(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.quota_retry()

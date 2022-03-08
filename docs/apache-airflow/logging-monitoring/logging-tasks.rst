@@ -38,7 +38,12 @@ directory.
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
 
-The following convention is followed while naming logs: ``{dag_id}/{task_id}/{logical_date}/{try_number}.log``
+The default pattern is followed while naming log files for tasks:
+
+- For normal tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/attempt={try_number}.log``.
+- For dynamically mapped tasks: ``dag_id={dag_id}/run_id={run_id}/task_id={task_id}/map_index={map_index}/attempt={try_number}.log``.
+
+These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
 In addition, you can supply a remote location to store current logs and backups.
 

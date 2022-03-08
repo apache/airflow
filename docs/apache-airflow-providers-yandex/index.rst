@@ -59,7 +59,7 @@ Package apache-airflow-providers-yandex
 Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 2.2.0
+Release: 2.2.1
 
 Provider package
 ----------------
@@ -80,7 +80,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``yandexcloud``     ``>=0.122.0``
+``yandexcloud``     ``>=0.146.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/yandex/CHANGELOG.rst

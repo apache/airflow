@@ -66,9 +66,25 @@ class XComArg(DependencyMixin):
     def __eq__(self, other):
         return self.operator == other.operator and self.key == other.key
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> "XComArg":
         """Implements xcomresult['some_result_key']"""
+        if not isinstance(item, str):
+            raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return XComArg(operator=self.operator, key=item)
+
+    def __iter__(self):
+        """Override iterable protocol to raise error explicitly.
+
+        The default ``__iter__`` implementation in Python calls ``__getitem__``
+        with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
+        well with our custom ``__getitem__`` implementation, and results in poor
+        DAG-writing experience since a misplaced ``*`` expansion would create an
+        infinite loop consuming the entire DAG parser.
+
+        This override catches the error eagerly, so an incorrectly implemented
+        DAG fails fast and avoids wasting resources on nonsensical iterating.
+        """
+        raise TypeError(f"{self.__class__.__name__!r} object is not iterable")
 
     def __str__(self):
         """

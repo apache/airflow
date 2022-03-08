@@ -29,10 +29,6 @@ readonly COLOR_RESET
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 
 install_mysql_client() {
-    echo
-    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}${COLOR_RESET}"
-    echo
-
     if [[ "${1}" == "dev" ]]; then
         packages=("libmysqlclient-dev" "mysql-client")
     elif [[ "${1}" == "prod" ]]; then
@@ -43,6 +39,10 @@ install_mysql_client() {
         echo
         exit 1
     fi
+
+    echo
+    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}: ${1}${COLOR_RESET}"
+    echo
 
     local key="467B942D3A79BD29"
     readonly key

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add serialized_dag table
+"""Add ``serialized_dag`` table
 
 Revision ID: d38e04c12aa2
 Revises: 6e96a59344a4
@@ -34,6 +34,7 @@ revision = 'd38e04c12aa2'
 down_revision = '6e96a59344a4'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.7'
 
 
 def upgrade():

@@ -26,6 +26,7 @@ from google.cloud.devtools.cloudbuild import CloudBuildClient
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
@@ -84,7 +85,7 @@ class CloudBuildHook(GoogleBaseHook):
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
-            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

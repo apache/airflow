@@ -1,5 +1,5 @@
-click~=7.0
-jinja2~=2.10
+click>=8.0
+jinja2>=2.10
 keyring==10.1
 PyGithub
 jsonpath_ng
@@ -7,4 +7,5 @@ jsonschema
 pyyaml
 packaging
 rich
+rich_click
 tabulate

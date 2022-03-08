@@ -39,3 +39,7 @@ class VertexAIExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def test_run_dataset_example_dag(self):
         self.run_dag(dag_id="example_gcp_vertex_ai_dataset", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_auto_ml_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_auto_ml", dag_folder=CLOUD_DAG_FOLDER)

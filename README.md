@@ -53,6 +53,9 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Semantic versioning](#semantic-versioning)
 - [Version Life Cycle](#version-life-cycle)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
+- [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
+- [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
+- [Support for providers](#support-for-providers)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -82,7 +85,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)  | Stable version (2.2.3)   |
+|                     | Main version (dev)  | Stable version (2.2.4)   |
 |---------------------|---------------------|--------------------------|
 | Python              | 3.7, 3.8, 3.9       | 3.6, 3.7, 3.8, 3.9       |
 | Kubernetes          | 1.20, 1.21          | 1.18, 1.19, 1.20         |
@@ -107,7 +110,7 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Buster`.
+`Debian Bullseye`.
 
 ## Getting started
 
@@ -153,15 +156,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.2.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.3/constraints-3.7.txt"
+pip install 'apache-airflow==2.2.4' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.2.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.3/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.2.4' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -266,7 +269,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.2.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.2.4                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -295,7 +298,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.2.3` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.2.4` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -303,10 +306,94 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 
-### Additional notes on Python version requirements
+## Base OS support for reference Airflow images
 
-* Previous versions [require](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
-  when using Python 3.
+The Airflow Community provides conveniently packaged container images that are published whenever
+we publish an Apache Airflow release. Those images contain:
+
+* Base OS with necessary packages to install Airflow (stable Debian OS)
+* Base Python installation in versions supported at the time of release for the MINOR version of
+  Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
+* Libraries required to connect to suppoerted Databases (again the set of databases supported depends
+  on the MINOR version of Airflow.
+* Predefined set of popular providers (for details see the [Dockerfile](Dockerfile)).
+* Possibility of building your own, custom image where the user can choose their own set of providers
+  and libraries (see [Building the image](https://airflow.apache.org/docs/docker-stack/build.html))
+* In the future Airflow might also support a "slim" version without providers nor database clients installed
+
+The version of the base OS image is the stable version of Debian. Airflow supports using all currently active
+stable versions - as soon as all Airflow dependencies support building, and we set up the CI pipeline for
+building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
+version of the OS, Airflow switches the images released to use the latest supported version of the OS.
+For example since Debian Buster end-of-life is August 2022, Airflow switches the images in `main` branch
+to use Debian Bullseye in February/March 2022. The version will be used in the next MINOR release after
+the switch happens. In case of the Bullseye switch - 2.3.0 version will use Bullseye. The images released
+in the previous MINOR version continue to use the version that all other releases for the MINOR version
+used.
+
+Users will continue to be able to build their images using stable Debian releases until the end of life and
+building and verifying of the images happens in our CI but no unit tests are executed using this image in
+the `main` branch.
+
+## Approach to dependencies of Airflow
+
+Airflow has a lot of dependencies - direct and transitive, also Airflow is both - library and application,
+therefore our policies to dependencies has to include both - stability of installation of application,
+but also ability to install newer version of dependencies for those users who develop DAGs. We developed
+the approach where `constraints` are used to make sure airflow can be installed in a repeatable way, while
+we do not limit our users to upgrade most of the dependencies. As a result we decided not to upper-bound
+version of Airflow dependencies by default, unless we have good reasons to believe upper-bounding them is
+needed because of importance of the dependency as well as risk it involves to upgrade specific dependency.
+We also upper-bound the dependencies that we know cause problems.
+
+The constraint mechanism of ours takes care about finding and upgrading all the non-upper bound dependencies
+automatically (providing that all the tests pass). Our `main` build failures will indicate in case there
+are versions of dependencies that break our tests - indicating that we should either upper-bind them or
+that we should fix our code/tests to account for the upstream changes from those dependencies.
+
+Whenever we upper-bound such a dependency, we should always comment why we are doing it - i.e. we should have
+a good reason why dependency is upper-bound. And we should also mention what is the condition to remove the
+binding.
+
+### Approach for dependencies for Airflow Core
+
+Those `extras` and `providers` dependencies are maintained in `setup.cfg`.
+
+There are few dependencies that we decided are important enough to upper-bound them by default, as they are
+known to follow predictable versioning scheme, and we know that new versions of those are very likely to
+bring breaking changes. We commit to regularly review and attempt to upgrade to the newer versions of
+the dependencies as they are released, but this is manual process.
+
+The important dependencies are:
+
+* `SQLAlchemy`: upper-bound to specific MINOR version (SQLAlchemy is known to remove deprecations and
+   introduce breaking changes especially that support for different Databases varies and changes at
+   various speed (example: SQLAlchemy 1.4 broke MSSQL integration for Airflow)
+* `Alembic`: it is important to handle our migrations in predictable and performant way. It is developed
+   together with SQLAlchemy. Our experience with Alembic is that it very stable in MINOR version
+* `Flask`: We are using Flask as the back-bone of our web UI and API. We know major version of Flask
+   are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
+* `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
+   libraries, and we should update them together
+
+### Approach for dependencies in Airflow Providers and extras
+
+Those `extras` and `providers` dependencies are maintained in `setup.py`.
+
+By default, we should not upper-bound dependencies for providers, however each provider's maintainer
+might decide to add additional limits (and justify them with comment)
+
+## Support for providers
+
+Providers released by the community have limitation of a minimum supported version of Airflow. The minimum
+version of Airflow is the `MINOR` version (2.1, 2.2 etc.) indicating that the providers might use features
+that appeared in this release. The default support timespan for the minimum version of Airflow
+(there could be justified exceptions) is that we increase the minimum Airflow version, when 12 months passed
+since the first release for the MINOR version of Airflow.
+
+For example this means that by default we upgrade the minimum version of Airflow supported by providers
+to 2.2.0 in the first Provider's release after 21st of May 2022 (21st of May 2021 is the date when the
+first `PATCHLEVEL` of 2.1 (2.1.0) has been released.
 
 ## Contributing
 

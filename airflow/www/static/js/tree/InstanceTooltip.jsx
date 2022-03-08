@@ -23,31 +23,20 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
 import { formatDateTime, getDuration, formatDuration } from '../datetime_utils';
+import { finalStatesMap } from '../utils';
 
 const InstanceTooltip = ({
   group,
   instance: {
-    duration, operator, startDate, endDate, state, taskId, runId,
+    duration, operator, startDate, endDate, state, taskId, runId, mappedStates,
   },
 }) => {
   const isGroup = !!group.children;
   const groupSummary = [];
+  const mapSummary = [];
 
   if (isGroup) {
-    const numMap = new Map([
-      ['success', 0],
-      ['failed', 0],
-      ['upstream_failed', 0],
-      ['up_for_retry', 0],
-      ['up_for_reschedule', 0],
-      ['running', 0],
-      ['deferred', 0],
-      ['sensing', 0],
-      ['queued', 0],
-      ['scheduled', 0],
-      ['skipped', 0],
-      ['no_status', 0],
-    ]);
+    const numMap = finalStatesMap();
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -58,6 +47,26 @@ const InstanceTooltip = ({
     numMap.forEach((key, val) => {
       if (key > 0) {
         groupSummary.push(
+          // eslint-disable-next-line react/no-array-index-key
+          <Text key={val} ml="10px">
+            {val}
+            {': '}
+            {key}
+          </Text>,
+        );
+      }
+    });
+  }
+
+  if (group.isMapped && mappedStates) {
+    const numMap = finalStatesMap();
+    mappedStates.forEach((s) => {
+      const stateKey = s || 'no_status';
+      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+    });
+    numMap.forEach((key, val) => {
+      if (key > 0) {
+        mapSummary.push(
           // eslint-disable-next-line react/no-array-index-key
           <Text key={val} ml="10px">
             {val}
@@ -86,6 +95,18 @@ const InstanceTooltip = ({
           <br />
           <Text as="strong">Group Summary</Text>
           {groupSummary}
+        </>
+      )}
+      {group.isMapped && (
+        <>
+          <br />
+          <Text as="strong">
+            {mappedStates.length}
+            {' '}
+            {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+            Mapped
+          </Text>
+          {mapSummary}
         </>
       )}
       <br />

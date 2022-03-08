@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add task_reschedule table
+"""Add ``task_reschedule`` table
 
 Revision ID: 0a2a5b66e19d
 Revises: 9635ae0956e7
@@ -32,6 +32,7 @@ revision = '0a2a5b66e19d'
 down_revision = '9635ae0956e7'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.2'
 
 TABLE_NAME = 'task_reschedule'
 INDEX_NAME = 'idx_' + TABLE_NAME + '_dag_task_date'

@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, Connection, DagRun, TaskInstance as TI
+from airflow.models import DAG, Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.sql import (
     BranchSQLOperator,
@@ -397,6 +397,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def setUp(self):
         super().setUp()
@@ -415,6 +416,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def test_unsupported_conn_type(self):
         """Check if BranchSQLOperator throws an exception for unsupported connection type"""

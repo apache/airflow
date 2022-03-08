@@ -31,6 +31,8 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
+    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -39,7 +41,13 @@ class QDSLink(BaseOperatorLink):
 
     name = 'Go to QDS'
 
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(
+        self,
+        operator: "AbstractOperator",
+        dttm: Optional[datetime] = None,
+        *,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
         """
         Get link to qubole command result page.
 
@@ -55,9 +63,13 @@ class QDSLink(BaseOperatorLink):
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
         else:
             host = 'https://api.qubole.com/v2/analyze?command_id='
-        qds_command_id = XCom.get_one(
-            key='qbol_cmd_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+        if ti_key:
+            qds_command_id = XCom.get_one(key='qbol_cmd_id', ti_key=ti_key)
+        else:
+            assert dttm
+            qds_command_id = XCom.get_one(
+                key='qbol_cmd_id', dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         url = host + str(qds_command_id) if qds_command_id else ''
         return url
 

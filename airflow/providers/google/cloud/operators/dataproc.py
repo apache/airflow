@@ -36,60 +36,23 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataproc import (
+    DATAPROC_BATCH_LINK,
+    DATAPROC_BATCHES_LINK,
+    DATAPROC_CLUSTER_LINK,
+    DATAPROC_JOB_LOG_LINK,
+    DATAPROC_WORKFLOW_LINK,
+    DATAPROC_WORKFLOW_TEMPLATE_LINK,
+    DataprocLink,
+    DataprocListLink,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
-DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
-DATAPROC_CLUSTER_LINK = (
-    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?region={region}&project={project_id}"
-)
-
-
-class DataprocJobLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Job link"""
-
-    name = "Dataproc Job"
-
-    def get_link(self, operator, dttm):
-        job_conf = XCom.get_one(
-            key="job_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            DATAPROC_JOB_LOG_LINK.format(
-                job_id=job_conf["job_id"],
-                region=job_conf["region"],
-                project_id=job_conf["project_id"],
-            )
-            if job_conf
-            else ""
-        )
-
-
-class DataprocClusterLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Cluster link"""
-
-    name = "Dataproc Cluster"
-
-    def get_link(self, operator, dttm):
-        cluster_conf = XCom.get_one(
-            key="cluster_conf", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
-        return (
-            DATAPROC_CLUSTER_LINK.format(
-                cluster_name=cluster_conf["cluster_name"],
-                region=cluster_conf["region"],
-                project_id=cluster_conf["project_id"],
-            )
-            if cluster_conf
-            else ""
-        )
 
 
 class ClusterGenerator:
@@ -481,7 +444,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     )
     template_fields_renderers = {'cluster_config': 'json'}
 
-    operator_extra_links = (DataprocClusterLink(),)
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -625,14 +588,8 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
-        self.xcom_push(
-            context,
-            key="cluster_conf",
-            value={
-                "cluster_name": self.cluster_name,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
         )
         try:
             # First try to create a new cluster
@@ -700,7 +657,7 @@ class DataprocScaleClusterOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('cluster_name', 'project_id', 'region', 'impersonation_chain')
 
-    operator_extra_links = (DataprocClusterLink(),)
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -780,14 +737,8 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
-        self.xcom_push(
-            context,
-            key="cluster_conf",
-            value={
-                "cluster_name": self.cluster_name,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
         )
         operation = hook.update_cluster(
             project_id=self.project_id,
@@ -805,9 +756,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :param cluster_name: Required. The cluster name (templated).
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
         if cluster with specified UUID does not exist.
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
@@ -834,9 +785,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         region: str,
         cluster_name: str,
+        project_id: Optional[str] = None,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -924,7 +875,7 @@ class DataprocJobBaseOperator(BaseOperator):
 
     job_type = ""
 
-    operator_extra_links = (DataprocJobLink(),)
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -1007,10 +958,8 @@ class DataprocJobBaseOperator(BaseOperator):
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
             # Save data required for extra links no matter what the job status will be
-            self.xcom_push(
-                context,
-                key='job_conf',
-                value={'job_id': job_id, 'region': self.region, 'project_id': self.project_id},
+            DataprocLink.persist(
+                context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id
             )
 
             if not self.asynchronous:
@@ -1084,7 +1033,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'pig_job'
 
-    operator_extra_links = (DataprocJobLink(),)
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -1550,7 +1499,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     """
     Creates new workflow template.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param template: The Dataproc workflow template to create. If a dict is provided,
@@ -1564,13 +1513,14 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("region", "template")
     template_fields_renderers = {"template": "json"}
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
         *,
         template: Dict,
-        project_id: str,
         region: Optional[str] = None,
+        project_id: Optional[str] = None,
         location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -1615,6 +1565,12 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
             self.log.info("Workflow %s created", workflow.name)
         except AlreadyExists:
             self.log.info("Workflow with given id already exists")
+        DataprocLink.persist(
+            context=context,
+            task_instance=self,
+            url=DATAPROC_WORKFLOW_TEMPLATE_LINK,
+            resource=self.template["id"],
+        )
 
 
 class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
@@ -1657,6 +1613,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('template_id', 'impersonation_chain', 'request_id', 'parameters')
     template_fields_renderers = {"parameters": "json"}
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -1703,6 +1660,10 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
             metadata=self.metadata,
         )
         operation.result()
+        workflow_id = operation.operation.name.split('/')[-1]
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
+        )
         self.log.info('Template instantiated.')
 
 
@@ -1746,6 +1707,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('template', 'impersonation_chain')
     template_fields_renderers = {"template": "json"}
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -1786,6 +1748,10 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
             metadata=self.metadata,
         )
         operation.result()
+        workflow_id = operation.operation.name.split('/')[-1]
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=workflow_id
+        )
         self.log.info('Template instantiated.')
 
 
@@ -1793,7 +1759,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     """
     Submits a job to a cluster.
 
-    :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
@@ -1827,13 +1793,13 @@ class DataprocSubmitJobOperator(BaseOperator):
     template_fields: Sequence[str] = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
-    operator_extra_links = (DataprocJobLink(),)
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
         *,
-        project_id: str,
         job: Dict,
+        project_id: Optional[str] = None,
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
@@ -1889,15 +1855,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         job_id = job_object.reference.job_id
         self.log.info('Job %s submitted successfully.', job_id)
         # Save data required by extra links no matter what the job status will be
-        self.xcom_push(
-            context,
-            key="job_conf",
-            value={
-                "job_id": job_id,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
-        )
+        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id)
 
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
@@ -1918,8 +1876,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
     """
     Updates a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param cluster_name: Required. The cluster name.
     :param cluster: Required. The changes to the cluster.
@@ -1955,8 +1913,15 @@ class DataprocUpdateClusterOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('impersonation_chain', 'cluster_name')
-    operator_extra_links = (DataprocClusterLink(),)
+    template_fields: Sequence[str] = (
+        'cluster_name',
+        'cluster',
+        'region',
+        'request_id',
+        'project_id',
+        'impersonation_chain',
+    )
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
@@ -2004,14 +1969,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
     def execute(self, context: 'Context'):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required by extra links no matter what the cluster status will be
-        self.xcom_push(
-            context,
-            key="cluster_conf",
-            value={
-                "cluster_name": self.cluster_name,
-                "region": self.region,
-                "project_id": self.project_id,
-            },
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
         )
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
@@ -2034,7 +1993,7 @@ class DataprocCreateBatchOperator(BaseOperator):
     """
     Creates a batch workload.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to. (templated)
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
@@ -2066,12 +2025,13 @@ class DataprocCreateBatchOperator(BaseOperator):
         'region',
         'impersonation_chain',
     )
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
         *,
         region: Optional[str] = None,
-        project_id: str,
+        project_id: Optional[str] = None,
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
@@ -2125,6 +2085,8 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+        batch_id = self.batch_id or result.name.split('/')[-1]
+        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
         return Batch.to_dict(result)
 
     def on_kill(self):
@@ -2139,8 +2101,8 @@ class DataprocDeleteBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2164,7 +2126,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -2203,8 +2165,8 @@ class DataprocGetBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2222,13 +2184,14 @@ class DataprocGetBatchOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+    operator_extra_links = (DataprocLink(),)
 
     def __init__(
         self,
         *,
         batch_id: str,
         region: str,
-        project_id: str,
+        project_id: Optional[Retry] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -2257,6 +2220,9 @@ class DataprocGetBatchOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=self.batch_id
+        )
         return Batch.to_dict(batch)
 
 
@@ -2264,8 +2230,8 @@ class DataprocListBatchesOperator(BaseOperator):
     """
     Lists batch workloads.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param page_size: Optional. The maximum number of batches to return in each response. The service may
         return fewer than this value. The default page size is 20; the maximum page size is 1000.
     :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
@@ -2289,6 +2255,7 @@ class DataprocListBatchesOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
+    operator_extra_links = (DataprocListLink(),)
 
     def __init__(
         self,
@@ -2326,4 +2293,5 @@ class DataprocListBatchesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        DataprocListLink.persist(context=context, task_instance=self, url=DATAPROC_BATCHES_LINK)
         return [Batch.to_dict(result) for result in results]

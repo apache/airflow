@@ -55,37 +55,16 @@ def _upload_file_to_s3(
 class DynamoDBToS3Operator(BaseOperator):
     """
     Replicates records from a DynamoDB table to S3.
-    It scans a DynamoDB table and write the received records to a file
+    It scans a DynamoDB table and writes the received records to a file
     on the local filesystem. It flushes the file to S3 once the file size
     exceeds the file size limit specified by the user.
 
     Users can also specify a filtering criteria using dynamodb_scan_kwargs
     to only replicate records that satisfy the criteria.
 
-    To parallelize the replication, users can create multiple tasks of DynamoDBToS3Operator.
-    For instance to replicate with parallelism of 2, create two tasks like:
-
-    .. code-block:: python
-
-       op1 = DynamoDBToS3Operator(
-           task_id="replicator-1",
-           dynamodb_table_name="hello",
-           dynamodb_scan_kwargs={
-               "TotalSegments": 2,
-               "Segment": 0,
-           },
-           ...,
-       )
-
-       op2 = DynamoDBToS3Operator(
-           task_id="replicator-2",
-           dynamodb_table_name="hello",
-           dynamodb_scan_kwargs={
-               "TotalSegments": 2,
-               "Segment": 1,
-           },
-           ...,
-       )
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/transfer:DynamoDBToS3Operator`
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
