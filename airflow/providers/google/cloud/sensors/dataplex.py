@@ -43,28 +43,18 @@ class DataplexTaskStateSensor(BaseSensorOperator):
     Check the status of the Dataplex task
 
     :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
-    :type project_id: str
     :param region: Required. The ID of the Google Cloud region that the task belongs to.
-    :type region: str
     :param lake_id: Required. The ID of the Google Cloud lake that the task belongs to.
-    :type lake_id: str
     :param dataplex_task_id: Required. Task identifier.
-    :type dataplex_task_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
         request must have  domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,7 +63,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ['dataplex_task_id']
@@ -89,7 +78,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
         **kwargs,

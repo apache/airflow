@@ -23,6 +23,7 @@ import datetime
 import os
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateTaskOperator,
     DataplexDeleteTaskOperator,
@@ -43,7 +44,7 @@ TRIGGER_SPEC_TYPE = "ON_DEMAND"
 
 # [START howto_dataplex_configuration]
 EXAMPLE_TASK_BODY = {
-    "trigger_spec": {"type": TRIGGER_SPEC_TYPE},
+    "trigger_spec": {"type_": TRIGGER_SPEC_TYPE},
     "execution_spec": {"service_account": SERVICE_ACC},
     "spark": {"python_script_file": SPARK_FILE_FULL_PATH},
 }
@@ -111,5 +112,11 @@ with models.DAG(
     )
     # [END howto_dataplex_task_state_sensor]
 
-    create_dataplex_task_async >> dataplex_task_state >> delete_dataplex_task
-    create_dataplex_task >> get_dataplex_task >> list_dataplex_task >> delete_dataplex_task
+    chain(
+        create_dataplex_task,
+        get_dataplex_task,
+        list_dataplex_task,
+        delete_dataplex_task,
+        create_dataplex_task_async,
+        dataplex_task_state,
+    )

@@ -31,13 +31,11 @@ print("### Hello, dataplex! ###")
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class DataplexExampleDagsTest(GoogleSystemTest):
-    @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
         self.upload_content_to_gcs(lines=spark_file, bucket=GCS_URI, filename=SPARK_FILE_NAME)
 
-    @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
         self.delete_gcs_bucket(BUCKET)
         super().tearDown()
