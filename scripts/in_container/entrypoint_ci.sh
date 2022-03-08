@@ -198,6 +198,10 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
+echo "xxxxxxxxxxxxxxxxxx ALL ENVS"
+env
+echo "xxxxxxxxxxxxxxxxxx ALL ENVS"
+
 export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
 
 EXTRA_PYTEST_ARGS=(
@@ -361,6 +365,12 @@ echo "Running tests ${SELECTED_TESTS[*]}"
 echo
 
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
+
+echo "yyyyyyyyyyyyyyyyyy ALL ENVS"
+env
+echo "yyyyyyyyyyyyyyyyyy ALL ENVS"
+
+echo "${ARGS[@]}"
 
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
