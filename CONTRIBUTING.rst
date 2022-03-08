@@ -478,7 +478,7 @@ develop Apache Airflow:
 -   `Breeze Docker-based development environment <#breeze-development-environment>`_ that provides
     an end-to-end CI solution with all software dependencies covered.
 
-The table below summarizes differences between the two environments:
+The table below summarizes differences between the environments:
 
 
 ========================= ================================ ===================================== ========================================
