@@ -146,7 +146,9 @@ COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "
 
 class DatabricksCopyIntoOperator(BaseOperator):
     """
-    Executes COPY INTO command in a Databricks SQL endpoint or a Databricks cluster
+    Executes COPY INTO command in a Databricks SQL endpoint or a Databricks cluster.
+    COPY INTO command is constructed from individual pieces, that are described in
+    `documentation <https://docs.databricks.com/sql/language-manual/delta-copy-into.html>`_.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
