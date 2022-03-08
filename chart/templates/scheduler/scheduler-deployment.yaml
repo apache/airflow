@@ -165,7 +165,7 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-{{- with .Values.scheduler.livenessProbe.exec.command }}
+{{- with .Values.scheduler.livenessProbe.command }}
 {{ toYaml . | indent 16 }}
 {{- end }}
           {{- if and $local (not $elasticsearch) }}
