@@ -1735,7 +1735,7 @@ class Airflow(AirflowBaseView):
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
-        flash(f"Sent {ti} to the message queue, run id: {dag_run_id} it should start any moment now.")
+        flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
     @expose('/delete', methods=['POST'])
