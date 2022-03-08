@@ -361,7 +361,7 @@ html_context = {
 
 # == Extensions configuration ==================================================
 
-# -- Options for sphinx_jinjac ------------------------------------------
+# -- Options for sphinx_jinja ------------------------------------------
 # See: https://github.com/tardyp/sphinx-jinja
 
 # Jinja context
