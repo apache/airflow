@@ -16,56 +16,120 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import os
 import unittest
+from unittest import mock
+from unittest.mock import PropertyMock
 
-import oss2
-
-from airflow.exceptions import AirflowException
-from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
-from tests.providers.alibaba.cloud.utils.test_utils import skip_test_if_no_valid_conn_id
-from tests.test_utils.config import conf_vars
 
-TEST_CONN_ID = os.environ.get('TEST_OSS_CONN_ID', 'oss_default')
-TEST_REGION = os.environ.get('TEST_OSS_REGION', 'us-east-1')
-TEST_BUCKET = os.environ.get('TEST_OSS_BUCKET', 'test-bucket')
+OSS_TASK_HANDLER_STRING = 'airflow.providers.alibaba.cloud.log.oss_task_handler.{}'
+MOCK_OSS_CONN_ID = 'mock_id'
+MOCK_BUCKET_NAME = 'mock_bucket_name'
+MOCK_KEY = 'mock_key'
+MOCK_KEYS = ['mock_key1', 'mock_key2', 'mock_key3']
+MOCK_CONTENT = 'mock_content'
+MOCK_FILE_PATH = 'mock_file_path'
 
 
 class TestOSSTaskHandler(unittest.TestCase):
-    @conf_vars({('logging', 'remote_log_conn_id'): 'oss_default'})
     def setUp(self):
-        self.remote_log_base = f'oss://{TEST_BUCKET}/airflow/logs'
-        self.remote_log_location = f'oss://{TEST_BUCKET}/airflow/logs/1.log'
-        self.local_log_location = 'local/airflow/logs/1.log'
+        self.base_log_folder = 'local/airflow/logs/1.log'
+        self.oss_log_folder = f'oss://{MOCK_BUCKET_NAME}/airflow/logs'
         self.filename_template = '{try_number}.log'
-        self.remote_log_key = 'airflow/logs/1.log'
-        try:
-            self.hook = OSSHook(region=TEST_REGION, oss_conn_id=TEST_CONN_ID)
-            self.hook.object_exists(key='test-obj', bucket_name=TEST_BUCKET)
-            self.oss_task_handler = OSSTaskHandler(
-                self.local_log_location, self.remote_log_base, self.filename_template
-            )
-            # Vivfy the hook now with the config override
-            assert self.oss_task_handler.hook is not None
-            # Make sure the connection to oss is set up
-        except AirflowException:
-            self.hook = None
-        except oss2.exceptions.ServerError as e:
-            if e.status == 403:
-                self.hook = None
+        self.oss_task_handler = OSSTaskHandler(
+            self.base_log_folder, self.oss_log_folder, self.filename_template
+        )
 
-    @skip_test_if_no_valid_conn_id
-    def test_oss_log_exists(self):
-        self.hook.load_string("1.log", "task1 log", TEST_BUCKET)
-        assert self.oss_task_handler.oss_log_exists(self.remote_log_location) is True
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('conf.get'))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSHook'))
+    def test_hook(self, mock_service, mock_conf_get):
+        # Given
+        mock_conf_get.return_value = 'oss_default'
 
-    @skip_test_if_no_valid_conn_id
-    def test_oss_read(self):
-        self.hook.load_string("a simple test string", self.remote_log_location, TEST_BUCKET)
-        assert self.oss_task_handler.oss_read(self.remote_log_location) == "a simple test string"
+        # When
+        self.oss_task_handler.hook
 
-    @skip_test_if_no_valid_conn_id
-    def test_oss_write(self):
-        self.oss_task_handler.oss_write("a new test string", self.remote_log_location, append=False)
-        assert self.hook.read_key(TEST_BUCKET, self.remote_log_key) == "a new test string"
+        # Then
+        mock_conf_get.assert_called_once_with('logging', 'REMOTE_LOG_CONN_ID')
+        mock_service.assert_called_once_with(oss_conn_id='oss_default')
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_log_exists(self, mock_service):
+        self.oss_task_handler.oss_log_exists('1.log')
+        mock_service.assert_called_once_with()
+        mock_service.return_value.key_exist.assert_called_once_with(MOCK_BUCKET_NAME, 'airflow/logs/1.log')
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_read(self, mock_service):
+        self.oss_task_handler.oss_read('1.log')
+        mock_service.assert_called_once_with()
+        mock_service.return_value.read_key(MOCK_BUCKET_NAME, 'airflow/logs/1.log')
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.oss_log_exists'))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_write_into_remote_existing_file_via_append(self, mock_service, mock_oss_log_exists):
+        # Given
+        mock_oss_log_exists.return_value = True
+        mock_service.return_value.head_key.return_value.content_length = 1
+
+        # When
+        self.oss_task_handler.oss_write(MOCK_CONTENT, '1.log', append=True)
+
+        # Then
+        assert mock_service.call_count == 2
+        mock_service.return_value.head_key.assert_called_once_with(MOCK_BUCKET_NAME, 'airflow/logs/1.log')
+        mock_oss_log_exists.assert_called_once_with('airflow/logs/1.log')
+        mock_service.return_value.append_string.assert_called_once_with(
+            MOCK_BUCKET_NAME, MOCK_CONTENT, 'airflow/logs/1.log', 1
+        )
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.oss_log_exists'))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_write_into_remote_non_existing_file_via_append(self, mock_service, mock_oss_log_exists):
+        # Given
+        mock_oss_log_exists.return_value = False
+
+        # When
+        self.oss_task_handler.oss_write(MOCK_CONTENT, '1.log', append=True)
+
+        # Then
+        assert mock_service.call_count == 1
+        mock_service.return_value.head_key.assert_not_called()
+        mock_oss_log_exists.assert_called_once_with('airflow/logs/1.log')
+        mock_service.return_value.append_string.assert_called_once_with(
+            MOCK_BUCKET_NAME, MOCK_CONTENT, 'airflow/logs/1.log', 0
+        )
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.oss_log_exists'))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_write_into_remote_existing_file_not_via_append(self, mock_service, mock_oss_log_exists):
+        # Given
+        mock_oss_log_exists.return_value = True
+
+        # When
+        self.oss_task_handler.oss_write(MOCK_CONTENT, '1.log', append=False)
+
+        # Then
+        assert mock_service.call_count == 1
+        mock_service.return_value.head_key.assert_not_called()
+        mock_oss_log_exists.assert_not_called()
+        mock_service.return_value.append_string.assert_called_once_with(
+            MOCK_BUCKET_NAME, MOCK_CONTENT, 'airflow/logs/1.log', 0
+        )
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.oss_log_exists'))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSTaskHandler.hook'), new_callable=PropertyMock)
+    def test_oss_write_into_remote_non_existing_file_not_via_append(self, mock_service, mock_oss_log_exists):
+        # Given
+        mock_oss_log_exists.return_value = False
+
+        # When
+        self.oss_task_handler.oss_write(MOCK_CONTENT, '1.log', append=False)
+
+        # Then
+        assert mock_service.call_count == 1
+        mock_service.return_value.head_key.assert_not_called()
+        mock_oss_log_exists.assert_not_called()
+        mock_service.return_value.append_string.assert_called_once_with(
+            MOCK_BUCKET_NAME, MOCK_CONTENT, 'airflow/logs/1.log', 0
+        )

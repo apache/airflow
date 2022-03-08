@@ -48,7 +48,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def hook(self):
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        self.log.info("remote_conn_id: " + remote_conn_id)
+        self.log.info("remote_conn_id: %s", remote_conn_id)
         try:
             return OSSHook(oss_conn_id=remote_conn_id)
         except Exception as e:
@@ -131,8 +131,9 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
         """
+        oss_remote_log_location = self.base_folder + '/' + remote_log_location
         try:
-            return self.hook.key_exist(self.bucket_name, remote_log_location)
+            return self.hook.key_exist(self.bucket_name, oss_remote_log_location)
         except Exception:
             pass
         return False
@@ -172,16 +173,14 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         if append and self.oss_log_exists(oss_remote_log_location):
             head = self.hook.head_key(self.bucket_name, oss_remote_log_location)
             pos = head.content_length
-        self.log.info("log write pos is: " + str(pos))
+        self.log.info("log write pos is: %s", str(pos))
         try:
-            self.log.info("writing remote log: " + oss_remote_log_location)
+            self.log.info("writing remote log: %s", oss_remote_log_location)
             self.hook.append_string(self.bucket_name, log, oss_remote_log_location, pos)
         except Exception:
             self.log.exception(
-                'Could not write logs to '
-                + oss_remote_log_location
-                + ' log write pos is: '
-                + str(pos)
-                + ' Append is '
-                + str(append)
+                'Could not write logs to %s, log write pos is: %s, Append is %s',
+                oss_remote_log_location,
+                str(pos),
+                str(append),
             )

@@ -281,7 +281,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def append_string(self, bucket_name: Optional[str], content: str, key: str, pos: int):
+    def append_string(self, bucket_name: Optional[str], content: str, key: str, pos: int) -> None:
         """
         Append string to a remote existing file
 
@@ -290,8 +290,7 @@ class OSSHook(BaseHook):
         :param key: oss bucket key
         :param pos: position of the existing file where the content will be appended
         """
-        self.log.info("Write oss bucket key: " + key)
-        self.log.info("Write oss bucket pos: " + str(pos))
+        self.log.info("Write oss bucket. key: %s, pos: %s", key, pos)
         try:
             self.get_bucket(bucket_name).append_object(key, pos, content)
         except Exception as e:
@@ -307,7 +306,7 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         :param key: oss bucket key
         """
-        self.log.info("Read oss key: " + key)
+        self.log.info("Read oss key: %s", key)
         try:
             return self.get_bucket(bucket_name).get_object(key).read().decode("utf-8")
         except Exception as e:
