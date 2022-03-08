@@ -445,6 +445,7 @@ hooks:
 transfers:
   - source-integration-name: Amazon DynamoDB
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/dynamodb_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.dynamodb_to_s3
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Amazon Simple Storage Service (S3)
