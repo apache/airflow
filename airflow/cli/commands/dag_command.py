@@ -318,9 +318,11 @@ def dag_list_dags(args):
     if dagbag.import_errors:
         from rich import print as rich_print
 
-        rich_print("[red][bold]Error:[/bold] The following dags failed to load", file=sys.stderr)
-        for filename, stacktrace in dagbag.import_errors.items():
-            rich_print(f"[red][bold]Broken DAG {filename}:[/bold] {stacktrace}", file=sys.stderr)
+        rich_print(
+            "[red][bold]Error:[/bold] Failed to load all files. "
+            "For details, run airflow dags list-import-errors",
+            file=sys.stderr,
+        )
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=lambda d: d.dag_id),
         output=args.output,
