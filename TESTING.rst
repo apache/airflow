@@ -1248,7 +1248,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
         --zone="${GCP_ZONE}" \
         --machine-type=f1-micro \
         --subnet="${GCP_NETWORK_NAME}" \
-        --image=debian-10-buster-v20200210 \
+        --image=debian-11-bullseye-v20220120 \
         --image-project=debian-cloud \
         --preemptible
 
@@ -1308,9 +1308,7 @@ It will run a backfill job:
 .. code-block:: python
 
   if __name__ == "__main__":
-      from airflow.utils.state import State
-
-      dag.clear(dag_run_state=State.NONE)
+      dag.clear()
       dag.run()
 
 
@@ -1373,53 +1371,3 @@ On the screen you will see database queries for the given test.
 
 SQL query tracking does not work properly if your test runs subprocesses. Only queries from the main process
 are tracked.
-
-BASH Unit Testing (BATS)
-========================
-
-We have started adding tests to cover Bash scripts we have in our codebase.
-The tests are placed in the ``tests\bats`` folder.
-They require BAT CLI to be installed if you want to run them on your
-host or via a Docker image.
-
-Installing BATS CLI
----------------------
-
-You can find an installation guide as well as information on how to write
-the bash tests in `BATS Installation <https://github.com/bats-core/bats-core#installation>`_.
-
-Running BATS Tests on the Host
-------------------------------
-
-To run all tests:
-
-.. code-block:: bash
-
-   bats -r tests/bats/
-
-To run a single test:
-
-.. code-block:: bash
-
-   bats tests/bats/your_test_file.bats
-
-Running BATS Tests via Docker
------------------------------
-
-To run all tests:
-
-.. code-block:: bash
-
-   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
-
-To run a single test:
-
-.. code-block:: bash
-
-   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
-
-Using BATS
-----------
-
-You can read more about using BATS CLI and writing tests in
-`BATS Usage <https://github.com/bats-core/bats-core#usage>`_.

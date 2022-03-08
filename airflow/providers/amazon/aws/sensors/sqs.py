@@ -38,30 +38,26 @@ class SqsSensor(BaseSensorOperator):
     is pushed through XCom with the key ``messages``.
 
     :param aws_conn_id: AWS connection id
-    :type aws_conn_id: str
     :param sqs_queue: The SQS queue url (templated)
-    :type sqs_queue: str
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
-    :type max_messages: int
     :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
-    :type wait_time_seconds: int
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
-    :type visibility_timeout: Optional[Int]
     :param message_filtering: Specified how received messages should be filtered. Supported options are:
         `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
         (message Body filtered using a JSONPath expression).
         You may add further methods by overriding the relevant class methods.
-    :type message_filtering: Optional[Literal["literal", "jsonpath"]]
     :param message_filtering_match_values: Optional value/s for the message filter to match on.
         For example, with literal matching, if a message body matches any of the specified values
         then it is included. For JSONPath matching, the result of the JSONPath expression is used
         and may match any of the specified values.
-    :type message_filtering_match_values: Any
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
-    :type message_filtering_config: Any
+    :param delete_message_on_reception: Default to `True`, the messages are deleted from the queue
+        as soon as being consumed. Otherwise, the messages remain in the queue after consumption and
+        should be deleted manually.
+
     """
 
     template_fields: Sequence[str] = ('sqs_queue', 'max_messages', 'message_filtering_config')
@@ -77,6 +73,7 @@ class SqsSensor(BaseSensorOperator):
         message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
+        delete_message_on_reception: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -87,6 +84,8 @@ class SqsSensor(BaseSensorOperator):
         self.visibility_timeout = visibility_timeout
 
         self.message_filtering = message_filtering
+
+        self.delete_message_on_reception = delete_message_on_reception
 
         if message_filtering_match_values is not None:
             if not isinstance(message_filtering_match_values, set):
@@ -106,7 +105,6 @@ class SqsSensor(BaseSensorOperator):
         Check for message on subscribed queue and write to xcom the message with key ``messages``
 
         :param context: the context object
-        :type context: dict
         :return: ``True`` if message is available or ``False``
         """
         sqs_conn = self.get_hook().get_conn()
@@ -137,6 +135,10 @@ class SqsSensor(BaseSensorOperator):
             messages = self.filter_messages(messages)
             num_messages = len(messages)
             self.log.info("There are %d messages left after filtering", num_messages)
+
+        if not self.delete_message_on_reception:
+            context['ti'].xcom_push(key='messages', value=messages)
+            return True
 
         if not num_messages:
             return False

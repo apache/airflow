@@ -19,6 +19,35 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``PSRP improvements (#19806)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fixing MyPy issues inside providers/microsoft (#20409)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 1.0.1
 .....
 

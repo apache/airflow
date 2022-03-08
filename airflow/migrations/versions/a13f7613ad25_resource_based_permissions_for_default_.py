@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Resource based permissions for default FAB views.
+"""Resource based permissions for default ``Flask-AppBuilder`` views
 
 Revision ID: a13f7613ad25
 Revises: e165e7455d70
@@ -33,6 +33,7 @@ revision = 'a13f7613ad25'
 down_revision = 'e165e7455d70'
 branch_labels = None
 depends_on = None
+airflow_version = '2.1.0'
 
 
 mapping = {

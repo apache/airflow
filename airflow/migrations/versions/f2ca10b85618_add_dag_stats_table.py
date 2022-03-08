@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add dag_stats table
+"""Add ``dag_stats`` table
 
 Revision ID: f2ca10b85618
 Revises: 64de9cddf6c9
@@ -33,6 +33,7 @@ revision = 'f2ca10b85618'
 down_revision = '64de9cddf6c9'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

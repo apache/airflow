@@ -29,6 +29,7 @@ from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
 
 BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
@@ -76,31 +77,21 @@ class TestPubSubHook(unittest.TestCase):
             for i in range(1, count + 1)
         ]
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info", new_callable=mock.PropertyMock
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
-    def test_publisher_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_publisher_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info", new_callable=mock.PropertyMock
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
-    def test_subscriber_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_subscriber_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.subscriber_client
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))

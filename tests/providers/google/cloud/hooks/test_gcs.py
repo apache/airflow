@@ -27,11 +27,14 @@ from unittest import mock
 
 import dateutil
 import pytest
-from google.cloud import exceptions, storage
+
+# dynamic storage type in google.cloud needs to be type-ignored
+from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -115,24 +118,17 @@ class TestGCSHook(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.client_info',
-        new_callable=mock.PropertyMock,
-        return_value="CLIENT_INFO",
-    )
-    @mock.patch(
         BASE_STRING.format("GoogleBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID"),
     )
     @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
-    def test_storage_client_creation(
-        self, mock_client, mock_get_connection, mock_get_creds_and_project_id, mock_client_info
-    ):
+    def test_storage_client_creation(self, mock_client, mock_get_connection, mock_get_creds_and_project_id):
         hook = gcs.GCSHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
-            client_info="CLIENT_INFO", credentials="CREDENTIALS", project="PROJECT_ID"
+            client_info=CLIENT_INFO, credentials="CREDENTIALS", project="PROJECT_ID"
         )
         assert mock_client.return_value == result
 
@@ -703,7 +699,7 @@ class TestGCSHook(unittest.TestCase):
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
-                mock.call(suffix='test_object'),
+                mock.call(suffix='test_object', dir=None),
                 mock.call().__enter__(),
                 mock.call().__enter__().flush(),
                 mock.call().__exit__(None, None, None),
@@ -793,14 +789,20 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
+        metadata = {'key1': 'val1', 'key2': 'key2'}
 
-        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_filename
+        bucket_mock = mock_service.return_value.bucket
+        blob_object = bucket_mock.return_value.blob
 
-        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name)
+        upload_method = blob_object.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name, metadata=metadata)
 
         upload_method.assert_called_once_with(
             filename=self.testfile.name, content_type='application/octet-stream', timeout=60
         )
+
+        self.assertEqual(metadata, blob_object.return_value.metadata)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file_gzip(self, mock_service):

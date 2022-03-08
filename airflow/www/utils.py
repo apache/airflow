@@ -36,13 +36,16 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import AirflowJsonEncoder
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -53,9 +56,80 @@ def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
     return value.isoformat()
 
 
-def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
+def get_mapped_instances(task_instance, session):
+    return (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.dag_id == task_instance.dag_id,
+            TaskInstance.run_id == task_instance.run_id,
+            TaskInstance.task_id == task_instance.task_id,
+            TaskInstance.map_index >= 0,
+        )
+        .all()
+    )
+
+
+def get_instance_with_map(task_instance, session):
+    if task_instance.map_index == -1:
+        return alchemy_to_dict(task_instance)
+    mapped_instances = get_mapped_instances(task_instance, session)
+    return get_mapped_summary(task_instance, mapped_instances)
+
+
+def get_mapped_summary(parent_instance, task_instances):
+    priority = [
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.SENSING,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.SHUTDOWN,
+        TaskInstanceState.RESTARTING,
+        TaskInstanceState.REMOVED,
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.SKIPPED,
+    ]
+
+    mapped_states = [ti.state for ti in task_instances]
+
+    group_state = None
+    for state in priority:
+        if state in mapped_states:
+            group_state = state
+            break
+
+    group_start_date = datetime_to_string(
+        min((ti.start_date for ti in task_instances if ti.start_date), default=None)
+    )
+    group_end_date = datetime_to_string(
+        max((ti.end_date for ti in task_instances if ti.end_date), default=None)
+    )
+
+    return {
+        'task_id': parent_instance.task_id,
+        'run_id': parent_instance.run_id,
+        'state': group_state,
+        'start_date': group_start_date,
+        'end_date': group_end_date,
+        'mapped_states': mapped_states,
+        'operator': parent_instance.operator,
+        'execution_date': datetime_to_string(parent_instance.execution_date),
+        'try_number': parent_instance.try_number,
+    }
+
+
+def encode_ti(
+    task_instance: Optional[TaskInstance], is_mapped: Optional[bool], session: Optional[Session]
+) -> Optional[Dict[str, Any]]:
     if not task_instance:
         return None
+
+    if is_mapped:
+        return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
 
     return {
         'task_id': task_instance.task_id,
@@ -356,8 +430,10 @@ def dag_link(attr):
     """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
+    if not dag_id:
+        return Markup('None')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')
+    return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
 def dag_run_link(attr):
@@ -415,21 +491,24 @@ def get_attr_renderer():
     return {
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
-        'hql': lambda x: render(x, lexers.SqlLexer),
-        'html': lambda x: render(x, lexers.HtmlLexer),
-        'sql': lambda x: render(x, lexers.SqlLexer),
         'doc': lambda x: render(x, lexers.TextLexer),
         'doc_json': lambda x: render(x, lexers.JsonLexer),
+        'doc_md': wrapped_markdown,
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
-        'doc_md': wrapped_markdown,
+        'hql': lambda x: render(x, lexers.SqlLexer),
+        'html': lambda x: render(x, lexers.HtmlLexer),
         'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
+        'mysql': lambda x: render(x, lexers.MySqlLexer),
+        'postgresql': lambda x: render(x, lexers.PostgresLexer),
         'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),
+        'sql': lambda x: render(x, lexers.SqlLexer),
+        'tsql': lambda x: render(x, lexers.TransactSqlLexer),
         'yaml': lambda x: render(x, lexers.YamlLexer),
     }
 
@@ -613,14 +692,10 @@ class UIAlert:
     Helper for alerts messages shown on the UI
 
     :param message: The message to display, either a string or Markup
-    :type message: Union[str,Markup]
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.
         Defaults to "info".
-    :type category: str
     :param roles: List of roles that should be shown the message. If ``None``, show to all users.
-    :type roles: Optional[List[str]]
     :param html: Whether the message has safe html markup in it. Defaults to False.
-    :type html: bool
 
 
     For example, show a message to all users:
@@ -661,7 +736,7 @@ class UIAlert:
     def should_show(self, securitymanager) -> bool:
         """Determine if the user should see the message based on their role membership"""
         if self.roles:
-            user_roles = {r.name for r in securitymanager.get_user_roles()}
+            user_roles = {r.name for r in securitymanager.current_user.roles}
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

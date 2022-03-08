@@ -63,7 +63,7 @@ ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
-DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT}
+DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
 def resource_name_for_dag(dag_id):
@@ -73,4 +73,7 @@ def resource_name_for_dag(dag_id):
 
     if dag_id.startswith(RESOURCE_DAG_PREFIX):
         return dag_id
-    return f"{RESOURCE_DAG_PREFIX}{dag_id}"
+
+    # To account for SubDags
+    root_dag_id = dag_id.split(".")[0]
+    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"

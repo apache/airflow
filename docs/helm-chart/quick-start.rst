@@ -66,7 +66,8 @@ Use the following code to install the chart with Example DAGs:
   export NAMESPACE=example-namespace
   helm install $RELEASE_NAME apache-airflow/airflow \
     --namespace $NAMESPACE \
-    --set 'env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES,env[0].value=True'
+    --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
+    --set-string "env[0].value=True"
 
 It may take a few minutes. Confirm the pods are up:
 
@@ -111,7 +112,7 @@ Adding DAGs to your image
 
     .. code-block:: bash
 
-        docker build --tag my-dags:0.0.1 .
+        docker build --pull --tag my-dags:0.0.1 .
 
 
 3. Load the image into kind:
@@ -155,7 +156,7 @@ Example below adds ``vim`` apt package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:
@@ -192,7 +193,7 @@ Example below adds ``lxml`` PyPI package.
 
     .. code-block:: bash
 
-        docker build --tag my-image:0.0.1 .
+        docker build --pull --tag my-image:0.0.1 .
 
 
 3. Load the image into kind:

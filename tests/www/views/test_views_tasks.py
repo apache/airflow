@@ -25,7 +25,7 @@ import pytest
 
 from airflow import settings
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DagBag, DagModel, TaskInstance, TaskReschedule
+from airflow.models import DAG, DagBag, DagModel, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -139,15 +139,25 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             'dag_details?dag_id=example_bash_operator',
             ['DAG Details'],
-            id="dag-details",
+            id="dag-details-url-param",
         ),
         pytest.param(
             'dag_details?dag_id=example_subdag_operator.section-1',
+            ['DAG Details'],
+            id="dag-details-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/details',
             ['DAG Details'],
             id="dag-details-subdag",
         ),
         pytest.param(
             'graph?dag_id=example_bash_operator',
+            ['runme_1'],
+            id='graph-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/graph',
             ['runme_1'],
             id='graph',
         ),
@@ -157,32 +167,67 @@ def client_ti_without_dag_edit(app):
             id='tree',
         ),
         pytest.param(
+            'dags/example_bash_operator/grid',
+            ['runme_1'],
+            id='grid',
+        ),
+        pytest.param(
             'tree?dag_id=example_subdag_operator.section-1',
             ['section-1-task-1'],
-            id="tree-subdag",
+            id="tree-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/grid',
+            ['section-1-task-1'],
+            id="grid-subdag",
         ),
         pytest.param(
             'duration?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='duration-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/duration?days=30',
             ['example_bash_operator'],
             id='duration',
         ),
         pytest.param(
             'duration?days=30&dag_id=missing_dag',
             ['seems to be missing'],
+            id='duration-missing-url-param',
+        ),
+        pytest.param(
+            'dags/missing_dag/duration?days=30',
+            ['seems to be missing'],
             id='duration-missing',
         ),
         pytest.param(
             'tries?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='tries-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/tries?days=30',
             ['example_bash_operator'],
             id='tries',
         ),
         pytest.param(
             'landing_times?days=30&dag_id=example_bash_operator',
             ['example_bash_operator'],
+            id='landing-times-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/landing-times?days=30',
+            ['example_bash_operator'],
             id='landing-times',
         ),
         pytest.param(
             'gantt?dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id="gantt-url-param",
+        ),
+        pytest.param(
+            'dags/example_bash_operator/gantt',
             ['example_bash_operator'],
             id="gantt",
         ),
@@ -196,20 +241,40 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             "graph?dag_id=example_bash_operator",
             ["example_bash_operator"],
+            id="existing-dagbag-graph-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/graph",
+            ["example_bash_operator"],
             id="existing-dagbag-graph",
         ),
         pytest.param(
             "tree?dag_id=example_bash_operator",
             ["example_bash_operator"],
-            id="existing-dagbag-tree",
+            id="existing-dagbag-tree-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/grid",
+            ["example_bash_operator"],
+            id="existing-dagbag-grid",
         ),
         pytest.param(
             "calendar?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-calendar-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/calendar",
             ["example_bash_operator"],
             id="existing-dagbag-calendar",
         ),
         pytest.param(
             "dag_details?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-dag-details-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/details",
             ["example_bash_operator"],
             id="existing-dagbag-dag-details",
         ),
@@ -263,7 +328,7 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-def test_dag_details_trigger_origin_tree_view(app, admin_client):
+def test_tree_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -272,14 +337,30 @@ def test_dag_details_trigger_origin_tree_view(app, admin_client):
         state=State.RUNNING,
     )
 
-    url = 'dag_details?dag_id=test_tree_view'
+    url = 'tree?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/grid'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
-def test_dag_details_trigger_origin_graph_view(app, admin_client):
+def test_graph_trigger_origin_graph_view(app, admin_client):
+    app.dag_bag.get_dag('test_tree_view').create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = '/dags/test_tree_view/graph'
+    resp = admin_client.get(url, follow_redirects=True)
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/graph'}
+    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    check_content_in_response(href, resp)
+
+
+def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
     app.dag_bag.get_dag('test_graph_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -288,9 +369,9 @@ def test_dag_details_trigger_origin_graph_view(app, admin_client):
         state=State.RUNNING,
     )
 
-    url = 'dag_details?dag_id=test_graph_view'
+    url = '/dags/test_graph_view/details'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
+    params = {'dag_id': 'test_graph_view', 'origin': '/dags/test_graph_view/details'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -332,7 +413,7 @@ def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
     DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
+    resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
@@ -342,7 +423,7 @@ def test_code_from_db_all_example_dags(admin_client):
     for dag in dagbag.dags.values():
         DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
+    resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
@@ -458,7 +539,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
@@ -487,7 +568,7 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
         dag_id="example_bash_operator",
         ignore_all_deps="false",
         ignore_ti_state="false",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_DAGRUN,
         origin='/home',
     )
     resp = admin_client.post('run', data=form, follow_redirects=True)
@@ -519,6 +600,56 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
     resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response(f'/delete?dag_id={test_dag_id}', resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
+
+
+@pytest.fixture()
+def new_dag_to_delete():
+    dag = DAG('new_dag_to_delete', is_paused_upon_creation=True)
+    session = settings.Session()
+    dag.sync_to_db(session=session)
+    return dag
+
+
+@pytest.fixture()
+def per_dag_perm_user_client(app, new_dag_to_delete):
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
+
+    create_user(
+        app,
+        username="test_user_per_dag_perms",
+        role_name="User with some perms",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, perm),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+    )
+
+    sm.find_user(username="test_user_per_dag_perms")
+
+    yield client_with_login(
+        app,
+        username="test_user_per_dag_perms",
+        password="test_user_per_dag_perms",
+    )
+
+    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app)
+
+
+def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
+    resp = per_dag_perm_user_client.post(
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
+    )
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
+
+
+def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
+    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])

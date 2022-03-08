@@ -18,12 +18,15 @@ import datetime
 import operator
 import os
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
+from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.xcom import IN_MEMORY_RUN_ID, XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
+from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
@@ -33,15 +36,16 @@ class CustomXCom(BaseXCom):
     orm_deserialize_value = mock.Mock()
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def reset_db():
-    """Delete XCom entries left over by other test modules before we start."""
+    """Reset XCom entries."""
     with create_session() as session:
+        session.query(DagRun).delete()
         session.query(XCom).delete()
 
 
 @pytest.fixture()
-def dag_run_factory(session):
+def dag_run_factory(request, session):
     def func(dag_id, execution_date):
         run = DagRun(
             dag_id=dag_id,
@@ -50,11 +54,16 @@ def dag_run_factory(session):
             execution_date=execution_date,
         )
         session.add(run)
-        session.flush()
+        session.commit()
+
+        def delete_dagrun():
+            session.query(DagRun).filter(DagRun.id == run.id).delete()
+            session.commit()
+
+        request.addfinalizer(delete_dagrun)
         return run
 
     yield func
-    session.flush()
 
 
 @pytest.fixture()
@@ -83,6 +92,11 @@ class TestXCom:
         assert cls().serialize_value([1]) == b"[1]"
 
     def test_xcom_deserialize_with_json_to_pickle_switch(self, dag_run, session):
+        ti_key = TaskInstanceKey(
+            dag_id=dag_run.dag_id,
+            task_id="test_task3",
+            run_id=dag_run.run_id,
+        )
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
             XCom.set(
                 key="xcom_test3",
@@ -93,13 +107,7 @@ class TestXCom:
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(
-                key="xcom_test3",
-                dag_id=dag_run.dag_id,
-                task_id="test_task3",
-                run_id=dag_run.run_id,
-                session=session,
-            )
+            ret_value = XCom.get_one(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
     def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):
@@ -172,6 +180,76 @@ class TestXCom:
         )
         assert value == {"key": "value"}
         XCom.orm_deserialize_value.assert_not_called()
+
+    @conf_vars({("core", "enable_xcom_pickling"): 'False'})
+    @mock.patch('airflow.models.xcom.conf.getimport')
+    def test_set_serialize_call_old_signature(self, get_import, session):
+        """
+        When XCom.serialize_value takes only param ``value``, other kwargs should be ignored.
+        """
+        serialize_watcher = MagicMock()
+
+        class OldSignatureXCom(BaseXCom):
+            @staticmethod
+            def serialize_value(value, **kwargs):
+                serialize_watcher(value=value, **kwargs)
+                return json.dumps(value).encode('utf-8')
+
+        get_import.return_value = OldSignatureXCom
+
+        kwargs = dict(
+            value={"my_xcom_key": "my_xcom_value"},
+            key=XCOM_RETURN_KEY,
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id=IN_MEMORY_RUN_ID,
+        )
+
+        XCom = resolve_xcom_backend()
+        XCom.set(**kwargs)
+        serialize_watcher.assert_called_once_with(value=kwargs['value'])
+
+    @conf_vars({("core", "enable_xcom_pickling"): 'False'})
+    @mock.patch('airflow.models.xcom.conf.getimport')
+    def test_set_serialize_call_current_signature(self, get_import, session):
+        """
+        When XCom.serialize_value includes params execution_date, key, dag_id, task_id and run_id,
+        then XCom.set should pass all of them.
+        """
+        serialize_watcher = MagicMock()
+
+        class CurrentSignatureXCom(BaseXCom):
+            @staticmethod
+            def serialize_value(
+                value,
+                key=None,
+                dag_id=None,
+                task_id=None,
+                run_id=None,
+                mapping_index: int = -1,
+            ):
+                serialize_watcher(
+                    value=value,
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                )
+                return json.dumps(value).encode('utf-8')
+
+        get_import.return_value = CurrentSignatureXCom
+
+        kwargs = dict(
+            value={"my_xcom_key": "my_xcom_value"},
+            key=XCOM_RETURN_KEY,
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id=IN_MEMORY_RUN_ID,
+        )
+        expected = {**kwargs, 'run_id': '__airflow_in_memory_dagrun__'}
+        XCom = resolve_xcom_backend()
+        XCom.set(**kwargs)
+        serialize_watcher.assert_called_once_with(**expected)
 
 
 @pytest.fixture(
@@ -485,10 +563,11 @@ class TestXComClear:
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_execution_date(self, session, dag_run):
-        XCom.clear(
-            dag_id=dag_run.dag_id,
-            task_id="task_1",
-            execution_date=timezone.utcnow(),
-            session=session,
-        )
+        with pytest.deprecated_call():
+            XCom.clear(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                execution_date=timezone.utcnow(),
+                session=session,
+            )
         assert session.query(XCom).count() == 1

@@ -18,6 +18,91 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Looker PDT operators (#20882)``
+* ``Add autodetect arg to external table creation in GCSToBigQueryOperator (#21944)``
+* ``Add Dataproc assets/links (#21756)``
+* ``Add Auto ML operators for Vertex AI service (#21470)``
+* ``Add GoogleCalendarToGCSOperator (#20769)``
+* ``Make project_id argument optional in all dataproc operators (#21866)``
+* ``Allow templates in more DataprocUpdateClusterOperator fields (#21865)``
+* ``Dataflow Assets (#21639)``
+* ``Extract ClientInfo to module level (#21554)``
+* ``Datafusion assets (#21518)``
+* ``Dataproc metastore assets (#21267)``
+* ``Normalize *_conn_id parameters in BigQuery sensors (#21430)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bigquery_dts parameter docstring typo (#21786)``
+* ``Fixed PostgresToGCSOperator fail on empty resultset for use_server_side_cursor=True (#21307)``
+* ``Fix multi query scenario in bigquery example DAG (#21575)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Unpin 'google-cloud-memcache' (#21912)``
+* ``Unpin ''pandas-gbq'' and remove unused code (#21915)``
+* ``Suppress hook warnings from the Bigquery transfers (#20119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add hook for integrating with Google Calendar (#20542)``
+* ``Add encoding parameter to 'GCSToLocalFilesystemOperator' to fix #20901 (#20919)``
+* ``batch as templated field in DataprocCreateBatchOperator (#20905)``
+* ``Make timeout Optional for wait_for_operation (#20981)``
+* ``Add more SQL template fields renderers (#21237)``
+* ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+* ``Support to upload file to Google Shared Drive (#21319)``
+* ``(providers_google) add a location check in bigquery (#19571)``
+* ``Add support for BeamGoPipelineOperator (#20386)``
+* ``Google Cloud Composer opearators (#21251)``
+* ``Enable asynchronous job submission in BigQuery hook (#21385)``
+* ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cloudsql import links fix. (#21199)``
+* ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+* ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix last google provider MyPy errors (#21010)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Revert "Create CustomJob and Datasets operators for Vertex AI service (#20077)" (#21203)``
+   * ``Create CustomJob and Datasets operators for Vertex AI service (#20077)``
+   * ``Extend dataproc example dag (#21091)``
+   * ``Squelch more deprecation warnings (#21003)``
+   * ``Remove a few stray ':type's in docs (#21014)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Fix BigQuery system test (#21320)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Never set DagRun.state to State.NONE (#21263)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+
 6.3.0
 .....
 

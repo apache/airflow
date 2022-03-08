@@ -26,6 +26,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 from freezegun import freeze_time
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
@@ -44,27 +45,25 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.permissions import delete_dag_specific_permissions
+
+
+def db_clean_up():
+    db.clear_db_dags()
+    db.clear_db_runs()
+    db.clear_db_serialized_dags()
+    db.clear_dag_specific_permissions()
 
 
 class TestDagBag:
     @classmethod
     def setup_class(cls):
         cls.empty_dir = mkdtemp()
+        db_clean_up()
 
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls.empty_dir)
-
-    def setup_methods(self) -> None:
-        db.clear_db_dags()
-        db.clear_db_runs()
-        db.clear_db_serialized_dags()
-
-    def teardown_method(self) -> None:
-        db.clear_db_dags()
-        db.clear_db_runs()
-        db.clear_db_serialized_dags()
+        db_clean_up()
 
     def test_get_existing_dag(self):
         """
@@ -207,6 +206,55 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
+
+    @patch("airflow.models.dagbag.timeout")
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_process_dag_file_without_timeout(self, mocked_get_dagbag_import_timeout, mocked_timeout):
+        """
+        Test dag file parsing without timeout
+        """
+        mocked_get_dagbag_import_timeout.return_value = 0
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+        mocked_timeout.assert_not_called()
+
+        mocked_get_dagbag_import_timeout.return_value = -1
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+        mocked_timeout.assert_not_called()
+
+    @patch("airflow.models.dagbag.timeout")
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_process_dag_file_with_non_default_timeout(
+        self, mocked_get_dagbag_import_timeout, mocked_timeout
+    ):
+        """
+        Test customized dag file parsing timeout
+        """
+        timeout_value = 100
+        mocked_get_dagbag_import_timeout.return_value = timeout_value
+
+        # ensure the test value is not equal to the default value
+        assert timeout_value != settings.conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
+
+        mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
+
+    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    def test_check_value_type_from_get_dagbag_import_timeout(self, mocked_get_dagbag_import_timeout):
+        """
+        Test correctness of value from get_dagbag_import_timeout
+        """
+        mocked_get_dagbag_import_timeout.return_value = '1'
+
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        with pytest.raises(
+            TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
+        ):
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
 
     def test_process_file_cron_validity_check(self):
         """
@@ -787,6 +835,7 @@ class TestDagBag:
         Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
         new or updated
         """
+        db_clean_up()
         session = settings.Session()
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)) as frozen_time:
             dagbag = DagBag(
@@ -820,7 +869,7 @@ class TestDagBag:
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
         when DAG specific perm views don't exist already or the DAG has access_control set.
         """
-        delete_dag_specific_permissions()
+        db_clean_up()
         with create_session() as session:
             security_manager = ApplessAirflowSecurityManager(session)
             mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
@@ -892,6 +941,7 @@ class TestDagBag:
 
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
+        db.clear_db_dags()
         example_dags_folder = airflow.example_dags.__path__[0]
         dagbag = DagBag(example_dags_folder)
 

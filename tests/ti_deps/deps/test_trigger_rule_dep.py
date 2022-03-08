@@ -41,7 +41,7 @@ def get_task_instance(session, dag_maker):
                 task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
             if upstream_task_ids:
-                task._upstream_task_ids.update(upstream_task_ids)
+                task.upstream_task_ids.update(upstream_task_ids)
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
@@ -423,6 +423,63 @@ class TestTriggerRuleDep:
         )
         assert len(dep_statuses) == 0
 
+    def test_all_skipped_tr_failure(self, get_task_instance):
+        """
+        All-skipped trigger rule failure
+        """
+        ti = get_task_instance(TriggerRule.ALL_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"])
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=1,
+                skipped=0,
+                failed=0,
+                upstream_failed=0,
+                done=1,
+                flag_upstream_failed=False,
+                session="Fake Session",
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    def test_all_skipped_tr_success(self, get_task_instance):
+        """
+        All-skipped trigger rule success
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"]
+        )
+        with create_session() as session:
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    successes=0,
+                    skipped=3,
+                    failed=0,
+                    upstream_failed=0,
+                    done=3,
+                    flag_upstream_failed=False,
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 0
+
+            # with `flag_upstream_failed` set to True
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    successes=0,
+                    skipped=3,
+                    failed=0,
+                    upstream_failed=0,
+                    done=3,
+                    flag_upstream_failed=True,
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 0
+
     def test_all_done_tr_failure(self, get_task_instance):
         """
         All-done trigger rule failure
@@ -604,11 +661,11 @@ class TestTriggerRuleDep:
         session.commit()
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        finished_tasks = DepContext().ensure_finished_tasks(ti_op2.dag_run, session)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2) == (1, 0, 0, 0, 1)
-        finished_tasks = dr.get_task_instances(state=State.finished, session=session)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4) == (1, 0, 1, 0, 2)
-        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5) == (2, 0, 1, 0, 3)
+        finished_tis = DepContext().ensure_finished_tis(ti_op2.dag_run, session)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op2) == (1, 0, 0, 0, 1)
+        finished_tis = dr.get_task_instances(state=State.finished, session=session)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op4) == (1, 0, 1, 0, 2)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op5) == (2, 0, 1, 0, 3)
 
         dr.update_state()
         assert State.SUCCESS == dr.state

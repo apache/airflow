@@ -18,7 +18,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -26,6 +26,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -34,9 +35,23 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
 
     name = "Monitor Pipeline Run"
 
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        run_id = ti.xcom_pull(task_ids=operator.task_id, key="run_id")
+    def get_link(
+        self,
+        operator,
+        dttm=None,
+        *,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key:
+            run_id = XCom.get_one(key="run_id", ti_key=ti_key)
+        else:
+            assert dttm
+            run_id = XCom.get_one(
+                key="run_id",
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
 
         conn = BaseHook.get_connection(operator.azure_data_factory_conn_id)
         subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
@@ -67,43 +82,31 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         :ref:`howto/operator:AzureDataFactoryRunPipelineOperator`
 
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :type azure_data_factory_conn_id: str
     :param pipeline_name: The name of the pipeline to execute.
-    :type pipeline_name: str
     :param wait_for_termination: Flag to wait on a pipeline run's termination.  By default, this feature is
         enabled but could be disabled to perform an asynchronous wait for a long-running pipeline execution
         using the ``AzureDataFactoryPipelineRunSensor``.
-    :type wait_for_termination: bool
     :param resource_group_name: The resource group name. If a value is not passed in to the operator, the
         ``AzureDataFactoryHook`` will attempt to use the resource group name provided in the corresponding
         connection.
-    :type resource_group_name: str
     :param factory_name: The data factory name. If a value is not passed in to the operator, the
         ``AzureDataFactoryHook`` will attempt to use the factory name name provided in the corresponding
         connection.
-    :type factory_name: str
     :param reference_pipeline_run_id: The pipeline run identifier. If this run ID is specified the parameters
         of the specified run will be used to create a new run.
-    :type reference_pipeline_run_id: str
     :param is_recovery: Recovery mode flag. If recovery mode is set to `True`, the specified referenced
         pipeline run and the new run will be grouped under the same ``groupId``.
-    :type is_recovery: bool
     :param start_activity_name: In recovery mode, the rerun will start from this activity. If not specified,
         all activities will run.
-    :type start_activity_name: str
     :param start_from_failure: In recovery mode, if set to true, the rerun will start from failed activities.
         The property will be used only if ``start_activity_name`` is not specified.
-    :type start_from_failure: bool
     :param parameters: Parameters of the pipeline run. These parameters are referenced in a pipeline via
         ``@pipeline().parameters.parameterName`` and will be used only if the ``reference_pipeline_run_id`` is
         not specified.
-    :type parameters: Dict[str, Any]
     :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for non-asynchronous
         waits. Used only if ``wait_for_termination`` is True.
-    :type timeout: int
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
-    :type check_interval: int
     """
 
     template_fields: Sequence[str] = (

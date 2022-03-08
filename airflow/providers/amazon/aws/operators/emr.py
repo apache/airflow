@@ -22,10 +22,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -42,21 +43,15 @@ class EmrAddStepsOperator(BaseOperator):
     An operator that adds steps to an existing EMR job_flow.
 
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
-    :type job_flow_id: Optional[str]
     :param job_flow_name: name of the JobFlow to add steps to. Use as an alternative to passing
         job_flow_id. will search for id of JobFlow with matching name in one of the states in
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
-    :type job_flow_name: Optional[str]
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
-    :type cluster_states: list
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
-    :type steps: list|str
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
-    :type do_xcom_push: bool
     """
 
     template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'steps')
@@ -124,29 +119,19 @@ class EmrContainerOperator(BaseOperator):
     An operator that submits jobs to EMR on EKS virtual clusters.
 
     :param name: The name of the job run.
-    :type name: str
     :param virtual_cluster_id: The EMR on EKS virtual cluster ID
-    :type virtual_cluster_id: str
     :param execution_role_arn: The IAM role ARN associated with the job run.
-    :type execution_role_arn: str
     :param release_label: The Amazon EMR release version to use for the job run.
-    :type release_label: str
     :param job_driver: Job configuration details, e.g. the Spark job parameters.
-    :type job_driver: dict
     :param configuration_overrides: The configuration overrides for the job run,
         specifically either application configuration or monitoring configuration.
-    :type configuration_overrides: dict
     :param client_request_token: The client idempotency token of the job run request.
         Use this if you want to specify a unique ID to prevent two jobs from getting started.
         If no token is provided, a UUIDv4 token will be generated for you.
-    :type client_request_token: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :type aws_conn_id: str
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
-    :type poll_interval: int
     :param max_tries: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
-    :type max_tries: int
     """
 
     template_fields: Sequence[str] = (
@@ -184,7 +169,7 @@ class EmrContainerOperator(BaseOperator):
         self.client_request_token = client_request_token or str(uuid4())
         self.poll_interval = poll_interval
         self.max_tries = max_tries
-        self.job_id = None
+        self.job_id: Optional[str] = None
 
     @cached_property
     def hook(self) -> EmrContainerHook:
@@ -246,7 +231,12 @@ class EmrClusterLink(BaseOperatorLink):
 
     name = 'EMR Cluster'
 
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
         """
         Get link to EMR cluster.
 
@@ -254,8 +244,13 @@ class EmrClusterLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        flow_id = ti.xcom_pull(task_ids=operator.task_id)
+        if ti_key:
+            flow_id = XCom.get_one(key="return_value", ti_key=ti_key)
+        else:
+            assert dttm
+            flow_id = XCom.get_one(
+                key="return_value", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         return (
             f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
             if flow_id
@@ -270,14 +265,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
     the config from the connection.
 
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     :param emr_conn_id: emr connection to use
-    :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override emr_connection extra. (templated)
-    :type job_flow_overrides: dict|str
     :param region_name: Region named passed to EmrHook
-    :type region_name: Optional[str]
     """
 
     template_fields: Sequence[str] = ('job_flow_overrides',)
@@ -330,13 +321,9 @@ class EmrModifyClusterOperator(BaseOperator):
     """
     An operator that modifies an existing EMR cluster.
     :param cluster_id: cluster identifier
-    :type cluster_id: str
     :param step_concurrency_level: Concurrency of the cluster
-    :type step_concurrency_level: int
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
-    :type do_xcom_push: bool
     """
 
     template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
@@ -378,9 +365,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     Operator to terminate EMR JobFlows.
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
-    :type job_flow_id: str
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
     """
 
     template_fields: Sequence[str] = ('job_flow_id',)

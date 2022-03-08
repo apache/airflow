@@ -79,20 +79,14 @@ class JenkinsJobTriggerOperator(BaseOperator):
     You'll also need to configure a Jenkins connection in the connections screen.
 
     :param jenkins_connection_id: The jenkins connection to use for this job
-    :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
-    :type job_name: str
     :param parameters: The parameters block provided to jenkins for use in
         the API call when triggering a build. (templated)
-    :type parameters: str, Dict, or List
     :param sleep_time: How long will the operator sleep between each status
         request for the job (min 1, default 10)
-    :type sleep_time: int
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
-    :type max_try_before_job_appears: int
     :param allowed_jenkins_states: Iterable of allowed result jenkins states, default is ``['SUCCESS']``
-    :type allowed_jenkins_states: Optional[Iterable[str]]
     """
 
     template_fields: Sequence[str] = ('parameters',)

@@ -21,17 +21,17 @@ from typing import Optional
 
 import google
 
+from airflow.providers.google.common.consts import CLIENT_INFO
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
 
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
-from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
@@ -44,7 +44,6 @@ class _SecretManagerClient(LoggingMixin):
 
 
     :param credentials: Credentials used to authenticate to GCP
-    :type credentials: google.auth.credentials.Credentials
     """
 
     def __init__(
@@ -59,7 +58,6 @@ class _SecretManagerClient(LoggingMixin):
         """
         Returns true if the secret name is valid.
         :param secret_name: name of the secret
-        :type secret_name: str
         :return:
         """
         return bool(re.match(SECRET_ID_PATTERN, secret_name))
@@ -67,9 +65,7 @@ class _SecretManagerClient(LoggingMixin):
     @cached_property
     def client(self) -> SecretManagerServiceClient:
         """Create an authenticated KMS client"""
-        _client = SecretManagerServiceClient(
-            credentials=self.credentials, client_info=ClientInfo(client_library_version='airflow_v' + version)
-        )
+        _client = SecretManagerServiceClient(credentials=self.credentials, client_info=CLIENT_INFO)
         return _client
 
     def get_secret(self, secret_id: str, project_id: str, secret_version: str = 'latest') -> Optional[str]:
@@ -77,11 +73,8 @@ class _SecretManagerClient(LoggingMixin):
         Get secret value from the Secret Manager.
 
         :param secret_id: Secret Key
-        :type secret_id: str
         :param project_id: Project id to use
-        :type project_id: str
         :param secret_version: version of the secret (default is 'latest')
-        :type secret_version: str
         """
         name = self.client.secret_version_path(project_id, secret_id, secret_version)
         try:

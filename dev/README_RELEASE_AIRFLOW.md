@@ -22,6 +22,7 @@
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
+  - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
@@ -42,6 +43,7 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
@@ -65,13 +67,108 @@ The first step of a release is to work out what is being included. This differs 
 
 ## Selecting what to cherry-pick
 
-For obvious reasons, you can't cherry-pick every change from `main` into the release branch - some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
+For obvious reasons, you can't cherry-pick every change from `main` into the release branch -
+some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
 
-In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release; other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported), it's OK to leave it out of the release at your sole discretion as the release manager - if you do this, update the milestone in the issue to the "next" minor release.
+In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release;
+also changes in dependencies (setup.py, setup.cfg) resulting from releasing newer versions of packages that Airflow depends on.
+Other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport
+(maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported),
+it's OK to leave it out of the release at your sole discretion as the release manager -
+if you do this, update the milestone in the issue to the "next" minor release.
 
-Many issues will be marked with the target release as their Milestone; this is a good shortlist to start with for what to cherry-pick.
+Many issues will be marked with the target release as their Milestone; this is a good shortlist
+to start with for what to cherry-pick.
 
-When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch. You'll move them over to be on `vX-Y-stable` once the release is cut.
+Often you also want to cherry-pick changes related to CI and development tools, to include the latest
+stability fixes in CI and improvements in development tools. Usually you can see the list of such
+changes via (this will exclude already merged changes:
+
+```shell
+git fetch apache
+git log --oneline apache/v2-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
+```
+
+Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
+user-facing changelog as they only matter for developers of Airflow. We have a tool
+that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
+
+You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+explanations added to the documentation. Usually you can see the list of such changes via:
+
+```shell
+git fetch apache
+git log --oneline apache/v2-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
+```
+
+Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
+land in documentation part of the changelog. The tool to review and assign the labels is described below.
+
+When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
+You'll move them over to be on `vX-Y-stable` once the release is cut.
+
+## Reviewing cherry-picked PRs and assigning labels
+
+We have the tool that allows to review cherry-picked PRs and assign the labels
+[./assign_cherry_picked_prs_with_milestone.py](./assign_cherry_picked_prs_with_milestone.py)
+
+It allows to manually review and assign milestones and labels to cherry-picked PRs:
+
+```shell
+./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable --current-release apache/v2-2-test --milestone-number 48
+```
+
+It summarises the state of each cherry-picked PR including information whether it is going to be
+excluded or included in changelog or included in doc-only part of it. It also allows to re-assign
+the PRs to the target milestone and apply the `changelog:skip` or `type:doc-only` label.
+
+You can also add `--skip-assigned` flag if you want to automatically skip the question of assignment
+for the PRs that are already correctly assigned to the milestone. You can also avoid the "Are you OK?"
+question with `--assume-yes` flag.
+
+You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
+assumes `--skip-assigned` so that the summary can be produced without questions:
+
+```shell
+,/dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
+  --current-release apache/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
+  --output-folder /tmp
+```
+
+This will produce summary output with nice links that you can use to review the cherry-picked changes,
+but it also produces files with list of commits separated by type in the folder specified. In the case
+above, it will produce three files that you can use in the next step:
+
+```
+Changelog commits written in /tmp/changelog-changes.txt
+
+Doc only commits written in /tmp/doc-only-changes.txt
+
+Excluded commits written in /tmp/excluded-changes.txt
+```
+
+You can see for example which files have been changed by "doc-only" or "excluded" changes, to make sure
+that no "sneaky" changes were by mistake classified wrongly.
+
+```shell
+git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt) | sort | uniq
+```
+
+Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
+
+```shell
+git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+```
+
+And the URL to the PR it comes from:
+
+```shell
+git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+    xargs -n 1 git log --oneline --max-count=1 | \
+    sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
+```
 
 # Prepare the Apache Airflow Package RC
 
@@ -109,6 +206,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
 - Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
+- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
 - Check out the 'stable' branch
@@ -156,7 +254,7 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     popd
     ```
 
-- Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
+- Tag & Push the constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
     git checkout origin/constraints-${VERSION_BRANCH}
@@ -297,6 +395,7 @@ protected_branches:
    git checkout -b constraints-${BRANCH_PREFIX}
    git push origin tag constraints-${BRANCH_PREFIX}
    ```
+
 
 ## Prepare PyPI convenience "snapshot" packages
 
@@ -796,6 +895,13 @@ At this point we release an official package:
     git push origin tag "constraints-${VERSION}"
     ```
 
+- In case you release "latest stable" version, also update "latest" constraints
+
+    ```shell script
+    git tag -f -s "constraints-latest" -m "Latest constraints set to Apache Airflow ${VERSION}"
+    git push -f origin tag "constraints-latest"
+    ```
+
 - Push Tag for the final version
 
     This step should only be done now and not before, because it triggers an automated build of
@@ -905,6 +1011,12 @@ EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Update Announcements page
 
@@ -917,6 +1029,8 @@ Create a new release on GitHub with the changelog and assets from the release sv
 ## Close the milestone
 
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
+make sure to update the last updated timestamp as well.
 
 ## Announce the release on the community slack
 
@@ -960,6 +1074,7 @@ This includes:
 - Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
 - Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
 

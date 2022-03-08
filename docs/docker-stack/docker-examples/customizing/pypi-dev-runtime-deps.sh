@@ -23,9 +23,11 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 export AIRFLOW_VERSION=2.2.2
+export DEBIAN_VERSION="bullseye"
 
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \

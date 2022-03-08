@@ -332,15 +332,11 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_should_include_ready_to_reschedule_dep_in_reschedule_mode(self):
-        sensor = DummySensor(task_id='a', return_value=True, mode='reschedule')
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_should_include_ready_to_reschedule_dep(self, mode):
+        sensor = DummySensor(task_id='a', return_value=True, mode=mode)
         deps = sensor.deps
         assert ReadyToRescheduleDep() in deps
-
-    def test_should_not_include_ready_to_reschedule_dep_in_poke_mode(self, make_sensor):
-        sensor = DummySensor(task_id='a', return_value=False, mode='poke')
-        deps = sensor.deps
-        assert ReadyToRescheduleDep() not in deps
 
     def test_invalid_mode(self):
         with pytest.raises(AirflowException):

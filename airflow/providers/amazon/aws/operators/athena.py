@@ -41,25 +41,15 @@ class AthenaOperator(BaseOperator):
         :ref:`howto/operator:AthenaOperator`
 
     :param query: Presto to be run on athena. (templated)
-    :type query: str
     :param database: Database to select. (templated)
-    :type database: str
     :param output_location: s3 path to write the query results into. (templated)
-    :type output_location: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
-    :type client_request_token: str
     :param workgroup: Athena workgroup in which query will be run
-    :type workgroup: str
     :param query_execution_context: Context in which query need to be run
-    :type query_execution_context: dict
     :param result_configuration: Dict with path to store results in and config related to encryption
-    :type result_configuration: dict
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
-    :type sleep_time: int
     :param max_tries: Number of times to poll for query state before function exits
-    :type max_tries: int
     """
 
     ui_color = '#44b5e2'

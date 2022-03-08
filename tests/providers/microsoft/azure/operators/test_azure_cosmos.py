@@ -62,10 +62,10 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         )
 
         expected_calls = [
-            mock.call().CreateItem(
-                'dbs/' + self.test_database_name + '/colls/' + self.test_collection_name,
-                {'data': 'sometestdata', 'id': test_id},
-            )
+            mock.call()
+            .get_database_client('test_database_name')
+            .get_container_client('test_collection_name')
+            .upsert_item({'data': 'sometestdata', 'id': test_id})
         ]
 
         op.execute(None)

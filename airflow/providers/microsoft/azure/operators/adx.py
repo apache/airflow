@@ -35,15 +35,11 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     Operator for querying Azure Data Explorer (Kusto).
 
     :param query: KQL query to run (templated).
-    :type query: str
     :param database: Database to run the query on (templated).
-    :type database: str
     :param options: Optional query options. See:
       https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
-    :type options: dict
     :param azure_data_explorer_conn_id: Reference to the
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
-    :type azure_data_explorer_conn_id: str
     """
 
     ui_color = '#00a1f2'

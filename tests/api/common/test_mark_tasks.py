@@ -24,6 +24,7 @@ from sqlalchemy.orm import eagerload
 from airflow import models
 from airflow.api.common.mark_tasks import (
     _create_dagruns,
+    _DagRunInfo,
     set_dag_run_state_to_failed,
     set_dag_run_state_to_running,
     set_dag_run_state_to_success,
@@ -70,20 +71,34 @@ class TestMarkTasks:
 
         clear_db_runs()
         drs = _create_dagruns(
-            self.dag1, self.execution_dates, state=State.RUNNING, run_type=DagRunType.SCHEDULED
+            self.dag1,
+            [_DagRunInfo(d, (d, d + timedelta(days=1))) for d in self.execution_dates],
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
         )
         for dr in drs:
             dr.dag = self.dag1
 
         drs = _create_dagruns(
-            self.dag2, [self.dag2.start_date], state=State.RUNNING, run_type=DagRunType.SCHEDULED
+            self.dag2,
+            [
+                _DagRunInfo(
+                    self.dag2.start_date,
+                    (self.dag2.start_date, self.dag2.start_date + timedelta(days=1)),
+                ),
+            ],
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
         )
 
         for dr in drs:
             dr.dag = self.dag2
 
         drs = _create_dagruns(
-            self.dag3, self.dag3_execution_dates, state=State.SUCCESS, run_type=DagRunType.MANUAL
+            self.dag3,
+            [_DagRunInfo(d, (d, d)) for d in self.dag3_execution_dates],
+            state=State.SUCCESS,
+            run_type=DagRunType.MANUAL,
         )
         for dr in drs:
             dr.dag = self.dag3
@@ -138,7 +153,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -152,7 +167,7 @@ class TestMarkTasks:
         # set one and only one task to success
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -166,7 +181,7 @@ class TestMarkTasks:
         # set no tasks
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -180,7 +195,7 @@ class TestMarkTasks:
         # set task to other than success
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -196,7 +211,7 @@ class TestMarkTasks:
         task = self.dag1.get_task("runme_0")
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -213,7 +228,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -240,7 +255,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,
@@ -262,7 +277,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=True,
             downstream=False,
             future=False,
@@ -280,7 +295,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -296,7 +311,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -315,7 +330,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -331,7 +346,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -350,7 +365,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=tasks,
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -377,7 +392,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,

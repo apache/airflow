@@ -148,6 +148,8 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
+.. _concepts:templating-native-objects:
+
 Rendering Fields as Native Python Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -175,7 +177,7 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
     dag = DAG(
         dag_id="example_template_as_python_object",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         render_template_as_native_obj=True,
     )

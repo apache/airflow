@@ -17,6 +17,8 @@
 # under the License.
 """Base operator for all operators."""
 import abc
+import collections
+import contextlib
 import copy
 import functools
 import logging
@@ -31,6 +33,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Collection,
     Dict,
     FrozenSet,
     Iterable,
@@ -46,21 +49,30 @@ from typing import (
 )
 
 import attr
-import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
-import airflow.templates
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
-from airflow.models.base import Operator
+from airflow.models.abstractoperator import (
+    DEFAULT_OWNER,
+    DEFAULT_POOL_SLOTS,
+    DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_QUEUE,
+    DEFAULT_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_TRIGGER_RULE,
+    DEFAULT_WEIGHT_RULE,
+    AbstractOperator,
+    TaskStateChangeCallback,
+)
+from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
@@ -71,25 +83,80 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
-from airflow.utils.helpers import render_template_as_native, render_template_to_string, validate_key
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.context import Context
+from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
-    from airflow.decorators.base import _TaskDecorator
+    import jinja2  # Slow import.
+
     from airflow.models.dag import DAG
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
-TaskStateChangeCallback = Callable[[Context], None]
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=FunctionType)
+
+logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
+
+
+def parse_retries(retries: Any) -> Optional[int]:
+    if retries is None or isinstance(retries, int):
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    logger.warning("Implicitly converting 'retries' from %r to int", retries)
+    return parsed_retries
+
+
+def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
+    if isinstance(retry_delay, timedelta):
+        return retry_delay
+    logger.debug("retry_delay isn't a timedelta object, assuming secs")
+    return timedelta(seconds=retry_delay)
+
+
+def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]:
+    if resources is None:
+        return None
+    return Resources(**resources)
+
+
+def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
+    if not dag:
+        return {}, ParamsDict()
+    dag_args = copy.copy(dag.default_args)
+    dag_params = copy.deepcopy(dag.params)
+    if task_group:
+        if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
+        dag_args.update(task_group.default_args)
+    return dag_args, dag_params
+
+
+def _merge_defaults(
+    dag_args: dict,
+    dag_params: ParamsDict,
+    task_params: Optional[dict],
+    task_default_args: dict,
+) -> Tuple[dict, ParamsDict]:
+    if task_params:
+        dag_params.update(task_params)
+    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
+        raise TypeError("default_args must be a mapping")
+    dag_args.update(task_default_args)
+    with contextlib.suppress(KeyError):
+        dag_params.update(task_default_args.pop("params"))
+    return dag_args, dag_params
 
 
 class _PartialDescriptor:
@@ -99,14 +166,122 @@ class _PartialDescriptor:
 
     def __get__(
         self, obj: "BaseOperator", cls: "Optional[Type[BaseOperator]]" = None
-    ) -> Callable[..., "MappedOperator"]:
-        # Call this "partial" so it looks nicer in stack traces
+    ) -> Callable[..., OperatorPartial]:
+        # Call this "partial" so it looks nicer in stack traces.
         def partial(**kwargs):
             raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
 
         if obj is not None:
             return partial
         return self.class_method.__get__(cls, cls)
+
+
+# This is what handles the actual mapping.
+def partial(
+    operator_class: Type["BaseOperator"],
+    *,
+    task_id: str,
+    dag: Optional["DAG"] = None,
+    task_group: Optional["TaskGroup"] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    owner: str = DEFAULT_OWNER,
+    email: Union[None, str, Iterable[str]] = None,
+    params: Optional[dict] = None,
+    resources: Optional[Dict[str, Any]] = None,
+    trigger_rule: str = DEFAULT_TRIGGER_RULE,
+    depends_on_past: bool = False,
+    wait_for_downstream: bool = False,
+    retries: Optional[int] = DEFAULT_RETRIES,
+    queue: str = DEFAULT_QUEUE,
+    pool: Optional[str] = None,
+    pool_slots: int = DEFAULT_POOL_SLOTS,
+    execution_timeout: Optional[timedelta] = None,
+    retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
+    retry_exponential_backoff: bool = False,
+    priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
+    weight_rule: str = DEFAULT_WEIGHT_RULE,
+    sla: Optional[timedelta] = None,
+    max_active_tis_per_dag: Optional[int] = None,
+    on_execute_callback: Optional[TaskStateChangeCallback] = None,
+    on_failure_callback: Optional[TaskStateChangeCallback] = None,
+    on_success_callback: Optional[TaskStateChangeCallback] = None,
+    on_retry_callback: Optional[TaskStateChangeCallback] = None,
+    run_as_user: Optional[str] = None,
+    executor_config: Optional[Dict] = None,
+    inlets: Optional[Any] = None,
+    outlets: Optional[Any] = None,
+    **kwargs,
+) -> OperatorPartial:
+    from airflow.models.dag import DagContext
+    from airflow.utils.task_group import TaskGroupContext
+
+    validate_mapping_kwargs(operator_class, "partial", kwargs)
+
+    dag = dag or DagContext.get_current_dag()
+    if dag:
+        task_group = TaskGroupContext.get_current_task_group(dag)
+    if task_group:
+        task_id = task_group.child_id(task_id)
+
+    # Merge DAG and task group level defaults into user-supplied values.
+    dag_args, dag_params = _get_dag_defaults(dag, task_group)
+    partial_kwargs, default_params = _merge_defaults(
+        dag_args=dag_args,
+        dag_params=dag_params,
+        task_params=params,
+        task_default_args=kwargs.pop("default_args", {}),
+    )
+    partial_kwargs.update(kwargs)
+
+    # Always fully populate partial kwargs to exclude them from map().
+    partial_kwargs.setdefault("dag", dag)
+    partial_kwargs.setdefault("task_group", task_group)
+    partial_kwargs.setdefault("task_id", task_id)
+    partial_kwargs.setdefault("start_date", start_date)
+    partial_kwargs.setdefault("end_date", end_date)
+    partial_kwargs.setdefault("owner", owner)
+    partial_kwargs.setdefault("email", email)
+    partial_kwargs.setdefault("params", default_params)
+    partial_kwargs.setdefault("trigger_rule", trigger_rule)
+    partial_kwargs.setdefault("depends_on_past", depends_on_past)
+    partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
+    partial_kwargs.setdefault("retries", retries)
+    partial_kwargs.setdefault("queue", queue)
+    partial_kwargs.setdefault("pool", pool)
+    partial_kwargs.setdefault("pool_slots", pool_slots)
+    partial_kwargs.setdefault("execution_timeout", execution_timeout)
+    partial_kwargs.setdefault("retry_delay", retry_delay)
+    partial_kwargs.setdefault("retry_exponential_backoff", retry_exponential_backoff)
+    partial_kwargs.setdefault("priority_weight", priority_weight)
+    partial_kwargs.setdefault("weight_rule", weight_rule)
+    partial_kwargs.setdefault("sla", sla)
+    partial_kwargs.setdefault("max_active_tis_per_dag", max_active_tis_per_dag)
+    partial_kwargs.setdefault("on_execute_callback", on_execute_callback)
+    partial_kwargs.setdefault("on_failure_callback", on_failure_callback)
+    partial_kwargs.setdefault("on_retry_callback", on_retry_callback)
+    partial_kwargs.setdefault("on_success_callback", on_success_callback)
+    partial_kwargs.setdefault("run_as_user", run_as_user)
+    partial_kwargs.setdefault("executor_config", executor_config)
+    partial_kwargs.setdefault("inlets", inlets)
+    partial_kwargs.setdefault("outlets", outlets)
+    partial_kwargs.setdefault("resources", resources)
+
+    # Post-process arguments. Should be kept in sync with _TaskDecorator.apply().
+    if "task_concurrency" in kwargs:  # Reject deprecated option.
+        raise TypeError("unexpected argument: task_concurrency")
+    if partial_kwargs["wait_for_downstream"]:
+        partial_kwargs["depends_on_past"] = True
+    partial_kwargs["start_date"] = timezone.convert_to_utc(partial_kwargs["start_date"])
+    partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
+    if partial_kwargs["pool"] is None:
+        partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+    partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
+    partial_kwargs["retry_delay"] = coerce_retry_delay(partial_kwargs["retry_delay"])
+    partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
+    partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
+
+    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -134,7 +309,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
-            name for (name, param) in non_variadic_params.items() if param.default == param.empty
+            name
+            for name, param in non_variadic_params.items()
+            if param.default == param.empty and name != "task_id"
         }
 
         class autostacklevel_warn:
@@ -164,40 +341,38 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
-            dag_args: Dict[str, Any] = {}
-            dag_params = ParamsDict()
+
+            mapped_validation_only = kwargs.pop(
+                "_airflow_mapped_validation_only",
+                getattr(self, "_BaseOperator__mapped_validation", False),
+            )
 
             dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
-            if dag:
-                dag_args = copy.copy(dag.default_args) or dag_args
-                dag_params = copy.deepcopy(dag.params) or dag_params
+            task_group: Optional[TaskGroup] = kwargs.get('task_group')
+            if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
-                if task_group:
-                    dag_args.update(task_group.default_args)
 
-            params = kwargs.get('params', {}) or {}
-            dag_params.update(params)
-
-            default_args = kwargs.pop('default_args', {})
-            if default_args:
-                if 'params' in default_args:
-                    dag_params.update(default_args['params'])
-                    del default_args['params']
-
-            dag_args.update(default_args)
-            default_args = dag_args
+            dag_args, dag_params = _get_dag_defaults(dag, task_group)
+            default_args, merged_params = _merge_defaults(
+                dag_args=dag_args,
+                dag_params=dag_params,
+                task_params=kwargs.pop("params", None),
+                task_default_args=kwargs.pop("default_args", {}),
+            )
 
             for arg in sig_cache.parameters:
                 if arg not in kwargs and arg in default_args:
                     kwargs[arg] = default_args[arg]
 
-            missing_args = list(non_optional_args - set(kwargs))
-            if missing_args:
-                msg = f"Argument {missing_args} is required"
-                raise AirflowException(msg)
+            missing_args = non_optional_args - set(kwargs)
+            if len(missing_args) == 1:
+                raise AirflowException(f"missing keyword argument {missing_args.pop()!r}")
+            elif missing_args:
+                display = ", ".join(repr(a) for a in sorted(missing_args))
+                raise AirflowException(f"missing keyword arguments {display}")
 
-            if dag_params:
-                kwargs['params'] = dag_params
+            if merged_params:
+                kwargs["params"] = merged_params
 
             hook = getattr(self, '_hook_apply_defaults', None)
             if hook:
@@ -206,16 +381,19 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             if not hasattr(self, '_BaseOperator__init_kwargs'):
                 self._BaseOperator__init_kwargs = {}
+            self._BaseOperator__mapped_validation = mapped_validation_only
 
             result = func(self, **kwargs, default_args=default_args)
+
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
-            # Here we set upstream task defined by XComArgs passed to template fields of the operator
-            self.set_xcomargs_dependencies()
+            if not mapped_validation_only:
+                # Set upstream task defined by XComArgs passed to template fields of the operator.
+                self.set_xcomargs_dependencies()
+                # Mark instance as instantiated.
+                self._BaseOperator__instantiated = True
 
-            # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-            self._BaseOperator__instantiated = True
             return result
 
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
@@ -225,30 +403,18 @@ class BaseOperatorMeta(abc.ABCMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        try:
+        with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method so it call call the actual function (but let
             # subclasses override it if they need to)
-            partial_desc = vars(new_cls)['partial']
+            partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
-                actual_partial = cls.partial
-                partial_desc.class_method = classmethod(actual_partial)
-        except KeyError:
-            pass
+                partial_desc.class_method = classmethod(partial)
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
 
-    # The class level partial function. This is what handles the actual mapping
-    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs):
-        operator_class = cast("Type[BaseOperator]", cls)
-        # Validate that the args we passed are known -- at call/DAG parse time, not run time!
-        _validate_kwarg_names_for_mapping(operator_class, "partial", kwargs)
-        return MappedOperator(
-            task_id=task_id, operator_class=operator_class, dag=dag, partial_kwargs=kwargs, mapped_kwargs={}
-        )
-
 
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
+class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -269,34 +435,25 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     be set by using the set_upstream and/or set_downstream methods.
 
     :param task_id: a unique, meaningful id for the task
-    :type task_id: str
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
-    :type owner: str
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
         comma or semi-colon separated string or by passing a list of strings.
-    :type email: str or list[str]
     :param email_on_retry: Indicates whether email alerts should be sent when a
         task is retried
-    :type email_on_retry: bool
     :param email_on_failure: Indicates whether email alerts should be sent when
         a task failed
-    :type email_on_failure: bool
     :param retries: the number of retries that should be performed before
         failing the task
-    :type retries: int
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
         ``float`` seconds, which will be converted into ``timedelta``,
         the default is ``timedelta(seconds=300)``.
-    :type retry_delay: datetime.timedelta or float
     :param retry_exponential_backoff: allow progressively longer waits between
         retries by using exponential backoff algorithm on retry delay (delay
         will be converted into seconds)
-    :type retry_exponential_backoff: bool
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
-    :type max_retry_delay: datetime.timedelta or float
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -313,13 +470,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
         dynamic ``start_date`` and recommend using fixed ones. Read the
         FAQ entry about start_date for more information.
-    :type start_date: datetime.datetime
     :param end_date: if specified, the scheduler won't go beyond this date
-    :type end_date: datetime.datetime
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.
-    :type depends_on_past: bool
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully or be skipped before it runs. This is useful if the
@@ -328,14 +482,11 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         is forced to True wherever wait_for_downstream is used. Also note that
         only tasks *immediately* downstream of the previous task instance are waited
         for; the statuses of any tasks further downstream are ignored.
-    :type wait_for_downstream: bool
     :param dag: a reference to the dag the task is attached to (if any)
-    :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
-    :type priority_weight: int
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
         ``{ downstream | upstream | absolute }`` default is ``downstream``
@@ -358,17 +509,13 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
-    :type weight_rule: str
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
         does support targeting specific queues.
-    :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
-    :type pool: str
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
-    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -380,53 +527,41 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         for future reference. All tasks that share the same SLA time
         get bundled in a single email, sent soon after that time. SLA
         notification are sent once and only once for each task instance.
-    :type sla: datetime.timedelta
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
-    :type execution_timeout: datetime.timedelta
     :param on_failure_callback: a function to be called when a task instance
         of this task fails. a context dictionary is passed as a single
         parameter to this function. Context contains references to related
         objects to the task instance and is documented under the macros
         section of the API.
-    :type on_failure_callback: TaskStateChangeCallback
     :param on_execute_callback: much like the ``on_failure_callback`` except
         that it is executed right before the task is executed.
-    :type on_execute_callback: TaskStateChangeCallback
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
-    :type on_retry_callback: TaskStateChangeCallback
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
-    :type on_success_callback: TaskStateChangeCallback
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
 
         |experimental|
-    :type pre_execute: TaskPreExecuteHook
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
 
         |experimental|
-    :type post_execute: TaskPostExecuteHook
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
-        ``{ all_success | all_failed | all_done | one_success |
+        ``{ all_success | all_failed | all_done | all_skipped | one_success |
         one_failed | none_failed | none_failed_min_one_success | none_skipped | always}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
-    :type trigger_rule: str
     :param resources: A map of resource parameter names (the argument names of the
         Resources constructor) to their values.
-    :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
-    :type run_as_user: str
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates.
-    :type max_active_tis_per_dag: int
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -441,42 +576,33 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 }
             )
 
-    :type executor_config: dict
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
-    :type do_xcom_push: bool
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
-    :type task_group: airflow.utils.task_group.TaskGroup
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
-    :type doc: str
     :param doc_md: Add documentation (in Markdown format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
-    :type doc_md: str
     :param doc_rst: Add documentation (in RST format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
-    :type doc_rst: str
     :param doc_json: Add documentation (in JSON format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
-    :type doc_json: str
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
-    :type doc_yaml: str
     """
 
-    # For derived classes to define which fields will get jinjaified
-    template_fields: Sequence[str] = ()
-    # Defines which files extensions to look for in the templated fields
-    template_ext: Sequence[str] = ()
-    # Template field renderers indicating type of the field, for example sql, json, bash
+    # Implementing Operator.
+    template_fields: Collection[str] = ()
+    template_ext: Collection[str] = ()
+
     template_fields_renderers: Dict[str, str] = {}
 
     # Defines the color in the UI
-    ui_color = '#fff'  # type: str
-    ui_fgcolor = '#000'  # type: str
+    ui_color: str = '#fff'
+    ui_fgcolor: str = '#000'
 
-    pool = ""  # type: str
+    pool: str = ""
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Tuple[str, ...] = (
@@ -490,12 +616,12 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     shallow_copy_attrs: Sequence[str] = ()
 
     # Defines the operator level extra links
-    operator_extra_links: Iterable['BaseOperatorLink'] = ()
+    operator_extra_links: Collection['BaseOperatorLink'] = ()
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
-    partial: Callable[..., "MappedOperator"] = _PartialDescriptor()  # type: ignore
+    partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _comps = {
         'task_id',
@@ -533,6 +659,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     _lock_for_execution = False
 
     _dag: Optional["DAG"] = None
+    task_group: Optional["TaskGroup"] = None
 
     # subdag parameter is only set for SubDagOperator.
     # Setting it to None by default as other Operators do not have that field
@@ -541,7 +668,21 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
 
-    def __new__(cls, dag: Optional['DAG'] = None, task_group: Optional["TaskGroup"] = None, **kwargs):
+    # How operator-mapping arguments should be validated. If True, a default validation implementation that
+    # calls the operator's constructor is used. If False, the operator should implement its own validation
+    # logic (default implementation is 'pass' i.e. no validation whatsoever).
+    mapped_arguments_validated_by_init: ClassVar[bool] = False
+
+    # Set to True for an operator instantiated only for mapping validation.
+    __mapped_validation = False
+
+    def __new__(
+        cls,
+        dag: Optional['DAG'] = None,
+        task_group: Optional["TaskGroup"] = None,
+        _airflow_mapped_validation_only: bool = False,  # Whether called to validate a MappedOperator.
+        **kwargs,
+    ):
         # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
         # create mapped operators.
         from airflow.models.dag import DagContext
@@ -550,19 +691,19 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs)
+        if not _airflow_mapped_validation_only and isinstance(task_group, MappedTaskGroup):
+            return cls.partial(dag=dag, task_group=task_group, **kwargs).apply()
         return super().__new__(cls)
 
     def __init__(
         self,
         task_id: str,
-        owner: str = conf.get('operators', 'DEFAULT_OWNER'),
+        owner: str = DEFAULT_OWNER,
         email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
         email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
-        retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
-        retry_delay: Union[timedelta, float] = timedelta(seconds=300),
+        retries: Optional[int] = DEFAULT_RETRIES,
+        retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[Union[timedelta, float]] = None,
         start_date: Optional[datetime] = None,
@@ -572,11 +713,11 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
-        priority_weight: int = 1,
-        weight_rule: str = conf.get('core', 'default_task_weight_rule', fallback=WeightRule.DOWNSTREAM),
-        queue: str = conf.get('operators', 'default_queue'),
+        priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
+        weight_rule: str = DEFAULT_WEIGHT_RULE,
+        queue: str = DEFAULT_QUEUE,
         pool: Optional[str] = None,
-        pool_slots: int = 1,
+        pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
@@ -585,8 +726,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
         pre_execute: Optional[TaskPreExecuteHook] = None,
         post_execute: Optional[TaskPostExecuteHook] = None,
-        trigger_rule: str = TriggerRule.ALL_SUCCESS,
-        resources: Optional[Dict] = None,
+        trigger_rule: str = DEFAULT_TRIGGER_RULE,
+        resources: Optional[Dict[str, Any]] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
         max_active_tis_per_dag: Optional[int] = None,
@@ -608,6 +749,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         self.__init_kwargs = {}
 
         super().__init__()
+
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
@@ -622,12 +764,17 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 stacklevel=3,
             )
         validate_key(task_id)
-        self.task_id = task_id
+
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+
         if task_group:
             self.task_id = task_group.child_id(task_id)
+        else:
+            self.task_id = task_id
+        if not self.__mapped_validation and task_group:
             task_group.add(self)
+
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
@@ -648,20 +795,9 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
-        if retries is not None and not isinstance(retries, int):
-            try:
-                parsed_retries = int(retries)
-            except (TypeError, ValueError):
-                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-            id = task_id
-            if dag:
-                id = f'{dag.dag_id}.{id}'
-            self.log.warning("Implicitly converting 'retries' for task %s from %r to int", id, retries)
-            retries = parsed_retries
-
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
-        self.retries = retries
+        self.retries = parse_retries(retries)
         self.queue = queue
         self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
@@ -694,16 +830,12 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             )
 
         self.trigger_rule = trigger_rule
-        self.depends_on_past = depends_on_past
+        self.depends_on_past: bool = depends_on_past
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
 
-        if isinstance(retry_delay, timedelta):
-            self.retry_delay = retry_delay
-        else:
-            self.log.debug("Retry_delay isn't timedelta object, assuming secs")
-            self.retry_delay = timedelta(seconds=retry_delay)
+        self.retry_delay = coerce_retry_delay(retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
         if max_retry_delay:
@@ -728,7 +860,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 f"received '{weight_rule}'."
             )
         self.weight_rule = weight_rule
-        self.resources: Optional[Resources] = Resources(**resources) if resources else None
+        self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -737,7 +869,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             max_active_tis_per_dag = task_concurrency
-        self.max_active_tis_per_dag = max_active_tis_per_dag
+        self.max_active_tis_per_dag: Optional[int] = max_active_tis_per_dag
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
@@ -746,9 +878,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         self.doc_rst = doc_rst
         self.doc = doc
 
-        # Private attributes
-        self._upstream_task_ids: Set[str] = set()
-        self._downstream_task_ids: Set[str] = set()
+        self.upstream_task_ids: Set[str] = set()
+        self.downstream_task_ids: Set[str] = set()
 
         if dag:
             self.dag = dag
@@ -779,6 +910,16 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                     outlets,
                 ]
             )
+
+        if isinstance(self.template_fields, str):
+            warnings.warn(
+                f"The `template_fields` value for {self.task_type} is a string "
+                "but should be a list or tuple of string. Wrapping it in a list for execution. "
+                f"Please update {self.task_type} accordingly.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.template_fields = [self.template_fields]
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -852,9 +993,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     def __setattr__(self, key, value):
         super().__setattr__(key, value)
-        if self._lock_for_execution:
-            # Skip any custom behaviour during execute
-            return
+        if self.__mapped_validation or self._lock_for_execution:
+            return  # Skip any custom behavior for validation and during execute.
         if key in self.__init_kwargs:
             self.__init_kwargs[key] = value
         if self.__instantiated and key in self.template_fields:
@@ -880,9 +1020,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """:return: list of outlets defined for this operator"""
         return self._outlets
 
-    @property
-    def node_id(self):
-        return self.task_id
+    def get_dag(self) -> "Optional[DAG]":
+        return self._dag
 
     @property  # type: ignore[override]
     def dag(self) -> 'DAG':  # type: ignore[override]
@@ -907,6 +1046,9 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
             raise TypeError(f'Expected DAG; received {dag.__class__.__name__}')
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(f"The DAG assigned to {self} can not be changed.")
+
+        if self.__mapped_validation:
+            pass  # Don't add task to DAG for validation.
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
@@ -918,15 +1060,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Returns True if the Operator has been assigned to a DAG."""
         return self._dag is not None
 
-    @property
-    def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc + owner"""
-        if self.has_dag():
-            return self.dag.dag_id
-        else:
-            return 'adhoc_' + self.owner
-
-    deps: Iterable[BaseTIDep] = frozenset(
+    deps: FrozenSet[BaseTIDep] = frozenset(
         {
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
@@ -972,84 +1106,10 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """
         from airflow.models.xcom_arg import XComArg
 
-        def apply_set_upstream(arg: Any):
-            if isinstance(arg, XComArg):
-                self.set_upstream(arg.operator)
-            elif isinstance(arg, (tuple, set, list)):
-                for elem in arg:
-                    apply_set_upstream(elem)
-            elif isinstance(arg, dict):
-                for elem in arg.values():
-                    apply_set_upstream(elem)
-            elif hasattr(arg, "template_fields"):
-                for elem in arg.template_fields:
-                    apply_set_upstream(elem)
-
         for field in self.template_fields:
             if hasattr(self, field):
                 arg = getattr(self, field)
-                apply_set_upstream(arg)
-
-    @property
-    def priority_weight_total(self) -> int:
-        """
-        Total priority weight for the task. It might include all upstream or downstream tasks.
-        depending on the weight rule.
-
-          - WeightRule.ABSOLUTE - only own weight
-          - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
-          - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
-
-        """
-        if self.weight_rule == WeightRule.ABSOLUTE:
-            return self.priority_weight
-        elif self.weight_rule == WeightRule.DOWNSTREAM:
-            upstream = False
-        elif self.weight_rule == WeightRule.UPSTREAM:
-            upstream = True
-        else:
-            upstream = False
-
-        if not self._dag:
-            return self.priority_weight
-        from airflow.models.dag import DAG
-
-        dag: DAG = self._dag
-        return self.priority_weight + sum(
-            map(
-                lambda task_id: dag.task_dict[task_id].priority_weight,
-                self.get_flat_relative_ids(upstream=upstream),
-            )
-        )
-
-    @cached_property
-    def operator_extra_link_dict(self) -> Dict[str, Any]:
-        """Returns dictionary of all extra links for the operator"""
-        op_extra_links_from_plugin: Dict[str, Any] = {}
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        for ope in plugins_manager.operator_extra_links:
-            if ope.operators and self.__class__ in ope.operators:
-                op_extra_links_from_plugin.update({ope.name: ope})
-
-        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
-        # Extra links defined in Plugins overrides operator links defined in operator
-        operator_extra_links_all.update(op_extra_links_from_plugin)
-
-        return operator_extra_links_all
-
-    @cached_property
-    def global_operator_extra_link_dict(self) -> Dict[str, Any]:
-        """Returns dictionary of all global extra links"""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+                XComArg.apply_upstream_relationship(self, arg)
 
     @prepare_lineage
     def pre_execute(self, context: Any):
@@ -1114,161 +1174,21 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
-        self, context: Context, jinja_env: Optional[jinja2.Environment] = None
-    ) -> None:
-        """
-        Template all attributes listed in template_fields. Note this operation is irreversible.
+        self,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+    ) -> Optional["BaseOperator"]:
+        """Template all attributes listed in template_fields.
+
+        This mutates the attributes in-place and is irreversible.
 
         :param context: Dict with values to apply on content
-        :type context: dict
         :param jinja_env: Jinja environment
-        :type jinja_env: jinja2.Environment
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
-
-    def _do_render_template_fields(
-        self,
-        parent: Any,
-        template_fields: Iterable[str],
-        context: Context,
-        jinja_env: jinja2.Environment,
-        seen_oids: Set,
-    ) -> None:
-        for attr_name in template_fields:
-            content = getattr(parent, attr_name)
-            if content:
-                rendered_content = self.render_template(content, context, jinja_env, seen_oids)
-                setattr(parent, attr_name, rendered_content)
-
-    def render_template(
-        self,
-        content: Any,
-        context: Context,
-        jinja_env: Optional[jinja2.Environment] = None,
-        seen_oids: Optional[Set] = None,
-    ) -> Any:
-        """
-        Render a templated string. The content can be a collection holding multiple templated strings and will
-        be templated recursively.
-
-        :param content: Content to template. Only strings can be templated (may be inside collection).
-        :type content: Any
-        :param context: Dict with values to apply on templated content
-        :type context: dict
-        :param jinja_env: Jinja environment. Can be provided to avoid re-creating Jinja environments during
-            recursion.
-        :type jinja_env: jinja2.Environment
-        :param seen_oids: template fields already rendered (to avoid RecursionError on circular dependencies)
-        :type seen_oids: set
-        :return: Templated content
-        """
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-
-        # Imported here to avoid circular dependency
-        from airflow.models.param import DagParam
-        from airflow.models.xcom_arg import XComArg
-
-        if isinstance(content, str):
-            if any(content.endswith(ext) for ext in self.template_ext):  # Content contains a filepath.
-                template = jinja_env.get_template(content)
-            else:
-                template = jinja_env.from_string(content)
-            if self.has_dag() and self.dag.render_template_as_native_obj:
-                return render_template_as_native(template, context)
-            return render_template_to_string(template, context)
-
-        elif isinstance(content, (XComArg, DagParam)):
-            return content.resolve(context)
-
-        if isinstance(content, tuple):
-            if type(content) is not tuple:
-                # Special case for named tuples
-                return content.__class__(
-                    *(self.render_template(element, context, jinja_env) for element in content)
-                )
-            else:
-                return tuple(self.render_template(element, context, jinja_env) for element in content)
-
-        elif isinstance(content, list):
-            return [self.render_template(element, context, jinja_env) for element in content]
-
-        elif isinstance(content, dict):
-            return {key: self.render_template(value, context, jinja_env) for key, value in content.items()}
-
-        elif isinstance(content, set):
-            return {self.render_template(element, context, jinja_env) for element in content}
-
-        else:
-            if seen_oids is None:
-                seen_oids = set()
-            self._render_nested_template_fields(content, context, jinja_env, seen_oids)
-            return content
-
-    def _render_nested_template_fields(
-        self, content: Any, context: Context, jinja_env: jinja2.Environment, seen_oids: Set
-    ) -> None:
-        if id(content) not in seen_oids:
-            seen_oids.add(id(content))
-            try:
-                nested_template_fields = content.template_fields
-            except AttributeError:
-                # content has no inner template fields
-                return
-
-            self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
-
-    def get_template_env(self) -> jinja2.Environment:
-        """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return (
-            self.dag.get_template_env()
-            if self.has_dag()
-            else airflow.templates.SandboxedEnvironment(cache_size=0)
-        )
-
-    def prepare_template(self) -> None:
-        """
-        Hook that is triggered after the templated fields get replaced
-        by their content. If you need your operator to alter the
-        content of the file before the template is rendered,
-        it should override this method to do so.
-        """
-
-    def resolve_template_files(self) -> None:
-        """Getting the content of files for template_field / template_ext"""
-        if self.template_ext:
-            for field in self.template_fields:
-                content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
-                    env = self.get_template_env()
-                    try:
-                        setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
-                    except Exception as e:
-                        self.log.exception(e)
-                elif isinstance(content, list):
-                    env = self.dag.get_template_env()
-                    for i, item in enumerate(content):
-                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
-                            try:
-                                content[i] = env.loader.get_source(env, item)[0]  # type: ignore
-                            except Exception as e:
-                                self.log.exception(e)
-        self.prepare_template()
-
-    @property
-    def upstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly upstream"""
-        return self._upstream_task_ids
-
-    @property
-    def downstream_task_ids(self) -> Set[str]:
-        """@property: set of ids of tasks directly downstream"""
-        return self._downstream_task_ids
+        return self
 
     @provide_session
     def clear(
@@ -1312,50 +1232,20 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         end_date: Optional[datetime] = None,
         session: Session = NEW_SESSION,
     ) -> List[TaskInstance]:
-        """
-        Get a set of task instance related to this task for a specific date
-        range.
-        """
+        """Get task instances related to this task for a specific date range."""
+        from airflow.models import DagRun
+
         end_date = end_date or timezone.utcnow()
         return (
             session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
             .filter(TaskInstance.dag_id == self.dag_id)
             .filter(TaskInstance.task_id == self.task_id)
-            .filter(TaskInstance.execution_date >= start_date)
-            .filter(TaskInstance.execution_date <= end_date)
-            .order_by(TaskInstance.execution_date)
+            .filter(DagRun.execution_date >= start_date)
+            .filter(DagRun.execution_date <= end_date)
+            .order_by(DagRun.execution_date)
             .all()
         )
-
-    def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        found_descendants: Optional[Set[str]] = None,
-    ) -> Set[str]:
-        """Get a flat set of relatives' ids, either upstream or downstream."""
-        if not self._dag:
-            return set()
-
-        if not found_descendants:
-            found_descendants = set()
-        relative_ids = self.get_direct_relative_ids(upstream)
-
-        for relative_id in relative_ids:
-            if relative_id not in found_descendants:
-                found_descendants.add(relative_id)
-                relative_task = self._dag.task_dict[relative_id]
-                relative_task.get_flat_relative_ids(upstream, found_descendants)
-
-        return found_descendants
-
-    def get_flat_relatives(self, upstream: bool = False):
-        """Get a flat list of relatives, either upstream or downstream."""
-        if not self._dag:
-            return set()
-        from airflow.models.dag import DAG
-
-        dag: DAG = self._dag
-        return list(map(lambda task_id: dag.task_dict[task_id], self.get_flat_relative_ids(upstream)))
 
     @provide_session
     def run(
@@ -1418,20 +1308,17 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Performs dry run for the operator - just render template fields."""
         self.log.info('Dry run')
         for field in self.template_fields:
-            content = getattr(self, field)
+            try:
+                content = getattr(self, field)
+            except AttributeError:
+                raise AttributeError(
+                    f"{field!r} is configured as a template field "
+                    f"but {self.task_type} does not have this attribute."
+                )
+
             if content and isinstance(content, str):
                 self.log.info('Rendering template for %s', field)
                 self.log.info(content)
-
-    def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
-        """
-        Get set of the direct relative ids to the current task, upstream or
-        downstream.
-        """
-        if upstream:
-            return self._upstream_task_ids
-        else:
-            return self._downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
         """
@@ -1447,18 +1334,22 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         return "<Task({self.task_type}): {self.task_id}>".format(self=self)
 
     @property
+    def operator_class(self) -> Type["BaseOperator"]:  # type: ignore[override]
+        return self.__class__
+
+    @property
     def task_type(self) -> str:
         """@property: type of the task"""
         return self.__class__.__name__
 
     @property
     def roots(self) -> List["BaseOperator"]:
-        """Required by TaskMixin"""
+        """Required by DAGNode."""
         return [self]
 
     @property
     def leaves(self) -> List["BaseOperator"]:
-        """Required by TaskMixin"""
+        """Required by DAGNode."""
         return [self]
 
     @property
@@ -1479,23 +1370,19 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         Make an XCom available for tasks to pull.
 
         :param context: Execution Context Dictionary
-        :type: Any
         :param key: A key for the XCom
-        :type key: str
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
-        :type value: any pickleable object
         :param execution_date: if provided, the XCom will not be visible until
             this date. This can be used, for example, to send a message to a
             task on a future date without it being immediately visible.
-        :type execution_date: datetime
         """
         context['ti'].xcom_push(key=key, value=value, execution_date=execution_date)
 
     @staticmethod
     def xcom_pull(
         context: Any,
-        task_ids: Optional[List[str]] = None,
+        task_ids: Optional[Union[str, List[str]]] = None,
         dag_id: Optional[str] = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: Optional[bool] = None,
@@ -1513,53 +1400,22 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         whenever no matches are found.
 
         :param context: Execution Context Dictionary
-        :type: Any
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is 'return_value', also
             available as a constant XCOM_RETURN_KEY. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
             manually). To remove the filter, pass key=None.
-        :type key: str
         :param task_ids: Only XComs from tasks with matching ids will be
             pulled. Can pass None to remove the filter.
-        :type task_ids: str or iterable of strings (representing task_ids)
         :param dag_id: If provided, only pulls XComs from this DAG.
             If None (default), the DAG of the calling task is used.
-        :type dag_id: str
         :param include_prior_dates: If False, only XComs from the current
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
-        :type include_prior_dates: bool
         """
         return context['ti'].xcom_pull(
             key=key, task_ids=task_ids, dag_id=dag_id, include_prior_dates=include_prior_dates
         )
-
-    @cached_property
-    def extra_links(self) -> List[str]:
-        """@property: extra links for the task"""
-        return list(
-            set(self.operator_extra_link_dict.keys()).union(self.global_operator_extra_link_dict.keys())
-        )
-
-    def get_extra_links(self, dttm: datetime, link_name: str) -> Optional[Dict[str, Any]]:
-        """
-        For an operator, gets the URL that the external links specified in
-        `extra_links` should point to.
-
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link
-        :param dttm: The datetime parsed execution date for the URL being searched for
-        :param link_name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in `extra_links`
-        :return: A URL
-        """
-        if link_name in self.operator_extra_link_dict:
-            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
-        elif link_name in self.global_operator_extra_link_dict:
-            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
-        else:
-            return None
 
     @classmethod
     def get_serialized_fields(cls):
@@ -1577,13 +1433,14 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
                 - {
                     'inlets',
                     'outlets',
-                    '_upstream_task_ids',
+                    'upstream_task_ids',
                     'default_args',
                     'dag',
                     '_dag',
                     'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
+                    '_BaseOperator__mapped_validation',
                 }
                 | {  # Class level defaults need to be added to this list
                     'start_date',
@@ -1610,6 +1467,8 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """Return if this operator can use smart service. Default False."""
         return False
 
+    is_mapped: ClassVar[bool] = False
+
     @property
     def inherits_from_dummy_operator(self):
         """Used to determine if an Operator is inherited from DummyOperator"""
@@ -1635,190 +1494,15 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def map(self, **kwargs) -> "MappedOperator":
-        return MappedOperator.from_operator(self, kwargs)
-
-    def has_mapped_dependants(self) -> bool:
-        """Whether any downstream dependencies depend on this task for mapping.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-        """
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
-
-        if not self.has_dag():
-            return False
-
-        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
-            """Recursively walk children in a task group.
-
-            This yields all direct children (including both tasks and task
-            groups), and all children of any task groups.
-            """
-            for key, child in group.children.items():
-                yield key, child
-                if isinstance(child, TaskGroup):
-                    yield from _walk_group(child)
-
-        for key, child in _walk_group(self.dag.task_group):
-            if key == self.task_id:
-                continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
-                continue
-            if self.task_id in child.upstream_task_ids:
-                return True
-        return False
-
-
-def _validate_kwarg_names_for_mapping(cls: Type[BaseOperator], func_name: str, value: Dict[str, Any]):
-    if isinstance(str, cls):
-        # Serialized version -- would have been validated at parse time
-        return
-
-    # use a dict so order of args is same as code order
-    unknown_args = value.copy()
-    for clazz in cls.mro():
-        # Mypy doesn't like doing `class.__init__`, Error is: Cannot access "__init__" directly
-        init = clazz.__init__  # type: ignore
-
-        if not hasattr(init, '_BaseOperatorMeta__param_names'):
-            continue
-
-        for name in init._BaseOperatorMeta__param_names:
-            unknown_args.pop(name, None)
-
-        if not unknown_args:
-            # If we have no args left ot check: stop looking at the MRO chian
-            return
-
-    if len(unknown_args) == 1:
-        raise TypeError(
-            f'{cls.__name__}.{func_name} got unexpected keyword argument {unknown_args.popitem()[0]!r}'
-        )
-    else:
-        names = ", ".join(repr(n) for n in unknown_args)
-        raise TypeError(f'{cls.__name__}.{func_name} got unexpected keyword arguments {names}')
-
-
-@attr.define(kw_only=True)
-class MappedOperator(DAGNode):
-    """Object representing a mapped operator in a DAG"""
-
-    operator_class: Type[BaseOperator] = attr.ib(repr=lambda c: c.__name__)
-    task_type: str = attr.ib()
-    task_id: str
-    partial_kwargs: Dict[str, Any]
-    mapped_kwargs: Dict[str, Any] = attr.ib(
-        validator=lambda self, _, v: _validate_kwarg_names_for_mapping(self.operator_class, "map", v)
-    )
-    dag: Optional["DAG"] = None
-    upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
-    downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
-
-    task_group: Optional["TaskGroup"] = attr.ib(repr=False)
-
-    # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
-    start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
-    end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
-    owner: str = attr.ib(repr=False, default=conf.get("operators", "DEFAULT_OWNER"))
-    max_active_tis_per_dag: Optional[int] = attr.ib(default=None)
-
     @classmethod
-    def from_operator(cls, operator: BaseOperator, mapped_kwargs: Dict[str, Any]) -> "MappedOperator":
-        dag: Optional["DAG"] = getattr(operator, '_dag', None)
-        if dag:
-            # When BaseOperator() was called within a DAG, it would have been added straight away, but now we
-            # are mapped, we want to _remove_ that task from the dag
-            dag._remove_task(operator.task_id)
+    def validate_mapped_arguments(cls, **kwargs: Any) -> None:
+        """Validate arguments when this operator is being mapped."""
+        if cls.mapped_arguments_validated_by_init:
+            cls(**kwargs, _airflow_mapped_validation_only=True)
 
-        return MappedOperator(
-            operator_class=type(operator),
-            task_id=operator.task_id,
-            task_group=getattr(operator, 'task_group', None),
-            dag=getattr(operator, '_dag', None),
-            start_date=operator.start_date,
-            end_date=operator.end_date,
-            partial_kwargs=operator._BaseOperator__init_kwargs,  # type: ignore
-            mapped_kwargs=mapped_kwargs,
-            owner=operator.owner,
-            max_active_tis_per_dag=operator.max_active_tis_per_dag,
-        )
-
-    @classmethod
-    def from_decorator(
-        cls,
-        *,
-        decorator: "_TaskDecorator",
-        dag: Optional["DAG"],
-        task_group: Optional["TaskGroup"],
-        task_id: str,
-        mapped_kwargs: Dict[str, Any],
-    ) -> "MappedOperator":
-        """Create a mapped operator from a task decorator.
-
-        Different from ``from_operator``, this DOES NOT validate ``mapped_kwargs``.
-        The task decorator calling this should be responsible for validation.
-        """
-        operator = MappedOperator(
-            operator_class=decorator.operator_class,
-            partial_kwargs=decorator.kwargs,
-            mapped_kwargs={},
-            task_id=task_id,
-            dag=dag,
-            task_group=task_group,
-        )
-        operator.mapped_kwargs.update(mapped_kwargs)
-        return operator
-
-    def __attrs_post_init__(self):
-        if self.task_group:
-            self.task_id = self.task_group.child_id(self.task_id)
-            self.task_group.add(self)
-        if self.dag:
-            self.dag.add_task(self)
-
-    @task_type.default
-    def _default_task_type(self):
-        return self.operator_class.__name__
-
-    @task_group.default
-    def _default_task_group(self):
-        from airflow.utils.task_group import TaskGroupContext
-
-        return TaskGroupContext.get_current_task_group(self.dag)
-
-    @property
-    def node_id(self):
-        return self.task_id
-
-    def map(self, **kwargs) -> "MappedOperator":
-        """
-        Update the mapping parameters in place.
-
-        :return: ``self`` for easier method chaining
-        """
-        if self.mapped_kwargs:
-            raise RuntimeError("Already a mapped task")
-        return attr.evolve(self, mapped_kwargs=kwargs)
-
-    @property
-    def roots(self) -> List["MappedOperator"]:
-        """Required by TaskMixin"""
-        return [self]
-
-    @property
-    def leaves(self) -> List["MappedOperator"]:
-        """Required by TaskMixin"""
-        return [self]
-
-    def has_dag(self):
-        return self.dag is not None
-
-    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
-        return DagAttributeTypes.OP, self.task_id
+    def unmap(self) -> "BaseOperator":
+        """:meta private:"""
+        return self
 
 
 # TODO: Deprecate for Airflow 3.0
@@ -1932,9 +1616,6 @@ def chain(*tasks: Union[DependencyMixin, Sequence[DependencyMixin]]) -> None:
 
 
     :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
-    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator,
-        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg], XComArg,
-        List[airflow.utils.TaskGroup], or airflow.utils.TaskGroup
     """
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
@@ -2052,9 +1733,7 @@ def cross_downstream(
         t3.set_downstream(x3)
 
     :param from_tasks: List of tasks or XComArgs to start from.
-    :type from_tasks: List[airflow.models.BaseOperator] or List[airflow.models.XComArg]
     :param to_tasks: List of tasks or XComArgs to set as downstream dependencies.
-    :type to_tasks: List[airflow.models.BaseOperator] or List[airflow.models.XComArg]
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)
@@ -2082,11 +1761,14 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
         """
         Link to external system.
 
+        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
+        supported at runtime but is deprecated.
+
         :param operator: airflow operator
-        :param dttm: datetime
+        :param ti_key: TaskInstance ID to return link for
         :return: link to external system
         """

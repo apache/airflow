@@ -10,6 +10,7 @@
 .coverage
 .coveragerc
 .codecov.yml
+.codespellignorelines
 .eslintrc
 .eslintignore
 .flake8

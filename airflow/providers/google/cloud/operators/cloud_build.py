@@ -49,20 +49,14 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildCancelBuildOperator`
 
     :param id_: The ID of the build.
-    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -71,7 +65,6 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -122,25 +115,17 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :param build: Optional, the build resource to create. If a dict is provided, it must be of
         the same form as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`.
         Only either build or body should be passed.
-    :type build: Optional[Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]]
     :param body: (Deprecated) The build resource to create.
         This parameter has been deprecated. You should pass the build parameter instead.
-    :type body: Optional[dict]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param wait: Optional, wait for operation to finish.
-    :type wait: Optional[bool]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -149,7 +134,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -234,20 +218,14 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
 
     :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
-    :type trigger: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -256,7 +234,6 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -305,20 +282,14 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildDeleteBuildTriggerOperator`
 
     :param trigger_id: The ID of the BuildTrigger to delete.
-    :type trigger_id: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -327,7 +298,6 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
@@ -373,20 +343,14 @@ class CloudBuildGetBuildOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildGetBuildOperator`
 
     :param id_: The ID of the build.
-    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -395,7 +359,6 @@ class CloudBuildGetBuildOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -444,20 +407,14 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildGetBuildTriggerOperator`
 
     :param trigger_id: The ID of the BuildTrigger to get.
-    :type trigger_id: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -466,7 +423,6 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -515,24 +471,16 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildListBuildTriggersOperator`
 
     :param location: The location of the project.
-    :type location: string
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param page_size: Optional, number of results to return in the list.
-    :type page_size: Optional[int]
     :param page_token: Optional, token to provide to skip to a particular spot in the list.
-    :type page_token: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -541,7 +489,6 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: List[dict]
     """
@@ -596,24 +543,16 @@ class CloudBuildListBuildsOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildListBuildsOperator`
 
     :param location: The location of the project.
-    :type location: string
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: str
     :param page_size: Optional, number of results to return in the list.
-    :type page_size: Optional[int]
     :param filter_: Optional, the raw filter text to constrain the results.
-    :type filter_: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -622,7 +561,6 @@ class CloudBuildListBuildsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: List[dict]
     """
@@ -678,22 +616,15 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildRetryBuildOperator`
 
     :param id_: Build ID of the original build.
-    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: str
     :param wait: Optional, wait for operation to finish.
-    :type wait: Optional[bool]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -702,7 +633,6 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -754,25 +684,17 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildRunBuildTriggerOperator`
 
     :param trigger_id: The ID of the trigger.
-    :type trigger_id: str
     :param source: Source to build against this trigger. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.RepoSource`
-    :type source: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.RepoSource`]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: str
     :param wait: Optional, wait for operation to finish.
-    :type wait: Optional[bool]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -781,7 +703,6 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -836,23 +757,16 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudBuildUpdateBuildTriggerOperator`
 
     :param trigger_id: The ID of the trigger.
-    :type trigger_id: str
     :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
-    :type trigger: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[Retry]
     :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Optional, additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: Optional[str]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -861,7 +775,6 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
@@ -913,7 +826,6 @@ class BuildProcessor:
 
     :param build: The request body of the build.
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
-    :type build: Union[Dict, Build]
     """
 
     def __init__(self, build: Union[Dict, Build]) -> None:

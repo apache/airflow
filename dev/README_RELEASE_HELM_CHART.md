@@ -24,6 +24,7 @@
   - [Pre-requisites](#pre-requisites)
   - [Build Changelog](#build-changelog)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -37,6 +38,7 @@
   - [Publish release tag](#publish-release-tag)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
@@ -237,6 +239,27 @@ official Apache releases must not include the rcN suffix.
   cd ${AIRFLOW_REPO_ROOT}
   git push origin tag helm-chart/${VERSION}
   ```
+
+## Prepare issue for testing status of rc
+
+Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
+(for example 1.4.0).
+
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow Helm Chart ${VERSION}
+EOF
+```
+
+Content is generated with:
+
+```shell
+./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
+    --current-release helm-chart/${VERSION} --is-helm-chart
+
+```
+
+Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -644,7 +667,12 @@ EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
-It is more reliable to set it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Update Announcements page
 
@@ -657,6 +685,8 @@ Create a new release on GitHub with the changelog and assets from the release sv
 ## Close the milestone
 
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
+make sure to update the last updated timestamp as well.
 
 ## Announce the release on the community slack
 

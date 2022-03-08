@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""xcom dag task indices
+"""Add indices on ``xcom`` table
 
 Revision ID: 8504051e801b
 Revises: 4addfa1236f1
@@ -31,6 +31,7 @@ revision = '8504051e801b'
 down_revision = '4addfa1236f1'
 branch_labels = None
 depends_on = None
+airflow_version = '1.7.1.3'
 
 
 def upgrade():

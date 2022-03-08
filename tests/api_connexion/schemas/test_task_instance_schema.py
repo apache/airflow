@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_task_instance_state_form,
     task_instance_schema,
 )
-from airflow.models import SlaMiss, TaskInstance as TI
+from airflow.models import RenderedTaskInstanceFields as RTIF, SlaMiss, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
@@ -62,11 +62,11 @@ class TestTaskInstanceSchema:
 
         session.rollback()
 
-    def test_task_instance_schema_without_sla(self, session):
+    def test_task_instance_schema_without_sla_and_rendered(self, session):
         ti = TI(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        serialized_ti = task_instance_schema.dump((ti, None))
+        serialized_ti = task_instance_schema.dump((ti, None, None))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -74,6 +74,7 @@ class TestTaskInstanceSchema:
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "DummyOperator",
             "pid": 100,
@@ -89,10 +90,11 @@ class TestTaskInstanceSchema:
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": None,
+            "rendered_fields": {},
         }
         assert serialized_ti == expected_json
 
-    def test_task_instance_schema_with_sla(self, session):
+    def test_task_instance_schema_with_sla_and_rendered(self, session):
         sla_miss = SlaMiss(
             task_id="TEST_TASK_ID",
             dag_id="TEST_DAG_ID",
@@ -103,7 +105,10 @@ class TestTaskInstanceSchema:
         ti = TI(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        serialized_ti = task_instance_schema.dump((ti, sla_miss))
+        self.task.template_fields = ["partitions"]
+        setattr(self.task, "partitions", "data/ds=2022-02-17")
+        rendered_fields = RTIF(ti, render_templates=False)
+        serialized_ti = task_instance_schema.dump((ti, sla_miss, rendered_fields))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -111,6 +116,7 @@ class TestTaskInstanceSchema:
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "DummyOperator",
             "pid": 100,
@@ -134,6 +140,7 @@ class TestTaskInstanceSchema:
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": None,
+            "rendered_fields": {"partitions": "data/ds=2022-02-17"},
         }
         assert serialized_ti == expected_json
 
@@ -209,7 +216,7 @@ class TestSetTaskInstanceStateFormSchema:
             ({"include_future": "foo"},),
             ({"execution_date": "NOW"},),
             ({"new_state": "INVALID_STATE"},),
-            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "dagrun_id"},),
+            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},),
         ]
     )
     def test_validation_error(self, override_data):

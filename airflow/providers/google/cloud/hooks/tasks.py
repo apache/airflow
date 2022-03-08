@@ -30,6 +30,7 @@ from google.cloud.tasks_v2.types import Queue, Task
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -42,11 +43,9 @@ class CloudTasksHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -55,7 +54,6 @@ class CloudTasksHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -79,7 +77,7 @@ class CloudTasksHook(GoogleBaseHook):
         :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
         if self._client is None:
-            self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -97,26 +95,19 @@ class CloudTasksHook(GoogleBaseHook):
         Creates a queue in Cloud Tasks.
 
         :param location: The location name in which the queue will be created.
-        :type location: str
         :param task_queue: The task queue to create.
             Queue's name cannot be the same as an existing queue.
             If a dict is provided, it must be of the same form as the protobuf message Queue.
-        :type task_queue: dict or google.cloud.tasks_v2.types.Queue
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param queue_name: (Optional) The queue's name.
             If provided, it will be used to construct the full queue path.
-        :type queue_name: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
@@ -155,29 +146,21 @@ class CloudTasksHook(GoogleBaseHook):
         :param task_queue: The task queue to update.
             This method creates the queue if it does not exist and updates the queue if
             it does exist. The queue's name must be specified.
-        :type task_queue: dict or google.cloud.tasks_v2.types.Queue
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param location: (Optional) The location name in which the queue will be updated.
             If provided, it will be used to construct the full queue path.
-        :type location: str
         :param queue_name: (Optional) The queue's name.
             If provided, it will be used to construct the full queue path.
-        :type queue_name: str
         :param update_mask: A mast used to specify which fields of the queue are being updated.
             If empty, then all fields will be updated.
             If a dict is provided, it must be of the same form as the protobuf message.
-        :type update_mask: dict or google.protobuf.field_mask_pb2.FieldMask
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
@@ -211,21 +194,15 @@ class CloudTasksHook(GoogleBaseHook):
         Gets a queue from Cloud Tasks.
 
         :param location: The location name in which the queue was created.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
         client = self.get_conn()
@@ -253,24 +230,17 @@ class CloudTasksHook(GoogleBaseHook):
         Lists queues from Cloud Tasks.
 
         :param location: The location name in which the queues were created.
-        :type location: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param results_filter: (Optional) Filter used to specify a subset of queues.
-        :type results_filter: str
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
-        :type page_size: int
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
@@ -298,21 +268,15 @@ class CloudTasksHook(GoogleBaseHook):
         Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
         :param location: The location name in which the queue will be deleted.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         """
         client = self.get_conn()
 
@@ -338,21 +302,15 @@ class CloudTasksHook(GoogleBaseHook):
         Purges a queue by deleting all of its tasks from Cloud Tasks.
 
         :param location: The location name in which the queue will be purged.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
@@ -379,21 +337,15 @@ class CloudTasksHook(GoogleBaseHook):
         Pauses a queue in Cloud Tasks.
 
         :param location: The location name in which the queue will be paused.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
@@ -420,21 +372,15 @@ class CloudTasksHook(GoogleBaseHook):
         Resumes a queue in Cloud Tasks.
 
         :param location: The location name in which the queue will be resumed.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
         client = self.get_conn()
@@ -464,30 +410,21 @@ class CloudTasksHook(GoogleBaseHook):
         Creates a task in Cloud Tasks.
 
         :param location: The location name in which the task will be created.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param task: The task to add.
             If a dict is provided, it must be of the same form as the protobuf message Task.
-        :type task: dict or google.cloud.tasks_v2.types.Task
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param task_name: (Optional) The task's name.
             If provided, it will be used to construct the full task path.
-        :type task_name: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()
@@ -526,26 +463,18 @@ class CloudTasksHook(GoogleBaseHook):
         Gets a task from Cloud Tasks.
 
         :param location: The location name in which the task was created.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param task_name: The task's name.
-        :type task_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()
@@ -574,27 +503,19 @@ class CloudTasksHook(GoogleBaseHook):
         Lists the tasks in Cloud Tasks.
 
         :param location: The location name in which the tasks were created.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.Task.View
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
-        :type page_size: int
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Task]
         """
         client = self.get_conn()
@@ -622,23 +543,16 @@ class CloudTasksHook(GoogleBaseHook):
         Deletes a task from Cloud Tasks.
 
         :param location: The location name in which the task will be deleted.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param task_name: The task's name.
-        :type task_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         """
         client = self.get_conn()
 
@@ -666,26 +580,18 @@ class CloudTasksHook(GoogleBaseHook):
         Forces to run a task in Cloud Tasks.
 
         :param location: The location name in which the task was created.
-        :type location: str
         :param queue_name: The queue's name.
-        :type queue_name: str
         :param task_name: The task's name.
-        :type task_name: str
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
-        :type timeout: float
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
         client = self.get_conn()

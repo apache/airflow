@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck disable=SC2086
+# shellcheck shell=bash disable=SC2086
 
 # Installs Airflow from $AIRFLOW_BRANCH tip. This is pure optimisation. It is done because we do not want
 # to reinstall all dependencies from scratch when setup.py changes. Problem with Docker caching is that
@@ -25,6 +24,7 @@
 # deps from those pre-installed dependencies. It saves few minutes of build time when setup.py changes.
 #
 # If INSTALL_MYSQL_CLIENT is set to false, mysql extra is removed
+# If INSTALL_POSTGRES_CLIENT is set to false, postgres extra is removed
 #
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -32,6 +32,7 @@
 : "${AIRFLOW_REPO:?Should be set}"
 : "${AIRFLOW_BRANCH:?Should be set}"
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${INSTALL_POSTGRES_CLIENT:?Should be true or false}"
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 function install_airflow_dependencies_from_branch_tip() {
@@ -40,6 +41,9 @@ function install_airflow_dependencies_from_branch_tip() {
     echo
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
+    fi
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+       AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
     # Install latest set of dependencies using constraints. In case constraints were upgraded and there
     # are conflicts, this might fail, but it should be fixed in the following installation steps

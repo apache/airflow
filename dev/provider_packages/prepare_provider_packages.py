@@ -42,8 +42,8 @@ from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type, Union
 
-import click
 import jsonschema
+import rich_click as click
 from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
@@ -52,7 +52,7 @@ from rich.syntax import Syntax
 
 from airflow.utils.yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9"]
+ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -104,7 +104,6 @@ sys.path.insert(0, str(SOURCE_DIR_PATH))
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
-import tests.deprecated_classes  # noqa # isort:skip
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
 from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
 
@@ -122,6 +121,13 @@ console = Console(width=400, color_system="standard")
 def cli():
     ...
 
+
+option_skip_tag_check = click.option(
+    "--skip-tag-check/--no-skip-tag-check",
+    default=False,
+    is_flag=True,
+    help="Skip checking if the tag already exists in the remote repository",
+)
 
 option_git_update = click.option(
     '--git-update/--no-git-update',
@@ -1039,7 +1045,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
         if not git_update:
             return
     except subprocess.CalledProcessError as ex:
-        if ex.returncode == 128:
+        if ex.returncode == 128 or ex.returncode == 2:
             remote_add_command = [
                 "git",
                 "remote",
@@ -1702,16 +1708,16 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),
+        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
     )
 
     return Mode(
         target_versions=target_versions,
         line_length=config.get('line_length', Mode.line_length),
-        is_pyi=config.get('is_pyi', Mode.is_pyi),
-        string_normalization=not config.get('skip_string_normalization', not Mode.string_normalization),
-        experimental_string_processing=config.get(
-            'experimental_string_processing', Mode.experimental_string_processing
+        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
+        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
+        experimental_string_processing=bool(
+            config.get('experimental_string_processing', Mode.experimental_string_processing)
         ),
     )
 
@@ -1880,7 +1886,10 @@ def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: 
 @option_git_update
 @argument_package_id
 @option_verbose
-def generate_setup_files(version_suffix: str, git_update: bool, package_id: str, verbose: bool):
+@option_skip_tag_check
+def generate_setup_files(
+    version_suffix: str, git_update: bool, package_id: str, verbose: bool, skip_tag_check: bool
+):
     """
     Generates setup files for the package.
 
@@ -1888,20 +1897,17 @@ def generate_setup_files(version_suffix: str, git_update: bool, package_id: str,
     """
     provider_package_id = package_id
     with with_group(f"Generate setup files for '{provider_package_id}'"):
-        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-        if tag_exists_for_version(provider_package_id, current_tag, verbose):
-            console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
-            # Returns 1 in case of skipped package
-            sys.exit(1)
+        if not skip_tag_check:
+            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+            if tag_exists_for_version(provider_package_id, current_tag, verbose):
+                console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
+                # Returns 1 in case of skipped package
+                sys.exit(1)
+        if update_setup_files(provider_package_id, version_suffix):
+            console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
         else:
-            if update_setup_files(
-                provider_package_id,
-                version_suffix,
-            ):
-                console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
-            else:
-                # Returns 64 in case of skipped package
-                sys.exit(64)
+            # Returns 64 in case of skipped package
+            sys.exit(64)
 
 
 def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, verbose: bool):
@@ -1952,12 +1958,14 @@ def verify_setup_py_prepared(provider_package):
 @option_version_suffix
 @argument_package_id
 @option_verbose
+@option_skip_tag_check
 def build_provider_packages(
     package_format: str,
     git_update: bool,
     version_suffix: str,
     package_id: str,
     verbose: bool,
+    skip_tag_check: bool,
 ):
     """
     Builds provider package.
@@ -1974,11 +1982,15 @@ def build_provider_packages(
     try:
         provider_package_id = package_id
         with with_group(f"Prepare provider package for '{provider_package_id}'"):
-            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-            if tag_exists_for_version(provider_package_id, current_tag, verbose):
-                console.print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
-                return False
-            console.print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
+            if not skip_tag_check and (version_suffix.startswith("rc") or version_suffix == ""):
+                # For RC and official releases we check if the "officially released" version exists
+                # and skip the released if it was. This allows to skip packages that have not been
+                # marked for release. For "dev" suffixes, we always build all packages
+                released_tag = get_current_tag(provider_package_id, "", git_update, verbose)
+                if tag_exists_for_version(provider_package_id, released_tag, verbose):
+                    console.print(f"[yellow]The tag {released_tag} exists. Skipping the package.[/]")
+                    return False
+            console.print(f"Changing directory to {TARGET_PROVIDER_PACKAGES_PATH}")
             os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
             cleanup_remnants(verbose)
             provider_package = package_id
@@ -2165,6 +2177,11 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
+    (
+        "This module is deprecated. Please use `kubernetes.client.models.V1ResourceRequirements`"
+        " and `kubernetes.client.models.V1ContainerPort`."
+    ),
+    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
@@ -2192,6 +2209,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
     '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
+    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
 }
 
 

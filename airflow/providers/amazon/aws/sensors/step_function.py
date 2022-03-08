@@ -36,9 +36,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     of the State Machine's output to `output`
 
     :param execution_arn: execution_arn to check the state of
-    :type execution_arn: str
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :type aws_conn_id: str
     """
 
     INTERMEDIATE_STATES = ('RUNNING',)

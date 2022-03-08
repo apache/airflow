@@ -269,7 +269,7 @@ There are several areas of resource usage that you should pay attention to:
   for MsSQL is still experimental.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
   Python DAG files. Since Schedulers triggers such parsing continuously, when you have a lot of DAGs,
-  the processing might take a lot of CPU. You can mitigate it by decreasing the
+  the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:scheduler__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between
   submitting the files and getting them available in Airflow UI and executed by Scheduler. Optimizing

@@ -52,19 +52,13 @@ class SFTPToWasbOperator(BaseOperator):
         for downloading the single file or multiple files from the SFTP server.
         You can use only one wildcard within your path. The wildcard can appear
         inside the path or at the end of the path.
-    :type sftp_source_path: str
     :param container_name: Name of the container.
-    :type container_name: str
     :param blob_prefix: Prefix to name a blob.
-    :type blob_prefix: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :type sftp_conn_id: str
     :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
     :param load_options: Optional keyword arguments that
         ``WasbHook.load_file()`` takes.
-    :type load_options: dict
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -73,7 +67,8 @@ class SFTPToWasbOperator(BaseOperator):
         When wasb_overwrite_object is True, it will overwrite the existing data.
         If set to False, the operation might fail with
         ResourceExistsError in case a blob object already exists.
-    :type move_object: bool
+    :param create_container: Attempt to create the target container prior to uploading the blob. This is
+        useful if the target container may not exist yet. Defaults to False.
     """
 
     template_fields: Sequence[str] = ("sftp_source_path", "container_name", "blob_prefix")
@@ -89,6 +84,7 @@ class SFTPToWasbOperator(BaseOperator):
         load_options: Optional[Dict] = None,
         move_object: bool = False,
         wasb_overwrite_object: bool = False,
+        create_container: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,6 +97,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.load_options = load_options or {"overwrite": wasb_overwrite_object}
         self.move_object = move_object
+        self.create_container = create_container
 
     def dry_run(self) -> None:
         super().dry_run()
@@ -190,7 +187,13 @@ class SFTPToWasbOperator(BaseOperator):
                     self.container_name,
                     file.blob_name,
                 )
-                wasb_hook.load_file(tmp.name, self.container_name, file.blob_name, **self.load_options)
+                wasb_hook.load_file(
+                    tmp.name,
+                    self.container_name,
+                    file.blob_name,
+                    self.create_container,
+                    **self.load_options,
+                )
 
                 uploaded_files.append(file.sftp_file_path)
 

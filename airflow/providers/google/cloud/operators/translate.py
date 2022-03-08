@@ -52,27 +52,21 @@ class CloudTranslateTextOperator(BaseOperator):
     If only a single value is passed, then only a single
     dictionary is set as XCom return value.
 
-    :type values: str or list
     :param values: String or list of strings to translate.
 
-    :type target_language: str
     :param target_language: The language to translate results into. This
       is required by the API and defaults to
       the target language of the current instance.
 
-    :type format_: str or None
     :param format_: (Optional) One of ``text`` or ``html``, to specify
       if the input text is plain text or HTML.
 
-    :type source_language: str or None
     :param source_language: (Optional) The language of the text to
       be translated.
 
-    :type model: str or None
     :param model: (Optional) The model used to translate the text, such
       as ``'base'`` or ``'nmt'``.
 
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.

@@ -28,6 +28,7 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -50,30 +51,23 @@ class MsSqlToHiveOperator(BaseOperator):
 
     :param sql: SQL query to execute against the Microsoft SQL Server
         database. (templated)
-    :type sql: str
     :param hive_table: target Hive table, use dot notation to target a specific
         database. (templated)
-    :type hive_table: str
     :param create: whether to create the table if it doesn't exist
-    :type create: bool
     :param recreate: whether to drop and recreate the table at every execution
-    :type recreate: bool
     :param partition: target partition as a dict of partition columns and
         values. (templated)
-    :type partition: dict
     :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param mssql_conn_id: source Microsoft SQL Server connection
-    :type mssql_conn_id: str
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
-    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
-    :type tblproperties: dict
     """
 
     template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
     template_ext: Sequence[str] = ('.sql',)
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {'sql': 'tsql' if 'tsql' in wwwutils.get_attr_renderer() else 'sql'}
     ui_color = '#a0e08c'
 
     def __init__(

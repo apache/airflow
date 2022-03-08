@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -32,26 +33,27 @@ class RedshiftSQLOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftSQLOperator`
 
-    :param sql: the sql code to be executed
-    :type sql: Can receive a str representing a sql statement,
-        or an iterable of str (sql statements)
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
-    :type redshift_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     """
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
+    }
 
     def __init__(
         self,
         *,
-        sql: Optional[Union[Dict, Iterable]],
+        sql: Union[str, Iterable[str]],
         redshift_conn_id: str = 'redshift_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,

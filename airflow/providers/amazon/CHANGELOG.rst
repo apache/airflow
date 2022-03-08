@@ -19,6 +19,119 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Added AWS RDS sensors (#21231)``
+* ``Added AWS RDS operators (#20907)``
+* ``Add RedshiftDataHook (#19137)``
+* ``Feature: Add invoke lambda function operator (#21686)``
+* ``Add JSON output on SqlToS3Operator (#21779)``
+* ``Add SageMakerDeleteModelOperator (#21673)``
+* ``Added Hook for Amazon RDS. Added 'boto3_stub' library for autocomplete. (#20642)``
+* ``Added SNS example DAG and rst (#21475)``
+* ``retry on very specific eni provision failures (#22002)``
+* ``Configurable AWS Session Factory (#21778)``
+* ``S3KeySensor to use S3Hook url parser (#21500)``
+* ``Get log events after sleep to get all logs (#21574)``
+* ``Use temporary file in GCSToS3Operator (#21295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the Type Hints in ''RedshiftSQLOperator'' (#21885)``
+* ``Bug Fix - S3DeleteObjectsOperator will try and delete all keys (#21458)``
+* ``Fix Amazon SES emailer signature (#21681)``
+* ``Fix EcsOperatorError, so it can be loaded from a picklefile (#21441)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``[doc] Improve s3 operator example by adding task upload_keys (#21422)``
+* ``Add docs and sample dags for AWS Batch (#22010)``
+* ``Cleanup RedshiftSQLOperator documentation (#21976)``
+* ``Move S3ToRedshiftOperator documentation to transfer dir (#21975)``
+* ``Rename 'S3' hook name to 'Amazon S3' (#21988)``
+* ``Update ECS sample DAG and Docs to new standards (#21828)``
+* ``Update EKS sample DAGs and docs (#21523)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Resolve mypy issue in athena example dag (#22020)``
+
+3.0.0
+.....
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+The CloudFormationCreateStackOperator and CloudFormationDeleteStackOperator
+used ``params`` as one of the constructor arguments, however this name clashes with params
+argument ``params`` field which is processed differently in Airflow 2.2.
+The ``params`` parameter has been renamed to ``cloudformation_parameters`` to make it non-ambiguous.
+
+Any usage of CloudFormationCreateStackOperator and CloudFormationDeleteStackOperator where
+``params`` were passed, should be changed to use ``cloudformation_parameters`` instead.
+
+* ``Rename params to cloudformation_parameter in CloudFormation operators. (#20989)``
+
+Features
+~~~~~~~~
+
+* ``[SQSSensor] Add opt-in to disable auto-delete messages (#21159)``
+* ``Create a generic operator SqlToS3Operator and deprecate the MySqlToS3Operator.  (#20807)``
+* ``Move some base_aws logging from info to debug level (#20858)``
+* ``AWS: Adds support for optional kwargs in the EKS Operators (#20819)``
+* ``AwsAthenaOperator: do not generate ''client_request_token'' if not provided (#20854)``
+* ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+
+
+Bug fixes
+~~~~~~~~~
+
+* ``fix: cloudwatch logs fetch logic (#20814)``
+* ``Fix all Amazon Provider MyPy errors (#20935)``
+* ``Bug fix in AWS glue operator related to num_of_dpus #19787 (#21353)``
+* ``Fix to check if values are integer or float and convert accordingly. (#21277)``
+
+
+Misc
+~~~~
+
+* ``Alleviate import warning for 'EmrClusterLink' in deprecated AWS module (#21195)``
+* ``Rename amazon EMR hook name (#20767)``
+* ``Standardize AWS SQS classes names (#20732)``
+* ``Standardize AWS Batch naming (#20369)``
+* ``Standardize AWS Redshift naming (#20374)``
+* ``Standardize DynamoDB naming (#20360)``
+* ``Standardize AWS ECS naming (#20332)``
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+* ``eks_hook log level fatal -> FATAL  (#21427)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' directives from 'SqlToS3Operator' (#21079)``
+   * ``Remove a few stray ':type's in docs (#21014)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Remove all "fake" stub files (#20936)``
+   * ``Fix MyPy issues in AWS Sensors (#20863)``
+   * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+   * ``Fix mypy in providers/aws/hooks (#20353)``
+   * ``Fix MyPy issues in AWS Sensors (#20717)``
+   * ``Fix MyPy in Amazon provider for Sagemaker operator (#20715)``
+   * ``Fix MyPy errors for Amazon DMS in hooks and operator (#20710)``
+   * ``Fix MyPy issues in ''airflow/providers/amazon/aws/transfers'' (#20708)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.6.0
 .....
 

@@ -56,7 +56,6 @@ class BatchProtocol(Protocol):
         Get job descriptions from AWS Batch
 
         :param jobs: a list of JobId to describe
-        :type jobs: List[str]
 
         :return: an API response to describe jobs
         :rtype: Dict
@@ -70,7 +69,6 @@ class BatchProtocol(Protocol):
         :param waiterName: The name of the waiter.  The name should match
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing).
-        :type waiterName: str
 
         :return: a waiter object for the named AWS Batch service
         :rtype: botocore.waiter.Waiter
@@ -105,25 +103,18 @@ class BatchProtocol(Protocol):
         Submit a Batch job
 
         :param jobName: the name for the AWS Batch job
-        :type jobName: str
 
         :param jobQueue: the queue name on AWS Batch
-        :type jobQueue: str
 
         :param jobDefinition: the job definition name on AWS Batch
-        :type jobDefinition: str
 
         :param arrayProperties: the same parameter that boto3 will receive
-        :type arrayProperties: Dict
 
         :param parameters: the same parameter that boto3 will receive
-        :type parameters: Dict
 
         :param containerOverrides: the same parameter that boto3 will receive
-        :type containerOverrides: Dict
 
         :param tags: the same parameter that boto3 will receive
-        :type tags: Dict
 
         :return: an API response
         :rtype: Dict
@@ -135,10 +126,8 @@ class BatchProtocol(Protocol):
         Terminate a Batch job
 
         :param jobId: a job ID to terminate
-        :type jobId: str
 
         :param reason: a reason to terminate job ID
-        :type reason: str
 
         :return: an API response
         :rtype: Dict
@@ -156,11 +145,9 @@ class BatchClientHook(AwsBaseHook):
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
-    :type max_retries: Optional[int]
 
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
-    :type status_retries: Optional[int]
 
     .. note::
         Several methods use a default random delay to check or poll for job status, i.e.
@@ -228,10 +215,8 @@ class BatchClientHook(AwsBaseHook):
         Terminate a Batch job
 
         :param job_id: a job ID to terminate
-        :type job_id: str
 
         :param reason: a reason to terminate job ID
-        :type reason: str
 
         :return: an API response
         :rtype: Dict
@@ -246,7 +231,6 @@ class BatchClientHook(AwsBaseHook):
         'SUCCEEDED', else raise an AirflowException
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :rtype: bool
 
@@ -272,10 +256,8 @@ class BatchClientHook(AwsBaseHook):
         Wait for Batch job to complete
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param delay: a delay before polling for job status
-        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
@@ -297,10 +279,8 @@ class BatchClientHook(AwsBaseHook):
         quickly from STARTING to RUNNING to completed (often a failure).
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param delay: a delay before polling for job status
-        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
@@ -317,10 +297,8 @@ class BatchClientHook(AwsBaseHook):
         'SUBMITTED'>'PENDING'>'RUNNABLE'>'STARTING'>'RUNNING'>'SUCCEEDED'|'FAILED'
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param delay: a delay before polling for job status
-        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
@@ -333,11 +311,9 @@ class BatchClientHook(AwsBaseHook):
         Poll for job status using an exponential back-off strategy (with max_retries).
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param match_status: a list of job status to match; the Batch job status are:
             'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
-        :type match_status: List[str]
 
         :rtype: bool
 
@@ -377,7 +353,6 @@ class BatchClientHook(AwsBaseHook):
         Get job description (using status_retries).
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :return: an API response for describe jobs
         :rtype: Dict
@@ -420,10 +395,8 @@ class BatchClientHook(AwsBaseHook):
         Parse job description to extract description for job_id
 
         :param job_id: a Batch job ID
-        :type job_id: str
 
         :param response: an API response for describe jobs
-        :type response: Dict
 
         :return: an API response to describe job_id
         :rtype: Dict
@@ -450,15 +423,12 @@ class BatchClientHook(AwsBaseHook):
 
         :param delay: number of seconds to pause;
             delay is assumed to be a positive number
-        :type delay: Union[int, float]
 
         :param width: delay +/- width for random jitter;
             width is assumed to be a positive number
-        :type width: Union[int, float]
 
         :param minima: minimum delay allowed;
             minima is assumed to be a non-negative number
-        :type minima: Union[int, float]
 
         :return: uniform(delay - width, delay + width) jitter
             and it is a non-negative number
@@ -478,7 +448,6 @@ class BatchClientHook(AwsBaseHook):
 
         :param delay: a delay to pause execution using ``time.sleep(delay)``;
             a small 1 second jitter is applied to the delay.
-        :type delay: Optional[Union[int, float]]
 
         .. note::
             This method uses a default random delay, i.e.
@@ -500,7 +469,6 @@ class BatchClientHook(AwsBaseHook):
         This is used in the :py:meth:`.poll_for_job_status` method.
 
         :param tries: Number of tries
-        :type tries: int
 
         :rtype: float
 

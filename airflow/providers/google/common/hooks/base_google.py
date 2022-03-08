@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import tempfile
+import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
@@ -47,6 +48,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
@@ -146,11 +148,9 @@ class GoogleBaseHook(BaseHook):
     JSON data provided in the UI: Specify 'Keyfile JSON'.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -159,7 +159,6 @@ class GoogleBaseHook(BaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -200,7 +199,7 @@ class GoogleBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -351,8 +350,12 @@ class GoogleBaseHook(BaseHook):
         the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
-        client_info = ClientInfo(client_library_version='airflow_v' + version.version)
-        return client_info
+        warnings.warn(
+            "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return CLIENT_INFO
 
     @property
     def scopes(self) -> Sequence[str]:
@@ -551,11 +554,8 @@ class GoogleBaseHook(BaseHook):
 
         :param file_handle: io.Base or file object. The stream in which to write the downloaded
             bytes.
-        :type file_handle: io.Base or file object
         :param request: googleapiclient.http.HttpRequest, the media request to perform in chunks.
-        :type request: Dict
         :param chunk_size: int, File will be downloaded in chunks of this many bytes.
-        :type chunk_size: int
         """
         downloader = MediaIoBaseDownload(file_handle, request, chunksize=chunk_size)
         done = False

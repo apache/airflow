@@ -26,9 +26,13 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -36,36 +40,29 @@ class VerticaToMySqlOperator(BaseOperator):
     Moves data from Vertica to MySQL.
 
     :param sql: SQL query to execute against the Vertica database. (templated)
-    :type sql: str
     :param vertica_conn_id: source Vertica connection
-    :type vertica_conn_id: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
-    :type mysql_table: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param mysql_preoperator: sql statement to run against MySQL prior to
         import, typically use to truncate of delete in place of the data
         coming in, allowing the task to be idempotent (running the task
         twice won't double load data). (templated)
-    :type mysql_preoperator: str
     :param mysql_postoperator: sql statement to run against MySQL after the
         import, typically used to move data from staging to production
         and issue cleanup commands. (templated)
-    :type mysql_postoperator: str
     :param bulk_load: flag to use bulk_load option.  This loads MySQL directly
         from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
         This option requires an extra connection parameter for the
         destination MySQL connection: {'local_infile': true}.
-    :type bulk_load: bool
     """
 
     template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": "sql",
-        "mysql_postoperator": "sql",
+        "mysql_preoperator": MYSQL_RENDERER,
+        "mysql_postoperator": MYSQL_RENDERER,
     }
     ui_color = '#a0e08c'
 

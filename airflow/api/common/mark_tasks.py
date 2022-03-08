@@ -18,7 +18,7 @@
 """Marks tasks APIs."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, Iterable, Iterator, List, NamedTuple, Optional, Tuple
 
 from sqlalchemy import or_
 from sqlalchemy.orm import contains_eager
@@ -27,6 +27,7 @@ from sqlalchemy.orm.session import Session as SASession
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import Operator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
@@ -36,40 +37,50 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
+class _DagRunInfo(NamedTuple):
+    logical_date: datetime
+    data_interval: Tuple[datetime, datetime]
+
+
 def _create_dagruns(
-    dag: DAG, execution_dates: List[datetime], state: DagRunState, run_type: DagRunType
-) -> List[DagRun]:
-    """
-    Infers from the dates which dag runs need to be created and does so.
+    dag: DAG,
+    infos: Iterable[_DagRunInfo],
+    state: DagRunState,
+    run_type: DagRunType,
+) -> Iterable[DagRun]:
+    """Infers from data intervals which DAG runs need to be created and does so.
 
-    :param dag: the dag to create dag runs for
-    :param execution_dates: list of execution dates to evaluate
-    :param state: the state to set the dag run to
-    :param run_type: The prefix will be used to construct dag run id: {run_id_prefix}__{execution_date}
-    :return: newly created and existing dag runs for the execution dates supplied
+    :param dag: The DAG to create runs for.
+    :param infos: List of logical dates and data intervals to evaluate.
+    :param state: The state to set the dag run to
+    :param run_type: The prefix will be used to construct dag run id: ``{run_id_prefix}__{execution_date}``.
+    :return: Newly created and existing dag runs for the execution dates supplied.
     """
-    # find out if we need to create any dag runs
-    dag_runs = DagRun.find(dag_id=dag.dag_id, execution_date=execution_dates)
-    dates_to_create = list(set(execution_dates) - {dag_run.execution_date for dag_run in dag_runs})
+    # Find out existing DAG runs that we don't need to create.
+    dag_runs = {
+        run.logical_date: run
+        for run in DagRun.find(dag_id=dag.dag_id, execution_date=[info.logical_date for info in infos])
+    }
 
-    for date in dates_to_create:
-        dag_run = dag.create_dagrun(
-            execution_date=date,
+    for info in infos:
+        if info.logical_date in dag_runs:
+            continue
+        dag_runs[info.logical_date] = dag.create_dagrun(
+            execution_date=info.logical_date,
+            data_interval=info.data_interval,
             start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
             run_type=run_type,
         )
-        dag_runs.append(dag_run)
-
-    return dag_runs
+    return dag_runs.values()
 
 
 @provide_session
 def set_state(
     *,
-    tasks: Iterable[BaseOperator],
-    dag_run_id: Optional[str] = None,
+    tasks: Iterable[Operator],
+    run_id: Optional[str] = None,
     execution_date: Optional[datetime] = None,
     upstream: bool = False,
     downstream: bool = False,
@@ -87,32 +98,22 @@ def set_state(
     on the schedule (but it will as for subdag dag runs if needed).
 
     :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
-    :type tasks: list[airflow.models.baseoperator.BaseOperator]
-    :param dag_run_id: the run_id of the dagrun to start looking from
-    :type dag_run_id: str
+    :param run_id: the run_id of the dagrun to start looking from
     :param execution_date: the execution date from which to start looking(deprecated)
-    :type execution_date: datetime.datetime
     :param upstream: Mark all parents (upstream tasks)
-    :type upstream: bool
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
-    :type downstream: bool
     :param future: Mark all future tasks on the interval of the dag up until
         last execution date.
-    :type future: bool
     :param past: Retroactively mark all tasks starting from start_date of the DAG
-    :type past: bool
     :param state: State to which the tasks need to be set
-    :type state: str
     :param commit: Commit tasks to be altered to the database
-    :type commit: bool
     :param session: database session
-    :type session: sqlalchemy.orm.session.Session
     :return: list of tasks that have been created and updated
     """
     if not tasks:
         return []
 
-    if not exactly_one(execution_date, dag_run_id):
+    if not exactly_one(execution_date, run_id):
         raise ValueError("Exactly one of dag_run_id and execution_date must be set")
 
     if execution_date and not timezone.is_localized(execution_date):
@@ -126,17 +127,20 @@ def set_state(
         raise ValueError("Received tasks with no DAG")
 
     if execution_date:
-        dag_run_id = dag.get_dagrun(execution_date=execution_date).run_id
-    if not dag_run_id:
-        raise ValueError("Received tasks with no dag_run_id")
+        run_id = dag.get_dagrun(execution_date=execution_date).run_id
+    if not run_id:
+        raise ValueError("Received tasks with no run_id")
 
-    dag_run_ids = get_run_ids(dag, dag_run_id, future, past)
+    dag_run_ids = get_run_ids(dag, run_id, future, past)
 
     task_ids = list(find_task_relatives(tasks, downstream, upstream))
 
-    confirmed_dates = verify_dag_run_integrity(dag, dag_run_ids)
+    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids))
+    confirmed_dates = [info.logical_date for info in confirmed_infos]
 
-    sub_dag_run_ids = get_subdag_runs(dag, session, DagRunState(state), task_ids, commit, confirmed_dates)
+    sub_dag_run_ids = list(
+        _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
+    )
 
     # now look for the task instances that are affected
 
@@ -158,7 +162,10 @@ def set_state(
 
 
 def all_subdag_tasks_query(
-    sub_dag_run_ids: List[str], session: SASession, state: TaskInstanceState, confirmed_dates: List[datetime]
+    sub_dag_run_ids: List[str],
+    session: SASession,
+    state: TaskInstanceState,
+    confirmed_dates: Iterable[datetime],
 ):
     """Get *all* tasks of the sub dags"""
     qry_sub_dag = (
@@ -174,7 +181,7 @@ def get_all_dag_task_query(
     session: SASession,
     state: TaskInstanceState,
     task_ids: List[str],
-    confirmed_dates: List[datetime],
+    confirmed_dates: Iterable[datetime],
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
     qry_dag = (
@@ -191,20 +198,20 @@ def get_all_dag_task_query(
     return qry_dag
 
 
-def get_subdag_runs(
+def _iter_subdag_run_ids(
     dag: DAG,
     session: SASession,
     state: DagRunState,
     task_ids: List[str],
     commit: bool,
-    confirmed_dates: List[datetime],
-) -> List[str]:
-    """Go through subdag operators and create dag runs. We will only work
-    within the scope of the subdag. We won't propagate to the parent dag,
-    but we will propagate from parent to subdag.
+    confirmed_infos: Iterable[_DagRunInfo],
+) -> Iterator[str]:
+    """Go through subdag operators and create dag runs.
+
+    We only work within the scope of the subdag. A subdag does not propagate to
+    its parent DAG, but parent propagates to subdags.
     """
     dags = [dag]
-    sub_dag_ids = []
     while dags:
         current_dag = dags.pop()
         for task_id in task_ids:
@@ -220,7 +227,7 @@ def get_subdag_runs(
                     assert current_task.subdag
                 dag_runs = _create_dagruns(
                     current_task.subdag,
-                    execution_dates=confirmed_dates,
+                    infos=confirmed_infos,
                     state=DagRunState.RUNNING,
                     run_type=DagRunType.BACKFILL_JOB,
                 )
@@ -228,16 +235,15 @@ def get_subdag_runs(
                 verify_dagruns(dag_runs, commit, state, session, current_task)
 
                 dags.append(current_task.subdag)
-                sub_dag_ids.append(current_task.subdag.dag_id)
-    return sub_dag_ids
+                yield current_task.subdag.dag_id
 
 
 def verify_dagruns(
-    dag_runs: List[DagRun],
+    dag_runs: Iterable[DagRun],
     commit: bool,
     state: DagRunState,
     session: SASession,
-    current_task: BaseOperator,
+    current_task: Operator,
 ):
     """Verifies integrity of dag_runs.
 
@@ -256,19 +262,11 @@ def verify_dagruns(
             session.merge(dag_run)
 
 
-def verify_dag_run_integrity(dag: DAG, run_ids: List[str]) -> List[datetime]:
-    """
-    Verify the integrity of the dag runs in case a task was added or removed
-    set the confirmed execution dates as they might be different
-    from what was provided
-    """
-    confirmed_dates = []
-    dag_runs = DagRun.find(dag_id=dag.dag_id, run_id=run_ids)
-    for dag_run in dag_runs:
+def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str]) -> Iterator[_DagRunInfo]:
+    for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids):
         dag_run.dag = dag
         dag_run.verify_integrity()
-        confirmed_dates.append(dag_run.execution_date)
-    return confirmed_dates
+        yield _DagRunInfo(dag_run.logical_date, dag.get_run_data_interval(dag_run))
 
 
 def find_task_relatives(tasks, downstream, upstream):
@@ -346,16 +344,16 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     return run_ids
 
 
-def _set_dag_run_state(dag_id: str, dag_run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
+def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
     """
     Helper method that set dag run state in the DB.
 
     :param dag_id: dag_id of target dag run
-    :param dag_run_id: dag run id of target dag run
+    :param run_id: run id of target dag run
     :param state: target state
     :param session: database session
     """
-    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one()
+    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
     dag_run.state = state
     if state == State.RUNNING:
         dag_run.start_date = timezone.utcnow()
@@ -409,7 +407,7 @@ def set_dag_run_state_to_success(
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
         task.dag = dag
-    return set_state(tasks=dag.tasks, dag_run_id=run_id, state=State.SUCCESS, commit=commit, session=session)
+    return set_state(tasks=dag.tasks, run_id=run_id, state=State.SUCCESS, commit=commit, session=session)
 
 
 @provide_session
@@ -471,7 +469,7 @@ def set_dag_run_state_to_failed(
         task.dag = dag
         tasks.append(task)
 
-    return set_state(tasks=tasks, dag_run_id=run_id, state=State.FAILED, commit=commit, session=session)
+    return set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
 
 
 @provide_session
@@ -488,6 +486,7 @@ def set_dag_run_state_to_running(
 
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking
+    :param run_id: the id of the DagRun
     :param commit: commit DAG and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,

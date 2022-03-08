@@ -32,16 +32,12 @@ class MetastorePartitionSensor(SqlSensor):
     way that wouldn't leverage the indexes.
 
     :param schema: the schema
-    :type schema: str
     :param table: the table
-    :type table: str
     :param partition_name: the partition name, as defined in the PARTITIONS
         table of the Metastore. Order of the fields does matter.
         Examples: ``ds=2016-01-01`` or
         ``ds=2016-01-01/sub=foo`` for a sub partitioned table
-    :type partition_name: str
     :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
-    :type mysql_conn_id: str
     """
 
     template_fields: Sequence[str] = ('partition_name', 'table', 'schema')

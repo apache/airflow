@@ -33,27 +33,18 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     Checks state of an execution for the given ``workflow_id`` and ``execution_id``.
 
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param execution_id: Required. The ID of the execution.
-    :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The Cloud Dataproc region in which to handle the request.
-    :type location: str
     :param success_states: Execution states to be considered as successful, by default
         it's only ``SUCCEEDED`` state
-    :type success_states: List[Execution.State]
     :param failure_states: Execution states to be considered as failures, by default
         they are ``FAILED`` and ``CANCELLED`` states.
-    :type failure_states: List[Execution.State]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param request_timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type request_timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
     template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")

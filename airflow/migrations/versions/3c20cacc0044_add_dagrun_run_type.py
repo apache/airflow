@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add DagRun run_type
+Add ``run_type`` column in ``dag_run`` table
 
 Revision ID: 3c20cacc0044
 Revises: b25a55525161
@@ -28,9 +28,9 @@ Create Date: 2020-04-08 13:35:25.671327
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
+from airflow.compat.sqlalchemy import inspect
 from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
@@ -38,6 +38,7 @@ revision = "3c20cacc0044"
 down_revision = "b25a55525161"
 branch_labels = None
 depends_on = None
+airflow_version = '2.0.0'
 
 Base = declarative_base()
 
@@ -53,11 +54,11 @@ class DagRun(Base):  # type: ignore
 
 
 def upgrade():
-    """Apply Add DagRun run_type"""
+    """Apply Add ``run_type`` column in ``dag_run`` table"""
     run_type_col_type = sa.String(length=50)
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     dag_run_columns = [col.get('name') for col in inspector.get_columns("dag_run")]
 
     if "run_type" not in dag_run_columns:
@@ -88,5 +89,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add DagRun run_type"""
+    """Unapply Add ``run_type`` column in ``dag_run`` table"""
     op.drop_column("dag_run", "run_type")

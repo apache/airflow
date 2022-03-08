@@ -22,7 +22,7 @@ import collections.abc
 import enum
 from typing import TYPE_CHECKING, Any, Collection, List, Optional
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
+from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -61,6 +61,7 @@ class TaskMap(Base):
     keys = Column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
+        CheckConstraint(length >= 0, name="task_map_length_not_negative"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

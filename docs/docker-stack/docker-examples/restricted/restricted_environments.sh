@@ -34,12 +34,16 @@ pip download --dest docker-context-files \
 # [END download]
 
 # [START build]
+export DEBIAN_VERSION="bullseye"
+
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg INSTALL_MSSQL_CLIENT="false" \
+    --build-arg INSTALL_POSTGRES_CLIENT="true" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
     --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt" \

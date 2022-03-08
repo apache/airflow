@@ -37,25 +37,15 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
 
     :param filename: file name to be used by the csv file.
-    :type filename: str
     :param azure_data_lake_conn_id: destination azure data lake connection.
-    :type azure_data_lake_conn_id: str
     :param azure_data_lake_path: destination path in azure data lake to put the file.
-    :type azure_data_lake_path: str
     :param oracle_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
-    :type oracle_conn_id: str
     :param sql: SQL query to execute against the Oracle database. (templated)
-    :type sql: str
     :param sql_params: Parameters to use in sql query. (templated)
-    :type sql_params: Optional[dict]
     :param delimiter: field delimiter in the file.
-    :type delimiter: str
     :param encoding: encoding type for the file.
-    :type encoding: str
     :param quotechar: Character to use in quoting.
-    :type quotechar: str
     :param quoting: Quoting strategy. See unicodecsv quoting for more information.
-    :type quoting: str
     """
 
     template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')

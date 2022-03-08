@@ -36,27 +36,17 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         :ref:`howto/operator:AzureBlobStorageToGCSOperator`
 
     :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param blob_name: Name of the blob
-    :type blob_name: str
     :param file_path: Path to the file to download
-    :type file_path: str
     :param container_name: Name of the container
-    :type container_name: str
     :param bucket_name: The bucket to upload to
-    :type bucket_name: str
     :param object_name: The object name to set when uploading the file
-    :type object_name: str
     :param filename: The local file path to the file to be uploaded
-    :type filename: str
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -65,7 +55,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(

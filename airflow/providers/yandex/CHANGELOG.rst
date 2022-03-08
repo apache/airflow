@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.2.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Fix spelling (#22054)``
+
 2.2.0
 .....
 

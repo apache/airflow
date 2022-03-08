@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""index-taskfail
+"""Create index on ``task_fail`` table
 
 Revision ID: 9635ae0956e7
 Revises: 856955da8476
@@ -29,6 +29,7 @@ revision = '9635ae0956e7'
 down_revision = '856955da8476'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 
 def upgrade():

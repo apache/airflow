@@ -16,7 +16,7 @@
 # under the License.
 
 
-"""kubernetes_resource_checkpointing
+"""Add Kubernetes resource check-pointing
 
 Revision ID: 33ae817a1ff4
 Revises: 947454bf1dff
@@ -25,20 +25,22 @@ Create Date: 2017-09-11 15:26:47.598494
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
+
+from airflow.compat.sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = '33ae817a1ff4'
 down_revision = 'd2ae31099d61'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.0'
 
 RESOURCE_TABLE = "kube_resource_version"
 
 
 def upgrade():
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
 
     if RESOURCE_TABLE not in inspector.get_table_names():
         columns_and_constraints = [
@@ -62,7 +64,7 @@ def upgrade():
 
 def downgrade():
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
 
     if RESOURCE_TABLE in inspector.get_table_names():
         op.drop_table(RESOURCE_TABLE)

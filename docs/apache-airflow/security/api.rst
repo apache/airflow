@@ -22,24 +22,30 @@ API Authentication
 ------------------
 
 Authentication for the API is handled separately to the Web Authentication. The default is to
-deny all requests:
+check the user session:
 
 .. code-block:: ini
 
     [api]
-    auth_backend = airflow.api.auth.backend.deny_all
+    auth_backends = airflow.api.auth.backend.session
 
 .. versionchanged:: 1.10.11
 
     In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
     posed security risks for if the Webserver is publicly accessible.
 
-If you want to check which authentication backend is currently set, you can use ``airflow config get-value api auth_backend``
+.. versionchanged:: 2.3
+
+    In Airflow <2.3 this setting was ``auth_backend`` and allowed only one
+    value. In 2.3 it was changed to support multiple backends that are tried
+    in turn.
+
+If you want to check which authentication backends are currently set, you can use ``airflow config get-value api auth_backends``
 command as in the example below.
 
 .. code-block:: console
 
-    $ airflow config get-value api auth_backend
+    $ airflow config get-value api auth_backends
     airflow.api.auth.backend.basic_auth
 
 Disable authentication
@@ -51,7 +57,7 @@ If you wish to have the experimental API work, and aware of the risks of enablin
 .. code-block:: ini
 
     [api]
-    auth_backend = airflow.api.auth.backend.default
+    auth_backends = airflow.api.auth.backend.default
 
 .. note::
 
@@ -69,7 +75,7 @@ To enable Kerberos authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backend = airflow.api.auth.backend.kerberos_auth
+    auth_backends = airflow.api.auth.backend.kerberos_auth
 
     [kerberos]
     keytab = <KEYTAB>
@@ -80,8 +86,7 @@ principal exists in the keytab file.
 Basic authentication
 ''''''''''''''''''''
 
-`Basic username password authentication <https://tools.ietf.org/html/rfc7617
-https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+`Basic username password authentication <https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the API. This works for users created through LDAP login or
 within Airflow Metadata DB using password.
 
@@ -90,7 +95,7 @@ To enable basic authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backend = airflow.api.auth.backend.basic_auth
+    auth_backends = airflow.api.auth.backend.basic_auth
 
 Username and password needs to be base64 encoded and send through the
 ``Authorization`` HTTP header in the following format:
@@ -126,7 +131,7 @@ and may have one of the following to support API client authorizations used by :
 * function ``create_client_session() -> requests.Session``
 * attribute ``CLIENT_AUTH: Optional[Union[Tuple[str, str], requests.auth.AuthBase]]``
 
-After writing your backend module, provide the fully qualified module name in the ``auth_backend`` key in the ``[api]``
+After writing your backend module, provide the fully qualified module name in the ``auth_backends`` key in the ``[api]``
 section of ``airflow.cfg``.
 
 Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.

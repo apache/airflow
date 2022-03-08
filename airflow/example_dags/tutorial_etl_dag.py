@@ -19,15 +19,14 @@
 
 """
 ### ETL DAG Tutorial Documentation
-This ETL DAG is compatible with Airflow 1.10.x (specifically tested with 1.10.12) and is referenced
-as part of the documentation that goes along with the Airflow Functional DAG tutorial located
-[here](https://airflow.apache.org/tutorial_decorated_flows.html)
+This ETL DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
 # [START tutorial]
 # [START import_module]
 import json
-from datetime import datetime
 from textwrap import dedent
+
+import pendulum
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
@@ -47,7 +46,7 @@ with DAG(
     # [END default_args]
     description='ETL DAG tutorial',
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:

@@ -53,11 +53,8 @@ def build_gcp_conn(
     scopes and project id.
 
     :param key_file_path: Path to service key.
-    :type key_file_path: Optional[str]
     :param scopes: Required OAuth scopes.
-    :type scopes: Optional[List[str]]
     :param project_id: The Google Cloud project id to be used for the connection.
-    :type project_id: Optional[str]
     :return: String representing Airflow connection.
     """
     conn = "google-cloud-platform://?{}"
@@ -86,9 +83,7 @@ def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: 
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
-    :type key_file_path: str
     :param key_file_dict: Dictionary with credentials.
-    :type key_file_dict: Dict
 
     __ https://cloud.google.com/docs/authentication/production
     """
@@ -123,11 +118,8 @@ def provide_gcp_connection(
     required scopes and project id.
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
-    :type key_file_path: str
     :param scopes: OAuth scopes for the connection
-    :type scopes: Sequence
     :param project_id: The id of Google Cloud project for the connection.
-    :type project_id: str
     """
     if key_file_path and key_file_path.endswith(".p12"):
         raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
@@ -152,11 +144,8 @@ def provide_gcp_conn_and_credentials(
     - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
-    :type key_file_path: str
     :param scopes: OAuth scopes for the connection
-    :type scopes: Sequence
     :param project_id: The id of Google Cloud project for the connection.
-    :type project_id: str
 
     __ https://cloud.google.com/docs/authentication/production
     """
@@ -180,27 +169,21 @@ class _CredentialProvider(LoggingMixin):
     occur. If neither of them are provided, return default credentials for the current environment
 
     :param key_path: Path to Google Cloud Service Account key file (JSON).
-    :type key_path: str
     :param keyfile_dict: A dict representing Cloud Service Account as in the Credential JSON file
-    :type keyfile_dict: Dict[str, str]
     :param scopes:  OAuth scopes for the connection
-    :type scopes: Collection[str]
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param disable_logging: If true, disable all log messages, which allows you to use this
         class to configure Logger.
     :param target_principal: The service account to directly impersonate using short-term
         credentials, if any. For this to work, the target_principal account must grant
         the originating account the Service Account Token Creator IAM role.
-    :type target_principal: str
     :param delegates: optional chained list of accounts required to get the access_token of
         target_principal. If set, the sequence of identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account and target_principal
         granting the role to the last account from the list.
-    :type delegates: Sequence[str]
     """
 
     def __init__(
@@ -235,7 +218,6 @@ class _CredentialProvider(LoggingMixin):
         Get current credentials and project ID.
 
         :return: Google Auth Credentials
-        :type: Tuple[google.auth.credentials.Credentials, str]
         """
         if self.key_path:
             credentials, project_id = self._get_credentials_using_key_path()
@@ -345,7 +327,6 @@ def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
     Otherwise, default scope will be returned.
 
     :param scopes: A comma-separated string containing OAuth2 scopes
-    :type scopes: Optional[str]
     :return: Returns the scope defined in the connection configuration, or the default scope
     :rtype: Sequence[str]
     """
@@ -362,7 +343,6 @@ def _get_target_principal_and_delegates(
 
     :param impersonation_chain: the service account to impersonate or a chained list leading to this
         account
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
 
     :return: Returns the tuple of target_principal and delegates
     :rtype: Tuple[Optional[str], Optional[Sequence[str]]]
@@ -381,7 +361,6 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
     Extracts project_id from service account's email address.
 
     :param service_account_email: email of the service account.
-    :type service_account_email: str
 
     :return: Returns the project_id of the provided service account.
     :rtype: str

@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Updates FTPHook provider to have test_connection (#21997)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Add optional features in providers. (#21074)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.4.1
 .....
 

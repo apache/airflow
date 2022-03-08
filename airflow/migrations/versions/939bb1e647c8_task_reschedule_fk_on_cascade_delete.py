@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""task reschedule fk on cascade delete
+"""task reschedule foreign key on cascade delete
 
 Revision ID: 939bb1e647c8
 Revises: dd4ecb8fbee3
@@ -30,6 +30,7 @@ revision = '939bb1e647c8'
 down_revision = 'dd4ecb8fbee3'
 branch_labels = None
 depends_on = None
+airflow_version = '1.10.3'
 
 
 def upgrade():

@@ -246,7 +246,6 @@ class PodManager(LoggingMixin):
         Parse K8s log line and returns the final state
 
         :param line: k8s log line
-        :type line: str
         :return: timestamp and log message
         :rtype: Tuple[str, str]
         """

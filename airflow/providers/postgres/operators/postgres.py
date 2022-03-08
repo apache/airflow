@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, U
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -28,24 +29,22 @@ class PostgresOperator(BaseOperator):
     """
     Executes sql code in a specific Postgres database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
-    :type postgres_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
-    :type database: str
     """
 
     template_fields: Sequence[str] = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        'sql': 'postgresql' if 'postgresql' in wwwutils.get_attr_renderer() else 'sql'
+    }
     template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 

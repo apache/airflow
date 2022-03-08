@@ -19,6 +19,42 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add map_index label to mapped KubernetesPodOperator (#21916)``
+* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Fix Kubernetes example with wrong operator casing (#21898)``
+* ``Remove types from KPO docstring (#21826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missed deprecations for cncf (#20031)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Make ''delete_pod'' change more prominent in K8s changelog (#20753)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 3.0.1
 .....
 
@@ -211,7 +247,8 @@ Bug Fixes
 * ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 * ``Import Hooks lazily individually in providers manager (#17682)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix messed-up changelog in 3 providers (#17380)``
    * ``Fix static checks (#17256)``
    * ``Update spark_kubernetes.py (#17237)``

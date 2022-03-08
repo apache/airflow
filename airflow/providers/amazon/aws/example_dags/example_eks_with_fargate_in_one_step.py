@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 from datetime import datetime
 from os import environ
 
@@ -39,19 +43,18 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='example-create-cluster-and-fargate-all-in-one',
-    default_args={'cluster_name': CLUSTER_NAME},
+    dag_id='example_eks_with_fargate_in_one_step',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
-    max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_eks_create_cluster_with_fargate_profile]
     # Create an Amazon EKS cluster control plane and an AWS Fargate compute platform in one step.
     create_cluster_and_fargate_profile = EksCreateClusterOperator(
         task_id='create_eks_cluster_and_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         cluster_role_arn=ROLE_ARN,
         resources_vpc_config=VPC_CONFIG,
         compute='fargate',
@@ -64,6 +67,7 @@ with DAG(
 
     await_create_fargate_profile = EksFargateProfileStateSensor(
         task_id='wait_for_create_fargate_profile',
+        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         target_state=FargateProfileStates.ACTIVE,
     )
@@ -71,6 +75,7 @@ with DAG(
     start_pod = EksPodOperator(
         task_id="run_pod",
         pod_name="run_pod",
+        cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
@@ -82,11 +87,14 @@ with DAG(
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_all = EksDeleteClusterOperator(
-        task_id='delete_fargate_profile_and_cluster', force_delete_compute=True
+        task_id='delete_fargate_profile_and_cluster',
+        cluster_name=CLUSTER_NAME,
+        force_delete_compute=True,
     )
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

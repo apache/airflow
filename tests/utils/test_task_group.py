@@ -21,7 +21,7 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.models import DAG
-from airflow.models.baseoperator import MappedOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
@@ -1044,7 +1044,7 @@ def test_map() -> None:
         start = MockOperator(task_id="start")
         end = MockOperator(task_id="end")
         literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").map(literal) as process_one:
+        with TaskGroup("process_one").apply(literal) as process_one:
             one = MockOperator(task_id='one')
             two = MockOperator(task_id='two')
             three = MockOperator(task_id='three')
@@ -1073,10 +1073,10 @@ def test_nested_map() -> None:
         start = MockOperator(task_id="start")
         end = MockOperator(task_id="end")
         literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").map(literal) as process_one:
+        with TaskGroup("process_one").apply(literal) as process_one:
             one = MockOperator(task_id='one')
 
-            with TaskGroup("process_two").map(literal) as process_one_two:
+            with TaskGroup("process_two").apply(literal) as process_one_two:
                 two = MockOperator(task_id='two')
                 three = MockOperator(task_id='three')
                 two >> three
@@ -1094,6 +1094,32 @@ def test_decorator_unknown_args():
         @task_group_decorator(b=2)
         def tg():
             ...
+
+
+def test_decorator_multiple_use_task():
+    from airflow.decorators import task
+
+    @dag("test-dag", start_date=DEFAULT_DATE)
+    def _test_dag():
+        @task
+        def t():
+            pass
+
+        @task_group_decorator
+        def tg():
+            for _ in range(3):
+                t()
+
+        t() >> tg() >> t()
+
+    test_dag = _test_dag()
+    assert test_dag.task_ids == [
+        "t",  # Start end.
+        "tg.t",
+        "tg.t__1",
+        "tg.t__2",
+        "t__1",  # End node.
+    ]
 
 
 def test_decorator_partial_unmapped():
@@ -1121,7 +1147,7 @@ def test_decorator_map():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         lines = ["foo", "bar", "baz"]
 
-        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).map(my_arg_1=lines)
+        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).apply(my_arg_1=lines)
 
     assert task_1 in dag.tasks
 

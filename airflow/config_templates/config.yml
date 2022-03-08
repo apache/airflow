@@ -368,6 +368,14 @@
       type: string
       example: ~
       default: "30"
+    - name: compress_serialized_dags
+      description: |
+        If True, serialized DAGs are compressed before writing to DB.
+        Note: this will disable the DAG dependencies view
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "False"
     - name: min_serialized_dag_fetch_interval
       description: |
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
@@ -453,6 +461,15 @@
       type: string
       example: ~
       default: "128"
+    - name: max_map_length
+      description: |
+        The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
+        length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
+        mapped tasks from clogging the scheduler.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "1024"
 
 - name: logging
   description: ~
@@ -522,6 +539,15 @@
       type: string
       example: ~
       default: "INFO"
+    - name: celery_logging_level
+      description: |
+        Logging level for celery. If not set, it uses the value of logging_level
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ""
     - name: fab_logging_level
       description: |
         Logging level for Flask-appbuilder UI.
@@ -589,7 +615,9 @@
       version_added: 2.0.0
       type: string
       example: ~
-      default: "{{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log"
+      default: "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
+               {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
+               attempt={{{{ try_number }}}}.log"
     - name: log_processor_filename_template
       description: |
         Formatting for how airflow generates file names for log
@@ -774,7 +802,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: auth_backend
+    - name: auth_backends
       description: |
         How to authenticate users of the API. See
         https://airflow.apache.org/docs/apache-airflow/stable/security.html for possible values.
@@ -782,7 +810,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.deny_all"
+      default: "airflow.api.auth.backend.session"
     - name: maximum_page_limit
       description: |
         Used to set the maximum page limit for API requests
@@ -1007,6 +1035,13 @@
       type: string
       example: ~
       default: ""
+    - name: session_backend
+      description: |
+        The type of backend used to store web session data, can be 'database' or 'securecookie'
+      version_added: 2.2.4
+      type: string
+      example: securecookie
+      default: database
     - name: web_server_master_timeout
       description: |
         Number of seconds the webserver waits before killing gunicorn master that doesn't respond
@@ -1050,6 +1085,10 @@
         Secret key used to run your flask app. It should be as random as possible. However, when running
         more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
         one of them will error with "CSRF session token is missing".
+        The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
+        The token generated using the secret key has a short expiry time though - make sure that time on
+        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
+        otherwise you might get "forbidden" errors when the logs are accessed.
       version_added: ~
       type: string
       sensitive: true
@@ -1303,6 +1342,13 @@
       type: string
       example: ~
       default:
+    - name: instance_name_has_markup
+      description: |
+        Whether the custom page title for the DAGs overview page contains any Markup language
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
     - name: auto_refresh_interval
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
@@ -1318,6 +1364,24 @@
       type: boolean
       example: ~
       default: "True"
+    - name: audit_view_excluded_events
+      description: |
+        Comma separated string of view events to exclude from dag audit view.
+        All other events will be added minus the ones passed here.
+        The audit logs in the db will not be affected by this parameter.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "gantt,landing_times,tries,duration,calendar,graph,tree,tree_data"
+    - name: audit_view_included_events
+      description: |
+        Comma separated string of view events to include in dag audit view.
+        If passed, only these events will populate the dag audit view.
+        The audit logs in the db will not be affected by this parameter.
+      version_added: 2.3.0
+      type: string
+      example: "dagrun_cleared,failed"
+      default: ~
 
 - name: email
   description: |
@@ -1372,7 +1436,7 @@
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
@@ -1464,6 +1528,21 @@
       type: string
       example: ~
       default: ~
+- name: local_kubernetes_executor
+  description: |
+    This section only applies if you are using the ``LocalKubernetesExecutor`` in
+    ``[core]`` section above
+  options:
+    - name: kubernetes_queue
+      description: |
+        Define when to send a task to ``KubernetesExecutor`` when using ``LocalKubernetesExecutor``.
+        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+        the task is executed via ``KubernetesExecutor``,
+        otherwise via ``LocalExecutor``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "kubernetes"
 - name: celery_kubernetes_executor
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
@@ -1524,8 +1603,17 @@
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
       version_added: 2.0.0
       type: integer
-      example: "1"
-      default: ~
+      example: ~
+      default: "1"
+    - name: worker_enable_remote_control
+      description: |
+        Specify if remote control of the workers is enabled.
+        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
+        prevent this by setting this to false. However, with this disabled Flower won't work.
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "true"
     - name: worker_umask
       description: |
         Umask that will be used when starting workers with the ``airflow celery worker``
@@ -1681,7 +1769,7 @@
     - name: stuck_queued_task_check_interval
       description: |
         How often to check for stuck queued task (in seconds)
-      version_added: 2.3.0
+      version_added: 2.2.4
       type: integer
       example: ~
       default: "300"
@@ -1834,6 +1922,13 @@
       type: string
       example: ~
       default: "300"
+    - name: zombie_detection_interval
+      description: |
+        How often (in seconds) should the scheduler check for zombie tasks.
+      version_added: 2.3.0
+      type: float
+      example: ~
+      default: "10.0"
     - name: catchup_by_default
       description: |
         Turn off scheduler catchup by setting this to ``False``.
@@ -1916,6 +2011,22 @@
       type: string
       example: ~
       default: "modified_time"
+    - name: standalone_dag_processor
+      description: |
+        Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
+        job.
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: max_callbacks_per_loop
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true and  callbacks are stored
+        in database. Contains maximum number of callbacks that are fetched during a single loop.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "20"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -2028,7 +2139,7 @@
       version_added: 1.10.4
       type: string
       example: ~
-      default: "{{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}"
+      default: "{{dag_id}}-{{task_id}}-{{run_id}}-{{map_index}}-{{try_number}}"
     - name: end_of_log_mark
       description: |
         Used to mark the end of a log stream for a task
