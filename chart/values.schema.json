@@ -1605,8 +1605,21 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for scheduler.",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
                                 }
                             }
                         }
@@ -2493,8 +2506,21 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for webserver.",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
                                 }
                             }
                         }
@@ -3320,8 +3346,21 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for PgBouncer.",
+                                    "type": [
+                                        "integer",
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
                                 }
                             }
                         }
