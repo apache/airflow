@@ -22,7 +22,7 @@
 # the ./scripts/ci/libraries/_initialization.sh and it is verified
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9"
+_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9 3.10"
 _breeze_allowed_debian_versions="bullseye buster"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
