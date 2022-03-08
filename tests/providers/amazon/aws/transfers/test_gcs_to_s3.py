@@ -271,3 +271,32 @@ class TestGCSToS3Operator(unittest.TestCase):
             # Make sure the acl_policy parameter is passed to the upload method
             _, kwargs = mock_load_file.call_args
             assert kwargs['acl_policy'] == S3_ACL_POLICY
+
+    @mock_s3
+    @mock.patch('airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook')
+    def test_execute_without_keep_director_structure(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                bucket=GCS_BUCKET,
+                prefix=PREFIX,
+                delimiter=DELIMITER,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key=S3_BUCKET,
+                replace=False,
+                keep_directory_structure=False,
+            )
+            # create dest bucket with all the files
+            hook = S3Hook(aws_conn_id='airflow_gcs_test')
+            bucket = hook.get_bucket('bucket')
+            bucket.create()
+
+            # we expect all except first file in MOCK_FILES to be uploaded
+            # and all the MOCK_FILES to be present at the S3 bucket
+            uploaded_files = operator.execute(None)
+            assert sorted(MOCK_FILES) == sorted(uploaded_files)
+            assert hook.check_for_prefix(bucket_name='bucket', prefix=PREFIX + '/', delimiter='/') is True
