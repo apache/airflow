@@ -219,7 +219,7 @@ class TriggererTest(unittest.TestCase):
                         "timeoutSeconds": 222,
                         "failureThreshold": 333,
                         "periodSeconds": 444,
-                        "command": ["sh", "-c", "echo", "wow such test"]
+                        "command": ["sh", "-c", "echo", "wow such test"],
                     }
                 },
             },
