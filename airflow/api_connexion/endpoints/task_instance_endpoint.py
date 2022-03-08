@@ -67,7 +67,7 @@ def get_task_instance(
     """Get task instance"""
     query = (
         session.query(TI)
-        .filter(TI.dag_id == dag_id, DR.run_id == dag_run_id, TI.task_id == task_id)
+        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
         .outerjoin(
             SlaMiss,
@@ -124,7 +124,7 @@ def get_mapped_task_instance(
     query = (
         session.query(TI)
         .filter(
-            TI.dag_id == dag_id, DR.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index
+            TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index
         )
         .join(TI.dag_run)
         .outerjoin(
