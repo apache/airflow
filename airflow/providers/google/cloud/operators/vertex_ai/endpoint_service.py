@@ -37,7 +37,11 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
-from airflow.providers.google.cloud.links.vertex_ai import VertexAIEndpointLink, VertexAIEndpointListLink
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIEndpointLink,
+    VertexAIEndpointListLink,
+    VertexAIModelLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -237,6 +241,7 @@ class DeployModelOperator(BaseOperator):
     """
 
     template_fields = ("region", "endpoint_id", "project_id", "impersonation_chain")
+    operator_extra_links = (VertexAIModelLink(),)
 
     def __init__(
         self,
@@ -292,6 +297,7 @@ class DeployModelOperator(BaseOperator):
         self.log.info("Model was deployed. Deployed Model ID: %s", deployed_model_id)
 
         self.xcom_push(context, key="deployed_model_id", value=deployed_model_id)
+        VertexAIModelLink.persist(context=context, task_instance=self, model_id=deployed_model_id)
         return deploy_model
 
 
@@ -588,6 +594,7 @@ class UpdateEndpointOperator(BaseOperator):
     """
 
     template_fields = ("region", "endpoint_id", "project_id", "impersonation_chain")
+    operator_extra_links = (VertexAIEndpointLink(),)
 
     def __init__(
         self,
@@ -636,4 +643,5 @@ class UpdateEndpointOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Endpoint was updated")
+        VertexAIEndpointLink.persist(context=context, task_instance=self, endpoint_id=self.endpoint_id)
         return Endpoint.to_dict(result)

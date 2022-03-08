@@ -238,9 +238,7 @@ class ListModelsOperator(BaseOperator):
     """
 
     template_fields = ("region", "project_id", "impersonation_chain")
-    operator_extra_links = [
-        VertexAIModelListLink(),
-    ]
+    operator_extra_links = (VertexAIModelListLink(),)
 
     def __init__(
         self,

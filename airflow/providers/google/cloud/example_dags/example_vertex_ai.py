@@ -31,6 +31,9 @@ after training process was finished.
 * PYTHON_PACKAGE_GSC_URI - path to test model in archive.
 * LOCAL_TRAINING_SCRIPT_PATH - path to local training script.
 * DATASET_ID - ID of dataset which will be used in training process.
+* MODEL_ID - ID of model which will be used in predict process.
+* MODEL_ARTIFACT_URI - The artifact_uri should be the path to a GCS directory containing saved model
+artifacts.
 """
 import os
 from datetime import datetime
@@ -186,7 +189,8 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
 
-MODEL_ID = "9182492194534064128"
+MODEL_ID = os.environ.get("MODEL_ID", "test-model-id")
+MODEL_ARTIFACT_URI = os.environ.get("MODEL_ARTIFACT_URI", "path_to_folder_with_model_artifacts")
 MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
 JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
 BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
@@ -219,11 +223,7 @@ MODEL_OUTPUT_CONFIG = {
 }
 MODEL_OBJ = {
     "display_name": f"model-{str(uuid4())}",
-    # The artifact_uri should be the path to a GCS directory containing
-    # saved model artifacts.  The bucket must be accessible for the
-    # project's AI Platform service account and in the same region as
-    # the api endpoint.
-    "artifact_uri": f"{STAGING_BUCKET}/aiplatform-custom-training-2021-11-26-12:12:09.339/model",
+    "artifact_uri": MODEL_ARTIFACT_URI,
     "container_spec": {
         "image_uri": MODEL_SERVING_CONTAINER_URI,
         "command": [],

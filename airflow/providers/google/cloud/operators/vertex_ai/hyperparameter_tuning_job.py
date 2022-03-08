@@ -449,9 +449,7 @@ class ListHyperparameterTuningJobOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     ]
-    operator_extra_links = [
-        VertexAIHyperparameterTuningJobListLink(),
-    ]
+    operator_extra_links = (VertexAIHyperparameterTuningJobListLink(),)
 
     def __init__(
         self,

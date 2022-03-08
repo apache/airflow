@@ -364,6 +364,7 @@ class GetBatchPredictionJobOperator(BaseOperator):
     """
 
     template_fields = ("region", "project_id", "impersonation_chain")
+    operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
         self,
@@ -408,6 +409,9 @@ class GetBatchPredictionJobOperator(BaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("Batch prediction job was gotten.")
+            VertexAIBatchPredictionJobLink.persist(
+                context=context, task_instance=self, batch_prediction_job_id=self.batch_prediction_job
+            )
             return BatchPredictionJob.to_dict(result)
         except NotFound:
             self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job)
