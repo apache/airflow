@@ -32,6 +32,7 @@ Prerequisite Tasks
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
+.. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
 Create a Cluster
 ----------------
