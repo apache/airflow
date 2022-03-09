@@ -42,15 +42,15 @@ Overview
 To run a Task Definition defined in an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
 
-This Operator support running your containers in ECS Clusters that are either Serverless (FARGATE), via EC2, or via external resources (EXTERNAL). The parameters you need to configure for this Operator will depend upon which ``launch_type`` you want to use. 
+This Operator support running your containers in ECS Clusters that are either Serverless (FARGATE), via EC2, or via external resources (EXTERNAL). The parameters you need to configure for this Operator will depend upon which ``launch_type`` you want to use.
 
 Launch Types
 ------------
 .. code-block::
 
     launch_type="EC2|FARGATE|EXTERNAL"
-    
-* If you are using AWS Fargate as your compute resource in your ECS Cluster, set the parameter ``launch_type`` to FARGATE. When using a launch type of FARGATE you will need to provide ``network_configuration`` parameters. 
+
+* If you are using AWS Fargate as your compute resource in your ECS Cluster, set the parameter ``launch_type`` to FARGATE. When using a launch type of FARGATE you will need to provide ``network_configuration`` parameters.
 * If you are using EC2 as the compute resources in your ECS Cluster, set the parameter to EC2.
 * If you have integrated external resources in your ECS Cluster, for example using ECS Anywhere, and want to run your containers on those external resources, set the parameter to EXTERNAL.
 
@@ -58,14 +58,14 @@ Launch Types
     :language: python
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
-    
+
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
-    
-    
+
+
 CloudWatch Logging
 ------------------
 
@@ -75,14 +75,14 @@ To stream logs to AWS CloudWatch, you need to define these parameters. Using the
     :language: python
     :start-after: [START howto_awslogs_ecs]
     :end-before: [END howto_awslogs_ecs]
-    
+
 IAM Permissions
 ---------------
 
 You will need to ensure you have the following IAM permissions to run Tasks via this Operator. In this example, the Operator will have permissions to run Tasks on an ECS Cluster called "cluster a" in a specific AWS region and account.
 
 .. code-block::
-   
+
         {
             "Effect": "Allow",
             "Action": [
@@ -95,7 +95,7 @@ You will need to ensure you have the following IAM permissions to run Tasks via 
 If you use the "reattach=True" (the default is False), you will need to add further permissions. You will need to add the following additional Actions to the IAM policy.
 
 .. code-block::
-   
+
         "ecs:DescribeTaskDefinition",
         "ecs:ListTasks"
 

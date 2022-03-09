@@ -50,10 +50,10 @@ with DAG(
             "Version": "0.0.1",
             "Environment": "Development",
         },
-    #    [START howto_awslogs_ecs]
+        #    [START howto_awslogs_ecs]
         awslogs_group="/ecs/hello-world",
         awslogs_region="aws-region",
         awslogs_stream_prefix="ecs/hello-world-container"
-    #   [END howto_awslogs_ecs]
+        #   [END howto_awslogs_ecs]
     )
     # [END howto_operator_ecs]
