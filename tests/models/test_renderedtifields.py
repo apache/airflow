@@ -211,7 +211,7 @@ class TestRenderedTaskInstanceFields:
         for a given task_id and dag_id with mapped tasks.
         """
         with dag_maker("test_delete_old_records", session=session) as dag:
-            mapped = BashOperator.partial(task_id="mapped").apply(bash_command=['a', 'b'])
+            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=['a', 'b'])
         for num in range(num_runs):
             dr = dag_maker.create_dagrun(
                 run_id=f'run_{num}', execution_date=dag.start_date + timedelta(days=num)
