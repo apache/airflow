@@ -2011,6 +2011,22 @@
       type: string
       example: ~
       default: "modified_time"
+    - name: standalone_dag_processor
+      description: |
+        Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
+        job.
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: max_callbacks_per_loop
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true and  callbacks are stored
+        in database. Contains maximum number of callbacks that are fetched during a single loop.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "20"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.

@@ -46,7 +46,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------
@@ -68,7 +68,8 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
 ``celery``          ``~=5.1,>=5.1.2``
-``flower``          ``~=1.0.0``
+``celery``          ``>=5.2.3``
+``flower``          ``>=1.0.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/celery/CHANGELOG.rst

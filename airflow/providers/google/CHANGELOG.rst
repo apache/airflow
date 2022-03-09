@@ -18,6 +18,44 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Looker PDT operators (#20882)``
+* ``Add autodetect arg to external table creation in GCSToBigQueryOperator (#21944)``
+* ``Add Dataproc assets/links (#21756)``
+* ``Add Auto ML operators for Vertex AI service (#21470)``
+* ``Add GoogleCalendarToGCSOperator (#20769)``
+* ``Make project_id argument optional in all dataproc operators (#21866)``
+* ``Allow templates in more DataprocUpdateClusterOperator fields (#21865)``
+* ``Dataflow Assets (#21639)``
+* ``Extract ClientInfo to module level (#21554)``
+* ``Datafusion assets (#21518)``
+* ``Dataproc metastore assets (#21267)``
+* ``Normalize *_conn_id parameters in BigQuery sensors (#21430)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bigquery_dts parameter docstring typo (#21786)``
+* ``Fixed PostgresToGCSOperator fail on empty resultset for use_server_side_cursor=True (#21307)``
+* ``Fix multi query scenario in bigquery example DAG (#21575)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Unpin 'google-cloud-memcache' (#21912)``
+* ``Unpin ''pandas-gbq'' and remove unused code (#21915)``
+* ``Suppress hook warnings from the Bigquery transfers (#20119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
 6.4.0
 .....
 

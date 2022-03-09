@@ -52,7 +52,7 @@ from rich.syntax import Syntax
 
 from airflow.utils.yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9"]
+ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 INITIAL_CHANGELOG_CONTENT = """
 

@@ -23,12 +23,30 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment';
+import { QueryClient, QueryClientProvider } from 'react-query';
 
 import DagRuns from './index';
 
 // Mock modal open function we take from dag.js
 jest.mock('../../dag', () => ({ callModalDag: () => {} }));
 global.moment = moment;
+
+const Wrapper = ({ children }) => {
+  const queryClient = new QueryClient();
+  return (
+    <React.StrictMode>
+      <ChakraProvider>
+        <QueryClientProvider client={queryClient}>
+          <Table>
+            <Tbody>
+              {children}
+            </Tbody>
+          </Table>
+        </QueryClientProvider>
+      </ChakraProvider>
+    </React.StrictMode>
+  );
+};
 
 describe('Test DagRuns', () => {
   const dagRuns = [
@@ -62,15 +80,7 @@ describe('Test DagRuns', () => {
       dagRuns,
     });
     const { queryAllByTestId, getByText, queryByText } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              <DagRuns containerRef={mockRef} />
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
     );
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
@@ -108,15 +118,7 @@ describe('Test DagRuns', () => {
       ],
     });
     const { getByText } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              <DagRuns containerRef={mockRef} />
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
   });
@@ -127,15 +129,7 @@ describe('Test DagRuns', () => {
       dagRuns: [],
     };
     const { queryByTestId } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              <DagRuns containerRef={mockRef} />
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });
@@ -143,15 +137,7 @@ describe('Test DagRuns', () => {
   test('Handles no data correctly', () => {
     global.treeData = {};
     const { queryByTestId } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              <DagRuns containerRef={mockRef} />
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <DagRuns containerRef={mockRef} />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });

@@ -275,7 +275,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
-    'sphinx-jinja>=1.1',
+    'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
@@ -617,7 +617,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.0.3',
+    'moto>=3.0.7',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -640,9 +640,6 @@ devel_only = [
     'pytest-xdist',
     'python-jose',
     'pywinrm',
-    # The Responses 0.19.0 released on 07.03.2022 break our S3 tests. This limitation should be
-    # Removed when https://github.com/getsentry/responses/issues/511 is solved.
-    'responses<0.19.0',
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',

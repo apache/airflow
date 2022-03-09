@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add map_index label to mapped KubernetesPodOperator (#21916)``
+* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Fix Kubernetes example with wrong operator casing (#21898)``
+* ``Remove types from KPO docstring (#21826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
 3.0.2
 .....
 

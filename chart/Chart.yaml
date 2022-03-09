@@ -90,6 +90,10 @@ annotations:
       links:
       - name: '#20833'
         url: https://github.com/apache/airflow/pull/20833
+      - name: '#21108'
+        url: https://github.com/apache/airflow/pull/21108
+      - name: '#22041'
+        url: https://github.com/apache/airflow/pull/22041
     - description: Update git-sync to v3.4.0
       kind: changed
       links:
@@ -130,6 +134,11 @@ annotations:
       links:
       - name: '#20787'
         url: https://github.com/apache/airflow/pull/20787
+    - description: 'Docs: Fix example DAGs env var in quickstart'
+      kind: changed
+      links:
+      - name: '#21990'
+        url: https://github.com/apache/airflow/pull/21990
     - description: 'Misc: Use ``2.2.4`` as default Airflow version'
       kind: changed
       links:
