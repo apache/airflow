@@ -218,14 +218,15 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.hook = None  # type: Optional[HyperparameterTuningJobHook]
+
+    def execute(self, context: "Context"):
+        self.log.info("Creating Hyperparameter Tuning job")
         self.hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-
-    def execute(self, context: "Context"):
-        self.log.info("Creating Hyperparameter Tuning job")
         result = self.hook.create_hyperparameter_tuning_job(
             project_id=self.project_id,
             region=self.region,
