@@ -61,6 +61,7 @@ class BaseXCom(Base, LoggingMixin):
 
     dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default="-1")
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
@@ -87,7 +88,7 @@ class BaseXCom(Base, LoggingMixin):
         # but it goes over MySQL's index length limit. So we instead create indexes
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
-        Index("idx_xcom_ti_id", dag_id, task_id, run_id),
+        Index("idx_xcom_ti_id", dag_id, task_id, run_id, map_index),
     )
 
     @reconstructor

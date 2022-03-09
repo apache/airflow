@@ -107,7 +107,7 @@ class TestXCom:
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(key="xcom_test3", ti_key=ti_key, session=session)
+            ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
     def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):
