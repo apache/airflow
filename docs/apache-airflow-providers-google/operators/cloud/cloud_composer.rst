@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud Dataproc Metastore Operators
+Google Cloud Composer Operators
 =========================================
 
 Cloud Composer is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
