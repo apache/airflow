@@ -1607,19 +1607,9 @@
                                     "description": "Max unavailable pods for scheduler.",
                                     "type": [
                                         "integer",
-                                        "string",
-                                        "null"
+                                        "string"
                                     ],
                                     "default": 1
-                                },
-                                "minAvailable": {
-                                    "description": "Min available pods for scheduler.",
-                                    "type": [
-                                        "integer",
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
                                 }
                             }
                         }
@@ -2508,19 +2498,9 @@
                                     "description": "Max unavailable pods for webserver.",
                                     "type": [
                                         "integer",
-                                        "string",
-                                        "null"
+                                        "string"
                                     ],
                                     "default": 1
-                                },
-                                "minAvailable": {
-                                    "description": "Min available pods for webserver.",
-                                    "type": [
-                                        "integer",
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
                                 }
                             }
                         }
@@ -3348,19 +3328,9 @@
                                     "description": "Max unavailable pods for PgBouncer.",
                                     "type": [
                                         "integer",
-                                        "string",
-                                        "null"
+                                        "string"
                                     ],
                                     "default": 1
-                                },
-                                "minAvailable": {
-                                    "description": "Min available pods for PgBouncer.",
-                                    "type": [
-                                        "integer",
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
                                 }
                             }
                         }
