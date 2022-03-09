@@ -53,7 +53,7 @@ Using Operator
 Launch Types
 --------------
 
-You can use this Operator to run ECS Tasks in ECS Clusters with launch types of EC2, Fargate and EXTERNAL, using the "launch_type" parameter. Bear in mind that the different launch types will require different parameters to be supplied. 
+You can use this Operator to run ECS Tasks in ECS Clusters with launch types of EC2, Fargate and EXTERNAL, using the "launch_type" parameter. Bear in mind that the different launch types will require different parameters to be supplied.
 
 ```
 launch_type="EC2|Fargate|EXTERNAL"
@@ -70,10 +70,10 @@ launch_type="EC2|Fargate|EXTERNAL"
         task_definition="ecs-task-definition",
         launch_type="EC2|EXTERNAL",
         overrides={ "containerOverrides": [
-            { 
+            {
                 "name": "hello-world-container",
                 "command" : [ "echo","hello world from Airflow" ],
-            } 
+            }
         ] },
         tags={
             "Customer": "X",
@@ -98,10 +98,10 @@ With a launch type of Fargate you will need to provide the "network_configuratio
         task_definition="ecs-task-definition",
         launch_type="FARGATE",
         overrides={ "containerOverrides": [
-            { 
+            {
                 "name": "hello-world-container",
                 "command" : [ "echo","hello world from Airflow" ],
-            } 
+            }
         ] },
         network_configuration={
             'awsvpcConfiguration': {
@@ -171,7 +171,7 @@ If you plan on using awslogs to stream Apache Airflow logs into AWS CloudWatch, 
 We would need to ensure the following IAM Permissions were added
 
 ```
-                iam.PolicyStatement(    
+                iam.PolicyStatement(
                     actions=[
                         "logs:CreateLogStream",
                         "logs:CreateLogGroup",
@@ -184,7 +184,7 @@ We would need to ensure the following IAM Permissions were added
                     effect=iam.Effect.ALLOW,
                     resources=[
                         "arn:aws:logs:{region}:{aws account number}:log-group:/ecs/hello-world-container:log-stream:/ecs/hello-world-container/*"
-                        ]           
+                        ]
                 )
 ```
 
