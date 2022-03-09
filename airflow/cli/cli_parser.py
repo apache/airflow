@@ -538,8 +538,8 @@ ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
     help="(Optional) If generating sql, may supply a _from_ revision",
 )
-ARG_DB_SQL = Arg(
-    ("-s", "--sql-only"),
+ARG_DB_SQL_ONLY = Arg(
+    ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
     "Required if using either `--from-version` or `--from-version`.",
     action="store_true",
@@ -1361,15 +1361,15 @@ DB_COMMANDS = (
         help="Upgrade the metadata database to latest version",
         description=(
             "Upgrade the schema of the metadata database. "
-            "To print but not execute commands, use option `--sql-only`. "
-            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--sql-only``, "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--shouw-sql-only``, "
             "because if actually *running* migrations, we should only migrate from the *current* revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
         args=(
             ARG_DB_REVISION,
             ARG_DB_VERSION,
-            ARG_DB_SQL,
+            ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
         ),
@@ -1380,15 +1380,15 @@ DB_COMMANDS = (
         description=(
             "Downgrade the schema of the metadata database. "
             "You must provide either `--revision` or `--version`. "
-            "To print but not execute commands, use option `--sql-only`. "
-            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
             "because if actually *running* migrations, we should only migrate from the *current* revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
             ARG_DB_REVISION,
             ARG_DB_VERSION,
-            ARG_DB_SQL,
+            ARG_DB_SQL_ONLY,
             ARG_YES,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,

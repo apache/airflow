@@ -127,7 +127,7 @@ class TestDb:
     def test_offline_upgrade_version(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb(to_revision=to_revision, from_revision=from_revision, sql=True)
+                upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
         mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
 
     @pytest.mark.parametrize(
@@ -138,7 +138,7 @@ class TestDb:
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade'):
                 with pytest.raises(ValueError, match='to.* revision .* older than .*from'):
-                    upgradedb(from_revision=from_revision, to_revision=to_revision, sql=True)
+                    upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
         'to_revision, from_revision',
@@ -150,7 +150,7 @@ class TestDb:
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade'):
                 with redirect_stdout(io.StringIO()) as temp_stdout:
-                    upgradedb(to_revision=to_revision, from_revision=from_revision, sql=True)
+                    upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
                 stdout = temp_stdout.getvalue()
                 assert 'nothing to do' in stdout
 
@@ -164,35 +164,35 @@ class TestDb:
     def test_offline_upgrade_revision(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb(from_revision=from_revision, to_revision=to_revision, sql=True)
+                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
         mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with pytest.raises(ValueError, match='Check that e1a11ece99cc is a valid revision'):
-                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', sql=True)
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     def test_sqlite_offline_upgrade_raises_with_revision(self):
         with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
             dialect.name = 'sqlite'
             with pytest.raises(AirflowException, match='Offline migration not supported for SQLite'):
-                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', sql=True)
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
         with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
             dialect.name = 'mssql'
             with pytest.raises(ValueError, match='Check that .* is a valid .* For dialect \'mssql\''):
-                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', sql=True)
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     @mock.patch('airflow.utils.db._offline_migration')
     def test_downgrade_sql_no_from(self, mock_om):
-        downgrade(to_revision='abc', sql=True, from_revision=None)
+        downgrade(to_revision='abc', show_sql_only=True, from_revision=None)
         actual = mock_om.call_args[1]['revision']
         assert re.match(r'[a-z0-9]+:abc', actual) is not None
 
     @mock.patch('airflow.utils.db._offline_migration')
     def test_downgrade_sql_with_from(self, mock_om):
-        downgrade(to_revision='abc', sql=True, from_revision='123')
+        downgrade(to_revision='abc', show_sql_only=True, from_revision='123')
         actual = mock_om.call_args[1]['revision']
         assert actual == '123:abc'
 

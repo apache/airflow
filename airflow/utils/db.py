@@ -1118,9 +1118,10 @@ def _revisions_above_min_for_offline(config, revisions):
 
 @provide_session
 def upgradedb(
+    *,
     to_revision: Optional[str] = None,
     from_revision: Optional[str] = None,
-    sql: bool = False,
+    show_sql_only: bool = False,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1129,12 +1130,12 @@ def upgradedb(
         If omitted, upgrades to latest revision.
     :param from_revision: Optional Alembic revision ID to upgrade *from*.
         Not compatible with ``sql_only=False``.
-    :param sql: if True, migration statements will be printed but not executed.
+    :param show_sql_only: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
     :rtype: None
     """
-    if from_revision and not sql:
+    if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
 
     # alembic adds significant import time, so we import it lazily
@@ -1144,7 +1145,7 @@ def upgradedb(
 
     config = _get_alembic_config()
 
-    if sql:
+    if show_sql_only:
         if not from_revision:
             from_revision = _get_current_revision(session)
 
@@ -1199,18 +1200,18 @@ def resetdb(session: Session = NEW_SESSION):
 
 
 @provide_session
-def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW_SESSION):
+def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: Session = NEW_SESSION):
     """
     Downgrade the airflow metastore schema to a prior version.
 
     :param to_revision: The alembic revision to downgrade *to*.
-    :param sql: if True, print sql statements but do not run them
+    :param show_sql_only: if True, print sql statements but do not run them
     :param from_revision: if supplied, alembic revision to dawngrade *from*. This may only
         be used in conjunction with ``sql=True`` because if we actually run the commands,
         we should only downgrade from the *current* revision.
     :param session: sqlalchemy session for connection to airflow metadata database
     """
-    if from_revision and not sql:
+    if from_revision and not show_sql_only:
         raise ValueError(
             "`from_revision` can't be combined with `sql=False`. When actually "
             "applying a downgrade (instead of just generating sql), we always "
@@ -1237,7 +1238,7 @@ def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW
         exit(1)
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        if sql:
+        if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
             if not from_revision:
                 from_revision = _get_current_revision(session)
@@ -1245,7 +1246,7 @@ def downgrade(to_revision, sql=False, from_revision=None, session: Session = NEW
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
             log.info("Applying downgrade migrations.")
-            command.downgrade(config, revision=to_revision, sql=sql)
+            command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 
 def drop_airflow_models(connection):
