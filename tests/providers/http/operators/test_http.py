@@ -44,7 +44,7 @@ class TestSimpleHttpOp(unittest.TestCase):
             log_response=True,
         )
 
-        result = operator.execute(None)
+        result = operator.execute('Example.com fake response')
         assert result == 'Example.com fake response'
 
     @requests_mock.mock()
