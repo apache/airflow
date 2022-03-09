@@ -89,7 +89,7 @@ class DataplexHook(GoogleBaseHook):
         validate_only: Optional[bool] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Creates a task resource within a lake.
@@ -131,7 +131,7 @@ class DataplexHook(GoogleBaseHook):
         dataplex_task_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Delete the task resource.
@@ -171,7 +171,7 @@ class DataplexHook(GoogleBaseHook):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Lists tasks under the given lake.
@@ -219,7 +219,7 @@ class DataplexHook(GoogleBaseHook):
         dataplex_task_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
         """
         Get task resource.
