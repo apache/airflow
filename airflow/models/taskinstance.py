@@ -424,6 +424,7 @@ class TaskInstance(Base, LoggingMixin):
     )
 
     dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
+    rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy='noload', uselist=False)
 
     execution_date = association_proxy("dag_run", "execution_date")
 
@@ -1331,7 +1332,7 @@ class TaskInstance(Base, LoggingMixin):
             if not mark_success:
                 self.task = self.task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
-                self._execute_task_with_callbacks(context)
+                self._execute_task_with_callbacks(context, test_mode)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SUCCESS
@@ -1405,7 +1406,7 @@ class TaskInstance(Base, LoggingMixin):
 
             session.commit()
 
-    def _execute_task_with_callbacks(self, context):
+    def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -1434,8 +1435,10 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context['params']
 
             self.render_templates(context=context)
-            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
-            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+            if not test_mode:
+                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
+                RenderedTaskInstanceFields.write(rtif)
+                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)

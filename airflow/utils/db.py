@@ -947,8 +947,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
