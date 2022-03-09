@@ -29,9 +29,6 @@ from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
-if typing.TYPE_CHECKING:
-    pass
-
 
 def initdb(args):
     """Initializes the metadata database"""
@@ -54,9 +51,9 @@ def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
     if args.revision and args.version:
-        raise SystemExit("Cannot supply both `revision` and `version`.")
+        raise SystemExit("Cannot supply both `--revision` and `--version`.")
     if args.from_version and args.from_revision:
-        raise SystemExit("`--from-revision` may not be combined with `--from-version`")
+        raise SystemExit("Cannot supply both `--from-revision` and `--from-version`")
     if (args.from_revision or args.from_version) and not args.sql_only:
         raise SystemExit("Args `--from-revision` and `--from-version` may only be used with `--sql-only`")
     revision = None
@@ -65,16 +62,18 @@ def upgradedb(args):
         from_revision = args.from_revision
     elif args.from_version:
         if parse_version(args.from_version) < parse_version('2.0.0'):
-            raise SystemExit("From version must be greater than 2.0.0")
+            raise SystemExit("From version must be greater or equal to than 2.0.0")
         from_revision = REVISION_HEADS_MAP.get(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+
     if args.version:
         revision = REVISION_HEADS_MAP.get(args.version)
         if not revision:
             raise SystemExit(f"Upgrading to version {args.version} is not supported.")
     elif args.revision:
         revision = args.revision
+
     if not args.sql_only:
         print("Performing upgrade with database " + repr(settings.engine.url))
     else:

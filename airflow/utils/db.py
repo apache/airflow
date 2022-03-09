@@ -1135,7 +1135,7 @@ def upgradedb(
     :rtype: None
     """
     if from_revision and not sql:
-        raise Exception("`from_revision` only supported with `sql_only=True`.")
+        raise AirflowException("`from_revision` only supported with `sql_only=True`.")
 
     # alembic adds significant import time, so we import it lazily
     if not settings.SQL_ALCHEMY_CONN:

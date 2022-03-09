@@ -161,7 +161,6 @@ def connections_add(args):
     # Check that the conn_id and conn_uri args were passed to the command:
     missing_args = []
     invalid_args = []
-    print(args.__class__)
     if args.conn_uri:
         if not _valid_uri(args.conn_uri):
             raise SystemExit(f'The URI provided to --conn-uri is invalid: {args.conn_uri}')

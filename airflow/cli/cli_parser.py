@@ -1362,7 +1362,7 @@ DB_COMMANDS = (
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option `--sql-only`. "
-            "If using options `--from-revision` or `--from-version`, you must also use `--sql-only`, "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--sql-only``, "
             "because if actually *running* migrations, we should only migrate from the *current* revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
