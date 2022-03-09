@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .attr('width', swatchesWidth / numSwatches)
         .attr('height', cellSize)
         .attr('class', 'day')
-        .attr('fill', (v) => d3.interpolateHsl(startColor, endColor)(v / numSwatches));
+        .attr('fill', (v) => (startColor.startsWith('url') ? startColor : d3.interpolateHsl(startColor, endColor)(v / numSwatches)));
       legendXOffset -= legendSwatchesPadding;
 
       if (leftState !== undefined) {
@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     drawLegend('no_status');
+    drawLegend('planned');
     drawLegend('running');
     drawLegend('failed', 'success', 10, 100);
 
