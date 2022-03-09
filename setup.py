@@ -140,6 +140,7 @@ def git_version(version_: str) -> str:
     and the latter with a '.dev0' suffix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
+
     :param str version_: Semver version
     :return: Found Airflow version in Git repo
     :rtype: str
@@ -170,6 +171,7 @@ def git_version(version_: str) -> str:
 def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version"])) -> None:
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
+
     :param str filename: Destination file to write
     """
     text = f"{git_version(version)}"
@@ -828,6 +830,7 @@ def add_all_deprecated_provider_packages() -> None:
     """
     For deprecated aliases that are providers, we will swap the providers requirements to instead
     be the provider itself.
+
     e.g. {"kubernetes": ["kubernetes>=3.0.0, <12.0.0", ...]} becomes
     {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
     """
@@ -897,6 +900,7 @@ PACKAGES_EXCLUDED_FOR_ALL.extend(
 def is_package_excluded(package: str, exclusion_list: List[str]) -> bool:
     """
     Checks if package should be excluded.
+
     :param package: package name (beginning of it)
     :param exclusion_list: list of excluded packages
     :return: true if package should be excluded
@@ -950,6 +954,7 @@ PREINSTALLED_PROVIDERS = [
 def get_provider_package_from_package_id(package_id: str) -> str:
     """
     Builds the name of provider package out of the package id provided/
+
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
     """
@@ -1012,18 +1017,26 @@ def replace_extra_requirement_with_provider_packages(extra: str, providers: List
     separately. This is not needed and even harmful, because in case of future versions of
     the provider, the requirements might change, so hard-coding requirements from the version
     that was available at the release time might cause dependency conflicts in the future.
+
     Say for example that you have salesforce provider with those deps:
+
     { 'salesforce': ['simple-salesforce>=1.0.0', 'tableauserverclient'] }
+
     Initially ['salesforce'] extra has those requirements and it works like that when you install
     it when INSTALL_PROVIDERS_FROM_SOURCES is set to `true` (during the development). However, when
     the production installation is used, The dependencies are changed:
+
     { 'salesforce': ['apache-airflow-providers-salesforce'] }
+
     And then, 'apache-airflow-providers-salesforce' package has those 'install_requires' dependencies:
             ['simple-salesforce>=1.0.0', 'tableauserverclient']
+
     So transitively 'salesforce' extra has all the requirements it needs and in case the provider
     changes it's dependencies, they will transitively change as well.
+
     In the constraint mechanism we save both - provider versions and it's dependencies
     version, which means that installation using constraints is repeatable.
+
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
@@ -1037,6 +1050,7 @@ def add_provider_packages_to_extra_requirements(extra: str, providers: List[str]
     Adds provider packages as requirements to extra. This is used to add provider packages as requirements
     to the "bulk" kind of extras. Those bulk extras do not have the detailed 'extra' requirements as
     initial values, so instead of replacing them (see previous function) we can extend them.
+
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
@@ -1049,9 +1063,11 @@ def add_all_provider_packages() -> None:
     """
     In case of regular installation (providers installed from packages), we should add extra dependencies to
     Airflow - to get the providers automatically installed when those extras are installed.
+
     For providers installed from sources we skip that step. That helps to test and install airflow with
     all packages in CI - for example when new providers are added, otherwise the installation would fail
     as the new provider is not yet in PyPI.
+
     """
     for provider in ALL_PROVIDERS:
         replace_extra_requirement_with_provider_packages(provider, [provider])
@@ -1100,6 +1116,7 @@ class Install(install_orig):
 def do_setup() -> None:
     """
     Perform the Airflow package setup.
+
     Most values come from setup.cfg, only the dynamically calculated ones are passed to setup
     function call. See https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
     """
