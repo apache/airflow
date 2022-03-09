@@ -4701,6 +4701,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'dag_id',
         'task_id',
         'run_id',
+        'map_index',
         'execution_date',
         'operator',
         'start_date',
