@@ -290,18 +290,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "apply" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
                 continue
             tname = type(value).__name__
-            raise ValueError(f"apply() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def apply(self, **map_kwargs: "Mappable") -> XComArg:
-        self._validate_arg_names("apply", map_kwargs)
+    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+        self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)
 
@@ -452,7 +452,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def apply(self, **kwargs: "Mappable") -> XComArg:
+    def expand(self, **kwargs: "Mappable") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":
