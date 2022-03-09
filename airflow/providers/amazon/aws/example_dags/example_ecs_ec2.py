@@ -27,7 +27,7 @@ It overrides the command in the `hello-world-container` container.
 import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator
 
 dag = DAG(
     dag_id="ecs_ec2_dag",
@@ -41,7 +41,7 @@ dag = DAG(
 dag.doc_md = __doc__
 
 # [START howto_operator_ecs]
-hello_world = ECSOperator(
+hello_world = EcsOperator(
     task_id="hello_world",
     dag=dag,
     cluster="test-hybrid",

@@ -46,6 +46,149 @@ Before using EcsOperator *cluster*, *task definition*, and *container* need to b
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
+Using Operator
+--------------
+
+
+Launch Types
+--------------
+
+You can use this Operator to run ECS Tasks in ECS Clusters with launch types of EC2, Fargate and EXTERNAL, using the "launch_type" parameter. Bear in mind that the different launch types will require different parameters to be supplied. 
+
+```
+launch_type="EC2|Fargate|EXTERNAL"
+```
+
+*Example Operator for launch_type of EC2 and EXTERNAL*
+
+```
+    hello_world = EcsOperator(
+        task_id="hello_world",
+        dag=dag,
+        aws_conn_id="aws_default",
+        cluster="ecs-cluster-name",
+        task_definition="ecs-task-definition",
+        launch_type="EC2|EXTERNAL",
+        overrides={ "containerOverrides": [
+            { 
+                "name": "hello-world-container",
+                "command" : [ "echo","hello world from Airflow" ],
+            } 
+        ] },
+        tags={
+            "Customer": "X",
+            "Project": "Y",
+            "Application": "Z",
+            "Version": "0.0.1",
+            "Environment": "Development",
+            }
+    )
+```
+
+*Example Operator for launch_type of Fargate*
+
+With a launch type of Fargate you will need to provide the "network_configuration" parameter.
+
+```
+    hello_world = EcsOperator(
+        task_id="hello_world",
+        dag=dag,
+        aws_conn_id="aws_default",
+        cluster="ecs-cluster-name",
+        task_definition="ecs-task-definition",
+        launch_type="FARGATE",
+        overrides={ "containerOverrides": [
+            { 
+                "name": "hello-world-container",
+                "command" : [ "echo","hello world from Airflow" ],
+            } 
+        ] },
+        network_configuration={
+            'awsvpcConfiguration': {
+                'securityGroups': ['aws security groups'],
+                'subnets': ['aws subnets'],
+                'assignPublicIp': "ENABLED|DISABLED"
+            },
+        },
+        tags={
+            "Customer": "X",
+            "Project": "Y",
+            "Application": "Z",
+            "Version": "0.0.1",
+            "Environment": "Development",
+            }
+    )
+```
+
+CloudWatch Logging
+------------------
+
+To stream logs to AWS CloudWatch, you can set the following parameters. Using the example Operators above, we would add these additional parameters to enable logging to CloudWatch. You will need to ensure that you have the appropriate level of permissions (see next section)
+
+```
+        awslogs_group="/ecs/hello-world-container",
+        awslogs_region="aws-region",
+        awslogs_stream_prefix="ecs/hello-world-container",
+```
+
+IAM Permissions
+--------------
+
+**ECS Permissions**
+
+You will need to ensure you have the following IAM permissions to run Tasks via this Operator
+
+```
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecs:RunTask",
+                "ecs:DescribeTasks"
+            ],
+            "Resource": : [
+         "arn:aws:ecs:{region}:{aws account number}:cluster/{custer name a}",
+         "arn:aws:ecs:{region}:{aws account number}:cluster/{cluster name b}"
+        }
+```
+
+If you use the "reattach=True" (the default is False), you will need to add further permissions. You will need to add the following additional Actions to the IAM policy.
+
+```
+    "ecs:DescribeTaskDefinition",
+    "ecs:ListTasks"
+```
+
+**CloudWatch Permissions**
+
+If you plan on using awslogs to stream Apache Airflow logs into AWS CloudWatch, you will need to ensure that you have the appropriate permissions set. For example, for the following configured logs in the Operator
+
+```
+        awslogs_group="/ecs/hello-world-container",
+        awslogs_region="aws-region",
+        awslogs_stream_prefix="ecs/hello-world-container",
+```
+
+We would need to ensure the following IAM Permissions were added
+
+```
+                iam.PolicyStatement(    
+                    actions=[
+                        "logs:CreateLogStream",
+                        "logs:CreateLogGroup",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents",
+                        "logs:GetLogRecord",
+                        "logs:GetLogGroupFields",
+                        "logs:GetQueryResults"
+                    ],
+                    effect=iam.Effect.ALLOW,
+                    resources=[
+                        "arn:aws:logs:{region}:{aws account number}:log-group:/ecs/hello-world-container:log-stream:/ecs/hello-world-container/*"
+                        ]           
+                )
+```
+
+
 More information
 ----------------
 
