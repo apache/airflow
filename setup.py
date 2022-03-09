@@ -275,7 +275,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
-    'sphinx-jinja>=1.1',
+    'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
