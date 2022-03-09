@@ -14,55 +14,46 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""
-This is an example dag for ECSOperator.
-
-The task "hello_world" runs `hello-world` task in `c` cluster.
-- You must have the `c` cluster setup with EC2 and/or EXTERNAL instances.
-- You must ensure that the CloudWatch permissions are updated
-It overrides the command in the `hello-world-container` container.
-"""
-
-import datetime
+import os
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsOperator
 
-dag = DAG(
-    dag_id="ecs_ec2_dag",
-    default_view="graph",
+with DAG(
+    dag_id='example_ecs_ec2',
     schedule_interval=None,
-    start_date=datetime.datetime(2020, 1, 1),
+    start_date=datetime(2021, 1, 1),
+    tags=['example'],
     catchup=False,
-    tags=["example"],
-)
-# generate dag documentation
-dag.doc_md = __doc__
+) as dag:
 
-# [START howto_operator_ecs]
-hello_world = EcsOperator(
-    task_id="hello_world",
-    dag=dag,
-    cluster="test-hybrid",
-    task_definition="test",
-    launch_type="EXTERNAL",
-    overrides={
-        "containerOverrides": [
-            {
-                "name": "hello-world-container",
-                "command": ["echo", "hello", "world"],
-            },
-        ],
-    },
-    tags={
-        "Customer": "X",
-        "Project": "Y",
-        "Application": "Z",
-        "Version": "0.0.1",
-        "Environment": "Development",
-    },
-    awslogs_group="/ecs/hello-world",
-    awslogs_stream_prefix="ecs",  # prefix with container name
-)
-# [END howto_operator_ecs]
+    # [START howto_operator_ecs]
+    hello_world = EcsOperator(
+        task_id="hello_world",
+        cluster=os.environ.get("CLUSTER_NAME", "existing_cluster_name"),
+        task_definition=os.environ.get("TASK_DEFINITION", "existing_task_definition_name"),
+        launch_type="EXTERNAL|EC2",
+        aws_conn_id="aws_ecs",
+        overrides={
+            "containerOverrides": [
+                {
+                    "name": "hello-world-container",
+                    "command": ["echo", "hello", "world"],
+                },
+            ],
+        },
+        tags={
+            "Customer": "X",
+            "Project": "Y",
+            "Application": "Z",
+            "Version": "0.0.1",
+            "Environment": "Development",
+        },
+    #    [START howto_awslogs_ecs]
+        awslogs_group="/ecs/hello-world",
+        awslogs_region="aws-region",
+        awslogs_stream_prefix="ecs/hello-world-container"
+    #   [END howto_awslogs_ecs]
+    )
+    # [END howto_operator_ecs]

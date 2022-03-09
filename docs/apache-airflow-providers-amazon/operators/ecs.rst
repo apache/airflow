@@ -28,149 +28,83 @@ Airflow provides operators to run Task Definitions on an ECS cluster.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
+.. include:: _partials/prerequisite_tasks.rst
+
+* You will need to have created your ECS Cluster, and have created a Task Definition before you can use this Operator. The Task Definition contains details of the containerized application you want to run.
+
 .. include::/operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:EcsOperator:
 
-Run a Task
-^^^^^^^^^^
+Overview
+^^^^^^^^
 
-To run a task defined in an Amazon ECS cluster you can use
+To run a Task Definition defined in an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
 
-Before using EcsOperator *cluster*, *task definition*, and *container* need to be created.
+This Operator support running your containers in ECS Clusters that are either Serverless (FARGATE), via EC2, or via external resources (EXTERNAL). The parameters you need to configure for this Operator will depend upon which ``launch_type`` you want to use. 
+
+Launch Types
+------------
+.. code-block::
+
+    launch_type="EC2|FARGATE|EXTERNAL"
+    
+* If you are using AWS Fargate as your compute resource in your ECS Cluster, set the parameter ``launch_type`` to FARGATE. When using a launch type of FARGATE you will need to provide ``network_configuration`` parameters. 
+* If you are using EC2 as the compute resources in your ECS Cluster, set the parameter to EC2.
+* If you have integrated external resources in your ECS Cluster, for example using ECS Anywhere, and want to run your containers on those external resources, set the parameter to EXTERNAL.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+    :language: python
+    :start-after: [START howto_operator_ecs]
+    :end-before: [END howto_operator_ecs]
+    
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
-
-Using Operator
---------------
-
-
-Launch Types
---------------
-
-You can use this Operator to run ECS Tasks in ECS Clusters with launch types of EC2, Fargate and EXTERNAL, using the "launch_type" parameter. Bear in mind that the different launch types will require different parameters to be supplied.
-
-```
-launch_type="EC2|Fargate|EXTERNAL"
-```
-
-*Example Operator for launch_type of EC2 and EXTERNAL*
-
-```
-    hello_world = EcsOperator(
-        task_id="hello_world",
-        dag=dag,
-        aws_conn_id="aws_default",
-        cluster="ecs-cluster-name",
-        task_definition="ecs-task-definition",
-        launch_type="EC2|EXTERNAL",
-        overrides={ "containerOverrides": [
-            {
-                "name": "hello-world-container",
-                "command" : [ "echo","hello world from Airflow" ],
-            }
-        ] },
-        tags={
-            "Customer": "X",
-            "Project": "Y",
-            "Application": "Z",
-            "Version": "0.0.1",
-            "Environment": "Development",
-            }
-    )
-```
-
-*Example Operator for launch_type of Fargate*
-
-With a launch type of Fargate you will need to provide the "network_configuration" parameter.
-
-```
-    hello_world = EcsOperator(
-        task_id="hello_world",
-        dag=dag,
-        aws_conn_id="aws_default",
-        cluster="ecs-cluster-name",
-        task_definition="ecs-task-definition",
-        launch_type="FARGATE",
-        overrides={ "containerOverrides": [
-            {
-                "name": "hello-world-container",
-                "command" : [ "echo","hello world from Airflow" ],
-            }
-        ] },
-        network_configuration={
-            'awsvpcConfiguration': {
-                'securityGroups': ['aws security groups'],
-                'subnets': ['aws subnets'],
-                'assignPublicIp': "ENABLED|DISABLED"
-            },
-        },
-        tags={
-            "Customer": "X",
-            "Project": "Y",
-            "Application": "Z",
-            "Version": "0.0.1",
-            "Environment": "Development",
-            }
-    )
-```
-
+    
+    
 CloudWatch Logging
 ------------------
 
-To stream logs to AWS CloudWatch, you can set the following parameters. Using the example Operators above, we would add these additional parameters to enable logging to CloudWatch. You will need to ensure that you have the appropriate level of permissions (see next section)
+To stream logs to AWS CloudWatch, you need to define these parameters. Using the example Operators above, we would add these additional parameters to enable logging to CloudWatch. You will need to ensure that you have the appropriate level of permissions (see next section)
 
-```
-        awslogs_group="/ecs/hello-world-container",
-        awslogs_region="aws-region",
-        awslogs_stream_prefix="ecs/hello-world-container",
-```
-
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+    :language: python
+    :start-after: [START howto_awslogs_ecs]
+    :end-before: [END howto_awslogs_ecs]
+    
 IAM Permissions
---------------
+---------------
 
-**ECS Permissions**
+You will need to ensure you have the following IAM permissions to run Tasks via this Operator. In this example, the Operator will have permissions to run Tasks on an ECS Cluster called "cluster a" in a specific AWS region and account.
 
-You will need to ensure you have the following IAM permissions to run Tasks via this Operator
-
-```
+.. code-block::
+   
         {
             "Effect": "Allow",
             "Action": [
                 "ecs:RunTask",
                 "ecs:DescribeTasks"
             ],
-            "Resource": : [
-         "arn:aws:ecs:{region}:{aws account number}:cluster/{custer name a}",
-         "arn:aws:ecs:{region}:{aws account number}:cluster/{cluster name b}"
+            "Resource": : [ "arn:aws:ecs:{aws region}:{aws account number}:cluster/{custer a}"
         }
-```
 
 If you use the "reattach=True" (the default is False), you will need to add further permissions. You will need to add the following additional Actions to the IAM policy.
 
-```
-    "ecs:DescribeTaskDefinition",
-    "ecs:ListTasks"
-```
+.. code-block::
+   
+        "ecs:DescribeTaskDefinition",
+        "ecs:ListTasks"
 
 **CloudWatch Permissions**
 
-If you plan on using awslogs to stream Apache Airflow logs into AWS CloudWatch, you will need to ensure that you have the appropriate permissions set. For example, for the following configured logs in the Operator
+If you plan on streaming Apache Airflow logs into AWS CloudWatch, you will need to ensure that you have configured the appropriate permissions set.
 
-```
-        awslogs_group="/ecs/hello-world-container",
-        awslogs_region="aws-region",
-        awslogs_stream_prefix="ecs/hello-world-container",
-```
+.. code-block::
 
-We would need to ensure the following IAM Permissions were added
-
-```
                 iam.PolicyStatement(
                     actions=[
                         "logs:CreateLogStream",
@@ -183,10 +117,9 @@ We would need to ensure the following IAM Permissions were added
                     ],
                     effect=iam.Effect.ALLOW,
                     resources=[
-                        "arn:aws:logs:{region}:{aws account number}:log-group:/ecs/hello-world-container:log-stream:/ecs/hello-world-container/*"
+                        "arn:aws:logs:{aws region}:{aws account number}:log-group:{aws-log-group-name}:log-stream:{aws-log-stream-name}/\*"
                         ]
                 )
-```
 
 
 More information
