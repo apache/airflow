@@ -1163,7 +1163,7 @@ def upgradedb(
         _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
 
         _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
-        return
+        return  # only running sql; our job is done
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
