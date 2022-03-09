@@ -37,6 +37,7 @@ import DagRuns from './dagRuns';
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
+  const tableRef = useRef();
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
@@ -47,6 +48,8 @@ const Tree = () => {
       runsContainer.scrollBy(runsContainer.clientWidth, 0);
     }
   }, []);
+
+  const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
 
   return (
     <Box position="relative" ref={containerRef}>
@@ -62,11 +65,15 @@ const Tree = () => {
       <Box px="24px">
         <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
           <Table>
-            <Thead>
-              <DagRuns containerRef={containerRef} />
+            <Thead display="block" pr="10px">
+              <DagRuns containerRef={containerRef} tableWidth={tableWidth} />
             </Thead>
-            <Tbody>
-              {renderTaskRows({ task: groups, containerRef, dagRunIds })}
+            {/* eslint-disable-next-line max-len */}
+            {/* TODO: don't use hardcoded values. 665px is roughly the normal total header and footer heights */}
+            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" overflow="auto" ref={tableRef} pr="10px">
+              {renderTaskRows({
+                task: groups, containerRef, dagRunIds, tableWidth,
+              })}
             </Tbody>
           </Table>
         </Box>

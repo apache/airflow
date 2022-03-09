@@ -38,7 +38,7 @@ import { getMetaValue } from '../utils';
 const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
-  task, containerRef, level = 0, isParentOpen, dagRunIds,
+  task, containerRef, level = 0, isParentOpen, dagRunIds, tableWidth,
 }) => task.children.map((t) => (
   <Row
     key={t.id}
@@ -48,6 +48,7 @@ const renderTaskRows = ({
     prevTaskId={task.id}
     isParentOpen={isParentOpen}
     dagRunIds={dagRunIds}
+    tableWidth={tableWidth}
   />
 ));
 
@@ -73,7 +74,7 @@ const TaskInstances = ({ task, containerRef, dagRunIds }) => (
 
 const Row = (props) => {
   const {
-    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds,
+    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds, tableWidth,
   } = props;
   const isGroup = !!task.children;
 
@@ -119,6 +120,7 @@ const Row = (props) => {
           left={0}
           backgroundColor="white"
           borderBottom={0}
+          width={`${tableWidth - (dagRunIds.length * 16)}px`}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
@@ -132,7 +134,7 @@ const Row = (props) => {
           </Collapse>
         </Td>
         <Td width={0} p={0} borderBottom={0} />
-        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
+        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0} width={`${dagRunIds.length * 16}px`}>
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>

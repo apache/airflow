@@ -36,7 +36,7 @@ const DurationTick = ({ children, ...rest }) => (
   </Text>
 );
 
-const DagRuns = ({ containerRef }) => {
+const DagRuns = ({ containerRef, tableWidth }) => {
   const { data: { dagRuns = [] } } = useTreeData();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {
@@ -66,6 +66,7 @@ const DagRuns = ({ containerRef }) => {
         backgroundColor="white"
         zIndex={2}
         borderBottom={0}
+        width={`${tableWidth - (runs.length * 16)}px`}
       >
         {!!runs.length && (
         <>
@@ -87,7 +88,7 @@ const DagRuns = ({ containerRef }) => {
         <Box position="absolute" bottom="50px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="4px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
       </Td>
-      <Td p={0} width="16px" align="right" verticalAlign="bottom" borderBottom={0}>
+      <Td p={0} align="right" verticalAlign="bottom" borderBottom={0} width={`${runs.length * 16}px`}>
         <Flex justifyContent="flex-end">
           {runs.map((run, i) => (
             <DagRunBar
