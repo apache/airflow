@@ -18,16 +18,16 @@
 version: "3.7"
 services:
   airflow:
-    stdin_open: true  # docker run -i
-    tty: true  # docker run -t
-    # We need to mount files and directories individually because some files
-    # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files, so that it makes sense to edit while developing
-    # or those that might be useful to see in the host as output of the
-    # tests (such as logs)
+    image: ghcr.io/apache/airflow/main/ci/python3.7
+    env_file: devcontainer.env
+    ports:
+      - "22:22"
+      - "8080:8080"
+      - "5555:5555"
+      - "6379:6379"
+    cap_add:
+      - SYS_PTRACE
     volumes:
-      - ../../../.bash_aliases:/root/.bash_aliases:cached
-      - ../../../.bash_history:/root/.bash_history:cached
-      - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../tmp:/tmp:cached
-      - ../../../:/opt/airflow:cached
+      # Pass docker to inside of the container so that Kind and Moto tests can use it.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

@@ -708,13 +708,7 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^chart|^docs|^airflow/_vendor/
-        require_serial: true
-      - id: mypy
-        name: Run mypy for helm chart tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
-        files: ^chart/.*\.py$
+        exclude: ^provider_packages|^docs|^airflow/_vendor/
         require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder
