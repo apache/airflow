@@ -86,7 +86,7 @@ class TestMappedTaskInstanceEndpoint:
         literal = [1, 2, {'a': 'b'}]
         with dag_maker(session=session, dag_id='mapped_tis', start_date=DEFAULT_DATETIME_1):
             task1 = BaseOperator(task_id="op1")
-            mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+            mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
         dr = dag_maker.create_dagrun(run_id='test_dagrun')
 
@@ -129,7 +129,7 @@ class TestMappedTaskInstanceEndpoint:
         literal = [1]
         with dag_maker(session=session, dag_id='mapped_tis', start_date=DEFAULT_DATETIME_1):
             task1 = BaseOperator(task_id="op1")
-            mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+            mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
         dr = dag_maker.create_dagrun(run_id='test_dagrun')
 

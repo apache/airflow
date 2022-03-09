@@ -910,7 +910,7 @@ def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expecte
 def test_expand_mapped_task_instance(dag_maker, session):
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
-        mapped = MockOperator(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator(task_id='task_2').expand(arg2=literal)
 
     dr = dag_maker.create_dagrun()
     indices = (
@@ -926,7 +926,7 @@ def test_expand_mapped_task_instance(dag_maker, session):
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
 
     dr: DagRun = dag_maker.create_dagrun()
     ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
