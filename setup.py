@@ -617,7 +617,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.0.3',
+    'moto>=3.0.7',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -640,9 +640,6 @@ devel_only = [
     'pytest-xdist',
     'python-jose',
     'pywinrm',
-    # The Responses 0.19.0 released on 07.03.2022 break our S3 tests. This limitation should be
-    # Removed when https://github.com/getsentry/responses/issues/511 is solved.
-    'responses<0.19.0',
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
