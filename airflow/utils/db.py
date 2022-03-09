@@ -1125,8 +1125,10 @@ def upgradedb(
 ):
     """
 
-    :param to_revision: Optional Alembic revision ID to upgrade *to*.  If omitted, upgrades to latest revision.
-    :param from_revision: Optional Alembic revision ID to upgrade *from*.  Not compatible with ``sql_only=False``.
+    :param to_revision: Optional Alembic revision ID to upgrade *to*.
+        If omitted, upgrades to latest revision.
+    :param from_revision: Optional Alembic revision ID to upgrade *from*.
+        Not compatible with ``sql_only=False``.
     :param sql: if True, migration statements will be printed but not executed.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
@@ -1143,8 +1145,6 @@ def upgradedb(
     config = _get_alembic_config()
 
     if sql:
-        # _validate_version_for_offline_migration(from_version)  # only for offline migration
-        # if no changes between revisions, raise: list(script.revision_map.iterate_revisions(to_revision, from_revision))
         if not from_revision:
             from_revision = _get_current_revision(session)
 
