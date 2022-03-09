@@ -20,7 +20,7 @@ from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
@@ -78,15 +78,8 @@ def get_task_instance(
             ),
         )
         .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
-    query = query.outerjoin(
-        RTIF,
-        and_(
-            RTIF.dag_id == TI.dag_id,
-            RTIF.execution_date == DR.execution_date,
-            RTIF.task_id == TI.task_id,
-        ),
-    ).add_entity(RTIF)
 
     try:
         task_instance = query.one_or_none()
@@ -136,15 +129,8 @@ def get_mapped_task_instance(
             ),
         )
         .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
-    query = query.outerjoin(
-        RTIF,
-        and_(
-            RTIF.dag_id == TI.dag_id,
-            RTIF.execution_date == DR.execution_date,
-            RTIF.task_id == TI.task_id,
-        ),
-    ).add_entity(RTIF)
     task_instance = query.one_or_none()
     if task_instance is None:
         raise NotFound("Task instance not found")
@@ -252,7 +238,7 @@ def get_task_instances(
         and_(
             RTIF.dag_id == TI.dag_id,
             RTIF.task_id == TI.task_id,
-            RTIF.execution_date == DR.execution_date,
+            RTIF.run_id == TI.run_id,
         ),
     ).add_entity(RTIF)
     task_instances = ti_query.offset(offset).limit(limit).all()
@@ -313,14 +299,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         ),
         isouter=True,
     ).add_entity(SlaMiss)
-    ti_query = base_query.outerjoin(
-        RTIF,
-        and_(
-            RTIF.dag_id == TI.dag_id,
-            RTIF.task_id == TI.task_id,
-            RTIF.execution_date == DR.execution_date,
-        ),
-    ).add_entity(RTIF)
+    ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
     task_instances = ti_query.all()
 
     return task_instance_collection_schema.dump(

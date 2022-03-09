@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.2.4"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.0.3
+ARG AIRFLOW_PIP_VERSION=22.0.4
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -68,7 +68,6 @@ FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE
-
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8

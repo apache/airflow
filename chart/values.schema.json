@@ -1504,6 +1504,13 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -1808,6 +1815,13 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 },

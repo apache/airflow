@@ -135,7 +135,7 @@ class EmrContainerHook(AwsBaseHook):
         client_request_token: Optional[str] = None,
     ) -> str:
         """
-        Submit a job to the EMR Containers API and and return the job ID.
+        Submit a job to the EMR Containers API and return the job ID.
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
         See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run  # noqa: E501

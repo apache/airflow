@@ -817,7 +817,6 @@ followsa
 formatter
 forwardability
 forwardable
-fot
 fqdn
 frontend
 fs

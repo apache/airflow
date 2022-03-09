@@ -17,11 +17,11 @@
  * under the License.
  */
 
-/* global treeData, localStorage, fetch, autoRefreshInterval */
+/* global treeData, localStorage, autoRefreshInterval, fetch */
 
-import { useState, useEffect, useCallback } from 'react';
 import { useDisclosure } from '@chakra-ui/react';
 import camelcaseKeys from 'camelcase-keys';
+import { useQuery } from 'react-query';
 
 import { getMetaValue } from '../utils';
 
@@ -32,6 +32,8 @@ const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const isPaused = getMetaValue('is_paused');
 const baseDate = getMetaValue('base_date');
+
+const autoRefreshKey = 'disabledAutoRefresh';
 
 const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
@@ -45,57 +47,55 @@ const formatData = (data) => {
   let formattedData = data;
   // Convert to json if needed
   if (typeof data === 'string') formattedData = JSON.parse(data);
-  // change from pacal to camelcase
+  // change from pascal to camelcase
   formattedData = camelcaseKeys(formattedData, { deep: true });
   return formattedData;
 };
 
 const useTreeData = () => {
-  const [data, setData] = useState(formatData(treeData));
-  const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem('disableAutoRefresh')) && areActiveRuns(data.dagRuns);
+  const initialData = formatData(treeData);
+
+  const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem(autoRefreshKey)) && areActiveRuns(initialData.dagRuns);
   const { isOpen: isRefreshOn, onToggle, onClose } = useDisclosure({ defaultIsOpen });
 
-  const handleRefresh = useCallback(async () => {
+  const onToggleRefresh = () => {
+    if (isRefreshOn) {
+      localStorage.setItem(autoRefreshKey, 'true');
+    } else {
+      localStorage.removeItem(autoRefreshKey);
+    }
+    onToggle();
+  };
+
+  const query = useQuery('treeData', async () => {
     try {
       const root = urlRoot ? `&root=${urlRoot}` : '';
       const base = baseDate ? `&base_date=${baseDate}` : '';
       const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
-      let newData = await resp.json();
-      if (newData) {
+      if (resp) {
+        let newData = await resp.json();
         newData = formatData(newData);
-        if (JSON.stringify(newData) !== JSON.stringify(data)) {
-          setData(newData);
-        }
         // turn off auto refresh if there are no active runs
         if (!areActiveRuns(newData.dagRuns)) onClose();
+        return newData;
       }
     } catch (e) {
       onClose();
       console.error(e);
     }
-  }, [data, onClose]);
-
-  const onToggleRefresh = () => {
-    if (isRefreshOn) {
-      localStorage.setItem('disableAutoRefresh', 'true');
-    } else {
-      localStorage.removeItem('disableAutoRefresh');
-    }
-    onToggle();
-  };
-
-  useEffect(() => {
-    let refreshInterval;
-    if (isRefreshOn) {
-      refreshInterval = setInterval(handleRefresh, autoRefreshInterval * 1000);
-    } else {
-      clearInterval(refreshInterval);
-    }
-    return () => clearInterval(refreshInterval);
-  }, [isRefreshOn, handleRefresh]);
+    return {
+      groups: {},
+      dagRuns: [],
+    };
+  }, {
+    // only enabled and refetch if the refresh switch is on
+    enabled: isRefreshOn,
+    refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
+    initialData,
+  });
 
   return {
-    data,
+    ...query,
     isRefreshOn,
     onToggleRefresh,
   };

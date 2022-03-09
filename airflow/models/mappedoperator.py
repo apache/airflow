@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
-    # BaseOperator.apply() can be called on an XComArg, sequence, or dict (not
+    # BaseOperator.expand() can be called on an XComArg, sequence, or dict (not
     # any mapping since we need the value to be ordered).
     Mappable = Union[XComArg, Sequence, dict]
 
@@ -105,14 +105,14 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
             continue
         for name in param_names:
             value = unknown_args.pop(name, NOTSET)
-            if func != "apply":
+            if func != "expand":
                 continue
             if value is NOTSET:
                 continue
             if isinstance(value, get_mappable_types()):
                 continue
             type_name = type(value).__name__
-            error = f"{op.__name__}.apply() got an unexpected type {type_name!r} for keyword argument {name}"
+            error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
             raise ValueError(error)
         if not unknown_args:
             return  # If we have no args left to check: stop looking at the MRO chain.
@@ -156,14 +156,14 @@ class OperatorPartial:
     """An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
-    user to call ``.apply()`` on it at some point (usually in a method chain) to
+    user to call ``.expand()`` on it at some point (usually in a method chain) to
     create a ``MappedOperator`` to add into the DAG.
     """
 
     operator_class: Type["BaseOperator"]
     kwargs: Dict[str, Any]
 
-    _apply_called: bool = False  # Set when apply() is called to ease user debugging.
+    _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
         from airflow.operators.subdag import SubDagOperator
@@ -177,13 +177,13 @@ class OperatorPartial:
         return f"{self.operator_class.__name__}.partial({args})"
 
     def __del__(self):
-        if not self._apply_called:
+        if not self._expand_called:
             warnings.warn(f"{self!r} was never mapped!")
 
-    def apply(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         from airflow.operators.dummy import DummyOperator
 
-        validate_mapping_kwargs(self.operator_class, "apply", mapped_kwargs)
+        validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(mapped_kwargs)
 
@@ -215,7 +215,7 @@ class OperatorPartial:
             start_date=start_date,
             end_date=end_date,
         )
-        self._apply_called = True
+        self._expand_called = True
         return op
 
 
@@ -458,7 +458,7 @@ class MappedOperator(AbstractOperator):
         """The kwargs to calculate expansion length against.
 
         This is ``self.mapped_kwargs`` for classic operators because kwargs to
-        ``BaseOperator.apply()`` contribute to operator arguments.
+        ``BaseOperator.expand()`` contribute to operator arguments.
         """
         return self.mapped_kwargs
 

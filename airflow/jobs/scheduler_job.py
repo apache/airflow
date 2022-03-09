@@ -588,7 +588,7 @@ class SchedulerJob(BaseJob):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s"
@@ -598,6 +598,7 @@ class SchedulerJob(BaseJob):
                 ti.dag_id,
                 ti.task_id,
                 ti.run_id,
+                ti.map_index,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,

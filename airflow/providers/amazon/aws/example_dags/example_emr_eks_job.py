@@ -14,20 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for an Amazon EMR on EKS Spark job.
-"""
+
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 
-# [START howto_operator_emr_eks_env_variables]
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
 JOB_ROLE_ARN = os.getenv("JOB_ROLE_ARN", "arn:aws:iam::012345678912:role/emr_eks_default_role")
-# [END howto_operator_emr_eks_env_variables]
-
 
 # [START howto_operator_emr_eks_config]
 JOB_DRIVER_ARG = {
@@ -56,19 +51,18 @@ CONFIGURATION_OVERRIDES_ARG = {
 # [END howto_operator_emr_eks_config]
 
 with DAG(
-    dag_id='emr_eks_pi_job',
-    dagrun_timeout=timedelta(hours=2),
+    dag_id='example_emr_eks_job',
+    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    schedule_interval="@once",
+    tags=['example'],
     catchup=False,
-    tags=["emr_containers", "example"],
 ) as dag:
 
     # An example of how to get the cluster id and arn from an Airflow connection
     # VIRTUAL_CLUSTER_ID = '{{ conn.emr_eks.extra_dejson["virtual_cluster_id"] }}'
     # JOB_ROLE_ARN = '{{ conn.emr_eks.extra_dejson["job_role_arn"] }}'
 
-    # [START howto_operator_emr_eks_jobrun]
+    # [START howto_operator_emr_eks_job]
     job_starter = EmrContainerOperator(
         task_id="start_job",
         virtual_cluster_id=VIRTUAL_CLUSTER_ID,
@@ -78,4 +72,4 @@ with DAG(
         configuration_overrides=CONFIGURATION_OVERRIDES_ARG,
         name="pi.py",
     )
-    # [END howto_operator_emr_eks_jobrun]
+    # [END howto_operator_emr_eks_job]
