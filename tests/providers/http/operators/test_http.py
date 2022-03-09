@@ -45,9 +45,8 @@ class TestSimpleHttpOp(unittest.TestCase):
         )
 
         with mock.patch.object(operator.log, 'info') as mock_info:
-            operator.execute(None)
-            calls = [mock.call('Example.com fake response'), mock.call('Example.com fake response')]
-            mock_info.has_calls(calls)
+            result = operator.execute(None)
+            assert result == 'Example.com fake response'
 
     @requests_mock.mock()
     def test_response_in_logs_after_failed_check(self, m):
