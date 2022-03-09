@@ -1074,6 +1074,7 @@ def print_happy_cat(message):
     print("""(='_' )""".center(size))
     print("""(,(") (")""".center(size))
     print("""^^^""".center(size))
+    return
 
 
 def _revision_greater(config, this_rev, base_rev):
@@ -1104,8 +1105,6 @@ def _revisions_above_min_for_offline(config, revisions):
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
     for rev in revisions:
-        if not rev:
-            raise ValueError('unexpected')
         if not _revision_greater(config, rev, min_revision):
             raise ValueError(
                 f"Error while checking history for revision range {min_revision}:{rev}. "
@@ -1147,9 +1146,6 @@ def upgradedb(
     if show_sql_only:
         if not from_revision:
             from_revision = _get_current_revision(session)
-
-        if not from_revision and to_revision:
-            raise Exception('unexpected')
 
         if to_revision == from_revision:
             print_happy_cat("No migrations to apply; nothing to do.")
