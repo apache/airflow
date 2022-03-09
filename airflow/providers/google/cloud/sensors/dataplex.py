@@ -49,8 +49,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :param timeout: The amount of time, in seconds, to wait for the request to complete.
-        Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
@@ -75,8 +73,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         dataplex_task_id: str,
         api_version: str = "v1",
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -90,7 +87,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.dataplex_task_id = dataplex_task_id
         self.api_version = api_version
         self.retry = retry
-        self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -111,7 +107,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
             lake_id=self.lake_id,
             dataplex_task_id=self.dataplex_task_id,
             retry=self.retry,
-            timeout=self.timeout,
             metadata=self.metadata,
         )
         task_status = task.state

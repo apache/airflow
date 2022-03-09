@@ -134,7 +134,7 @@ class DataplexCreateTaskOperator(BaseOperator):
             )
             if not self.asynchronous:
                 self.log.info("Waiting for Dataplex task %s to be created", self.dataplex_task_id)
-                task = hook.wait_for_operation(timeout=1200, operation=operation)
+                task = hook.wait_for_operation(timeout=self.timeout, operation=operation)
                 self.log.info("Task %s created successfully", self.dataplex_task_id)
             else:
                 is_done = operation.done()
@@ -238,7 +238,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        hook.wait_for_operation(timeout=1200, operation=operation)
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
         self.log.info("Dataplex task %s deleted successfully!", self.dataplex_task_id)
 
 
