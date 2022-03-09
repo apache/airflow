@@ -396,6 +396,10 @@ paths:
   /dags:
     get:
       summary: List DAGs
+      description: >
+       List DAGs in the database.
+
+       `dag_id_pattern` can be set to match dags of a specific pattern
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dags
       tags: [DAG]
@@ -424,6 +428,12 @@ paths:
 
     patch:
       summary: Update DAGs
+      description: >
+       Update DAGs of a given dag_id_pattern using UpdateMask.
+
+       This endpoint allows specifying `~` as the dag_id_pattern to retrieve DAG runs for all DAGs.
+
+       *New in version 2.3.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: patch_dags
       parameters:
@@ -438,7 +448,7 @@ paths:
             type: string
           required: true
           description: |
-            If set, only return DAGs with dag_ids matching this pattern.
+            If set, only update DAGs with dag_ids matching this pattern.
       tags: [DAG]
       requestBody:
         required: true
@@ -3842,6 +3852,8 @@ components:
       required: false
       description: |
         Only filter active DAGs.
+
+        *New in version 2.1.1*
 
     # Other parameters
 
