@@ -23,6 +23,8 @@ import gzip as gz
 import io
 import re
 import shutil
+import sys
+import warnings
 from functools import wraps
 from inspect import signature
 from io import BytesIO
@@ -37,6 +39,11 @@ from botocore.exceptions import ClientError
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 T = TypeVar("T", bound=Callable)
 
@@ -54,10 +61,8 @@ def provide_bucket_name(func: T) -> T:
 
         if 'bucket_name' not in bound_args.arguments:
             self = args[0]
-            if self.aws_conn_id:
-                connection = self.get_connection(self.aws_conn_id)
-                if connection.schema:
-                    bound_args.arguments['bucket_name'] = connection.schema
+            if self.bucket_name:
+                bound_args.arguments['bucket_name'] = self.bucket_name
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -144,6 +149,14 @@ class S3Hook(AwsBaseHook):
         key = parsed_url.path.lstrip('/')
 
         return bucket_name, key
+
+    @cached_property
+    def bucket_name(self) -> Optional[str]:
+        if self.aws_conn_id:
+            connection = self.get_connection(self.aws_conn_id)
+            if connection.schema:
+                return connection.schema
+        return None
 
     @provide_bucket_name
     def check_for_bucket(self, bucket_name: Optional[str] = None) -> bool:
@@ -698,14 +711,20 @@ class S3Hook(AwsBaseHook):
         if force_delete:
             bucket_keys = self.list_keys(bucket_name=bucket_name)
             if bucket_keys:
-                self.delete_objects(bucket=bucket_name, keys=bucket_keys)
+                self.delete_objects(bucket_name=bucket_name, keys=bucket_keys)
         self.conn.delete_bucket(Bucket=bucket_name)
 
-    def delete_objects(self, bucket: str, keys: Union[str, list]) -> None:
+    @provide_bucket_name
+    def delete_objects(
+        self,
+        bucket_name: Optional[str] = None,
+        keys: Optional[Union[str, list]] = None,
+        bucket: Optional[str] = None,
+    ) -> None:
         """
         Delete keys from the bucket.
 
-        :param bucket: Name of the bucket in which you are going to delete object(s)
+        :param bucket_name: Name of the bucket in which you are going to delete object(s)
         :param keys: The key(s) to delete from S3 bucket.
 
             When ``keys`` is a string, it's supposed to be the key name of
@@ -714,6 +733,19 @@ class S3Hook(AwsBaseHook):
             When ``keys`` is a list, it's supposed to be the list of the
             keys to delete.
         """
+        # TODO: Remove bucket in 4.0.0, make bucket_name and keys non optional
+        if bucket is not None:
+            warnings.warn(
+                "The 'bucket' parameter is deprecated. Please use 'bucket_name'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            bucket_name = bucket
+        if bucket_name is None:
+            raise AirflowException("Missing required parameters: bucket_name")
+        if keys is None:
+            raise AirflowException("Missing required parameters: keys")
+
         if isinstance(keys, str):
             keys = [keys]
 
@@ -723,7 +755,7 @@ class S3Hook(AwsBaseHook):
         # For details see:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
         for chunk in chunks(keys, chunk_size=1000):
-            response = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
+            response = s3.delete_objects(Bucket=bucket_name, Delete={"Objects": [{"Key": k} for k in chunk]})
             deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:

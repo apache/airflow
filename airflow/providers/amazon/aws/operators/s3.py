@@ -381,7 +381,7 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
         if keys:
-            s3_hook.delete_objects(bucket=self.bucket, keys=keys)
+            s3_hook.delete_objects(bucket_name=self.bucket, keys=keys)
 
 
 class S3FileTransformOperator(BaseOperator):

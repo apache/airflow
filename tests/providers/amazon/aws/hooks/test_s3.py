@@ -383,9 +383,16 @@ class TestAwsS3Hook:
         # The behaviour of delete changed in recent version of s3 mock libraries.
         # It will succeed idempotently
         hook = S3Hook()
-        hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
+        hook.delete_objects(bucket_name=s3_bucket, keys=['key-1'])
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
+        key = 'key-1'
+        mocked_s3_res.Object(s3_bucket, key).put(Body=b'Data')
+        hook = S3Hook()
+        hook.delete_objects(bucket_name=s3_bucket, keys=[key])
+        assert [o.key for o in mocked_s3_res.Bucket(s3_bucket).objects.all()] == []
+
+    def test_delete_objects_bucket_param(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
         mocked_s3_res.Object(s3_bucket, key).put(Body=b'Data')
         hook = S3Hook()
@@ -402,7 +409,7 @@ class TestAwsS3Hook:
 
         assert sum(1 for _ in mocked_s3_res.Bucket(s3_bucket).objects.all()) == num_keys_to_remove
         hook = S3Hook()
-        hook.delete_objects(bucket=s3_bucket, keys=keys)
+        hook.delete_objects(bucket_name=s3_bucket, keys=keys)
         assert [o.key for o in mocked_s3_res.Bucket(s3_bucket).objects.all()] == []
 
     def test_unify_bucket_name_and_key(self):
