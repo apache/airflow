@@ -221,7 +221,9 @@ jobs:
         # the image.
         run: |
           rm -rf "scripts/ci"
+          rm -rf "dev"
           mv "main-airflow/scripts/ci" "scripts"
+          mv "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
@@ -309,7 +311,9 @@ jobs:
         # the image.
         run: |
           rm -rf "scripts/ci"
+          rm -rf "dev"
           mv "main-airflow/scripts/ci" "scripts"
+          mv "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
