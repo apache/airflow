@@ -516,7 +516,21 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
-ARG_DB_VERSION = Arg(
+ARG_DB_UG_VERSION = Arg(
+    (
+        "-n",
+        "--version",
+    ),
+    help="(Optional) The airflow version to upgrade to. Note: must provide either `--revision` or `--version`.",
+)
+ARG_DB_UG_REVISION = Arg(
+    (
+        "-r",
+        "--revision",
+    ),
+    help="(Optional) The airflow revision to upgrade to. Note: must provide either `--revision` or `--version`.",
+)
+ARG_DB_DG_VERSION = Arg(
     (
         "-n",
         "--version",
@@ -525,9 +539,9 @@ ARG_DB_VERSION = Arg(
 )
 ARG_DB_FROM_VERSION = Arg(
     ("--from-version",),
-    help="(Optional) If generating sql, may supply a _from_ version",
+    help="(Optional) If generating sql, may supply a *from* version",
 )
-ARG_DB_REVISION = Arg(
+ARG_DB_DG_REVISION = Arg(
     (
         "-r",
         "--revision",
@@ -536,7 +550,7 @@ ARG_DB_REVISION = Arg(
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) If generating sql, may supply a _from_ revision",
+    help="(Optional) If generating sql, may supply a *from* revision",
 )
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
@@ -1362,13 +1376,13 @@ DB_COMMANDS = (
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
-            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--shouw-sql-only``, "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--show-sql-only``, "
             "because if actually *running* migrations, we should only migrate from the *current* revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
         args=(
-            ARG_DB_REVISION,
-            ARG_DB_VERSION,
+            ARG_DB_UG_REVISION,
+            ARG_DB_UG_VERSION,
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
@@ -1386,8 +1400,8 @@ DB_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
-            ARG_DB_REVISION,
-            ARG_DB_VERSION,
+            ARG_DB_DG_REVISION,
+            ARG_DB_DG_VERSION,
             ARG_DB_SQL_ONLY,
             ARG_YES,
             ARG_DB_FROM_REVISION,
