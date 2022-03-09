@@ -920,7 +920,7 @@ class TestStringifiedDAGs:
 
             name = 'My Link'
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, *, ti_key):
                 return 'https://www.google.com'
 
         class MyOperator(BaseOperator):

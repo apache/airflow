@@ -56,7 +56,7 @@ class TriggerDagRunLink(BaseOperatorLink):
     ) -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
-        when = XCom.get_one(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
+        when = XCom.get_value(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
         query = {"dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
         return build_airflow_url_with_query(query)
 

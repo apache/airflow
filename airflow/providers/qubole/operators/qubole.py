@@ -64,7 +64,7 @@ class QDSLink(BaseOperatorLink):
         else:
             host = 'https://api.qubole.com/v2/analyze?command_id='
         if ti_key:
-            qds_command_id = XCom.get_one(key='qbol_cmd_id', ti_key=ti_key)
+            qds_command_id = XCom.get_value(key='qbol_cmd_id', ti_key=ti_key)
         else:
             assert dttm
             qds_command_id = XCom.get_one(
