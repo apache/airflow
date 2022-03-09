@@ -101,6 +101,7 @@
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "orientation": { "type" : "string"},
+        "_display_name": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},

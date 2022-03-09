@@ -199,6 +199,7 @@ class DAG(LoggingMixin):
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
+    :param display_name: The display name for the DAG to e.g. be shown on the webserver
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
@@ -306,6 +307,7 @@ class DAG(LoggingMixin):
     def __init__(
         self,
         dag_id: str,
+        display_name: Optional[str] = None,
         description: Optional[str] = None,
         schedule_interval: ScheduleIntervalArg = NOTSET,
         timetable: Optional[Timetable] = None,
@@ -374,6 +376,10 @@ class DAG(LoggingMixin):
             max_active_tasks = concurrency
         self._max_active_tasks = max_active_tasks
         self._pickle_id: Optional[int] = None
+        if display_name is None:
+            self._display_name = dag_id
+        else:
+            self._display_name = display_name
 
         self._description = description
         # set file location to caller source path
@@ -961,6 +967,10 @@ class DAG(LoggingMixin):
     @access_control.setter
     def access_control(self, value):
         self._access_control = DAG._upgrade_outdated_dag_access_control(value)
+
+    @property
+    def display_name(self) -> Optional[str]:
+        return self._display_name
 
     @property
     def description(self) -> Optional[str]:
@@ -2437,6 +2447,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
+            orm_dag.display_name = dag.display_name
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.max_active_tasks = dag.max_active_tasks
@@ -2679,6 +2690,8 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Display name of the dag
+    display_name = Column(Text)
     # Description of the dag
     description = Column(Text)
     # Default view of the inside the webserver
