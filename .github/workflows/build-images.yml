@@ -231,7 +231,7 @@ jobs:
       - name: "Free space"
         run: airflow-freespace
       - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
+        run: Breeze2 build-ci-image
       - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
       - name: >
