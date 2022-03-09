@@ -3328,7 +3328,7 @@
                     "default": 0
                 },
                 "auth_type": {
-                    "description": "Method of Authenticating users",
+                    "description": "Method of authenticating users",
                     "type": "string",
                     "default": "md5"
                 },
