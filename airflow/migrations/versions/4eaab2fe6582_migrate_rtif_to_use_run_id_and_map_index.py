@@ -159,8 +159,8 @@ def downgrade():
     ) as batch_op:
         batch_op.alter_column('execution_date', existing_type=TIMESTAMP, nullable=False)
         if dialect_name != 'sqlite':
-            batch_op.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             batch_op.drop_constraint('rtif_ti_fkey', type_='foreignkey')
+            batch_op.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
         batch_op.create_primary_key(
             'rendered_task_instance_fields_pkey', ['dag_id', 'task_id', 'execution_date']
         )
