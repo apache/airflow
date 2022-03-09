@@ -528,14 +528,14 @@ ARG_DB_UG_REVISION = Arg(
         "-r",
         "--revision",
     ),
-    help="(Optional) The airflow revision to upgrade to. Note: must provide either `--revision` or `--version`.",
+    help="(Optional) If provided, only run migrations up to and including this revision.",
 )
 ARG_DB_DG_VERSION = Arg(
     (
         "-n",
         "--version",
     ),
-    help="The airflow version to downgrade to. Note: must provide either `--revision` or `--version`.",
+    help="(Optional) If provided, only run migrations up to this version.",
 )
 ARG_DB_FROM_VERSION = Arg(
     ("--from-version",),
