@@ -124,6 +124,8 @@ class DbtCloudRunJobOperator(BaseOperator):
             account_id=self.account_id,
             job_id=self.job_id,
             cause=self.trigger_reason,
+            steps_override=self.steps_override,
+            schema_override=self.schema_override,
             additional_run_config=self.additional_run_config,
         )
         self.run_id = trigger_job_response.json()["data"]["id"]
