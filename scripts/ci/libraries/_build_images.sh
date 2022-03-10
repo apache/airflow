@@ -601,7 +601,6 @@ function build_images::build_prod_images() {
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         docker_prod_directive=(
             "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
-            "--push"
         )
     else
         echo
@@ -616,6 +615,7 @@ function build_images::build_prod_images() {
         # Cache for prod image contains also build stage for buildx when mode=max specified!
         docker_prod_directive+=(
             "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
+            "--push"
         )
         if [[ ${PLATFORM} =~ .*,.* ]]; then
             echo
