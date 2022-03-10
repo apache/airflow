@@ -109,4 +109,17 @@ const DagRunBar = ({
   );
 };
 
-export default DagRunBar;
+// The default equality function is a shallow comparison and json objects will return false
+// This custom compare function allows us to do a deeper comparison
+const compareProps = (
+  prevProps,
+  nextProps,
+) => (
+  JSON.stringify(prevProps.run) === JSON.stringify(nextProps.run)
+  && prevProps.max === nextProps.max
+  && prevProps.index === nextProps.index
+  && prevProps.totalRuns === nextProps.totalRuns
+  && prevProps.containerRef === nextProps.containerRef
+);
+
+export default React.memo(DagRunBar, compareProps);
