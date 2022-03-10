@@ -41,15 +41,15 @@ const Tree = () => {
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
+  const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
+
   useEffect(() => {
     // Set initial scroll to far right if it is scrollable
     const runsContainer = scrollRef.current;
     if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
       runsContainer.scrollBy(runsContainer.clientWidth, 0);
     }
-  }, []);
-
-  const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
+  }, [tableWidth]);
 
   return (
     <Box position="relative" ref={containerRef}>
@@ -63,14 +63,14 @@ const Tree = () => {
       <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="130px">Runs</Text>
       <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="190px">Tasks</Text>
       <Box px="24px">
-        <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
+        <Box position="relative" width="100%" overflow="auto" ref={scrollRef}>
           <Table>
-            <Thead display="block" pr="10px">
+            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={3} bg="white">
               <DagRuns containerRef={containerRef} tableWidth={tableWidth} />
             </Thead>
             {/* eslint-disable-next-line max-len */}
             {/* TODO: don't use hardcoded values. 665px is roughly the normal total header and footer heights */}
-            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" overflow="auto" ref={tableRef} pr="10px">
+            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
               {renderTaskRows({
                 task: groups, containerRef, dagRunIds, tableWidth,
               })}

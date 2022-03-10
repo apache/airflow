@@ -121,6 +121,7 @@ const Row = (props) => {
           backgroundColor="white"
           borderBottom={0}
           width={`${tableWidth - (dagRunIds.length * 16)}px`}
+          zIndex={2}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
