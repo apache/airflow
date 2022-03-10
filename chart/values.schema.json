@@ -1605,7 +1605,10 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -2476,6 +2479,33 @@
                         }
                     }
                 },
+                "podDisruptionBudget": {
+                    "description": "Webserver pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for webserver.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                }
+                            }
+                        }
+                    }
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`).",
                     "type": "array",
@@ -3296,7 +3326,10 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }

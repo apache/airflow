@@ -40,7 +40,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-package-documentation \
-            --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
+            --version-suffix "${VERSION_SUFFIX_FOR_PYPI=}" \
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \

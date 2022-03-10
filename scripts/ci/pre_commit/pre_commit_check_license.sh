@@ -64,4 +64,8 @@ function run_check_license() {
     fi
 }
 
-run_check_license
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    echo "Skip RAT check on ARM devices util we push multiplatform images"
+else
+    run_check_license
+fi

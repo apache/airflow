@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION="3.7"
-export PRINT_INFO_FROM_SCRIPTS="false"
 
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+import unittest
 
-function migration_reference() {
-    if [[ "${#@}" == "0" ]]; then
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            "${AIRFLOW_CI_IMAGE}" \
-            "/opt/airflow/scripts/in_container/run_migration_reference.sh"
-    else
-        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            "${AIRFLOW_CI_IMAGE}" \
-            "/opt/airflow/scripts/in_container/run_migration_reference.sh" "${@}"
-    fi
-}
+from tests.helm_template_generator import render_chart
 
-build_images::prepare_ci_build
 
-build_images::rebuild_ci_image_if_confirmed_for_pre_commit
+class WebserverPdbTest(unittest.TestCase):
+    def test_should_pass_validation_with_just_pdb_enabled_v1(self):
+        render_chart(
+            values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
+        )  # checks that no validation exception is raised
 
-migration_reference "$@"
+    def test_should_pass_validation_with_just_pdb_enabled_v1beta1(self):
+        render_chart(
+            values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
+            kubernetes_version='1.16.0',
+        )  # checks that no validation exception is raised
