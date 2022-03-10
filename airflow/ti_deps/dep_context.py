@@ -18,6 +18,7 @@
 
 from typing import TYPE_CHECKING, List, Optional
 
+import attr
 from sqlalchemy.orm.session import Session
 
 from airflow.utils.state import State
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
+@attr.define
 class DepContext:
     """
     A base class for contexts that specifies which dependencies should be evaluated in
@@ -53,33 +55,23 @@ class DepContext:
         Backfills)
     :param ignore_in_retry_period: Ignore the retry period for task instances
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
+    :param ignore_unmapped_tasks: Ignore errors about mapped tasks not yet being expanded
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :param finished_tis: A list of all the finished task instances of this run
     """
 
-    def __init__(
-        self,
-        deps=None,
-        flag_upstream_failed: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        ignore_in_retry_period: bool = False,
-        ignore_in_reschedule_period: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        finished_tis: Optional[List["TaskInstance"]] = None,
-    ):
-        self.deps = deps or set()
-        self.flag_upstream_failed = flag_upstream_failed
-        self.ignore_all_deps = ignore_all_deps
-        self.ignore_depends_on_past = ignore_depends_on_past
-        self.ignore_in_retry_period = ignore_in_retry_period
-        self.ignore_in_reschedule_period = ignore_in_reschedule_period
-        self.ignore_task_deps = ignore_task_deps
-        self.ignore_ti_state = ignore_ti_state
-        self.finished_tis = finished_tis
+    deps: set = attr.ib(factory=set)
+    flag_upstream_failed: bool = False
+    ignore_all_deps: bool = False
+    ignore_depends_on_past: bool = False
+    ignore_in_retry_period: bool = False
+    ignore_in_reschedule_period: bool = False
+    ignore_task_deps: bool = False
+    ignore_ti_state: bool = False
+    ignore_unmapped_tasks: bool = False
+    finished_tis: Optional[List["TaskInstance"]] = None
 
     def ensure_finished_tis(self, dag_run: "DagRun", session: Session) -> List["TaskInstance"]:
         """
