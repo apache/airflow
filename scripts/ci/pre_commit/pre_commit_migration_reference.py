@@ -147,7 +147,7 @@ def ensure_filenames_are_sorted(revisions):
 
 
 if __name__ == '__main__':
-    revisions = list(get_revisions())
+    revisions = list(reversed(list(get_revisions())))
     ensure_airflow_version(revisions=revisions)
     ensure_filenames_are_sorted(revisions)
     # if `ensure_airflow_version` modified any migrations, we'll need to reload
