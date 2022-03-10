@@ -450,6 +450,11 @@ class EcsOperator(BaseOperator):
         for task in response['tasks']:
 
             if task.get('stopCode', '') == 'TaskFailedToStart':
+                # Reset task arn here otherwise the retry run will not start
+                # a new task but keep polling the old dead one
+                # I'm not resetting it for other exceptions here because
+                # EcsTaskFailToStart is the only exception that's being retried at the moment
+                self.arn = None
                 raise EcsTaskFailToStart(f"The task failed to start due to: {task.get('stoppedReason', '')}")
 
             # This is a `stoppedReason` that indicates a task has not
