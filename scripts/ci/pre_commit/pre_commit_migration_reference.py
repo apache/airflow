@@ -126,14 +126,15 @@ def update_docs(revisions: Iterable["Script"]):
     )
 
 
-def num_to_prefix(num: int) -> str:
-    return f"00{num}"[-3:] + '_'
+def num_to_prefix(idx: int) -> str:
+    return f"000{idx+1}"[-4:] + '_'
 
 
 def ensure_mod_prefix(mod, idx):
     prefix = num_to_prefix(idx)
-    if re.match(r'\d{3}_[a-z0-9]+.+', mod):
-        mod = mod[4:]
+    match = re.match(r'([0-9_]+_)([a-z0-9]+_.+)', mod)
+    if match:
+        mod = match.group(2)
     return prefix + mod
 
 
