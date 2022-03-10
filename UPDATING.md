@@ -222,6 +222,10 @@ When a `ReadyToRescheduleDep` is run, it now checks whether the `reschedule` att
 
 To support operator-mapping (AIP 42), the `deps` attribute on operator class must be a set at the class level. This means that if a custom operator implements this as an instance-level variable, it will not be able to be used for operator-mapping. This does not affect existing code, but we highly recommend you to restructure the operator's dep logic in order to support the new feature.
 
+### The `tree` default view setting has been renamed to `grid`
+
+If you set the `dag_default_view` config option or the `default_view` argument to `DAG()` to `tree` you will need to update your deployment. The old name will continue to work but will issue warnings.
+
 ## Airflow 2.2.4
 
 ### Smart sensors deprecated
