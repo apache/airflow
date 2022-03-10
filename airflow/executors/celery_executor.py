@@ -543,7 +543,8 @@ class CeleryExecutor(BaseExecutor):
 
             # Set the correct elements of the state dicts, then update this
             # like we just queried it.
-            self.adopted_task_timeouts[ti.key] = ti.queued_dttm + self.task_adoption_timeout
+            if state == celery_states.PENDING:
+                self.adopted_task_timeouts[ti.key] = ti.queued_dttm + self.task_adoption_timeout
             self.tasks[ti.key] = result
             self.running.add(ti.key)
             self.update_task_state(ti.key, state, info)

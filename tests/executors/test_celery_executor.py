@@ -352,6 +352,31 @@ class TestCeleryExecutor:
         assert not_adopted_tis == []
 
     @pytest.mark.backend("mysql", "postgres")
+    def test_try_adopt_task_instances_with_no_queued_dttm(self):
+
+        mock_bulk_state_fetcher = mock.MagicMock()
+        mock_bulk_state_fetcher.get_many.return_value = {'231': ('RUNNING', None)}
+
+        start_date = timezone.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_task_instances_none") as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date, dag=dag)
+
+        ti1 = TaskInstance(task=task_1, run_id=None)
+        ti1.external_executor_id = '231'
+        ti1.queued_dttm = None
+        ti1.state = State.RUNNING
+
+        tis = [ti1]
+        executor = celery_executor.CeleryExecutor()
+        executor.bulk_state_fetcher = mock_bulk_state_fetcher
+        assert executor.running == set()
+        assert executor.adopted_task_timeouts == {}
+        assert executor.tasks == {}
+
+        executor.try_adopt_task_instances(tis)
+
+    @pytest.mark.backend("mysql", "postgres")
     def test_check_for_stalled_adopted_tasks(self):
         start_date = timezone.utcnow() - timedelta(days=2)
         queued_dttm = timezone.utcnow() - timedelta(minutes=30)
