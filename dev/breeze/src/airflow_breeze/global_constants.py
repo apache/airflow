@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from pathlib import Path
 from typing import List
 
@@ -197,7 +198,7 @@ def get_available_packages() -> List[str]:
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = "linux/amd64"
+DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"

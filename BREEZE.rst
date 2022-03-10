@@ -1277,7 +1277,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1492,7 +1492,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1567,7 +1567,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1649,7 +1649,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1700,7 +1700,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1910,7 +1910,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1994,7 +1994,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -2409,7 +2409,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION

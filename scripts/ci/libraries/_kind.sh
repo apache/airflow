@@ -40,8 +40,14 @@ function kind::dump_kind_logs() {
 function kind::make_sure_kubernetes_tools_are_installed() {
     local system
     system=$(uname -s | tr '[:upper:]' '[:lower:]')
-
-    local kind_url="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${system}-amd64"
+    local machine
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        machine="arm64"
+    else
+        machine="amd64"
+    fi
+    local kind_url
+    kind_url="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${system}-${machine}"
     mkdir -pv "${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}"
     if [[ -f "${KIND_BINARY_PATH}" ]]; then
         local downloaded_kind_version
@@ -58,8 +64,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo "Kind version ok"
         echo
     fi
-
-    local kubectl_url="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${system}/amd64/kubectl"
+    local kubectl_url
+    kubectl_url="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${system}/${machine}/kubectl"
     if [[ -f "${KUBECTL_BINARY_PATH}" ]]; then
         local downloaded_kubectl_version
         downloaded_kubectl_version="$(${KUBECTL_BINARY_PATH} version --client=true --short | awk '{ print $3 }')"
@@ -75,8 +81,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo "Kubectl version ok"
         echo
     fi
-
-    local helm_url="https://get.helm.sh/helm-${HELM_VERSION}-${system}-amd64.tar.gz"
+    local helm_url
+    helm_url="https://get.helm.sh/helm-${HELM_VERSION}-${system}-${machine}.tar.gz"
     if [[ -f "${HELM_BINARY_PATH}" ]]; then
         local downloaded_helm_version
         downloaded_helm_version="$(${HELM_BINARY_PATH} version --template '{{.Version}}')"
@@ -86,7 +92,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
         repeats::run_with_retry 4 \
-            "curl --connect-timeout 60  --max-time 180 --location '${helm_url}' | tar -xvz -O '${system}-amd64/helm' >'${HELM_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --location '${helm_url}' | tar -xvz -O '${system}-${machine}/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"

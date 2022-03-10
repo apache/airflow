@@ -838,6 +838,14 @@ webserver:
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
 
+  # Webserver pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      maxUnavailable: 1
+
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 

@@ -422,19 +422,19 @@ function build_images::rebuild_ci_image_if_needed_with_group() {
 }
 
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
-# passes the necessary docker build flags via docker_ci_cache_directive array
+# passes the necessary docker build flags via docker_ci_directive array
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
 function build_images::build_ci_image() {
     build_images::check_if_buildx_plugin_available
     build_images::print_build_info
-    local docker_ci_cache_directive
+    local docker_ci_directive
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
-        docker_ci_cache_directive=("--no-cache")
+        docker_ci_directive=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
-        docker_ci_cache_directive=()
+        docker_ci_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
-        docker_ci_cache_directive=(
+        docker_ci_directive=(
             "--cache-from=${AIRFLOW_CI_IMAGE}:cache"
         )
     else
@@ -446,10 +446,19 @@ function build_images::build_ci_image() {
     if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
         # we need to login to docker registry so that we can push cache there
         build_images::login_to_docker_registry
-        docker_ci_cache_directive+=(
+        docker_ci_directive+=(
             "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache"
-            "--load"
+            "--push"
         )
+        if [[ ${PLATFORM} =~ .*,.* ]]; then
+            echo
+            echo "Skip loading docker image on multi-platform build"
+            echo
+        else
+            docker_ci_directive+=(
+                "--load"
+            )
+        fi
     fi
     local extra_docker_ci_flags=()
     if [[ ${CI} == "true" ]]; then
@@ -506,14 +515,10 @@ function build_images::build_ci_image() {
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
-        "${docker_ci_cache_directive[@]}" \
+        "${docker_ci_directive[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
         . -f Dockerfile.ci
-    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
-        # Push the image as "latest" so that it can be used in Breeze
-        docker_v push "${AIRFLOW_CI_IMAGE}"
-    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
@@ -573,7 +578,7 @@ function build_images::prepare_prod_build() {
 }
 
 # Builds PROD image - depending on the caching strategy (pulled, local, disabled) it
-# passes the necessary docker build flags via DOCKER_CACHE_PROD_DIRECTIVE and
+# passes the necessary docker build flags via docker_prod_directive and
 # docker_cache_prod_build_directive (separate caching options are needed for "build" segment of the image)
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
@@ -588,14 +593,15 @@ function build_images::build_prod_images() {
         echo
         return
     fi
-    local docker_cache_prod_directive
+    local docker_prod_directive
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
-        docker_cache_prod_directive=("--no-cache")
+        docker_prod_directive=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
-        docker_cache_prod_directive=()
+        docker_prod_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
-        docker_cache_prod_directive=(
+        docker_prod_directive=(
             "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
+            "--push"
         )
     else
         echo
@@ -608,10 +614,18 @@ function build_images::build_prod_images() {
         # we need to login to docker registry so that we can push cache there
         build_images::login_to_docker_registry
         # Cache for prod image contains also build stage for buildx when mode=max specified!
-        docker_cache_prod_directive+=(
+        docker_prod_directive+=(
             "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
-            "--load"
         )
+        if [[ ${PLATFORM} =~ .*,.* ]]; then
+            echo
+            echo "Skip loading docker image on multi-platform build"
+            echo
+        else
+            docker_prod_directive+=(
+                "--load"
+            )
+        fi
     fi
     set +u
     local additional_dev_args=()
@@ -661,14 +675,10 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/${COMMIT_SHA}/docs/docker-stack/README.md" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
-        "${docker_cache_prod_directive[@]}" \
+        "${docker_prod_directive[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
         . -f Dockerfile
-    if [[ ${PREPARE_BUILDX_CACHE} == "true" ]]; then
-        # Push the image as "latest" so that it can be used in Breeze
-        docker_v push "${AIRFLOW_PROD_IMAGE}"
-    fi
     set -u
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
