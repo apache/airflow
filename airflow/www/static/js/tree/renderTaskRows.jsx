@@ -57,17 +57,26 @@ const TaskInstances = ({ task, containerRef, dagRunIds }) => (
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((gi) => gi.runId === runId);
-      return instance
-        ? (
-          <StatusBox
-            key={`${runId}-${task.id}`}
-            instance={instance}
-            containerRef={containerRef}
-            extraLinks={task.extraLinks}
-            group={task}
-          />
-        )
-        : <Box key={`${runId}-${task.id}`} width="18px" data-testid="blank-task" />;
+      return (
+        <Box
+          py="4px"
+          px="3px"
+          className={`js-${runId}`}
+          transition="background-color 0.2s"
+          key={`${runId}-${task.id}`}
+        >
+          {instance
+            ? (
+              <StatusBox
+                instance={instance}
+                containerRef={containerRef}
+                extraLinks={task.extraLinks}
+                group={task}
+              />
+            )
+            : <Box width="18px" data-testid="blank-task" />}
+        </Box>
+      );
     })}
   </Flex>
 );
@@ -121,7 +130,7 @@ const Row = (props) => {
           backgroundColor="white"
           borderBottom={0}
           width={`${tableWidth - (dagRunIds.length * 16)}px`}
-          zIndex={2}
+          zIndex={1}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName

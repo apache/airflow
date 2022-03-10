@@ -65,7 +65,7 @@ const Tree = () => {
       <Box px="24px">
         <Box position="relative" width="100%" overflow="auto" ref={scrollRef}>
           <Table>
-            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={3} bg="white">
+            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
               <DagRuns containerRef={containerRef} tableWidth={tableWidth} />
             </Thead>
             {/* eslint-disable-next-line max-len */}
