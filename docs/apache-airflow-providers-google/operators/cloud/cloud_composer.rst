@@ -16,7 +16,7 @@
     under the License.
 
 Google Cloud Composer Operators
-=========================================
+===============================
 
 Cloud Composer is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
 and manage workflows that span across clouds and on-premises data centers.
