@@ -87,6 +87,7 @@
     "framer-motion": "^4",
     "jquery": ">=3.5.0",
     "jshint": "^2.13.4",
+    "lodash": "^4.17.21",
     "moment-timezone": "^0.5.28",
     "nvd3": "^1.8.6",
     "react": "^17.0.2",

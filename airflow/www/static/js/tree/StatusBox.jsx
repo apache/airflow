@@ -20,6 +20,7 @@
 /* global stateColors */
 
 import React from 'react';
+import { isEqual } from 'lodash';
 import {
   Flex,
   Box,
@@ -30,7 +31,7 @@ import { callModal } from '../dag';
 import InstanceTooltip from './InstanceTooltip';
 
 const StatusBox = ({
-  group, instance, containerRef, extraLinks = [], ...rest
+  group, instance, containerRef, extraLinks = [],
 }) => {
   const {
     executionDate, taskId, tryNumber = 0, operator, runId,
@@ -68,7 +69,6 @@ const StatusBox = ({
         zIndex={1}
         onMouseEnter={onMouseOver}
         onMouseLeave={onMouseLeave}
-        {...rest}
       >
         <Box
           width="10px"
@@ -82,4 +82,16 @@ const StatusBox = ({
   );
 };
 
-export default StatusBox;
+// The default equality function is a shallow comparison and json objects will return false
+// This custom compare function allows us to do a deeper comparison
+const compareProps = (
+  prevProps,
+  nextProps,
+) => (
+  isEqual(prevProps.group, nextProps.group)
+  && isEqual(prevProps.instance, nextProps.instance)
+  && prevProps.extraLinks === nextProps.extraLinks
+  && prevProps.containerRef === nextProps.containerRef
+);
+
+export default React.memo(StatusBox, compareProps);
