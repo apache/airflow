@@ -91,7 +91,11 @@ from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
@@ -2117,6 +2121,34 @@ class Airflow(AirflowBaseView):
 
             return response
 
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, origin: str):
+        if not dag_run_id:
+            flash('Invalid dag_run_id', 'error')
+            return redirect(origin)
+
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if not dag:
+            flash(f'Cannot find DAG: {dag_id}', 'error')
+            return redirect(origin)
+
+        new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
+
+        if confirmed:
+            flash('Marked the DagRun as queued.')
+            return redirect(origin)
+
+        else:
+            details = '\n'.join(str(t) for t in new_dag_state)
+
+            response = self.render_template(
+                'airflow/confirm.html',
+                message="Here's the list of task instances you are about to change",
+                details=details,
+            )
+
+            return response
+
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access(
         [
@@ -2148,6 +2180,22 @@ class Airflow(AirflowBaseView):
         confirmed = request.form.get('confirmed') == 'true'
         origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed, origin)
+
+    @expose('/dagrun_queued', methods=['POST'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    @action_logging
+    def dagrun_queued(self):
+        """Queue DagRun so tasks that haven't run yet can be started."""
+        dag_id = request.form.get('dag_id')
+        dag_run_id = request.form.get('dag_run_id')
+        confirmed = request.form.get('confirmed') == 'true'
+        origin = get_safe_url(request.form.get('origin'))
+        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed, origin)
 
     @expose("/dagrun_details")
     @auth.has_access(
