@@ -40,9 +40,11 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_USE_AIRFLOW_VERSIONS,
     get_available_packages,
 )
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
+from airflow_breeze.prod.build_prod_image import build_production_image
 from airflow_breeze.shell.enter_shell import build_shell
 from airflow_breeze.utils.docker_command_utils import check_docker_resources
 from airflow_breeze.utils.path_utils import (
@@ -88,7 +90,10 @@ option_backend = click.option(
 )
 
 option_github_repository = click.option(
-    '-g', '--github-repository', help='GitHub repository used to pull, push images. Default: apache/airflow.'
+    '-g',
+    '--github-repository',
+    help='GitHub repository used to pull, push images. Default: apache/airflow.',
+    envvar='GITHUB_REPOSITORY',
 )
 
 option_github_image_id = click.option(
@@ -99,6 +104,84 @@ option_github_image_id = click.option(
 )
 
 option_image_tag = click.option('--image-tag', help='Additional tag in the image.')
+
+option_platform = click.option(
+    '--platform', help='Builds image for the platform specified.', envvar='PLATFORM'
+)
+
+option_debian_version = click.option(
+    '-d',
+    '--debian-version',
+    help='Debian version used for the image.',
+    type=click.Choice(ALLOWED_DEBIAN_VERSIONS),
+    envvar='DEBIAN_VERSION',
+)
+option_upgrade_to_newer_dependencies = click.option(
+    '--upgrade-to-newer-dependencies',
+    help='Upgrades PIP packages to latest versions available without looking at the constraints.',
+    envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
+    is_flag=True,
+)
+option_additional_extras = click.option(
+    '--additional-extras',
+    help='This installs additional extra package while installing airflow in the image.',
+    envvar='ADDITIONAL_AIRFLOW_EXTRAS',
+)
+option_additional_dev_apt_deps = click.option(
+    '--additional-dev-apt-deps',
+    help='Additional apt dev dependencies to use when building the images.',
+    envvar='ADDITIONAL_DEV_APT_DEPS',
+)
+option_additional_runtime_apt_deps = click.option(
+    '--additional-runtime-apt-deps',
+    help='Additional apt runtime dependencies to use when building the images.',
+    envvar='ADDITIONAL_RUNTIME_APT_DEPS',
+)
+option_additional_python_deps = click.option(
+    '--additional-python-deps',
+    help='Additional python dependencies to use when building the images.',
+    envvar='ADDITIONAL_PYTHON_DEPS',
+)
+option_additional_dev_apt_command = click.option(
+    '--additional-dev-apt-command',
+    help='Additional command executed before dev apt deps are installed.',
+    envvar='ADDITIONAL_DEV_APT_COMMAND',
+)
+option_additional_runtime_apt_command = click.option(
+    '--additional-runtime-apt-command',
+    help='Additional command executed before runtime apt deps are installed.',
+    envvar='ADDITIONAL_RUNTIME_APT_COMMAND',
+)
+option_additional_dev_apt_env = click.option(
+    '--additional-dev-apt-env',
+    help='Additional environment variables set when adding dev dependencies.',
+    envvar='ADDITIONAL_DEV_APT_ENV',
+)
+option_additional_runtime_apt_env = click.option(
+    '--additional-runtime-apt-env',
+    help='Additional environment variables set when adding runtime dependencies.',
+    envvar='ADDITIONAL_RUNTIME_APT_ENV',
+)
+option_dev_apt_command = click.option(
+    '--dev-apt-command',
+    help='The basic command executed before dev apt deps are installed.',
+    envvar='DEV_APT_COMMAND',
+)
+option_dev_apt_deps = click.option(
+    '--dev-apt-deps',
+    help='The basic apt dev dependencies to use when building the images.',
+    envvar='DEV_APT_DEPS',
+)
+option_runtime_apt_command = click.option(
+    '--runtime-apt-command',
+    help='The basic command executed before runtime apt deps are installed.',
+    envvar='RUNTIME_APT_COMMAND',
+)
+option_runtime_apt_deps = click.option(
+    '--runtime-apt-deps',
+    help='The basic apt runtime dependencies to use when building the images.',
+    envvar='RUNTIME_APT_DEPS',
+)
 
 
 @main.command()
@@ -182,82 +265,25 @@ def shell(
 
 @option_verbose
 @main.command(name='build-ci-image')
-@click.option(
-    '--additional-extras',
-    help='This installs additional extra package while installing airflow in the image.',
-    envvar='ADDITIONAL_AIRFLOW_EXTRAS',
-)
+@option_additional_extras
 @option_python_version
-@click.option(
-    '--additional-dev-apt-deps',
-    help='Additional apt dev dependencies to use when building the images.',
-    envvar='ADDITIONAL_DEV_APT_DEPS',
-)
-@click.option(
-    '--additional-runtime-apt-deps',
-    help='Additional apt runtime dependencies to use when building the images.',
-    envvar='ADDITIONAL_RUNTIME_APT_DEPS',
-)
-@click.option(
-    '--additional-python-deps',
-    help='Additional python dependencies to use when building the images.',
-    envvar='ADDITIONAL_PYTHON_DEPS',
-)
-@click.option(
-    '--additional-dev-apt-command',
-    help='Additional command executed before dev apt deps are installed.',
-    envvar='ADDITIONAL_DEV_APT_COMMAND',
-)
-@click.option(
-    '--additional-runtime-apt-command',
-    help='Additional command executed before runtime apt deps are installed.',
-    envvar='ADDITIONAL_RUNTIME_APT_COMMAND',
-)
-@click.option(
-    '--additional-dev-apt-env',
-    help='Additional environment variables set when adding dev dependencies.',
-    envvar='ADDITIONAL_DEV_APT_ENV',
-)
-@click.option(
-    '--additional-runtime-apt-env',
-    help='Additional environment variables set when adding runtime dependencies.',
-    envvar='ADDITIONAL_RUNTIME_APT_ENV',
-)
-@click.option(
-    '--dev-apt-command',
-    help='The basic command executed before dev apt deps are installed.',
-    envvar='DEV_APT_COMMAND',
-)
-@click.option(
-    '--dev-apt-deps',
-    help='The basic apt dev dependencies to use when building the images.',
-    envvar='DEV_APT_DEPS',
-)
-@click.option(
-    '--runtime-apt-command',
-    help='The basic command executed before runtime apt deps are installed.',
-    envvar='RUNTIME_APT_COMMAND',
-)
-@click.option(
-    '--runtime-apt-deps',
-    help='The basic apt runtime dependencies to use when building the images.',
-    envvar='RUNTIME_APT_DEPS',
-)
-@click.option('--github-repository', help='Choose repository to push/pull image.', envvar='GITHUB_REPOSITORY')
+@option_additional_dev_apt_deps
+@option_additional_runtime_apt_deps
+@option_additional_python_deps
+@option_additional_dev_apt_command
+@option_runtime_apt_command
+@option_additional_dev_apt_env
+@option_additional_runtime_apt_env
+@option_additional_runtime_apt_command
+@option_dev_apt_command
+@option_dev_apt_deps
+@option_runtime_apt_command
+@option_runtime_apt_deps
+@option_github_repository
 @click.option('--build-cache', help='Cache option')
-@click.option('--platform', help='Builds image for the platform specified.', envvar='PLATFORM')
-@click.option(
-    '-d',
-    '--debian-version',
-    help='Debian version used for the image.',
-    type=click.Choice(ALLOWED_DEBIAN_VERSIONS),
-    envvar='DEBIAN_VERSION',
-)
-@click.option(
-    '--upgrade-to-newer-dependencies',
-    help='Upgrades PIP packages to latest versions available without looking at the constraints.',
-    envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
-)
+@option_platform
+@option_debian_version
+@option_upgrade_to_newer_dependencies
 def build_ci_image(
     verbose: bool,
     additional_extras: Optional[str],
@@ -277,7 +303,7 @@ def build_ci_image(
     build_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
-    upgrade_to_newer_dependencies: str,
+    upgrade_to_newer_dependencies: bool,
 ):
     """Builds docker CI image without entering the container."""
 
@@ -306,17 +332,139 @@ def build_ci_image(
         docker_cache=build_cache,
         platform=platform,
         debian_version=debian_version,
-        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        upgrade_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
 
 @option_verbose
 @main.command(name='build-prod-image')
-def build_prod_image(verbose: bool):
+@click.option(
+    '--cleanup-docker-context-files', help='Preserves data volumes when stopping airflow.', is_flag=True
+)
+@click.option('--disable-mysql-client-installation', is_flag=True)
+@click.option('--disable-mssql-client-installation', is_flag=True)
+@click.option('--disable-postgres-client-installation', is_flag=True)
+@click.option('--disable-pip-cache', is_flag=True)
+@click.option('-t', '--install-airflow-reference')
+@click.option('-a', '--install-airflow-version', type=click.Choice(ALLOWED_INSTALL_AIRFLOW_VERSIONS))
+@click.option('-r', '--skip-rebuild-check', is_flag=True)
+@click.option('-L', '--build-cache-local', is_flag=True)
+@click.option('-U', '--build-cache-pulled', is_flag=True)
+@click.option('-X', '--build-cache-disabled', is_flag=True)
+@option_additional_extras
+@option_python_version
+@option_additional_dev_apt_deps
+@option_additional_runtime_apt_deps
+@option_additional_python_deps
+@option_additional_dev_apt_command
+@option_runtime_apt_command
+@option_additional_dev_apt_env
+@option_additional_runtime_apt_env
+@option_additional_runtime_apt_command
+@option_dev_apt_command
+@option_dev_apt_deps
+@option_runtime_apt_command
+@option_runtime_apt_deps
+@option_github_repository
+@option_platform
+@option_debian_version
+@option_upgrade_to_newer_dependencies
+@click.option('--prepare-buildx-cache', is_flag=True)
+@click.option('--skip-installing-airflow-providers-from-sources', is_flag=True)
+@click.option('--disable-pypi-when-building', is_flag=True)
+@click.option('-E', '--extras')
+@click.option('--installation-method', type=click.Choice(ALLOWED_USE_AIRFLOW_VERSIONS))
+@click.option(
+    '--install-from-docker-context-files',
+    help='Install wheels from local docker-context-files when building image',
+    is_flag=True,
+)
+@option_image_tag
+@click.option('--github-token', envvar='GITHUB_TOKEN')
+def build_prod_image(
+    verbose: bool,
+    cleanup_docker_context_files: bool,
+    disable_mysql_client_installation: bool,
+    disable_mssql_client_installation: bool,
+    disable_postgres_client_installation: bool,
+    disable_pip_cache: bool,
+    install_airflow_reference: Optional[str],
+    install_airflow_version: Optional[str],
+    skip_rebuild_check: bool,
+    build_cache_local: bool,
+    build_cache_pulled: bool,
+    build_cache_disabled: bool,
+    additional_extras: Optional[str],
+    python: str,
+    additional_dev_apt_deps: Optional[str],
+    additional_runtime_apt_deps: Optional[str],
+    additional_python_deps: Optional[str],
+    additional_dev_apt_command: Optional[str],
+    additional_runtime_apt_command: Optional[str],
+    additional_dev_apt_env: Optional[str],
+    additional_runtime_apt_env: Optional[str],
+    dev_apt_command: Optional[str],
+    dev_apt_deps: Optional[str],
+    runtime_apt_command: Optional[str],
+    runtime_apt_deps: Optional[str],
+    github_repository: Optional[str],
+    platform: Optional[str],
+    debian_version: Optional[str],
+    upgrade_to_newer_dependencies: bool,
+    prepare_buildx_cache: bool,
+    skip_installing_airflow_providers_from_sources: bool,
+    disable_pypi_when_building: bool,
+    extras: Optional[str],
+    installation_method: Optional[str],
+    install_from_docker_context_files: bool,
+    image_tag: Optional[str],
+    github_token: Optional[str],
+):
     """Builds docker Production image without entering the container."""
     if verbose:
         console.print("\n[blue]Building image[/]\n")
-    raise ClickException("\nPlease implement building the Production image\n")
+    if prepare_buildx_cache:
+        build_cache_pulled = True
+        cleanup_docker_context_files = True
+    build_production_image(
+        verbose,
+        cleanup_docker_context_files=cleanup_docker_context_files,
+        disable_mysql_client_installation=disable_mysql_client_installation,
+        disable_mssql_client_installation=disable_mssql_client_installation,
+        disable_postgres_client_installation=disable_postgres_client_installation,
+        disable_pip_cache=disable_pip_cache,
+        install_airflow_reference=install_airflow_reference,
+        install_airflow_version=install_airflow_version,
+        skip_rebuild_check=skip_rebuild_check,
+        build_cache_local=build_cache_local,
+        build_cache_pulled=build_cache_pulled,
+        build_cache_disabled=build_cache_disabled,
+        additional_extras=additional_extras,
+        python_version=python,
+        additional_dev_apt_deps=additional_dev_apt_deps,
+        additional_runtime_apt_deps=additional_runtime_apt_deps,
+        additional_python_deps=additional_python_deps,
+        additional_runtime_apt_command=additional_runtime_apt_command,
+        additional_dev_apt_command=additional_dev_apt_command,
+        additional_dev_apt_env=additional_dev_apt_env,
+        additional_runtime_apt_env=additional_runtime_apt_env,
+        dev_apt_command=dev_apt_command,
+        dev_apt_deps=dev_apt_deps,
+        runtime_apt_command=runtime_apt_command,
+        runtime_apt_deps=runtime_apt_deps,
+        github_repository=github_repository,
+        platform=platform,
+        debian_version=debian_version,
+        upgrade_newer_dependencies=upgrade_to_newer_dependencies,
+        prepare_buildx_cache=prepare_buildx_cache,
+        skip_installing_airflow_providers_from_sources=skip_installing_airflow_providers_from_sources,
+        disable_pypi_when_building=disable_pypi_when_building,
+        extras=extras,
+        installation_method=installation_method,
+        install_docker_context_files=install_from_docker_context_files,
+        image_tag=image_tag,
+        github_token=github_token,
+    )
 
 
 @option_verbose
