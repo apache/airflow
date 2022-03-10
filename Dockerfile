@@ -468,7 +468,7 @@ COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 # See https://github.com/apache/airflow/issues/9248
 # Set default groups for airflow and root user
 
-RUN chmod a+x /entrypoint /clean-logs \
+RUN chmod a+rx /entrypoint /clean-logs \
     && chmod g=u /etc/passwd \
     && chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" \
     && usermod -g 0 airflow -G 0
