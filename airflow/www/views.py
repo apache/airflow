@@ -1842,7 +1842,7 @@ class Airflow(AirflowBaseView):
         # if run_id is not None, filter dag runs based on run id and ignore execution date
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
         if dr:
-            flash(f"The run_id {run_id} already exists", "error")
+            flash(f"The run_id {dr.run_id} already exists", "error")
             return redirect(origin)
 
         run_conf = {}
