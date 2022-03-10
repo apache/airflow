@@ -87,6 +87,9 @@ class TestDbtCloudRunJobOperator:
             "job_id": JOB_ID,
             "check_interval": 1,
             "timeout": 3,
+            "steps_override": ["dbt run --select my_first_dbt_model"],
+            "schema_override": "another_schema",
+            "additional_run_config": {"threads_override": 8},
         }
 
     @patch.object(DbtCloudHook, "trigger_job_run", return_value=MagicMock(**DEFAULT_ACCOUNT_JOB_RUN_RESPONSE))
@@ -119,6 +122,9 @@ class TestDbtCloudRunJobOperator:
         assert operator.check_interval == self.config["check_interval"]
         assert operator.timeout == self.config["timeout"]
         assert operator.wait_for_termination
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
 
         with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
             mock_get_job_run.return_value.json.return_value = {
@@ -148,7 +154,9 @@ class TestDbtCloudRunJobOperator:
                 account_id=account_id,
                 job_id=JOB_ID,
                 cause=f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
-                additional_run_config={},
+                steps_override=self.config["steps_override"],
+                schema_override=self.config["schema_override"],
+                additional_run_config=self.config["additional_run_config"],
             )
 
             if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
@@ -183,6 +191,9 @@ class TestDbtCloudRunJobOperator:
         assert operator.check_interval == self.config["check_interval"]
         assert operator.timeout == self.config["timeout"]
         assert not operator.wait_for_termination
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
 
         with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
             operator.execute(context=self.mock_context)
@@ -191,7 +202,9 @@ class TestDbtCloudRunJobOperator:
                 account_id=account_id,
                 job_id=JOB_ID,
                 cause=f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
-                additional_run_config={},
+                steps_override=self.config["steps_override"],
+                schema_override=self.config["schema_override"],
+                additional_run_config=self.config["additional_run_config"],
             )
 
             mock_get_job_run.assert_not_called()
@@ -226,7 +239,9 @@ class TestDbtCloudRunJobOperator:
                 account_id=account_id,
                 job_id=JOB_ID,
                 cause=custom_trigger_reason,
-                additional_run_config={},
+                steps_override=self.config["steps_override"],
+                schema_override=self.config["schema_override"],
+                additional_run_config=self.config["additional_run_config"],
             )
 
     @pytest.mark.parametrize(
