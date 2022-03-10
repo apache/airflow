@@ -49,6 +49,7 @@ const Tree = () => {
     if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
       runsContainer.scrollBy(runsContainer.clientWidth, 0);
     }
+    // only run when the tableWidth changes
   }, [tableWidth]);
 
   return (

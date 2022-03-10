@@ -22,7 +22,6 @@
 import React from 'react';
 import { isEqual } from 'lodash';
 import {
-  Flex,
   Box,
   Tooltip,
 } from '@chakra-ui/react';
