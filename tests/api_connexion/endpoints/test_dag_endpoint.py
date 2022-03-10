@@ -1246,3 +1246,14 @@ class TestPatchDags(TestDagEndpoint):
         assert len(dags_not_updated.all()) == 8
         dags_updated = session.query(DagModel).filter(DagModel.is_paused)
         assert len(dags_updated.all()) == 2
+
+    def test_should_respons_400_dag_id_pattern_missing(self):
+        self._create_dag_models(1)
+        response = self.client.patch(
+            "/api/v1/dags?only_active=True",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400

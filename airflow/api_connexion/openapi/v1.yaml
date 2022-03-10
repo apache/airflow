@@ -431,7 +431,7 @@ paths:
       description: >
        Update DAGs of a given dag_id_pattern using UpdateMask.
 
-       This endpoint allows specifying `~` as the dag_id_pattern to retrieve DAG runs for all DAGs.
+       This endpoint allows specifying `~` as the dag_id_pattern to update all DAGs.
 
        *New in version 2.3.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
