@@ -166,9 +166,9 @@ spec:
             exec:
               command:
                   {{- if .Values.scheduler.livenessProbe.command }}
-                  {{ toYaml .Values.scheduler.livenessProbe.command  | indent 16 }}
+                  {{ toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
                   {{- else}}
-                  {{- include "scheduler_liveness_check_command" . | indent 16 }}
+                  {{- include "scheduler_liveness_check_command" . | nindent 16 }}
                   {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
