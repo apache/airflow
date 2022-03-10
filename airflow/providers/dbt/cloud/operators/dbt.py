@@ -72,7 +72,15 @@ class DbtCloudRunJobOperator(BaseOperator):
     :return: The ID of the triggered dbt Cloud job run.
     """
 
-    template_fields = ("dbt_cloud_conn_id", "job_id", "account_id", "trigger_reason")
+    template_fields = (
+        "dbt_cloud_conn_id",
+        "job_id",
+        "account_id",
+        "trigger_reason",
+        "steps_override",
+        "schema_override",
+        "additional_run_config",
+    )
 
     operator_extra_links = (DbtCloudRunJobOperatorLink(),)
 
