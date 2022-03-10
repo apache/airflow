@@ -19,6 +19,7 @@
 """
 Module to update db migration information in Airflow
 """
+import os
 import re
 from pathlib import Path
 from textwrap import wrap
@@ -125,9 +126,29 @@ def update_docs(revisions: Iterable["Script"]):
     )
 
 
-if __name__ == '__main__':
-    ensure_airflow_version(revisions=get_revisions())
+def num_to_prefix(num: int) -> str:
+    return f"00{num}"[-3:] + '_'
 
+
+def ensure_mod_prefix(mod, idx):
+    prefix = num_to_prefix(idx)
+    if re.match(r'\d{3}_[a-z0-9]+.+', mod):
+        mod = mod[4:]
+    return prefix + mod
+
+
+def ensure_filenames_are_sorted(revisions):
+    for idx, rev in enumerate(revisions):
+        mod_path = Path(rev.module.__file__)
+        correct_mod_basename = ensure_mod_prefix(mod_path.name, idx)
+        if mod_path.name != correct_mod_basename:
+            os.rename(mod_path, Path(mod_path.parent, correct_mod_basename))
+
+
+if __name__ == '__main__':
+    revisions = list(get_revisions())
+    ensure_airflow_version(revisions=revisions)
+    ensure_filenames_are_sorted(revisions)
     # if `ensure_airflow_version` modified any migrations, we'll need to reload
     revisions = list(get_revisions())
 
