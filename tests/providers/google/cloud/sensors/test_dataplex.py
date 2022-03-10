@@ -68,7 +68,6 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
             retry=None,
-            timeout=None,
             metadata=(),
         )
 
@@ -100,6 +99,5 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
             retry=None,
-            timeout=None,
             metadata=(),
         )
