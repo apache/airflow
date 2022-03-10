@@ -463,3 +463,7 @@ label[for="timezone-other"],
 .tooltip.d3-tip {
   z-index: 1070;
 }
+
+details summary {
+  display: list-item;
+}
