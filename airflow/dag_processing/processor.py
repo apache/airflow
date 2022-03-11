@@ -49,6 +49,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_c
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DR = models.DagRun
 TI = models.TaskInstance
@@ -377,7 +378,7 @@ class DagFileProcessor(LoggingMixin):
         )
         # get recorded SlaMiss
         recorded_slas_query = set(
-            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).filter(
+            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.run_id).filter(
                 SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
             )
         )
@@ -412,17 +413,17 @@ class DagFileProcessor(LoggingMixin):
             else:
                 while next_info.logical_date < ts:
                     next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
-
+                    next_run_id = DR.generate_run_id(DagRunType.SCHEDULED, next_info.logical_date)
                     if next_info is None:
                         break
-                    if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
+                    if (ti.dag_id, ti.task_id, next_run_id) in recorded_slas_query:
                         break
                     if next_info.logical_date + task.sla < ts:
 
                         sla_miss = SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
-                            execution_date=next_info.logical_date,
+                            run_id=next_run_id,
                             timestamp=ts,
                         )
                         sla_misses.append(sla_miss)
@@ -436,10 +437,10 @@ class DagFileProcessor(LoggingMixin):
             .all()
         )
         if slas:
-            sla_dates: List[datetime.datetime] = [sla.execution_date for sla in slas]
+            run_ids: List[str] = [sla.run_id for sla in slas]
             fetched_tis: List[TI] = (
                 session.query(TI)
-                .filter(TI.state != State.SUCCESS, TI.execution_date.in_(sla_dates), TI.dag_id == dag.dag_id)
+                .filter(TI.state != State.SUCCESS, TI.run_id.in_(run_ids), TI.dag_id == dag.dag_id)
                 .all()
             )
             blocking_tis: List[TI] = []
@@ -451,7 +452,7 @@ class DagFileProcessor(LoggingMixin):
                     session.delete(ti)
                     session.commit()
 
-            task_list = "\n".join(sla.task_id + ' on ' + sla.execution_date.isoformat() for sla in slas)
+            task_list = "\n".join(sla.task_id + ' on ' + sla.run_id for sla in slas)
             blocking_task_list = "\n".join(
                 ti.task_id + ' on ' + ti.execution_date.isoformat() for ti in blocking_tis
             )

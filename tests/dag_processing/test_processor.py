@@ -121,9 +121,10 @@ class TestDagFileProcessor:
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta()},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='success')
+        session.merge(ti)
 
-        session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag_file_processor.manage_slas(dag=dag, session=session)
@@ -150,9 +151,10 @@ class TestDagFileProcessor:
             default_args={'start_date': test_start_date, 'sla': None},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='success')
+        session.merge(ti)
 
-        session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag_file_processor.manage_slas(dag=dag, session=session)
@@ -179,14 +181,15 @@ class TestDagFileProcessor:
         )
 
         # Create a TaskInstance for two days ago
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='success')
+        session.merge(ti)
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(
             SlaMiss(
-                task_id='dummy',
-                dag_id='test_sla_miss',
-                execution_date=test_start_date,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
                 email_sent=False,
                 notification_sent=True,
             )
@@ -256,10 +259,11 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.reset_mock()
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
+        session.merge()
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         mock_log = mock.MagicMock()
@@ -285,13 +289,13 @@ class TestDagFileProcessor:
             email=email1,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
-
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
+        session.merge(ti)
 
         email2 = 'test2@test.com'
         DummyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
 
-        session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
@@ -326,10 +330,11 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.reset_mock()
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
+        session.merge()
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         mock_log = mock.MagicMock()
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
@@ -355,12 +360,11 @@ class TestDagFileProcessor:
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
+        session.merge(ti)
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(
-            SlaMiss(task_id='dummy_deleted', dag_id='test_sla_miss', execution_date=test_start_date)
-        )
+        session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
 
         mock_log = mock.MagicMock()
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
