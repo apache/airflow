@@ -406,6 +406,9 @@ class DockerOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Stopping docker container')
+            if self.container is None:
+                self.log.info('Not attempting to kill container as it was not created')
+                return
             self.cli.stop(self.container['Id'])
 
     def __get_tls_config(self) -> Optional[tls.TLSConfig]:
