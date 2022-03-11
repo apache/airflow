@@ -20,6 +20,7 @@
 /* global stateColors, moment */
 
 import React from 'react';
+import { isEqual } from 'lodash';
 import {
   Flex,
   Box,
@@ -115,7 +116,7 @@ const compareProps = (
   prevProps,
   nextProps,
 ) => (
-  JSON.stringify(prevProps.run) === JSON.stringify(nextProps.run)
+  isEqual(prevProps.run, nextProps.run)
   && prevProps.max === nextProps.max
   && prevProps.index === nextProps.index
   && prevProps.totalRuns === nextProps.totalRuns
