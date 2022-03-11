@@ -422,6 +422,9 @@ function initialization::initialize_image_build_variables() {
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
 
+    SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION:="false"}
+    export SKIP_ENVIRONMENT_INITIALIZATION
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.4"}

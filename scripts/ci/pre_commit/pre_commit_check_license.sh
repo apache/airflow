@@ -38,6 +38,7 @@ function run_check_license() {
     if ! docker_v run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
+            -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
             ghcr.io/apache/airflow-apache-rat:0.13-2021.07.04 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
