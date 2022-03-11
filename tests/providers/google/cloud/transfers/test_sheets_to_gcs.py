@@ -117,6 +117,7 @@ class TestGoogleSheetsToGCSOperator:
         mock_sheet_hook.return_value.get_values.assert_has_calls(calls, any_order=True)
 
         calls = [mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)]
+        print(dir(mock_upload_data))
         mock_upload_data.has_calls(calls)
 
         mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])
