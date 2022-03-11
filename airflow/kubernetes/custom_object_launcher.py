@@ -197,6 +197,7 @@ class CustomObjectLauncher(PodLauncher):
         for item in ['driver', 'executor']:
             # Env List
             body_template['spec'][item]['env'] = kwargs['env']
+            body_template['spec'][item]['envFrom'] = kwargs['env_from']
 
             # Volumes
             body_template['spec'][item]['volumeMounts'] = kwargs['volume_mounts']

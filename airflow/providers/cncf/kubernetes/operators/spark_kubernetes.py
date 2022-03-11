@@ -83,12 +83,14 @@ class SparkKubernetesOperator(BaseOperator):
         resources: dict = None,
         labels: dict = None,
         env_vars: Optional[List[k8s.V1EnvVar]] = None,
+        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
         volumes: Optional[List[k8s.V1Volume]] = None,
         config_map_files: Optional[Dict[str, str]] = None,
-        config_map_env: Optional[List[str]] = None,
+        from_env_config_map: Optional[List[str]] = None,
+        from_env_secret: Optional[List[str]] = None,
         hadoop_config: Optional[dict] = None,
         application_file: Optional[str] = None,
         get_logs: bool = True,
@@ -124,6 +126,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.labels = labels or {}
+        self.env_from = env_from or []
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
         self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
@@ -149,8 +152,10 @@ class SparkKubernetesOperator(BaseOperator):
             vols, vols_mounts = convert_configmap_to_volume(config_map_files)
             self.volumes.extend(vols)
             self.volume_mounts.extend(vols_mounts)
-        # if configmaps:
-        #     self.env_vars.extend([convert_configmap(c) for c in configmaps])
+        if from_env_config_map:
+            self.env_from.extend([convert_configmap(c) for c in from_env_config_map])
+        if from_env_secret:
+            self.env_from.extend([convert_secret(c) for c in from_env_secret])
         self.log_events_on_failure = log_events_on_failure
         self.is_delete_operator_pod = is_delete_operator_pod
         self.in_cluster = in_cluster
@@ -284,6 +289,7 @@ class SparkKubernetesOperator(BaseOperator):
             number_workers=self.number_workers,
             hadoop_config=self.hadoop_config,
             env=self.env_vars,
+            env_from=self.env_from,
             affinity=self.affinity,
             tolerations=self.tolerations,
             volumes=self.volumes,

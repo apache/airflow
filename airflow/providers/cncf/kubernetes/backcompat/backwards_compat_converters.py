@@ -139,6 +139,16 @@ def convert_configmap(configmaps) -> k8s.V1EnvFromSource:
     return k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmaps))
 
 
+def convert_secret(secret) -> k8s.V1EnvFromSource:
+    """
+    Converts a str into an k8s.V1EnvFromSource
+
+    :param secret:
+    :return:
+    """
+    return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret))
+
+
 def convert_configmap_to_volume(configmap_info: Dict[str, str]) -> ([k8s.V1Volume], [k8s.V1VolumeMount]):
     """
     Converts a dictionary of config_map_name and mounth_path into k8s.V1VolumeMount and k8s.V1Volume
