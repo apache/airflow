@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-11T16:14:01Z
+# This constraints file was automatically generated on 2022-03-11T16:28:14Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -132,7 +132,7 @@ coverage==6.3.2
 crcmod==1.7
 cron-descriptor==1.2.24
 croniter==1.3.4
-cryptography==3.4.8
+cryptography==36.0.1
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2022.2.1
@@ -342,7 +342,7 @@ pure-eval==0.2.2
 pure-sasl==0.6.2
 py4j==0.10.9.3
 py==1.11.0
-pyOpenSSL==20.0.1
+pyOpenSSL==21.0.0
 pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
@@ -423,7 +423,7 @@ smbprotocol==1.9.0
 smmap==5.0.0
 sniffio==1.2.0
 snowballstemmer==2.2.0
-snowflake-connector-python==2.7.1
+snowflake-connector-python==2.7.4
 snowflake-sqlalchemy==1.3.3
 sortedcontainers==2.4.0
 soupsieve==2.3.1
