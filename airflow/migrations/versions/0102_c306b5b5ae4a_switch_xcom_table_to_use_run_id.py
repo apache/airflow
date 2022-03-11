@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Switch XCom table to use ``run_id``.
+"""Switch XCom table to use ``run_id`` and add ``map_index``.
 
 Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
@@ -25,7 +25,7 @@ Create Date: 2022-01-19 03:20:35.329037
 from typing import Sequence
 
 from alembic import op
-from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, and_, select
+from sqlalchemy import Column, Integer, LargeBinary, MetaData, Table, and_, literal_column, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.migrations.utils import get_mssql_table_constraints
@@ -50,6 +50,7 @@ def _get_new_xcom_columns() -> Sequence[Column]:
         Column("timestamp", TIMESTAMP, nullable=False),
         Column("dag_id", StringID(), nullable=False),
         Column("run_id", StringID(), nullable=False),
+        Column("map_index", Integer, nullable=False, server_default="-1"),
     ]
 
 
@@ -98,6 +99,7 @@ def upgrade():
             xcom.c.timestamp,
             xcom.c.dag_id,
             dagrun.c.run_id,
+            literal_column("-1"),
         ],
     ).select_from(
         xcom.join(
@@ -118,9 +120,9 @@ def upgrade():
     op.rename_table("__airflow_tmp_xcom", "xcom")
 
     with op.batch_alter_table("xcom") as batch_op:
-        batch_op.create_primary_key("xcom_pkey", ["dag_run_id", "task_id", "key"])
+        batch_op.create_primary_key("xcom_pkey", ["dag_run_id", "task_id", "map_index", "key"])
         batch_op.create_index("idx_xcom_key", ["key"])
-        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "task_id", "run_id"])
+        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "run_id", "task_id", "map_index"])
 
 
 def downgrade():
@@ -132,6 +134,10 @@ def downgrade():
     op.create_table("__airflow_tmp_xcom", *_get_old_xcom_columns())
 
     xcom = Table("xcom", metadata, *_get_new_xcom_columns())
+
+    # Remoe XCom entries from mapped tis.
+    op.execute(xcom.delete().where(xcom.c.map_index != -1))
+
     dagrun = _get_dagrun_table()
     query = select(
         [

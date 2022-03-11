@@ -63,13 +63,22 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
     name = 'BigQuery Console'
 
-    def get_link(self, operator, dttm):
-        job_id = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key='job_id',
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ):
+        if ti_key is not None:
+            job_id = XCom.get_value(key='job_id', ti_key=ti_key)
+        else:
+            assert dttm is not None
+            job_id = XCom.get_one(
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+                key='job_id',
+            )
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 
@@ -90,9 +99,9 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         ti_key: Optional["TaskInstanceKey"] = None,
     ):
         if ti_key:
-            job_ids = XCom.get_one(key='job_id', ti_key=ti_key)
+            job_ids = XCom.get_value(key='job_id', ti_key=ti_key)
         else:
-            assert dttm
+            assert dttm is not None
             job_ids = XCom.get_one(
                 key='job_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
             )
