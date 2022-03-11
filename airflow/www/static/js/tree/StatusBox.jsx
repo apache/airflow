@@ -29,6 +29,9 @@ import {
 import { callModal } from '../dag';
 import InstanceTooltip from './InstanceTooltip';
 
+export const boxSize = 10;
+export const boxSizePx = `${boxSize}px`;
+
 const StatusBox = ({
   group, instance, containerRef, extraLinks = [],
 }) => {
@@ -57,8 +60,8 @@ const StatusBox = ({
       openDelay={400}
     >
       <Box
-        width="10px"
-        height="10px"
+        width={boxSizePx}
+        height={boxSizePx}
         backgroundColor={stateColors[instance.state] || 'white'}
         borderRadius="2px"
         borderWidth={instance.state ? 0 : 1}

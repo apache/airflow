@@ -29,10 +29,14 @@ import {
   Collapse,
 } from '@chakra-ui/react';
 
-import StatusBox from './StatusBox';
+import StatusBox, { boxSize, boxSizePx } from './StatusBox';
 import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
+
+const boxPadding = 3;
+const boxPaddingPx = `${boxPadding}px`;
+const columnWidth = boxSize + 2 * boxPadding;
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -60,7 +64,7 @@ const TaskInstances = ({ task, containerRef, dagRunIds }) => (
       return (
         <Box
           py="4px"
-          px="3px"
+          px={boxPaddingPx}
           className={`js-${runId}`}
           transition="background-color 0.2s"
           key={`${runId}-${task.id}`}
@@ -74,7 +78,7 @@ const TaskInstances = ({ task, containerRef, dagRunIds }) => (
                 group={task}
               />
             )
-            : <Box width="18px" data-testid="blank-task" />}
+            : <Box width={boxSizePx} data-testid="blank-task" />}
         </Box>
       );
     })}
@@ -129,7 +133,7 @@ const Row = (props) => {
           left={0}
           backgroundColor="white"
           borderBottom={0}
-          width={`${tableWidth - (dagRunIds.length * 16)}px`}
+          width={`${tableWidth - (dagRunIds.length * columnWidth)}px`}
           zIndex={1}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
@@ -144,7 +148,14 @@ const Row = (props) => {
           </Collapse>
         </Td>
         <Td width={0} p={0} borderBottom={0} />
-        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0} width={`${dagRunIds.length * 16}px`}>
+        <Td
+          p={0}
+          align="right"
+          _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
+          transition="background-color 0.2s"
+          borderBottom={0}
+          width={`${dagRunIds.length * columnWidth}px`}
+        >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>
