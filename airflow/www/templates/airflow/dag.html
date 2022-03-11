@@ -185,7 +185,7 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.legacy_' + dag.default_view) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
               Zoom into Sub DAG
             </a>
             <hr>
