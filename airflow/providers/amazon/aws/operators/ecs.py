@@ -179,7 +179,7 @@ class EcsOperator(BaseOperator):
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
-    :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
+    :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
         If no capacity_provider_strategy or launch_type is specified,

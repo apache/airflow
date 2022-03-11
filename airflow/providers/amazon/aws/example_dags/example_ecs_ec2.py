@@ -21,7 +21,7 @@ from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsOperator
 
 with DAG(
-    dag_id='example_ecs_fargate',
+    dag_id='example_ecs_ec2',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -33,7 +33,7 @@ with DAG(
         task_id="hello_world",
         cluster=os.environ.get("CLUSTER_NAME", "existing_cluster_name"),
         task_definition=os.environ.get("TASK_DEFINITION", "existing_task_definition_name"),
-        launch_type="FARGATE",
+        launch_type="EXTERNAL|EC2",
         aws_conn_id="aws_ecs",
         overrides={
             "containerOverrides": [
@@ -43,12 +43,6 @@ with DAG(
                 },
             ],
         },
-        network_configuration={
-            "awsvpcConfiguration": {
-                "securityGroups": [os.environ.get("SECURITY_GROUP_ID", "sg-123abc")],
-                "subnets": [os.environ.get("SUBNET_ID", "subnet-123456ab")],
-            },
-        },
         tags={
             "Customer": "X",
             "Project": "Y",
@@ -56,7 +50,10 @@ with DAG(
             "Version": "0.0.1",
             "Environment": "Development",
         },
+        #    [START howto_awslogs_ecs]
         awslogs_group="/ecs/hello-world",
-        awslogs_stream_prefix="prefix_b/hello-world-container",
+        awslogs_region="aws-region",
+        awslogs_stream_prefix="ecs/hello-world-container"
+        #   [END howto_awslogs_ecs]
     )
     # [END howto_operator_ecs]
