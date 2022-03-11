@@ -1186,9 +1186,14 @@ class Airflow(AirflowBaseView):
             "serialized_dag",
             "tags",
             "default_view",
-            "fileloc",
+            "relative_fileloc",
             "dag_id",
             "description",
+            "max_active_runs",
+            "max_active_tasks",
+            "schedule_interval",
+            "owners",
+            "is_paused",
         ]
         attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
         dag_model_attrs: List[Tuple[str, Any]] = [
