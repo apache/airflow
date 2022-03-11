@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Boolean, Column, Index, String, Text
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Index, Integer, Text
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -31,15 +31,32 @@ class SlaMiss(Base):
 
     __tablename__ = "sla_miss"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    task_id = Column(StringID(), primary_key=True)
+    dag_id = Column(StringID(), primary_key=True)
+    run_id = Column(StringID(), primary_key=True)
+    map_index = Column(Integer, primary_key=True, server_default='-1')
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
 
-    __table_args__ = (Index('sm_dag', dag_id, unique=False),)
+    __table_args__ = (
+        Index('sm_dag', dag_id, unique=False),
+        ForeignKeyConstraint(
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name='sla_miss_ti_fkey',
+            ondelete="CASCADE",
+        ),
+    )
 
     def __repr__(self):
-        return str((self.dag_id, self.task_id, self.execution_date.isoformat()))
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + '>'

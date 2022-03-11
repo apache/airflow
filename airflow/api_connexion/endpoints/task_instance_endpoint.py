@@ -18,7 +18,7 @@ from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
@@ -38,7 +38,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.types import APIResponse
-from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
@@ -68,15 +67,7 @@ def get_task_instance(
         session.query(TI)
         .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
-        .outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.execution_date == DR.execution_date,
-                SlaMiss.task_id == TI.task_id,
-            ),
-        )
-        .add_entity(SlaMiss)
+        .options(joinedload(TI.sla_miss))
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
@@ -119,15 +110,7 @@ def get_mapped_task_instance(
             TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index
         )
         .join(TI.dag_run)
-        .outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.execution_date == DR.execution_date,
-                SlaMiss.task_id == TI.task_id,
-            ),
-        )
-        .add_entity(SlaMiss)
+        .options(joinedload(TI.sla_miss))
         .options(joinedload(TI.rendered_task_instance_fields))
     )
     task_instance = query.one_or_none()
@@ -223,20 +206,10 @@ def get_task_instances(
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
     # Add join
-    query = (
-        base_query.join(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.task_id == TI.task_id,
-                SlaMiss.execution_date == DR.execution_date,
-            ),
-            isouter=True,
-        )
-        .add_entity(SlaMiss)
-        .options(joinedload(TI.rendered_task_instance_fields))
+    ti_query = base_query.options(joinedload(TI.sla_miss)).options(
+        joinedload(TI.rendered_task_instance_fields)
     )
-    task_instances = query.offset(offset).limit(limit).all()
+    task_instances = ti_query.offset(offset).limit(limit).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -284,16 +257,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
     # Add join
-    base_query = base_query.join(
-        SlaMiss,
-        and_(
-            SlaMiss.dag_id == TI.dag_id,
-            SlaMiss.task_id == TI.task_id,
-            SlaMiss.execution_date == DR.execution_date,
-        ),
-        isouter=True,
-    ).add_entity(SlaMiss)
-    ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
+    ti_query = base_query.options(joinedload(TI.sla_miss)).options(
+        joinedload(TI.rendered_task_instance_fields)
+    )
     task_instances = ti_query.all()
 
     return task_instance_collection_schema.dump(
