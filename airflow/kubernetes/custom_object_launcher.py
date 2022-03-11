@@ -201,7 +201,7 @@ class CustomObjectLauncher(PodLauncher):
             body_template['spec'][item]['env'] = kwargs['env']
 
             # Volumes
-            body_template['spec'][item]['volumeMounts'] = kwargs['volumeMounts']
+            body_template['spec'][item]['volumeMounts'] = kwargs['volume_mounts']
 
             # Add affinity
             body_template['spec'][item]['affinity'] = kwargs['affinity']
