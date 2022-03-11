@@ -313,7 +313,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
             response = self.client.get(
-                f"/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/{map_index}",
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                + f"/print_the_context/{map_index}",
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
