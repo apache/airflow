@@ -31,5 +31,3 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../tmp:/tmp:cached
       - ../../../:/opt/airflow:cached
-    ports:
-      - "${WEBSERVER_HOST_PORT}:8080"

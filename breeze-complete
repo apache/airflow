@@ -39,7 +39,7 @@ _breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor Celer
 _breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
-_breeze_allowed_platforms="linux/amd64"
+_breeze_allowed_platforms="linux/amd64 linux/arm64 linux/amd64,linux/arm64"
 
 # shellcheck disable=SC2034
 {

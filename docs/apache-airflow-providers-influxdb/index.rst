@@ -76,7 +76,7 @@ Package apache-airflow-providers-influxdb
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 1.1.0
+Release: 1.1.1
 
 Provider package
 ----------------
@@ -97,7 +97,7 @@ PIP requirements
 PIP package          Version required
 ===================  ==================
 ``influxdb-client``  ``>=1.19.0``
-``pandas``           ``>=0.17.1, <2.0``
+``pandas``           ``>=0.17.1, <1.4``
 ===================  ==================
 
 .. include:: ../../airflow/providers/influxdb/CHANGELOG.rst

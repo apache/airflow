@@ -22,6 +22,23 @@ fi
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
+# This one is to workaround https://github.com/apache/airflow/issues/17546
+# issue with /usr/lib/<MACHINE>-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
+# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
+# by users of the prod image, we implement the workaround now.
+# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
+# binary started and a little memory used for Heap allocated by initialization of libstdc++
+# This overhead is not happening for binaries that already link dynamically libstdc++
+LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
+export LD_PRELOAD
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    if [[ ${BACKEND} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
+        exit 1
+    fi
+fi
+
 # Add "other" and "group" write permission to the tmp folder
 # Note that it will also change permissions in the /tmp folder on the host
 # but this is necessary to enable some of our CLI tools to work without errors
@@ -157,24 +174,26 @@ mkdir -p /usr/lib/google-cloud-sdk/bin
 touch /usr/lib/google-cloud-sdk/bin/gcloud
 ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
-# Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
-    >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
+    # Set up ssh keys
+    echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
+        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-chmod 600 ~/.ssh/*
+    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+    ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+    chmod 600 ~/.ssh/*
 
-# SSH Service
-sudo service ssh restart >/dev/null 2>&1
+    # SSH Service
+    sudo service ssh restart >/dev/null 2>&1
 
-# Sometimes the server is not quick enough to load the keys!
-while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
-    echo "Not all keys yet loaded by the server"
-    sleep 0.05
-done
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
 
-ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+fi
 
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
@@ -283,11 +302,12 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("chart/tests")
+    HELM_CHART_TESTS=("tests/charts")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
+        "${HELM_CHART_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"

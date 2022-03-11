@@ -85,7 +85,14 @@ function initialization::create_directories() {
 function initialization::initialize_base_variables() {
     # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export PLATFORM=${PLATFORM:="linux/amd64"}
+    local machine
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        machine="arm64"
+    else
+        machine="amd64"
+    fi
+
+    export PLATFORM=${PLATFORM:="linux/${machine}"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
@@ -412,9 +419,12 @@ function initialization::initialize_image_build_variables() {
     SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
     export SKIP_TWINE_CHECK
 
+    SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
+    export SKIP_SSH_SETUP
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.3"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.4"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds

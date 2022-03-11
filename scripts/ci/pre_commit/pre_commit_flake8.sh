@@ -25,14 +25,10 @@ export PRINT_INFO_FROM_SCRIPTS="false"
 function run_flake8() {
     if [[ "${#@}" == "0" ]]; then
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_flake8.sh"
+            "${AIRFLOW_CI_IMAGE}" "/opt/airflow/scripts/in_container/run_flake8.sh"
     else
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_flake8.sh" "${@}"
+            "${AIRFLOW_CI_IMAGE}" "/opt/airflow/scripts/in_container/run_flake8.sh" "${@}"
     fi
 }
 

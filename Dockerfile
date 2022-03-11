@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.2.4"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.0.3
+ARG AIRFLOW_PIP_VERSION=22.0.4
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -68,7 +68,6 @@ FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG PYTHON_BASE_IMAGE
-
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
@@ -469,7 +468,7 @@ COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 # See https://github.com/apache/airflow/issues/9248
 # Set default groups for airflow and root user
 
-RUN chmod a+x /entrypoint /clean-logs \
+RUN chmod a+rx /entrypoint /clean-logs \
     && chmod g=u /etc/passwd \
     && chmod g+w "${AIRFLOW_USER_HOME_DIR}/.local" \
     && usermod -g 0 airflow -G 0
@@ -483,16 +482,8 @@ ARG AIRFLOW_VERSION
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
 # Also set airflow as nice PROMPT message.
-# LD_PRELOAD is to workaround https://github.com/apache/airflow/issues/17546
-# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
-# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
-# by users of the prod image, we implement the workaround now.
-# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
-# binary started and a little memory used for Heap allocated by initialization of libstdc++
-# This overhead is not happening for binaries that already link dynamically libstdc++
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
-    LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PIP_USER="true"

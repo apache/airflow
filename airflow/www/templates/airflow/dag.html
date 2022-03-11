@@ -172,7 +172,7 @@
     </div>
   </div>
   {{ dag_docs(doc_md) }}
-  <!-- Modal -->
+  <!-- Modal for Task Instance -->
   <div class="modal fade" id="taskInstanceModal" tabindex="-1" role="dialog" aria-labelledby="taskInstanceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -375,7 +375,7 @@
       </div>
     </div>
   </div>
-  <!-- Modal for dag -->
+  <!-- Modal for DAG run -->
   <div class="modal fade" id="dagModal" tabindex="-1" role="dialog" aria-labelledby="dagModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -383,6 +383,8 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <h4 class="modal-title" id="dagModalLabel">
             <span class="text-muted">{{ 'SUBDAG' if dag.parent_dag is defined and dag.parent_dag else 'DAG' }}:</span> {{dag.dag_id}}
+            <br>
+            <span class="text-muted">Run Id:</span> <span id="run_id"></span>
           </h4>
         </div>
         <div class="modal-body">
@@ -393,15 +395,30 @@
                 <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
                 <input type="hidden" name="dag_run_id">
                 <input type="hidden" name="origin" value="{{ request.base_url }}">
-                <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
-                  Clear
-                </button>
-                <button type="button" id="btn_dagrun_failed" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
-                  Mark Failed
-                </button>
-                <button type="button" id="btn_dagrun_success" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
-                  Mark Success
-                </button>
+                <div>
+                  <h5>Update State</h5>
+                  <button type="button" id="btn_dagrun_failed" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
+                    Mark Failed
+                  </button>
+                  <button type="button" id="btn_dagrun_success" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
+                    Mark Success
+                  </button>
+                </div>
+                <div>
+                  <h5>Re-run</h5>
+                  <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
+                    Clear existing tasks
+                  </button>
+                  <button
+                    type="button"
+                    id="btn_dagrun_queued"
+                    class="btn btn-primary"
+                    data-action="{{ url_for('Airflow.dagrun_queued') }}"
+                    title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
+                  >
+                    Queue up new tasks
+                  </button>
+                </div>
               </form>
             </span>
             <span class="col-md-4 text-right">

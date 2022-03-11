@@ -192,7 +192,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
     # Please at the examples to those operators at the earliest convenience :)
     MISSING_EXAMPLES_FOR_OPERATORS = {
-        'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator',
         'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',

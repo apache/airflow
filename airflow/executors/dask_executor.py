@@ -96,7 +96,7 @@ class DaskExecutor(BaseExecutor):
                 raise AirflowException(f"Attempted to submit task to an unavailable queue: '{queue}'")
             resources = {queue: 1}
 
-        future = self.client.submit(airflow_run, pure=False, resources=resources)
+        future = self.client.submit(subprocess.check_call, command, pure=False, resources=resources)
         self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:

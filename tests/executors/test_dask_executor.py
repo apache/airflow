@@ -49,7 +49,7 @@ FAIL_COMMAND = ['airflow', 'tasks', 'run', 'false']
 
 # For now we are temporarily removing Dask support until we get Dask Team help us in making the
 # tests pass again
-skip_dask_tests = True
+skip_dask_tests = False
 
 
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
@@ -121,9 +121,9 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     @conf_vars(
         {
-            ('dask', 'tls_ca'): get_cert('tls-ca-cert.pem'),
-            ('dask', 'tls_cert'): get_cert('tls-key-cert.pem'),
-            ('dask', 'tls_key'): get_cert('tls-key.pem'),
+            ('dask', 'tls_ca'): 'certs/tls-ca-cert.pem',
+            ('dask', 'tls_cert'): 'certs/tls-key-cert.pem',
+            ('dask', 'tls_key'): 'certs/tls-key.pem',
         }
     )
     def test_tls(self):

@@ -18,6 +18,33 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Add optional features in providers. (#21074)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix mypy errors in asana example dags (#20593)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix mypy providers (#20190)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Remove all "fake" stub files (#20936)``
+   * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+
 1.1.0
 .....
 

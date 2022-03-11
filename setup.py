@@ -275,7 +275,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
-    'sphinx-jinja>=1.1',
+    'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
@@ -353,6 +353,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'httpx',
     'json-merge-patch>=0.2',
+    'looker-sdk>=22.2.0',
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
@@ -419,7 +420,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
-leveldb = ['plyvel']
+leveldb = ['plyvel; platform_machine != "aarch64"']
 mongo = [
     'dnspython>=1.13.0',
     # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
@@ -427,11 +428,11 @@ mongo = [
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
-    'pymssql>=2.1.5',
+    'pymssql>=2.1.5; platform_machine != "aarch64"',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11',
-    'mysqlclient>=1.3.6',
+    'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+    'mysqlclient>=1.3.6; platform_machine != "aarch64"',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -616,7 +617,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.0.3',
+    'moto>=3.0.7',
     'parameterized',
     'paramiko',
     'pipdeptree',

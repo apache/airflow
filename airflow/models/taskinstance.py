@@ -424,6 +424,7 @@ class TaskInstance(Base, LoggingMixin):
     )
 
     dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
+    rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy='noload', uselist=False)
 
     execution_date = association_proxy("dag_run", "execution_date")
 
@@ -1331,7 +1332,7 @@ class TaskInstance(Base, LoggingMixin):
             if not mark_success:
                 self.task = self.task.prepare_for_execution()
                 context = self.get_template_context(ignore_param_exceptions=False)
-                self._execute_task_with_callbacks(context)
+                self._execute_task_with_callbacks(context, test_mode)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SUCCESS
@@ -1405,7 +1406,7 @@ class TaskInstance(Base, LoggingMixin):
 
             session.commit()
 
-    def _execute_task_with_callbacks(self, context):
+    def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -1434,8 +1435,10 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context['params']
 
             self.render_templates(context=context)
-            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
-            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+            if not test_mode:
+                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
+                RenderedTaskInstanceFields.write(rtif)
+                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
@@ -2394,24 +2397,89 @@ class SimpleTaskInstance:
     Used to send data between processes via Queues.
     """
 
-    def __init__(self, ti: TaskInstance):
-        self._dag_id: str = ti.dag_id
-        self._task_id: str = ti.task_id
-        self._run_id: str = ti.run_id
-        self._start_date: datetime = ti.start_date
-        self._end_date: datetime = ti.end_date
-        self._try_number: int = ti.try_number
-        self._state: str = ti.state
-        self._executor_config: Any = ti.executor_config
+    def __init__(
+        self,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        start_date: datetime,
+        end_date: datetime,
+        try_number: int,
+        state: str,
+        executor_config: Any,
+        pool: str,
+        queue: str,
+        key: TaskInstanceKey,
+        run_as_user: Optional[str] = None,
+        priority_weight: Optional[int] = None,
+    ):
+        self._dag_id: str = dag_id
+        self._task_id: str = task_id
+        self._run_id: str = run_id
+        self._start_date: datetime = start_date
+        self._end_date: datetime = end_date
+        self._try_number: int = try_number
+        self._state: str = state
+        self._executor_config: Any = executor_config
         self._run_as_user: Optional[str] = None
-        if hasattr(ti, 'run_as_user'):
-            self._run_as_user = ti.run_as_user
-        self._pool: str = ti.pool
+        self._run_as_user = run_as_user
+        self._pool: str = pool
         self._priority_weight: Optional[int] = None
-        if hasattr(ti, 'priority_weight'):
-            self._priority_weight = ti.priority_weight
-        self._queue: str = ti.queue
-        self._key = ti.key
+        self._priority_weight = priority_weight
+        self._queue: str = queue
+        self._key = key
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return NotImplemented
+
+    @classmethod
+    def from_ti(cls, ti: TaskInstance):
+        return cls(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            start_date=ti.start_date,
+            end_date=ti.end_date,
+            try_number=ti.try_number,
+            state=ti.state,
+            executor_config=ti.executor_config,
+            pool=ti.pool,
+            queue=ti.queue,
+            key=ti.key,
+            run_as_user=ti.run_as_user if hasattr(ti, 'run_as_user') else None,
+            priority_weight=ti.priority_weight if hasattr(ti, 'priority_weight') else None,
+        )
+
+    @classmethod
+    def from_dict(cls, obj_dict: dict):
+        ti_key = obj_dict.get('_key', [])
+        start_date: Union[Any, datetime] = (
+            datetime.fromisoformat(str(obj_dict.get('_start_date')))
+            if obj_dict.get('_start_date') is not None
+            else None
+        )
+        end_date: Union[Any, datetime] = (
+            datetime.fromisoformat(str(obj_dict.get('_end_date')))
+            if obj_dict.get('_end_date') is not None
+            else None
+        )
+        return cls(
+            dag_id=str(obj_dict['_dag_id']),
+            task_id=str(obj_dict.get('_task_id')),
+            run_id=str(obj_dict.get('_run_id')),
+            start_date=start_date,
+            end_date=end_date,
+            try_number=obj_dict.get('_try_number', 1),
+            state=str(obj_dict.get('_state')),
+            executor_config=obj_dict.get('_executor_config'),
+            run_as_user=obj_dict.get('_run_as_user', None),
+            pool=str(obj_dict.get('_pool')),
+            priority_weight=obj_dict.get('_priority_weight', None),
+            queue=str(obj_dict.get('_queue')),
+            key=TaskInstanceKey(ti_key[0], ti_key[1], ti_key[2], ti_key[3], ti_key[4]),
+        )
 
     @property
     def dag_id(self) -> str:

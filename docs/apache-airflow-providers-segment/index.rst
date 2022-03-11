@@ -51,7 +51,7 @@ Package apache-airflow-providers-segment
 `Segment <https://segment.com/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------

@@ -92,7 +92,7 @@ class MockNamedTuple(NamedTuple):
 
 
 class TestBaseOperator:
-    def test_apply(self):
+    def test_expand(self):
         dummy = DummyClass(test_param=True)
         assert dummy.test_param
 
@@ -703,7 +703,7 @@ def test_task_mapping_with_dag():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
         finish = MockOperator(task_id="finish")
 
         task1 >> mapped >> finish
@@ -722,7 +722,7 @@ def test_task_mapping_without_dag_context():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ['a', 'b', 'c']
-    mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+    mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
 
     task1 >> mapped
 
@@ -739,7 +739,7 @@ def test_task_mapping_default_args():
     with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
 
         task1 >> mapped
 
@@ -749,14 +749,14 @@ def test_task_mapping_default_args():
 
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id='a').apply(file=[1, 2, {'a': 'b'}])
+        BaseOperator.partial(task_id='a').expand(file=[1, 2, {'a': 'b'}])
 
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -814,7 +814,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 
@@ -858,7 +858,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 

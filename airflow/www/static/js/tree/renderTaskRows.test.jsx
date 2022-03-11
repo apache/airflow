@@ -23,6 +23,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment';
+import { QueryClient, QueryClientProvider } from 'react-query';
 
 import renderTaskRows from './renderTaskRows';
 
@@ -96,21 +97,32 @@ const mockTreeData = {
   ],
 };
 
+const Wrapper = ({ children }) => {
+  const queryClient = new QueryClient();
+  return (
+    <React.StrictMode>
+      <ChakraProvider>
+        <QueryClientProvider client={queryClient}>
+          <Table>
+            <Tbody>
+              {children}
+            </Tbody>
+          </Table>
+        </QueryClientProvider>
+      </ChakraProvider>
+    </React.StrictMode>
+  );
+};
+
 describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
     global.treeData = mockTreeData;
     const containerRef = {};
+    const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
 
     const { getByTestId, getByText, getAllByTestId } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <>{renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds })}</>,
+      { wrapper: Wrapper },
     );
 
     const groupName = getByText('group_1');
@@ -152,15 +164,10 @@ describe('Test renderTaskRows', () => {
     const containerRef = {};
 
     const { queryByTestId, getByText } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <>
+        {renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds: [] })}
+      </>,
+      { wrapper: Wrapper },
     );
 
     expect(getByText('group_1')).toBeInTheDocument();

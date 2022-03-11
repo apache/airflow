@@ -584,7 +584,7 @@ class AwsBaseHook(BaseHook):
                 min_limit = retry_args.get('min', 1)
                 max_limit = retry_args.get('max', 1)
                 stop_after_delay = retry_args.get('stop_after_delay', 10)
-                tenacity_logger = tenacity.before_log(self.log, logging.DEBUG) if self.log else None
+                tenacity_logger = tenacity.before_log(self.log, logging.INFO) if self.log else None
                 default_kwargs = {
                     'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
                     'retry': tenacity.retry_if_exception(should_retry),

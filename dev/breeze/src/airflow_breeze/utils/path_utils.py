@@ -75,5 +75,5 @@ def create_directories():
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
     # add trap to this cache_tmp_file_dir
-    OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR, 'out.log')
+    OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)

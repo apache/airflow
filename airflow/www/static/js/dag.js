@@ -225,6 +225,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
 export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
+  $('#run_id').text(dag.run_id);
   executionDate = dag.execution_date;
   dagRunId = dag.run_id;
   updateButtonUrl(buttons.dag_graph_view, {
