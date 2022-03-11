@@ -67,12 +67,12 @@ class TaskInstanceSchema(SQLAlchemySchema):
             # Object is a tuple of task_instance and slamiss
             # and the get_value expects a dict with key, value
             # corresponding to the attr.
-            slamiss_instance = {"sla_miss": obj[1]}
-            return get_value(slamiss_instance, attr, default)
+            sla_miss_instance = {"sla_miss": obj.sla_miss}
+            return get_value(sla_miss_instance, attr, default)
         elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-        # breakpoint()
-        return get_value(obj[0], attr, default)
+            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+
+        return get_value(obj, attr, default)
 
 
 class TaskInstanceCollection(NamedTuple):

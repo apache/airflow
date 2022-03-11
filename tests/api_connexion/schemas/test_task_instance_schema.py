@@ -66,7 +66,7 @@ class TestTaskInstanceSchema:
         ti = TI(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        serialized_ti = task_instance_schema.dump((ti, None, None))
+        serialized_ti = task_instance_schema.dump(ti)
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -95,18 +95,19 @@ class TestTaskInstanceSchema:
         assert serialized_ti == expected_json
 
     def test_task_instance_schema_with_sla_and_rendered(self, session):
+        ti = TI(task=self.task, **self.default_ti_init)
+        for key, value in self.default_ti_extras.items():
+            setattr(ti, key, value)
         sla_miss = SlaMiss(
             task_id="TEST_TASK_ID",
             dag_id="TEST_DAG_ID",
             run_id="TEST_RUN_ID",
         )
-        ti = TI(task=self.task, **self.default_ti_init)
-        for key, value in self.default_ti_extras.items():
-            setattr(ti, key, value)
+        ti.sla_miss = sla_miss
         self.task.template_fields = ["partitions"]
         setattr(self.task, "partitions", "data/ds=2022-02-17")
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-        serialized_ti = task_instance_schema.dump((ti, sla_miss))
+        serialized_ti = task_instance_schema.dump(ti)
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,

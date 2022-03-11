@@ -243,13 +243,15 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
         tis = self.create_task_instances(session)
         session.query()
-        # sla_miss = SlaMiss(
-        #     task_id="print_the_context",
-        #     dag_id="example_python_operator",
-        #     execution_date=self.default_time,
-        #     timestamp=self.default_time,
-        # )
-        # session.add(sla_miss)
+        ti = [t for t in tis if t.task_id == 'print_the_context'][0]
+        sla_miss = SlaMiss(
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            timestamp=self.default_time,
+        )
+        session.add(sla_miss)
         rendered_fields = RTIF(tis[0], render_templates=False)
         session.add(rendered_fields)
         session.commit()
@@ -279,7 +281,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "description": None,
                 "email_sent": False,
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "run_id": "TEST_DAG_RUN_ID",
+                "map_index": -1,
                 "notification_sent": False,
                 "task_id": "print_the_context",
                 "timestamp": "2020-01-01T00:00:00+00:00",
