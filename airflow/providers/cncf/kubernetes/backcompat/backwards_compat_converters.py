@@ -16,7 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 
-from typing import List
+from typing import List, Dict
 
 from kubernetes.client import ApiClient, models as k8s
 
@@ -137,6 +137,27 @@ def convert_configmap(configmaps) -> k8s.V1EnvFromSource:
     :return:
     """
     return k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmaps))
+
+
+def convert_configmap_to_volume(configmap_info: Dict[str, str]) -> ([k8s.V1Volume], [k8s.V1VolumeMount]):
+    """
+    Converts a dictionary of config_map_name and mounth_path into k8s.V1VolumeMount and k8s.V1Volume
+
+    :param configmap_info: a dictionary of {config_map_name: mount_path}
+    :return:
+    """
+    volume_mounts = []
+    volumes = []
+    for config_name, mount_path in configmap_info.items():
+        volume_mounts.append(k8s.V1VolumeMount(
+            mount_path=mount_path, name=config_name, read_only=True)
+        )
+        volumes.append(k8s.V1Volume(
+            name=config_name,
+            config_map=k8s.V1ConfigMapVolumeSource(name=config_name),
+        ))
+
+    return volumes, volume_mounts
 
 
 def convert_affinity(affinity) -> k8s.V1Affinity:

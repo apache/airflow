@@ -87,6 +87,8 @@ class SparkKubernetesOperator(BaseOperator):
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
         volumes: Optional[List[k8s.V1Volume]] = None,
+        config_map_files: Optional[Dict[str, str]] = None,
+        config_map_env: Optional[List[str]] = None,
         hadoop_config: Optional[dict] = None,
         application_file: Optional[str] = None,
         get_logs: bool = True,
@@ -133,7 +135,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.delete_on_termination = delete_on_termination
         self.application_file = application_file
         self.do_xcom_push = do_xcom_push
-        self.name = PodGenerator.make_unique_pod_id(self.name)[:MAX_LABEL_LEN]
+        self.name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.namespace = namespace
@@ -143,6 +145,12 @@ class SparkKubernetesOperator(BaseOperator):
         self.api_kind = api_kind
         self.api_plural = api_plural
         self.code_path = code_path
+        if config_map_files:
+            vols, vols_mounts = convert_configmap_to_volume(config_map_files)
+            self.volumes.extend(vols)
+            self.volume_mounts.extend(vols_mounts)
+        # if configmaps:
+        #     self.env_vars.extend([convert_configmap(c) for c in configmaps])
         self.log_events_on_failure = log_events_on_failure
         self.is_delete_operator_pod = is_delete_operator_pod
         self.in_cluster = in_cluster

@@ -11,8 +11,6 @@ from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
 
-from operators.utils import get_volume_spec
-
 
 def should_retry_start_spark_job(exception: Exception):
     """Check if an Exception indicates a transient error and warrants retrying"""
