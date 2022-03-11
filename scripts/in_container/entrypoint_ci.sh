@@ -63,12 +63,6 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
 
-if [[ ${AIRFLOW_VERSION} == *1.10* || ${USE_AIRFLOW_VERSION} == *1.10* ]]; then
-    export RUN_AIRFLOW_1_10="true"
-else
-    export RUN_AIRFLOW_1_10="false"
-fi
-
 if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
     export PYTHONPATH=${AIRFLOW_SOURCES}
     echo
@@ -143,8 +137,6 @@ if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         pip install "${installable_files[@]}" --no-deps
     fi
 fi
-
-export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
