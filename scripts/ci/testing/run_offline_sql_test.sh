@@ -23,5 +23,7 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed_with_group
 testing::get_docker_compose_local
-testing::setup_docker_compose_backend "downgrade"
-testing::run_command_in_docker "downgrade" "airflow db downgrade -r e959f08ac86c -y"
+testing::setup_docker_compose_backend "offline-sql-test"
+# We test from 2.2.0 because we can't run offline test for MSSQL for airflow versions below 2.2.0
+testing::run_command_in_docker "offline-sql-test" "airflow db upgrade -r 2.2.0:2.2.4 \
+    && airflow db downgrade --version 2.2.0 --sql-only -y"
