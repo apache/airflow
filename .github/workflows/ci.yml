@@ -1366,7 +1366,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   push-buildx-cache-to-github-registry:
     permissions:
       packages: write
-    timeout-minutes: 40
+    timeout-minutes: 120
     name: "Push images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
@@ -1383,6 +1383,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      # Build cache for both platforms for development even if we are releasing
+      # PROD images only for amd64
+      PLATFORM: "linux/amd64,linux/arm64"
       # Rebuild images before push using the latest constraints (just pushed) without
       # eager upgrade. Do not wait for images, but rebuild them
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"

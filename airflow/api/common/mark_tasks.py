@@ -24,7 +24,6 @@ from sqlalchemy import or_
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.session import Session as SASession
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import Operator
@@ -371,7 +370,7 @@ def set_dag_run_state_to_success(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date and its task instances
     to success.
@@ -418,7 +417,7 @@ def set_dag_run_state_to_failed(
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date or run_id and its running task instances
     to failed.
@@ -472,15 +471,15 @@ def set_dag_run_state_to_failed(
     return set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
 
 
-@provide_session
-def set_dag_run_state_to_running(
+def __set_dag_run_state_to_running_or_queued(
     *,
+    new_state: DagRunState,
     dag: DAG,
     execution_date: Optional[datetime] = None,
     run_id: Optional[str] = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-):
+) -> List[TaskInstance]:
     """
     Set the dag run for a specific execution date to running.
 
@@ -492,7 +491,7 @@ def set_dag_run_state_to_running(
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
     """
-    res: List[BaseOperator] = []
+    res: List[TaskInstance] = []
 
     if not (execution_date is None) ^ (run_id is None):
         return res
@@ -512,7 +511,45 @@ def set_dag_run_state_to_running(
         raise ValueError(f'DagRun with run_id: {run_id} not found')
     # Mark the dag run to running.
     if commit:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.RUNNING, session)
+        _set_dag_run_state(dag.dag_id, run_id, new_state, session)
 
     # To keep the return type consistent with the other similar functions.
     return res
+
+
+@provide_session
+def set_dag_run_state_to_running(
+    *,
+    dag: DAG,
+    execution_date: Optional[datetime] = None,
+    run_id: Optional[str] = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> List[TaskInstance]:
+    return __set_dag_run_state_to_running_or_queued(
+        new_state=DagRunState.RUNNING,
+        dag=dag,
+        execution_date=execution_date,
+        run_id=run_id,
+        commit=commit,
+        session=session,
+    )
+
+
+@provide_session
+def set_dag_run_state_to_queued(
+    *,
+    dag: DAG,
+    execution_date: Optional[datetime] = None,
+    run_id: Optional[str] = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> List[TaskInstance]:
+    return __set_dag_run_state_to_running_or_queued(
+        new_state=DagRunState.QUEUED,
+        dag=dag,
+        execution_date=execution_date,
+        run_id=run_id,
+        commit=commit,
+        session=session,
+    )

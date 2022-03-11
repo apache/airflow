@@ -138,8 +138,9 @@ ARG RUNTIME_APT_DEPS="\
 ARG HELM_VERSION="v3.6.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
-    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
-    && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
+    && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
+    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-${PLATFORM}.tar.gz" \
+    && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
 
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""
@@ -369,15 +370,6 @@ ENV PATH="/files/bin/:/opt/airflow/scripts/in_container/bin/:${PATH}" \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/" \
     BUILD_ID=${BUILD_ID} \
     COMMIT_SHA=${COMMIT_SHA}
-
-# This one is to workaround https://github.com/apache/airflow/issues/17546
-# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
-# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
-# by users of the prod image, we implement the workaround now.
-# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
-# binary started and a little memory used for Heap allocated by initialization of libstdc++
-# This overhead is not happening for binaries that already link dynamically libstdc++
-ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init

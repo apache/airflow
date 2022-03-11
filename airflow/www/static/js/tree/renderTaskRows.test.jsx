@@ -127,13 +127,15 @@ describe('Test renderTaskRows', () => {
 
     const groupName = getByText('group_1');
 
-    expect(getAllByTestId('task-instance')).toHaveLength(2);
+    expect(getAllByTestId('task-instance')).toHaveLength(1);
     expect(groupName).toBeInTheDocument();
     expect(getByTestId('closed-group')).toBeInTheDocument();
 
     fireEvent.click(groupName);
 
     expect(getByTestId('open-group')).toBeInTheDocument();
+    // task instances are only rendered when their group is expanded
+    expect(getAllByTestId('task-instance')).toHaveLength(2);
   });
 
   test('Still renders names if there are no instances', () => {

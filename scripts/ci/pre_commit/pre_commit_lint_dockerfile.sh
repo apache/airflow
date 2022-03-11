@@ -52,4 +52,9 @@ function run_docker_lint() {
     fi
 }
 
-run_docker_lint "$@"
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    # See https://github.com/hadolint/hadolint/issues/411
+    echo "Skip Hadolint check on ARM devices as they do not provide multiplatform images"
+else
+    run_docker_lint "$@"
+fi

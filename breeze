@@ -3389,7 +3389,6 @@ function breeze::run_build_command() {
             build_images::prepare_prod_build
             build_images::build_prod_images
         else
-
             build_images::prepare_ci_build
             build_images::rebuild_ci_image_if_needed
         fi
@@ -3500,6 +3499,12 @@ function breeze::run_breeze_command() {
     case "${command_to_run}" in
     enter_breeze)
         docker_engine_resources::check_all_resources
+        if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+            if [[ ${BACKEND} == "mysql" || ${BACKEND} == "mssql" ]]; then
+                echo "${COLOR_RED}MacOS with ARM processor is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
+                exit 1
+            fi
+        fi
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             echo "${COLOR_RED}ERROR: Entering production image via breeze is not supported${COLOR_RESET}"
             echo

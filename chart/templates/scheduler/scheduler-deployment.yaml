@@ -165,9 +165,11 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-{{- with .Values.scheduler.livenessProbe.command }}
-{{ toYaml . | indent 16 }}
-{{- end }}
+                  {{- if .Values.scheduler.livenessProbe.command }}
+                  {{ toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
+                  {{- else}}
+                  {{- include "scheduler_liveness_check_command" . | nindent 16 }}
+                  {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:

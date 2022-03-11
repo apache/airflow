@@ -19,19 +19,18 @@
 
 /* global localStorage */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
-  Text,
   Flex,
   useDisclosure,
   Collapse,
 } from '@chakra-ui/react';
-import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
 import StatusBox from './StatusBox';
+import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
 
@@ -51,39 +50,6 @@ const renderTaskRows = ({
     dagRunIds={dagRunIds}
   />
 ));
-
-const TaskName = ({
-  isGroup = false, isMapped = false, onToggle, isOpen, level, taskName,
-}) => (
-  <Box _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s">
-    <Flex
-      as={isGroup ? 'button' : 'div'}
-      onClick={() => isGroup && onToggle()}
-      color={level > 4 && 'white'}
-      aria-label={taskName}
-      title={taskName}
-      mr={4}
-      width="100%"
-      backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}
-      alignItems="center"
-    >
-      <Text
-        display="inline"
-        fontSize="12px"
-        ml={level * 4 + 4}
-        isTruncated
-      >
-        {taskName}
-        {isMapped && (
-          ' [ ]'
-        )}
-      </Text>
-      {isGroup && (
-        isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
-      )}
-    </Flex>
-  </Box>
-);
 
 const TaskInstances = ({ task, containerRef, dagRunIds }) => (
   <Flex justifyContent="flex-end">
@@ -124,6 +90,12 @@ const Row = (props) => {
   };
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
 
+  // assure the function is the same across renders
+  const memoizedToggle = useCallback(
+    () => isGroup && onToggle(),
+    [onToggle, isGroup],
+  );
+
   const parentTasks = task.id.split('.');
   parentTasks.splice(-1);
 
@@ -148,9 +120,9 @@ const Row = (props) => {
           backgroundColor="white"
           borderBottom={0}
         >
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
-              onToggle={onToggle}
+              onToggle={memoizedToggle}
               isGroup={isGroup}
               isMapped={task.isMapped}
               taskName={taskName}
@@ -161,7 +133,7 @@ const Row = (props) => {
         </Td>
         <Td width={0} p={0} borderBottom={0} />
         <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>
         </Td>

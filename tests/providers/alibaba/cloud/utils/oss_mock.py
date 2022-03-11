@@ -30,6 +30,7 @@ def mock_oss_hook_default_project_id(self, oss_conn_id='mock_oss_default', regio
                 'auth_type': 'AK',
                 'access_key_id': 'mock_access_key_id',
                 'access_key_secret': 'mock_access_key_secret',
+                'region': 'mock_region',
             }
         )
     )

@@ -420,7 +420,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
-leveldb = ['plyvel']
+leveldb = ['plyvel; platform_machine != "aarch64"']
 mongo = [
     'dnspython>=1.13.0',
     # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
@@ -428,11 +428,11 @@ mongo = [
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
-    'pymssql>=2.1.5',
+    'pymssql>=2.1.5; platform_machine != "aarch64"',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11',
-    'mysqlclient>=1.3.6',
+    'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+    'mysqlclient>=1.3.6; platform_machine != "aarch64"',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -510,13 +510,8 @@ slack = [
     'slack_sdk>=3.0.0',
 ]
 snowflake = [
-    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
-    # We should remove the limitation when apache-beam upgrades pyarrow
-    'snowflake-connector-python>=2.4.1,<2.7.2',
-    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
-    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
-    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
-    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
+    'snowflake-connector-python>=2.4.1',
+    'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
     'pyspark',

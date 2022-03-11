@@ -24,14 +24,12 @@ export PRINT_INFO_FROM_SCRIPTS="false"
 function migration_reference() {
     if [[ "${#@}" == "0" ]]; then
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_migration_reference.sh"
+            "/opt/airflow/scripts/in_container/run_migration_reference.sh"
     else
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_migration_reference.sh" "${@}"
+            "/opt/airflow/scripts/in_container/run_migration_reference.sh" "${@}"
     fi
 }
 

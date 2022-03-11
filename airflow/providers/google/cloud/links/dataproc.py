@@ -70,7 +70,7 @@ class DataprocLink(BaseOperatorLink):
         ti_key: Optional["TaskInstanceKey"] = None,
     ) -> str:
         if ti_key:
-            conf = XCom.get_one(key=self.key, ti_key=ti_key)
+            conf = XCom.get_value(key=self.key, ti_key=ti_key)
         else:
             assert dttm
             conf = XCom.get_one(
@@ -113,7 +113,7 @@ class DataprocListLink(BaseOperatorLink):
         ti_key: Optional["TaskInstanceKey"] = None,
     ) -> str:
         if ti_key:
-            list_conf = XCom.get_one(key=self.key, ti_key=ti_key)
+            list_conf = XCom.get_value(key=self.key, ti_key=ti_key)
         else:
             assert dttm
             list_conf = XCom.get_one(

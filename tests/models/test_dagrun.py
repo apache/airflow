@@ -946,3 +946,37 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_upstream_failed(dag_maker, session):
+    from airflow.operators.python import PythonOperator
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {'a': 'b'}]))
+
+        def consumer(*args):
+            print(repr(args))
+
+        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+
+    dr = dag_maker.create_dagrun()
+    _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    make_list_ti.state = TaskInstanceState.FAILED
+    session.flush()
+
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+
+    assert sorted((ti.task_id, ti.map_index, ti.state) for ti in tis) == [
+        ("consumer", -1, TaskInstanceState.UPSTREAM_FAILED),
+        ("make_list", -1, TaskInstanceState.FAILED),
+    ]
+    # Bug/possible source of optimization: The DR isn't marked as failed until
+    # in the loop that marks the last task as UPSTREAM_FAILED
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    assert dr.state == DagRunState.FAILED

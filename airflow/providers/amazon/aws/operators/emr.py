@@ -245,7 +245,7 @@ class EmrClusterLink(BaseOperatorLink):
         :return: url link
         """
         if ti_key:
-            flow_id = XCom.get_one(key="return_value", ti_key=ti_key)
+            flow_id = XCom.get_value(key="return_value", ti_key=ti_key)
         else:
             assert dttm
             flow_id = XCom.get_one(

@@ -43,7 +43,7 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
         ti_key: Optional["TaskInstanceKey"] = None,
     ) -> str:
         if ti_key:
-            run_id = XCom.get_one(key="run_id", ti_key=ti_key)
+            run_id = XCom.get_value(key="run_id", ti_key=ti_key)
         else:
             assert dttm
             run_id = XCom.get_one(
