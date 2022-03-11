@@ -613,9 +613,8 @@ Create the name of the cleanup service account to use
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint bash -c \
-    "export AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR && \
-    airflow jobs check --job-type SchedulerJob --hostname $(hostname)"
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
   {{- else }}
   - sh
   - -c
@@ -639,9 +638,8 @@ Create the name of the cleanup service account to use
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint bash -c \
-    "export AIRFLOW__CORE__LOGGING_LEVEL=ERROR && \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)"
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
 {{- end }}
 
 {{ define "registry_docker_config" -}}
