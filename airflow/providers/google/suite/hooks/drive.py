@@ -197,7 +197,7 @@ class GoogleDriveHook(GoogleBaseHook):
             parent = "root"
 
         file_metadata = {"name": file_name, "parents": [parent]}
-        media = MediaFileUpload(local_location)
+        media = MediaFileUpload(local_location, resumable=True)
         file = (
             service.files()
             .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
