@@ -1314,6 +1314,11 @@ redis:
   affinity: {}
   tolerations: []
 
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  runAsGroup: 0
+
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
 registry:
