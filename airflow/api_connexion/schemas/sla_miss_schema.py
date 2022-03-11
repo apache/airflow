@@ -30,7 +30,7 @@ class SlaMissSchema(SQLAlchemySchema):
 
     task_id = auto_field(dump_only=True)
     dag_id = auto_field(dump_only=True)
-    run_id = auto_field(data_key="dag_run_id", dump_only=True)
+    run_id = auto_field(dump_only=True)
     map_index = auto_field(dump_only=True)
     email_sent = auto_field(dump_only=True)
     timestamp = auto_field(dump_only=True)

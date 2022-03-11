@@ -71,6 +71,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
             return get_value(slamiss_instance, attr, default)
         elif attr == "rendered_fields":
             return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
+        # breakpoint()
         return get_value(obj[0], attr, default)
 
 

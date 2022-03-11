@@ -116,7 +116,7 @@ def upgrade():
         join_columns=['dag_id', 'execution_date'],
     )
     op.execute(update_query)
-    with op.batch_alter_table('sla_miss', copy_from=sla_miss) as batch_op:
+    with op.batch_alter_table('sla_miss') as batch_op:
         if dialect_name == 'mssql':
             constraints = get_mssql_table_constraints(op.get_bind(), 'sla_miss')
             pk, _ = constraints['PRIMARY KEY'].popitem()

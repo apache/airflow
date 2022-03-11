@@ -243,13 +243,13 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
         tis = self.create_task_instances(session)
         session.query()
-        sla_miss = SlaMiss(
-            task_id="print_the_context",
-            dag_id="example_python_operator",
-            execution_date=self.default_time,
-            timestamp=self.default_time,
-        )
-        session.add(sla_miss)
+        # sla_miss = SlaMiss(
+        #     task_id="print_the_context",
+        #     dag_id="example_python_operator",
+        #     execution_date=self.default_time,
+        #     timestamp=self.default_time,
+        # )
+        # session.add(sla_miss)
         rendered_fields = RTIF(tis[0], render_templates=False)
         session.add(rendered_fields)
         session.commit()

@@ -98,10 +98,8 @@ class TestTaskInstanceSchema:
         sla_miss = SlaMiss(
             task_id="TEST_TASK_ID",
             dag_id="TEST_DAG_ID",
-            execution_date=self.default_time,
+            run_id="TEST_RUN_ID",
         )
-        session.add(sla_miss)
-        session.flush()
         ti = TI(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
@@ -128,9 +126,10 @@ class TestTaskInstanceSchema:
             "sla_miss": {
                 "dag_id": "TEST_DAG_ID",
                 "description": None,
-                "email_sent": False,
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "notification_sent": False,
+                "email_sent": None,
+                "run_id": "TEST_RUN_ID",
+                "map_index": None,
+                "notification_sent": None,
                 "task_id": "TEST_TASK_ID",
                 "timestamp": None,
             },
