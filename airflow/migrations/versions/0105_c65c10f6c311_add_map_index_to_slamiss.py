@@ -18,6 +18,12 @@
 
 """Add map_index to SlaMiss
 
+Main changes:
+    * Add run_id
+    * Add map_index
+    * Drop execution_date
+    * Add slamiss FK
+
 Revision ID: c65c10f6c311
 Revises: 4eaab2fe6582
 Create Date: 2022-03-10 22:39:54.462272
