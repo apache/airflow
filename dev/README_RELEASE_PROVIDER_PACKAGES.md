@@ -778,6 +778,18 @@ Copy links to updated packages.
 
 Merge the PR that you prepared before with the documentation.
 
+If you decided to remove some packages from the release make sure to do amend the commit in this way:
+
+* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
+* remove the latest version (the one you were releasing)
+* update `stable.txt` to the previous version
+* in the (unlikely) event you are removing first version of package:
+   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
+
 ## Add tags in git
 
 Assume that your remote for apache repository is called `apache` you should now
