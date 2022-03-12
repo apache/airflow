@@ -222,15 +222,51 @@ class TestDagFileProcessor:
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag_file_processor.manage_slas(dag=dag, session=session)
-        sla_miss_count = (
+        sla_misses = (
             session.query(SlaMiss)
             .filter(
                 SlaMiss.dag_id == dag.dag_id,
                 SlaMiss.task_id == task.task_id,
             )
-            .count()
+            .all()
         )
-        assert sla_miss_count == 1
+        assert len(sla_misses) == 1
+        created_sla_miss = sla_misses[0]
+
+        # the SlaMiss created is for the _next_ TI
+        assert created_sla_miss.execution_date == test_start_date + datetime.timedelta(days=1)
+
+        # the TI corresponding to the SlaMiss might not exist
+        # in this particular test case, it doesn't
+        assert (
+            len(
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.dag_id == created_sla_miss.dag_id,
+                    TaskInstance.task_id == created_sla_miss.task_id,
+                    TaskInstance.execution_date == created_sla_miss.execution_date,
+                )
+                .all()
+            )
+            == 0
+        )
+
+        # the TI corresponding to the SlaMiss might not exist
+        # in this particular test case, it doesn't
+        assert (
+            len(
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.dag_id == created_sla_miss.dag_id,
+                    TaskInstance.task_id == created_sla_miss.task_id,
+                    TaskInstance.execution_date
+                    == created_sla_miss.execution_date + datetime.timedelta(days=-1),
+                )
+                .all()
+            )
+            == 1
+        )
+
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
