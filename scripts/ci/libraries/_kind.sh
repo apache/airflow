@@ -27,6 +27,7 @@ function kind::get_kind_cluster_name() {
     readonly KUBECONFIG
     mkdir -pv "${BUILD_CACHE_DIR}/${KIND_CLUSTER_NAME}/.kube/"
     touch "${KUBECONFIG}"
+    chmod og-rwx "${KUBECONFIG}"
 }
 
 function kind::dump_kind_logs() {

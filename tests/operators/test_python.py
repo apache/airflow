@@ -43,6 +43,7 @@ from airflow.operators.python import (
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.dates import days_ago
+from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -225,7 +226,9 @@ class TestPythonOperator(TestPythonBase):
         )
 
     def test_python_operator_shallow_copy_attr(self):
-        not_callable = lambda x: x
+        def not_callable(x):
+            return x
+
         original_task = PythonOperator(
             python_callable=not_callable,
             task_id='python_operator',
@@ -922,6 +925,27 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             import funcsigs  # noqa: F401
 
         self._run_as_operator(f, requirements='requirements.txt', system_site_packages=False)
+
+    @unittest.mock.patch('airflow.operators.python.prepare_virtualenv')
+    def test_pip_install_options(self, mocked_prepare_virtualenv):
+        def f():
+            import funcsigs  # noqa: F401
+
+        mocked_prepare_virtualenv.side_effect = prepare_virtualenv
+
+        self._run_as_operator(
+            f,
+            requirements=['funcsigs==0.4'],
+            system_site_packages=False,
+            pip_install_options=['--no-deps'],
+        )
+        mocked_prepare_virtualenv.assert_called_with(
+            venv_directory=unittest.mock.ANY,
+            python_bin=unittest.mock.ANY,
+            system_site_packages=False,
+            requirements_file_path=unittest.mock.ANY,
+            pip_install_options=['--no-deps'],
+        )
 
     def test_templated_requirements_file(self):
         def f():

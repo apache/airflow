@@ -117,7 +117,7 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
@@ -421,6 +421,9 @@ function initialization::initialize_image_build_variables() {
 
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
+
+    SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION:="false"}
+    export SKIP_ENVIRONMENT_INITIALIZATION
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 

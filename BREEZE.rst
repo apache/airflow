@@ -1270,7 +1270,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1485,7 +1485,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1560,7 +1560,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1642,7 +1642,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1693,7 +1693,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1903,7 +1903,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -1987,7 +1987,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
@@ -2402,7 +2402,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.

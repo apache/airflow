@@ -436,7 +436,8 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='''{
                 "auth_type": "AK",
                 "access_key_id": "<ACCESS_KEY_ID>",
-                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                "access_key_secret": "<ACCESS_KEY_SECRET>",
+                "region": "<YOUR_OSS_REGION>"}
                 ''',
         ),
         session,

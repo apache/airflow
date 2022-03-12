@@ -120,7 +120,7 @@ const Row = (props) => {
           backgroundColor="white"
           borderBottom={0}
         >
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
               onToggle={memoizedToggle}
               isGroup={isGroup}
@@ -133,7 +133,7 @@ const Row = (props) => {
         </Td>
         <Td width={0} p={0} borderBottom={0} />
         <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>
         </Td>
