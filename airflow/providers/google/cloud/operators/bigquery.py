@@ -956,6 +956,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
         Should not be set when source_format is 'DATASTORE_BACKUP'.
+    :param autodetect: (Optional) If True will automatically detect schema of file.
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
         If provided all other parameters are ignored. External schema from object will be resolved.
@@ -1024,6 +1025,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         destination_project_dataset_table: Optional[str] = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
+        autodetect: bool = True,
         schema_object: Optional[str] = None,
         source_format: Optional[str] = None,
         compression: Optional[str] = None,
@@ -1051,6 +1053,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 destination_project_dataset_table,
                 schema_fields,
                 source_format,
+                autodetect,
                 compression,
                 skip_leading_rows,
                 field_delimiter,
@@ -1107,6 +1110,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
 
+        self.autodetect = autodetect
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
         self.allow_quoted_newlines = allow_quoted_newlines
@@ -1161,6 +1165,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             src_fmt_configs=self.src_fmt_configs,
             labels=self.labels,
             encryption_configuration=self.encryption_configuration,
+            autodetect=self.autodetect
         )
 
 
