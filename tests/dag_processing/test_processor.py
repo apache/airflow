@@ -260,7 +260,7 @@ class TestDagFileProcessor:
         mock_stats_incr.reset_mock()
 
         ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
-        session.merge()
+        session.merge(ti)
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
@@ -331,7 +331,7 @@ class TestDagFileProcessor:
         mock_stats_incr.reset_mock()
 
         ti = TaskInstance(task=task, execution_date=test_start_date, state='Success')
-        session.merge()
+        session.merge(ti)
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id))
