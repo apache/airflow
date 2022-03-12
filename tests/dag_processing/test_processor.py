@@ -251,21 +251,17 @@ class TestDagFileProcessor:
             == 0
         )
 
-        # the TI corresponding to the SlaMiss might not exist
-        # in this particular test case, it doesn't
-        assert (
-            len(
-                session.query(TaskInstance)
-                .filter(
-                    TaskInstance.dag_id == created_sla_miss.dag_id,
-                    TaskInstance.task_id == created_sla_miss.task_id,
-                    TaskInstance.execution_date
-                    == created_sla_miss.execution_date + datetime.timedelta(days=-1),
-                )
-                .all()
+        # the TI that exists is for the run prior to the SlaMiss
+        all_tis = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == created_sla_miss.dag_id,
+                TaskInstance.task_id == created_sla_miss.task_id,
             )
-            == 1
+            .all()
         )
+        assert len(all_tis) == 1
+        assert all_tis[0].execution_date == created_sla_miss.execution_date + datetime.timedelta(days=-1)
 
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
