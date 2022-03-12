@@ -1165,7 +1165,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             src_fmt_configs=self.src_fmt_configs,
             labels=self.labels,
             encryption_configuration=self.encryption_configuration,
-            autodetect=self.autodetect
+            autodetect=self.autodetect,
         )
 
 
