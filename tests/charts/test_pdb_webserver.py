@@ -17,7 +17,7 @@
 
 import unittest
 
-from tests.helm_template_generator import render_chart
+from tests.charts.helm_template_generator import render_chart
 
 
 class WebserverPdbTest(unittest.TestCase):
