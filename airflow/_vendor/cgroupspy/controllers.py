@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import os
 import errno
-from cgroupspy.contenttypes import DeviceAccess, DeviceThrottle
+from airflow._vendor.cgroupspy.contenttypes import DeviceAccess, DeviceThrottle
 
 from .interfaces import BaseFileInterface, FlagFile, BitFieldFile, IntegerFile, SplitValueFile, DictOrFlagFile
 from .interfaces import MultiLineIntegerFile, CommaDashSetFile, DictFile, IntegerListFile, TypedFile
