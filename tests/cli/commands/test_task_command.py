@@ -90,6 +90,7 @@ class TestCliTasks(unittest.TestCase):
         args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
@@ -102,17 +103,21 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self):
         """Test the `airflow test` command"""
         task_id = 'print_the_context'
 
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with self.assertLogs('airflow.models', level='INFO') as cm:
             task_command.task_test(args)
-
-        # Check that prints, and log messages, are shown
-        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in stdout.getvalue()
+            assert any(
+                [
+                    f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in log
+                    for log in cm.output
+                ]
+            )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
@@ -267,7 +272,6 @@ class TestCliTasks(unittest.TestCase):
 
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
-        assert 'echo "Parameter I passed in"' in output
 
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
@@ -390,7 +394,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.execution_date_str = self.execution_date.isoformat()
         self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
         self.log_dir = conf.get('logging', 'base_log_folder')
-        self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
+        self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
@@ -547,7 +551,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
                 ti.try_number = 1
 
-            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
+            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
 
             try:
                 task_command.task_run(self.parser.parse_args(self.task_args))

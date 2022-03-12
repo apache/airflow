@@ -18,14 +18,14 @@
 import collections
 import logging
 import re
-from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = TypeVar('RedactableItem')
+    RedactableItem = Union[str, Dict[Any, Any], Tuple[Any, ...], List[Any]]
 
 
 log = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: Union[str, dict, Iterable], name: str = None) -> None:
+def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -93,7 +93,7 @@ def mask_secret(secret: Union[str, dict, Iterable], name: str = None) -> None:
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: "RedactableItem", name: str = None) -> "RedactableItem":
+def redact(value: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
@@ -147,7 +147,12 @@ class SecretsMasker(logging.Filter):
         return frozenset(record.__dict__).difference({'msg', 'args'})
 
     def _redact_exception_with_context(self, exception):
-        exception.args = (self.redact(v) for v in exception.args)
+        # Exception class may not be modifiable (e.g. declared by an
+        # extension module such as JDBC).
+        try:
+            exception.args = (self.redact(v) for v in exception.args)
+        except AttributeError:
+            pass
         if exception.__context__:
             self._redact_exception_with_context(exception.__context__)
         if exception.__cause__ and exception.__cause__ is not exception.__context__:
@@ -234,7 +239,7 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
+    def add_mask(self, secret: Union[str, dict, Iterable], name: Optional[str] = None):
         """Add a new secret to be masked to this filter instance."""
         from airflow.configuration import conf
 

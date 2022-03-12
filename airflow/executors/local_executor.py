@@ -125,12 +125,12 @@ class LocalWorkerBase(Process, LoggingMixin):
             ret = 0
             return State.SUCCESS
         except Exception as e:
-            self.log.error("Failed to execute task %s.", str(e))
+            self.log.exception("Failed to execute task %s.", e)
+            return State.FAILED
         finally:
             Sentry.flush()
             logging.shutdown()
             os._exit(ret)
-            raise RuntimeError('unreachable -- keep mypy happy')
 
     @abstractmethod
     def do_work(self):

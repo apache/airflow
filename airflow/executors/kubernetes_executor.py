@@ -81,7 +81,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         multi_namespace_mode: bool,
         watcher_queue: 'Queue[KubernetesWatchType]',
         resource_version: Optional[str],
-        scheduler_job_id: Optional[int],
+        scheduler_job_id: str,
         kube_config: Configuration,
     ):
         super().__init__()
@@ -120,7 +120,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self,
         kube_client: client.CoreV1Api,
         resource_version: Optional[str],
-        scheduler_job_id: int,
+        scheduler_job_id: str,
         kube_config: Any,
     ) -> Optional[str]:
         self.log.info('Event: and now my watch begins starting at resource_version: %s', resource_version)
@@ -155,6 +155,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 'run_id': annotations.get('run_id'),
                 'try_number': annotations['try_number'],
             }
+            map_index = annotations.get('map_index')
+            if map_index is not None:
+                task_instance_related_annotations['map_index'] = map_index
 
             self.process_status(
                 pod_id=task.metadata.name,
@@ -232,7 +235,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         task_queue: 'Queue[KubernetesJobType]',
         result_queue: 'Queue[KubernetesResultsType]',
         kube_client: client.CoreV1Api,
-        scheduler_job_id: int,
+        scheduler_job_id: str,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -296,7 +299,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
         key, command, kube_executor_config, pod_template_file = next_job
-        dag_id, task_id, run_id, try_number = key
+        dag_id, task_id, run_id, try_number, map_index = key
 
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
@@ -316,6 +319,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task_id=task_id,
             kube_image=self.kube_config.kube_image,
             try_number=try_number,
+            map_index=map_index,
             date=None,
             run_id=run_id,
             args=command,
@@ -431,7 +435,7 @@ class KubernetesExecutor(BaseExecutor):
         self.result_queue: 'Queue[KubernetesResultsType]' = self._manager.Queue()
         self.kube_scheduler: Optional[AirflowKubernetesScheduler] = None
         self.kube_client: Optional[client.CoreV1Api] = None
-        self.scheduler_job_id: Optional[int] = None
+        self.scheduler_job_id: Optional[str] = None
         self.event_scheduler: Optional[EventScheduler] = None
         self.last_handled: Dict[TaskInstanceKey, float] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
@@ -452,8 +456,10 @@ class KubernetesExecutor(BaseExecutor):
         self.log.debug("Clearing tasks that have not been launched")
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
-        queued_tasks = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
-        self.log.info('Found %s queued task instances', len(queued_tasks))
+        queued_tis: List[TaskInstance] = (
+            session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
+        )
+        self.log.info('Found %s queued task instances', len(queued_tis))
 
         # Go through the "last seen" dictionary and clean out old entries
         allowed_age = self.kube_config.worker_pods_queued_check_interval * 3
@@ -461,41 +467,44 @@ class KubernetesExecutor(BaseExecutor):
             if time.time() - timestamp > allowed_age:
                 del self.last_handled[key]
 
-        for task in queued_tasks:
-            self.log.debug("Checking task %s", task)
+        for ti in queued_tis:
+            self.log.debug("Checking task instance %s", ti)
 
             # Check to see if we've handled it ourselves recently
-            if task.key in self.last_handled:
+            if ti.key in self.last_handled:
                 continue
 
             # Build the pod selector
             base_label_selector = (
-                f"dag_id={pod_generator.make_safe_label_value(task.dag_id)},"
-                f"task_id={pod_generator.make_safe_label_value(task.task_id)},"
-                f"airflow-worker={pod_generator.make_safe_label_value(str(task.queued_by_job_id))}"
+                f"dag_id={pod_generator.make_safe_label_value(ti.dag_id)},"
+                f"task_id={pod_generator.make_safe_label_value(ti.task_id)},"
+                f"airflow-worker={pod_generator.make_safe_label_value(str(ti.queued_by_job_id))}"
             )
+            if ti.map_index >= 0:
+                # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
+                base_label_selector += f',map_index={ti.map_index}'
             kwargs = dict(label_selector=base_label_selector)
             if self.kube_config.kube_client_request_args:
                 kwargs.update(**self.kube_config.kube_client_request_args)
 
             # Try run_id first
-            kwargs['label_selector'] += ',run_id=' + pod_generator.make_safe_label_value(task.run_id)
+            kwargs['label_selector'] += ',run_id=' + pod_generator.make_safe_label_value(ti.run_id)
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
             if pod_list.items:
                 continue
             # Fallback to old style of using execution_date
             kwargs['label_selector'] = (
                 f'{base_label_selector},'
-                f'execution_date={pod_generator.datetime_to_label_safe_datestring(task.execution_date)}'
+                f'execution_date={pod_generator.datetime_to_label_safe_datestring(ti.execution_date)}'
             )
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
             if pod_list.items:
                 continue
-            self.log.info('TaskInstance: %s found in queued state but was not launched, rescheduling', task)
+            self.log.info('TaskInstance: %s found in queued state but was not launched, rescheduling', ti)
             session.query(TaskInstance).filter(
-                TaskInstance.dag_id == task.dag_id,
-                TaskInstance.task_id == task.task_id,
-                TaskInstance.run_id == task.run_id,
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.run_id == ti.run_id,
             ).update({TaskInstance.state: State.SCHEDULED})
 
     def start(self) -> None:
@@ -503,7 +512,7 @@ class KubernetesExecutor(BaseExecutor):
         self.log.info('Start Kubernetes executor')
         if not self.job_id:
             raise AirflowException("Could not get scheduler_job_id")
-        self.scheduler_job_id = self.job_id
+        self.scheduler_job_id = str(self.job_id)
         self.log.debug('Start with scheduler_job_id: %s', self.scheduler_job_id)
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
@@ -627,6 +636,8 @@ class KubernetesExecutor(BaseExecutor):
 
     def _check_worker_pods_pending_timeout(self):
         """Check if any pending worker pods have timed out"""
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         timeout = self.kube_config.worker_pods_pending_timeout
         self.log.debug('Looking for pending worker pods older than %d seconds', timeout)
 
@@ -698,10 +709,10 @@ class KubernetesExecutor(BaseExecutor):
         :param pod: V1Pod spec that we will patch with new label
         :param pod_ids: pod_ids we expect to patch.
         """
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
-            str(self.scheduler_job_id)
-        )
+        pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(self.scheduler_job_id)
         pod_id = annotations_to_key(pod.metadata.annotations)
         if pod_id not in pod_ids:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", pod_id)
@@ -725,6 +736,8 @@ class KubernetesExecutor(BaseExecutor):
 
         :param kube_client: kubernetes client for speaking to kube API
         """
+        if not self.scheduler_job_id:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         kwargs = {
             'field_selector': "status.phase=Succeeded",
             'label_selector': 'kubernetes_executor=True',
@@ -732,9 +745,7 @@ class KubernetesExecutor(BaseExecutor):
         pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
         for pod in pod_list.items:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
-                str(self.scheduler_job_id)
-            )
+            pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(self.scheduler_job_id)
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,

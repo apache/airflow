@@ -43,7 +43,7 @@ How package/modules loading in Python works
 
 The list of directories from which Python tries to load the module is given
 by the variable ``sys.path``. Python really tries to
-`intelligently determine the contents of <https://stackoverflow.com/a/38403654>`_
+`intelligently determine the contents <https://stackoverflow.com/a/38403654>`_
 of this variable, including depending on the operating system and how Python
 is installed and which Python version is used.
 
@@ -103,11 +103,11 @@ This is an example structure that you might have in your ``dags`` folder:
                  |
                  | my_custom_dags
                                  | __init__.py
-                                 | my_dag_1.py
-                                 | my_dag_2.py
+                                 | my_dag1.py
+                                 | my_dag2.py
                                  | base_dag.py
 
-In the case above, there are the ways you could import the python files:
+In the case above, these are the ways you could import the python files:
 
 .. code-block:: python
 
@@ -123,7 +123,7 @@ shared code in the other folders, not the actual DAGs).
 
 In the example above the dags are only in ``my_custom_dags`` folder, the ``common_package`` should not be
 scanned by scheduler when searching for DAGS, so we should ignore ``common_package`` folder. You also
-want to ignore the ``base_dag`` if you keep a base DAG there that ``my_dag1.py`` and ``my_dag1.py`` derives
+want to ignore the ``base_dag.py`` if you keep a base DAG there that ``my_dag1.py`` and ``my_dag2.py`` derives
 from. Your ``.airflowignore`` should look then like this:
 
 .. code-block:: none
@@ -186,7 +186,7 @@ You should import such shared dag using full path (starting from the directory w
 
 The relative imports are counter-intuitive, and depending on how you start your python code, they can behave
 differently. In Airflow the same DAG file might be parsed in different contexts (by schedulers, by workers
-or during tests) and in those cases, relatives imports might behave differently. Always use full
+or during tests) and in those cases, relative imports might behave differently. Always use full
 python package paths when you import anything in Airflow DAGs, this will save you a lot of troubles.
 You can read more about relative import caveats in
 `this Stack Overflow thread <https://stackoverflow.com/q/16981921/516701>`_.
@@ -240,7 +240,7 @@ Below is the sample output of the ``airflow info`` command:
 
     Paths info
     airflow_home    | /root/airflow
-    system_path     | /opt/bats/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    system_path     | /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/
                     | local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/files/dags:/root/airflow/conf
                     | ig:/root/airflow/plugins
@@ -359,6 +359,7 @@ When we import this package, it should print the above message.
 
     setuptools.setup(
         name="airflow_operators",
+        packages=setuptools.find_packages(),
     )
 
 5. Build the wheel:

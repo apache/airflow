@@ -160,6 +160,33 @@ use :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreRo
     :start-after: [START how_to_rollback_transaction]
     :end-before: [END how_to_rollback_transaction]
 
+.. _howto/operator:CloudDatastoreGetOperationOperator:
+
+Get operation state
+-------------------
+
+To get the current state of a long-running operation use
+:class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator`
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_datastore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START get_operation_state]
+    :end-before: [END get_operation_state]
+
+.. _howto/operator:CloudDatastoreDeleteOperationOperator:
+
+Delete operation
+----------------
+
+To delete an operation use
+:class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator`
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_datastore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START delete_operation]
+    :end-before: [END delete_operation]
 
 References
 ^^^^^^^^^^

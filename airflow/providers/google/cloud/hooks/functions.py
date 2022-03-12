@@ -23,7 +23,7 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -60,9 +60,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         ``projects/<GCP_PROJECT_ID>/locations/<GCP_LOCATION>``
 
         :param project_id: The Google Cloud Project project_id where the function belongs.
-        :type project_id: str
         :param location: The location where the function is created.
-        :type location: str
         :return:
         """
         return f'projects/{project_id}/locations/{location}'
@@ -86,7 +84,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         Returns the Cloud Function with the given name.
 
         :param name: Name of the function.
-        :type name: str
         :return: A Cloud Functions object representing the function.
         :rtype: dict
         """
@@ -101,12 +98,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         Creates a new function in Cloud Function in the location specified in the body.
 
         :param location: The location of the function.
-        :type location: str
         :param body: The body required by the Cloud Functions insert API.
-        :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         # fmt: off
@@ -123,11 +117,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         Updates Cloud Functions according to the specified update mask.
 
         :param name: The name of the function.
-        :type name: str
         :param body: The body required by the cloud function patch API.
-        :type body: dict
         :param update_mask: The update mask - array of fields that should be patched.
-        :type update_mask: [str]
         :return: None
         """
         # fmt: off
@@ -146,12 +137,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         Uploads zip file with sources.
 
         :param location: The location where the function is created.
-        :type location: str
         :param zip_path: The path of the valid .zip file to upload.
-        :type zip_path: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
@@ -183,7 +171,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         Deletes the specified Cloud Function.
 
         :param name: The name of the function.
-        :type name: str
         :return: None
         """
         # fmt: off
@@ -199,21 +186,17 @@ class CloudFunctionsHook(GoogleBaseHook):
         function_id: str,
         input_data: Dict,
         location: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing
         purposes as very limited traffic is allowed.
 
         :param function_id: ID of the function to be called
-        :type function_id: str
         :param input_data: Input to be passed to the function
-        :type input_data: Dict
         :param location: The location where the function is located.
-        :type location: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :type project_id: str
         :return: None
         """
         name = f"projects/{project_id}/locations/{location}/functions/{function_id}"
@@ -233,7 +216,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         asynchronous call.
 
         :param operation_name: The name of the operation.
-        :type operation_name: str
         :return: The response returned by the operation.
         :rtype: dict
         :exception: AirflowException in case error is returned.

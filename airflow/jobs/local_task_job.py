@@ -25,6 +25,8 @@ from sqlalchemy.exc import OperationalError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
+from airflow.listeners.events import register_task_instance_state_events
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.sentry import Sentry
@@ -66,7 +68,6 @@ class LocalTaskJob(BaseJob):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
-        self.task_runner = None
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -75,6 +76,7 @@ class LocalTaskJob(BaseJob):
         super().__init__(*args, **kwargs)
 
     def _execute(self):
+        self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -101,6 +103,11 @@ class LocalTaskJob(BaseJob):
 
         try:
             self.task_runner.start()
+
+            # Unmap the task _after_ it has forked/execed. (This is a bit of a kludge, but if we unmap before
+            # fork, then the "run_raw_task" command will see the mapping index and an Non-mapped task and
+            # fail)
+            self.task_instance.task = self.task_instance.task.unmap()
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -208,6 +215,13 @@ class LocalTaskJob(BaseJob):
                 )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
+            if ti.state == State.SKIPPED:
+                # A DagRun timeout will cause tasks to be externally marked as skipped.
+                dagrun = ti.get_dagrun(session=session)
+                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                dagrun_timeout = ti.task.dag.dagrun_timeout
+                if dagrun_timeout and execution_time > dagrun_timeout:
+                    self.log.warning("DagRun timed out after %s.", str(execution_time))
             self.log.warning(
                 "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
@@ -217,7 +231,7 @@ class LocalTaskJob(BaseJob):
             else:
                 # if ti.state is not set by taskinstance.handle_failure, then
                 # error file will not be populated and it must be updated by
-                # external source suck as web UI
+                # external source such as web UI
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
             ti._run_finished_callback(error=error)
             self.terminating = True
@@ -235,12 +249,12 @@ class LocalTaskJob(BaseJob):
                 session=session,
             ).one()
 
-            # Get a partial dag with just the specific tasks we want to
-            # examine. In order for dep checks to work correctly, we
-            # include ourself (so TriggerRuleDep can check the state of the
-            # task we just executed)
             task = self.task_instance.task
+            assert task.dag  # For Mypy.
 
+            # Get a partial DAG with just the specific tasks we want to examine.
+            # In order for dep checks to work correctly, we include ourself (so
+            # TriggerRuleDep can check the state of the task we just executed).
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
                 include_downstream=True,
@@ -285,3 +299,12 @@ class LocalTaskJob(BaseJob):
             if dag_run:
                 dag_run.dag = dag
                 dag_run.update_state(session=session, execute_callbacks=True)
+
+    @staticmethod
+    def _enable_task_listeners():
+        """
+        Check if we have any registered listeners, then register sqlalchemy hooks for
+        TI state change if we do.
+        """
+        if get_listener_manager().has_listeners:
+            register_task_instance_state_events()

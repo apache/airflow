@@ -16,14 +16,16 @@
 # under the License.
 
 import unittest
+from contextlib import nullcontext
 
 import pytest
 
 from airflow.decorators import task
+from airflow.exceptions import ParamValidationError
 from airflow.models.param import Param, ParamsDict
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 
 class TestParam(unittest.TestCase):
@@ -36,7 +38,7 @@ class TestParam(unittest.TestCase):
 
     def test_null_param(self):
         p = Param()
-        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
+        with pytest.raises(ParamValidationError, match='No value passed and Param has no default value'):
             p.resolve()
         assert p.resolve(None) is None
 
@@ -48,7 +50,7 @@ class TestParam(unittest.TestCase):
         p = Param(None, type='null')
         assert p.resolve() is None
         assert p.resolve(None) is None
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve('test')
 
     def test_string_param(self):
@@ -62,9 +64,9 @@ class TestParam(unittest.TestCase):
         assert p.resolve() == '10.0.0.0'
 
         p = Param(type='string')
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve(None)
-        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
+        with pytest.raises(ParamValidationError, match='No value passed and Param has no default value'):
             p.resolve()
 
     def test_int_param(self):
@@ -74,7 +76,7 @@ class TestParam(unittest.TestCase):
         p = Param(type='integer', minimum=0, maximum=10)
         assert p.resolve(value=5) == 5
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p.resolve(value=20)
 
     def test_number_param(self):
@@ -84,8 +86,9 @@ class TestParam(unittest.TestCase):
         p = Param(1.0, type='number')
         assert p.resolve() == 1.0
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p = Param('42', type='number')
+            p.resolve()
 
     def test_list_param(self):
         p = Param([1, 2], type='array')
@@ -124,8 +127,9 @@ class TestParam(unittest.TestCase):
         p = S3Param("s3://my_bucket/my_path")
         assert p.resolve() == "s3://my_bucket/my_path"
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ParamValidationError):
             p = S3Param("file://not_valid/s3_path")
+            p.resolve()
 
     def test_value_saved(self):
         p = Param("hello", type="string")
@@ -173,7 +177,7 @@ class TestParamsDict:
         pd3.validate()
 
         # Update the ParamsDict
-        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
+        with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd3['key'] = 1
 
         # Should not raise an error as suppress_exception is True
@@ -186,7 +190,7 @@ class TestParamsDict:
         pd.update({'key': 'a'})
         internal_value = pd.get_param('key')
         assert isinstance(internal_value, Param)
-        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
+        with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd.update({'key': 1})
 
 
@@ -198,8 +202,9 @@ class TestDagParamRuntime:
     def clean_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_xcom()
 
-    def setup_method(self):
+    def setup_class(self):
         self.clean_db()
 
     def teardown_method(self):
@@ -267,3 +272,21 @@ class TestDagParamRuntime:
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == 'test'
+
+    @pytest.mark.parametrize(
+        'default, should_warn',
+        [
+            pytest.param({0, 1, 2}, True, id='default-non-JSON-serializable'),
+            pytest.param(None, False, id='default-None'),  # Param init should not warn
+            pytest.param({"b": 1}, False, id='default-JSON-serializable'),  # Param init should not warn
+        ],
+    )
+    def test_param_json_warning(self, default, should_warn):
+        warning_msg = 'The use of non-json-serializable params is deprecated'
+        cm = pytest.warns(DeprecationWarning, match=warning_msg) if should_warn else nullcontext()
+        with cm:
+            p = Param(default=default)
+        p.resolve()  # when resolved with NOTSET, should not warn.
+        p.resolve(value={'a': 1})  # when resolved with JSON-serializable, should not warn.
+        with pytest.warns(DeprecationWarning, match=warning_msg):
+            p.resolve(value={1, 2, 3})  # when resolved with not JSON-serializable, should warn.

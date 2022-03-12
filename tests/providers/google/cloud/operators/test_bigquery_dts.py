@@ -60,7 +60,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
 
         mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
-            metadata=None,
+            metadata=(),
             transfer_config=TRANSFER_CONFIG,
             project_id=PROJECT_ID,
             retry=None,
@@ -77,7 +77,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.return_value.delete_transfer_config.assert_called_once_with(
-            metadata=None,
+            metadata=(),
             transfer_config_id=TRANSFER_CONFIG_ID,
             project_id=PROJECT_ID,
             retry=None,
@@ -107,7 +107,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
             project_id=PROJECT_ID,
             requested_time_range=None,
             requested_run_time=None,
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )

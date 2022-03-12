@@ -87,12 +87,7 @@ def main():
     if not extra_pytest_args:
         raise SystemExit("You must select the tests to run.")
 
-    pytest_args = (
-        "--pythonwarnings=ignore::DeprecationWarning",
-        "--pythonwarnings=ignore::PendingDeprecationWarning",
-        "-n",
-        "auto",
-    )
+    pytest_args = ("-n", "auto", "--color=yes")
 
     run_verbose([str(python_bin), "-m", "pytest", *pytest_args, *extra_pytest_args])
 

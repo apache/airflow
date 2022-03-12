@@ -21,7 +21,7 @@ import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -31,7 +31,11 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CheckJobRunning(Enum):
@@ -55,24 +59,17 @@ class DataflowConfiguration:
     :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or  ``'job_name'``in ``options`` will be overwritten.
-    :type job_name: str
     :param append_job_name: True if unique suffix has to be appended to job name.
-    :type append_job_name: bool
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
-    :type poll_sleep: int
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -81,14 +78,11 @@ class DataflowConfiguration:
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
-    :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
-        successfully cancelled when task is being killed.
-    :type cancel_timeout: Optional[int]
+        successfully cancelled when task is being killed. (optional) default to 300s
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -122,25 +116,22 @@ class DataflowConfiguration:
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
-    :type wait_until_finished: Optional[bool]
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs. Supported only by
         :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
-    :type multiple_jobs: boolean
     :param check_if_running: Before running job, validate that a previous run is not in process.
         IgnoreJob = do not check if running.
         FinishIfRunning = if job is running finish with nothing.
         WaitForRun = wait until job finished and the run job.
         Supported only by:
         :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
-    :type check_if_running: CheckJobRunning
     """
 
-    template_fields = ["job_name", "location"]
+    template_fields: Sequence[str] = ("job_name", "location")
 
     def __init__(
         self,
         *,
-        job_name: Optional[str] = "{{task.task_id}}",
+        job_name: str = "{{task.task_id}}",
         append_job_name: bool = True,
         project_id: Optional[str] = None,
         location: Optional[str] = DEFAULT_DATAFLOW_LOCATION,
@@ -220,13 +211,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         :ref:`howto/operator:DataflowCreateJavaJobOperator`
 
     :param jar: The reference to a self executing Dataflow jar (templated).
-    :type jar: str
     :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` in ``options`` will be overwritten.
-    :type job_name: str
     :param dataflow_default_options: Map of default job options.
-    :type dataflow_default_options: dict
     :param options: Map of job specific options.The key must be a dictionary.
         The value can contain different types:
 
@@ -234,40 +222,30 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type options: dict
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
-    :type poll_sleep: int
     :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
-    :type job_class: str
 
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
-    :type multiple_jobs: boolean
     :param check_if_running: before running job, validate that a previous run is not in process
-    :type check_if_running: CheckJobRunning(IgnoreJob = do not check if running, FinishIfRunning=
         if job is running finish with nothing, WaitForRun= wait until job finished and the run job)
         ``jar``, ``options``, and ``job_name`` are templated so you can use variables in them.
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
-    :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -301,7 +279,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
-    :type wait_until_finished: Optional[bool]
 
     Note that both
     ``dataflow_default_options`` and ``options`` will be merged to specify pipeline
@@ -344,7 +321,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     """
 
-    template_fields = ["options", "jar", "job_name"]
+    template_fields: Sequence[str] = ("options", "jar", "job_name")
     ui_color = "#0273d4"
 
     def __init__(
@@ -361,7 +338,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         poll_sleep: int = 10,
         job_class: Optional[str] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-        multiple_jobs: Optional[bool] = None,
+        multiple_jobs: bool = False,
         cancel_timeout: Optional[int] = 10 * 60,
         wait_until_finished: Optional[bool] = None,
         **kwargs,
@@ -398,7 +375,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -481,10 +458,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         :ref:`howto/operator:DataflowTemplatedJobStartOperator`
 
     :param template: The reference to the Dataflow template.
-    :type template: str
     :param job_name: The 'jobName' to use when executing the Dataflow template
         (templated).
-    :type job_name: Optional[str]
     :param options: Map of job runtime environment options.
         It will update environment argument if passed.
 
@@ -493,26 +468,18 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
             <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
 
-    :type options: dict
     :param dataflow_default_options: Map of default job environment options.
-    :type dataflow_default_options: dict
     :param parameters: Map of job specific parameters for the template.
-    :type parameters: dict
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
-    :type poll_sleep: int
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -521,17 +488,14 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     :param environment: Optional, Map of job runtime environment options.
 
         .. seealso::
             For more information on possible configurations, look at the API documentation
             `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
             <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
-    :type environment: Optional[dict]
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
-    :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -565,7 +529,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
-    :type wait_until_finished: Optional[bool]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
@@ -614,7 +577,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             https://cloud.google.com/dataflow/docs/templates/executing-templates
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "template",
         "job_name",
         "options",
@@ -624,8 +587,9 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
-    ]
+    )
     ui_color = "#0273d4"
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -664,7 +628,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -676,6 +640,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -713,24 +678,18 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     :param body: The request body. See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
     :param location: The location of the Dataflow job (for example europe-west1)
-    :type location: str
     :param project_id: The ID of the GCP project that owns the job.
         If set to ``None`` or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
-    :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
-    :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -764,10 +723,10 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
-    :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["body", "location", "project_id", "gcp_conn_id"]
+    template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -794,7 +753,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -805,6 +764,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         job = self.hook.start_flex_template(
             body=self.body,
@@ -838,9 +798,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         <https://cloud.google.com/sdk/docs/install>`__
 
     :param job_name: The unique name to assign to the Cloud Dataflow job.
-    :type job_name: str
     :param query: The SQL query to execute.
-    :type query: str
     :param options: Job parameters to be executed. It can be a dictionary with the following keys.
 
         For more information, look at:
@@ -848,33 +806,28 @@ class DataflowStartSqlJobOperator(BaseOperator):
         <gcloud beta dataflow sql query>`__
         command reference
 
-    :type options: dict
     :param location: The location of the Dataflow job (for example europe-west1)
-    :type location: str
     :param project_id: The ID of the GCP project that owns the job.
         If set to ``None`` or missing, the default project_id from the GCP connection is used.
-    :type project_id: Optional[str]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
-    :type drain_pipeline: bool
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "job_name",
         "query",
         "options",
         "location",
         "project_id",
         "gcp_conn_id",
-    ]
+    )
+    template_fields_renderers = {"query": "sql"}
 
     def __init__(
         self,
@@ -901,7 +854,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.job = None
         self.hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -953,15 +906,11 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)
-    :type py_file: str
     :param job_name: The 'job_name' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
-    :type job_name: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
-    :type py_options: list[str]
     :param dataflow_default_options: Map of default job options.
-    :type dataflow_default_options: dict
     :param options: Map of job specific options.The key must be a dictionary.
         The value can contain different types:
 
@@ -969,50 +918,40 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
-    :type options: dict
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
-    :type py_interpreter: str
     :param py_requirements: Additional python package(s) to install.
         If a value is passed to this parameter, a new virtual environment has been created with
         additional packages installed.
 
         You could also install the apache_beam package if it is not installed on your system or you want
         to use a different version.
-    :type py_requirements: List[str]
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :type gcp_conn_id: str
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param location: Job location.
-    :type location: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
-    :type poll_sleep: int
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
-    :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
-    :type cancel_timeout: Optional[int]
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -1046,10 +985,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
-    :type wait_until_finished: Optional[bool]
     """
 
-    template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
+    template_fields: Sequence[str] = ("options", "dataflow_default_options", "job_name", "py_file")
 
     def __init__(
         self,
@@ -1104,7 +1042,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.beam_hook: Optional[BeamHook] = None
         self.dataflow_hook: Optional[DataflowHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         """Execute the python dataflow job."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(

@@ -24,9 +24,11 @@ import traceback
 from os import path
 
 from docutils import nodes
-from docutils.parsers.rst import directives
-from sphinx import addnodes
+
+# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
+from docutils.parsers.rst import directives  # type: ignore[attr-defined]
 from sphinx.directives.code import LiteralIncludeReader
+from sphinx.ext.viewcode import viewcode_anchor
 from sphinx.locale import _
 from sphinx.pycode import ModuleAnalyzer
 from sphinx.util import logging, parselinenos
@@ -34,7 +36,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 
 try:
-    import sphinx_airflow_theme
+    import sphinx_airflow_theme  # noqa: autoflake
 
     airflow_theme_is_available = True
 except ImportError:
@@ -194,11 +196,7 @@ def create_node(env, relative_path, show_button):
     paragraph = nodes.paragraph(relative_path, classes=header_classes)
     paragraph += nodes.inline("", relative_path, classes=["example-title"])
     if show_button:
-        pending_ref = addnodes.pending_xref(
-            "",
-            reftype="viewcode",
-            refdomain="std",
-            refexplicit=False,
+        pending_ref = viewcode_anchor(
             reftarget=pagename,
             refid="",
             refdoc=env.docname,

@@ -69,7 +69,7 @@ file:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
@@ -77,7 +77,7 @@ file:
 
     with DAG(
         dag_id="example_after_workday_timetable_dag",
-        start_date=datetime.datetime(2021, 3, 10),
+        start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
@@ -190,7 +190,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
@@ -199,7 +199,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     with DAG(
         dag_id="example_workday_timetable",
-        start_date=datetime.datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
@@ -283,3 +283,43 @@ The *Schedule* column would say ``after each workday, at 08:00:00``.
     Module :mod:`airflow.timetables.base`
         The public interface is heavily documented to explain what should be
         implemented by subclasses.
+
+
+Timetable Description Display in UI
+-----------------------------------
+
+You can also provide a description for your Timetable Implementation
+by overriding the ``description`` property.
+This is especially useful for providing comprehensive description for your implementation in UI.
+For our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
+
+.. code-block:: python
+
+    description = "Schedule: after each workday, at {_schedule_at}"
+
+You can also wrap this inside ``__init__``, if you want to derive description.
+
+.. code-block:: python
+
+    def __init__(self) -> None:
+        self.description = "Schedule: after each workday, at {self._schedule_at}"
+
+
+This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.
+
+So for a DAG declared like this:
+
+.. code-block:: python
+
+    with DAG(
+        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        ...,
+    ) as dag:
+        ...
+
+The *i* icon  would show,  ``Schedule: after each workday, at 08:00:00``.
+
+
+.. seealso::
+    Module :mod:`airflow.timetables.interval`
+        check ``CronDataIntervalTimetable`` description implementation which provides comprehensive cron description in UI.

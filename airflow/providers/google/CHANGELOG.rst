@@ -18,6 +18,156 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Looker PDT operators (#20882)``
+* ``Add autodetect arg to external table creation in GCSToBigQueryOperator (#21944)``
+* ``Add Dataproc assets/links (#21756)``
+* ``Add Auto ML operators for Vertex AI service (#21470)``
+* ``Add GoogleCalendarToGCSOperator (#20769)``
+* ``Make project_id argument optional in all dataproc operators (#21866)``
+* ``Allow templates in more DataprocUpdateClusterOperator fields (#21865)``
+* ``Dataflow Assets (#21639)``
+* ``Extract ClientInfo to module level (#21554)``
+* ``Datafusion assets (#21518)``
+* ``Dataproc metastore assets (#21267)``
+* ``Normalize *_conn_id parameters in BigQuery sensors (#21430)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bigquery_dts parameter docstring typo (#21786)``
+* ``Fixed PostgresToGCSOperator fail on empty resultset for use_server_side_cursor=True (#21307)``
+* ``Fix multi query scenario in bigquery example DAG (#21575)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Unpin 'google-cloud-memcache' (#21912)``
+* ``Unpin ''pandas-gbq'' and remove unused code (#21915)``
+* ``Suppress hook warnings from the Bigquery transfers (#20119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add hook for integrating with Google Calendar (#20542)``
+* ``Add encoding parameter to 'GCSToLocalFilesystemOperator' to fix #20901 (#20919)``
+* ``batch as templated field in DataprocCreateBatchOperator (#20905)``
+* ``Make timeout Optional for wait_for_operation (#20981)``
+* ``Add more SQL template fields renderers (#21237)``
+* ``Create CustomJob and Datasets operators for Vertex AI service (#21253)``
+* ``Support to upload file to Google Shared Drive (#21319)``
+* ``(providers_google) add a location check in bigquery (#19571)``
+* ``Add support for BeamGoPipelineOperator (#20386)``
+* ``Google Cloud Composer opearators (#21251)``
+* ``Enable asynchronous job submission in BigQuery hook (#21385)``
+* ``Optionally raise an error if source file does not exist in GCSToGCSOperator (#21391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cloudsql import links fix. (#21199)``
+* ``Fix BigQueryDataTransferServiceHook.get_transfer_run() request parameter (#21293)``
+* ``:bug: (BigQueryHook) fix compatibility with sqlalchemy engine (#19508)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix last google provider MyPy errors (#21010)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Revert "Create CustomJob and Datasets operators for Vertex AI service (#20077)" (#21203)``
+   * ``Create CustomJob and Datasets operators for Vertex AI service (#20077)``
+   * ``Extend dataproc example dag (#21091)``
+   * ``Squelch more deprecation warnings (#21003)``
+   * ``Remove a few stray ':type's in docs (#21014)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Fix BigQuery system test (#21320)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Never set DagRun.state to State.NONE (#21263)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional location to bigquery data transfer service (#15088) (#20221)``
+* ``Add Google Cloud Tasks how-to documentation (#20145)``
+* ``Added example DAG for MSSQL to Google Cloud Storage (GCS) (#19873)``
+* ``Support regional GKE cluster (#18966)``
+* ``Delete pods by default in KubernetesPodOperator (#20575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes docstring for PubSubCreateSubscriptionOperator (#20237)``
+* ``Fix missing get_backup method for Dataproc Metastore (#20326)``
+* ``BigQueryHook fix typo in run_load doc string (#19924)``
+* ``Fix passing the gzip compression parameter on sftp_to_gcs. (#20553)``
+* ``switch to follow_redirects on httpx.get call in CloudSQL provider (#20239)``
+* ``avoid deprecation warnings in BigQuery transfer operators (#20502)``
+* ``Change download_video parameter to resourceName (#20528)``
+* ``Fix big query to mssql/mysql transfer issues (#20001)``
+* ``Fix setting of project ID in ''provide_authorized_gcloud'' (#20428)``
+
+Misc
+~~~~
+
+* ``Move source_objects datatype check out of GCSToBigQueryOperator.__init__ (#20347)``
+* ``Organize S3 Classes in Amazon Provider (#20167)``
+* ``Providers facebook hook multiple account (#19377)``
+* ``Remove deprecated method call (blob.download_as_string) (#20091)``
+* ``Remove deprecated template_fields from GoogleDriveToGCSOperator (#19991)``
+
+Note! optional features of the ``apache-airflow-providers-facebook`` and ``apache-airflow-providers-amazon``
+require newer versions of the providers (as specified in the dependencies)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy errors for google.cloud_build (#20234)``
+   * ``Fix MyPy for Google Bigquery (#20329)``
+   * ``Fix remaining MyPy errors in Google Provider (#20358)``
+   * ``Fix MyPy Errors for dataproc package (#20327)``
+   * ``Fix MyPy errors for google.cloud.tasks (#20233)``
+   * ``Fix MyPy Errors for Apache Beam (and Dataflow) provider. (#20301)``
+   * ``Fix MyPy errors in leveldb (#20222)``
+   * ``Fix MyPy errors for google.cloud.transfers (#20229)``
+   * ``Fix MyPY errors for google.cloud.example_dags (#20232)``
+   * ``Fix MyPy errors for google/marketing_platform and suite (#20227)``
+   * ``Fix MyPy errors in google.cloud.sensors (#20228)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Finalised Datastore documentation (#20138)``
+   * ``Update Sphinx and Sphinx-AutoAPI (#20079)``
+   * ``Update doc reference links (#19909)``
+   * ``Use Python3.7+ syntax in pyupgrade (#20501)``
+   * ``Fix MyPy errors in Google Cloud (again) (#20469)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix Google mlengine MyPy errors (#20569)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix Google Mypy Dataproc errors (#20570)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Fix mypy errors in google/cloud/operators/stackdriver (#20601)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 6.2.0
 .....
 

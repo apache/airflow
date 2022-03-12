@@ -90,6 +90,22 @@ function install_provider_packages() {
     group_end
 }
 
+function twine_check_provider_packages() {
+    group_start "Twine check provider packages"
+    if [[ ${PACKAGE_FORMAT} == "wheel" ]]; then
+       twine_check_provider_packages_from_wheels
+    elif [[ ${PACKAGE_FORMAT} == "sdist" ]]; then
+       twine_check_provider_packages_from_sdist
+    else
+        echo
+        echo "${COLOR_RED}ERROR: Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+
 function discover_all_provider_packages() {
     group_start "Listing available providers via 'airflow providers list'"
     # Columns is to force it wider, so it doesn't wrap at 80 characters
@@ -222,11 +238,92 @@ function ver() {
   printf "%04d%04d%04d%.0s" ${1//[.-]/ }
 }
 
+function import_all_provider_classes() {
+    group_start "Import all Airflow classes"
+    # We have to move to a directory where "airflow" is
+    unset PYTHONPATH
+    # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
+    # import path
+    pushd /
+
+    declare -a IMPORT_CLASS_PARAMETERS
+
+    PROVIDER_PATHS=$(
+        python3 <<EOF 2>/dev/null
+import airflow.providers;
+path=airflow.providers.__path__
+for p in path._path:
+    print(p)
+EOF
+    )
+    export PROVIDER_PATHS
+
+    echo "Searching for providers packages in:"
+    echo "${PROVIDER_PATHS}"
+
+    while read -r provider_path; do
+        IMPORT_CLASS_PARAMETERS+=("--path" "${provider_path}")
+    done < <(echo "${PROVIDER_PATHS}")
+
+    if python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"; then
+        popd
+        group_end
+    else
+        popd
+        group_end
+        return 1
+    fi
+}
+
+
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
+
+if [[ ${SKIP_TWINE_CHECK=""} != "true" ]]; then
+    # Airflow 2.1.0 installs importlib_metadata version that does not work well with twine
+    # So we should skip twine check in this case
+    twine_check_provider_packages
+fi
 install_provider_packages
-import_all_provider_classes
+set +e
+
+import_error_file="/tmp/import_errors.txt"
+
+if import_all_provider_classes 2>"${import_error_file}"; then
+    echo "${COLOR_GREEN}All classes imported properly${COLOR_RESET}"
+else
+    echo "${COLOR_RED}There were errors when importing Providers!${COLOR_RESET}"
+    if [[ ${USE_AIRFLOW_VERSION} =~ [0-9\.]* ]]; then
+        echo "${COLOR_RED}This test is run to check Provider's compatibility with Airflow ${USE_AIRFLOW_VERSION}${COLOR_RESET}"
+        echo "${COLOR_RED}So this error might mean that your providers are not Airflow ${USE_AIRFLOW_VERSION} compatible${COLOR_RESET}"
+
+        if grep "airflow.utils.context" <"${import_error_file}" >/dev/null 2>&1; then
+            echo
+            echo "${COLOR_YELLOW}You are using Context class which is only available in Airflow 2.3${COLOR_RESET}"
+            echo
+            echo """
+You should use this construct to use the Context class in your operator:
+
+${COLOR_BLUE}from typing import TYPE_CHECKING${COLOR_RESET}
+
+${COLOR_BLUE}if TYPE_CHECKING:${COLOR_RESET}
+${COLOR_BLUE}    from airflow.utils.context import Context${COLOR_RESET}
+
+${COLOR_BLUE}def execute(self, context: 'Context'):${COLOR_RESET}
+
+${COLOR_YELLOW}You can also have other imports that are missing in Airflow ${USE_AIRFLOW_VERSION} so look at the details below!${COLOR_RESET}
+
+"""
+        fi
+    fi
+    echo
+    echo "${COLOR_YELLOW}Detailed errors:${COLOR_RESET}"
+    echo
+    cat /"${import_error_file}"
+    echo
+    exit 1
+fi
 
 discover_all_provider_packages
 discover_all_hooks

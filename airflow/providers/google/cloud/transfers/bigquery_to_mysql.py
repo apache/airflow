@@ -16,11 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MySQL operator."""
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryToMySqlOperator(BaseOperator):
@@ -48,26 +52,17 @@ class BigQueryToMySqlOperator(BaseOperator):
         )
 
     :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
-    :type dataset_table: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: str
     :param gcp_conn_id: reference to a specific Google Cloud hook.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param database: name of database which overwrite defined one in connection
-    :type database: str
     :param replace: Whether to replace instead of insert
-    :type replace: bool
     :param batch_size: The number of rows to take in each batch
-    :type batch_size: int
     :param location: The location used for the operation.
-    :type location: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -76,10 +71,9 @@ class BigQueryToMySqlOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
         'mysql_table',
@@ -91,7 +85,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         *,
         dataset_table: str,
         mysql_table: str,
-        selected_fields: Optional[str] = None,
+        selected_fields: Optional[Union[List[str], str]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         mysql_conn_id: str = 'mysql_default',
         database: Optional[str] = None,
@@ -116,46 +110,27 @@ class BigQueryToMySqlOperator(BaseOperator):
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
-            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>')
+            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>') from None
 
-    def _bq_get_data(self):
-        self.log.info('Fetching Data from:')
-        self.log.info('Dataset: %s ; Table: %s', self.dataset_id, self.table_id)
-
-        hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+    def execute(self, context: 'Context') -> None:
+        big_query_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-
-        i = 0
-        while True:
-            response = hook.list_rows(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                max_results=self.batch_size,
-                selected_fields=self.selected_fields,
-                start_index=i * self.batch_size,
-            )
-            rows = [dict(r) for r in response]
-            if len(rows) == 0:
-                self.log.info('Job Finished')
-                return
-
-            self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
-
-            table_data = []
-            for dict_row in rows:
-                single_row = []
-                for fields in dict_row['f']:
-                    single_row.append(fields['v'])
-                table_data.append(single_row)
-
-            yield table_data
-            i += 1
-
-    def execute(self, context):
         mysql_hook = MySqlHook(schema=self.database, mysql_conn_id=self.mysql_conn_id)
-        for rows in self._bq_get_data():
-            mysql_hook.insert_rows(self.mysql_table, rows, replace=self.replace)
+        for rows in bigquery_get_data(
+            self.log,
+            self.dataset_id,
+            self.table_id,
+            big_query_hook,
+            self.batch_size,
+            self.selected_fields,
+        ):
+            mysql_hook.insert_rows(
+                table=self.mysql_table,
+                rows=rows,
+                target_fields=self.selected_fields,
+                replace=self.replace,
+            )

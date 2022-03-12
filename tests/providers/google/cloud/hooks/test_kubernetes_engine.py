@@ -25,6 +25,7 @@ from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 TASK_ID = 'test-gke-cluster-operator'
 CLUSTER_NAME = 'test-cluster'
@@ -36,18 +37,12 @@ class TestGKEHookClient(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient")
-    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
         result = self.gke_hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
 
@@ -74,9 +69,7 @@ class TestGKEHookDelete(unittest.TestCase):
         )
 
         client_delete.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
-            cluster_id=CLUSTER_NAME,
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -145,8 +138,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
+            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
             cluster=mock_cluster_proto,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -173,8 +165,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
+            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
             cluster=proto_mock,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -228,9 +219,7 @@ class TestGKEHookGet(unittest.TestCase):
         )
 
         client_get.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID,
-            zone=GKE_ZONE,
-            cluster_id=CLUSTER_NAME,
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -242,21 +231,20 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.container_v1.ClusterManagerClient')
-    @mock.patch('airflow.providers.google.common.hooks.base_google.ClientInfo')
     @mock.patch('airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook._get_credentials')
-    def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
+    def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
+            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
         )
 
     def test_get_operation(self):
         self.gke_hook._client.get_operation = mock.Mock()
         self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
         self.gke_hook._client.get_operation.assert_called_once_with(
-            project_id=TEST_GCP_PROJECT_ID, zone=GKE_ZONE, operation_id='TEST_OP'
+            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP'
         )
 
     def test_append_label(self):

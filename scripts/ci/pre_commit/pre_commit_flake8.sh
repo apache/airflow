@@ -15,10 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
 export PYTHON_MAJOR_MINOR_VERSION="3.7"
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
 export PRINT_INFO_FROM_SCRIPTS="false"
 
-# shellcheck source=scripts/ci/static_checks/flake8.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/flake8.sh" "${@}"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+function run_flake8() {
+    if [[ "${#@}" == "0" ]]; then
+        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
+            -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
+            "${AIRFLOW_CI_IMAGE}" "/opt/airflow/scripts/in_container/run_flake8.sh"
+    else
+        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
+            -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
+            "${AIRFLOW_CI_IMAGE}" "/opt/airflow/scripts/in_container/run_flake8.sh" "${@}"
+    fi
+}
+
+build_images::prepare_ci_build
+
+build_images::rebuild_ci_image_if_confirmed_for_pre_commit
+
+run_flake8 "$@"

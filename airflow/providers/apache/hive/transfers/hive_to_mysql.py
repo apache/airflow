@@ -18,12 +18,19 @@
 
 """This module contains an operator to move data from Hive to MySQL."""
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.www import utils as wwwutils
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -33,35 +40,32 @@ class HiveToMySqlOperator(BaseOperator):
     be used for smallish amount of data.
 
     :param sql: SQL query to execute against Hive server. (templated)
-    :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
-    :type mysql_table: str
     :param mysql_conn_id: source mysql connection
-    :type mysql_conn_id: str
     :param metastore_conn_id: Reference to the
         :ref:`metastore thrift service connection id <howto/connection:hive_metastore>`.
-    :type metastore_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running
         the task twice won't double load data). (templated)
-    :type mysql_preoperator: str
     :param mysql_postoperator: sql statement to run against mysql after the
         import, typically used to move data from staging to
         production and issue cleanup commands. (templated)
-    :type mysql_postoperator: str
     :param bulk_load: flag to use bulk_load option.  This loads mysql directly
         from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
         This option requires an extra connection parameter for the
         destination MySQL connection: {'local_infile': true}.
-    :type bulk_load: bool
     :param hive_conf:
-    :type hive_conf: dict
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {
+        'sql': 'hql',
+        'mysql_preoperator': MYSQL_RENDERER,
+        'mysql_postoperator': MYSQL_RENDERER,
+    }
     ui_color = '#a0e08c'
 
     def __init__(
@@ -87,7 +91,7 @@ class HiveToMySqlOperator(BaseOperator):
         self.bulk_load = bulk_load
         self.hive_conf = hive_conf
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info("Extracting data from Hive: %s", self.sql)

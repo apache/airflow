@@ -22,11 +22,26 @@ import os
 import random
 import re
 import string
+from typing import Any, Dict, List
+
+from marshmallow import Schema, fields, validate
+from marshmallow.exceptions import ValidationError
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
+
+
+class UserSchema(Schema):
+    """user collection item schema"""
+
+    id = fields.Int()
+    firstname = fields.Str(required=True)
+    lastname = fields.Str(required=True)
+    username = fields.Str(required=True)
+    email = fields.Email(required=True)
+    roles = fields.List(fields.Str, required=True, validate=validate.Length(min=1))
 
 
 @suppress_logs_and_warning
@@ -41,7 +56,7 @@ def users_list(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli(check_db=True)
 def users_create(args):
     """Creates new user in the DB"""
     appbuilder = cached_app().appbuilder
@@ -85,7 +100,7 @@ def _find_user(args):
     return user
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def users_delete(args):
     """Deletes user from DB"""
     user = _find_user(args)
@@ -98,7 +113,7 @@ def users_delete(args):
         raise SystemExit('Failed to delete user')
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
     user = _find_user(args)
@@ -152,7 +167,7 @@ def users_export(args):
         print(f"{len(users)} users successfully exported to {file.name}")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def users_import(args):
     """Imports users from the json file"""
     json_file = getattr(args, 'import')
@@ -174,12 +189,23 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list):
+def _import_users(users_list: List[Dict[str, Any]]):
     appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
 
+    try:
+        UserSchema(many=True).load(users_list)
+    except ValidationError as e:
+        msg = []
+        for row_num, failure in e.normalized_messages().items():
+            msg.append(f'[Item {row_num}]')
+            for key, value in failure.items():
+                msg.append(f'\t{key}: {value}')
+        raise SystemExit("Error: Input file didn't pass validation. See below:\n{}".format('\n'.join(msg)))
+
     for user in users_list:
+
         roles = []
         for rolename in user['roles']:
             role = appbuilder.sm.find_role(rolename)
@@ -188,11 +214,6 @@ def _import_users(users_list):
                 raise SystemExit(f'Error: "{rolename}" is not a valid role. Valid roles are: {valid_roles}')
 
             roles.append(role)
-
-        required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
-        for field in required_fields:
-            if not user.get(field):
-                raise SystemExit(f"Error: '{field}' is a required field, but was not specified")
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:

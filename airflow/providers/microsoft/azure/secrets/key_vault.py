@@ -14,15 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 from typing import Optional
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
-try:
-    from functools import cached_property  # type: ignore[attr-defined]
-except ImportError:
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
     from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
@@ -58,17 +59,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections
         If set to None (null), requests for connections will not be sent to Azure Key Vault
-    :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables
         If set to None (null), requests for variables will not be sent to Azure Key Vault
-    :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for configurations will not be sent to Azure Key Vault
-    :type config_prefix: str
     :param vault_url: The URL of an Azure Key Vault to use
-    :type vault_url: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "-"
-    :type sep: str
     """
 
     def __init__(
@@ -109,7 +105,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         Get an Airflow Connection URI from an Azure Key Vault secret
 
         :param conn_id: The Airflow connection id to retrieve
-        :type conn_id: str
         """
         if self.connections_prefix is None:
             return None
@@ -121,7 +116,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         Get an Airflow Variable from an Azure Key Vault secret.
 
         :param key: Variable Key
-        :type key: str
         :return: Variable Value
         """
         if self.variables_prefix is None:
@@ -149,11 +143,8 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         environment variables, so ``connection_default`` becomes ``connection-default``.
 
         :param path_prefix: The path prefix of the secret to retrieve
-        :type path_prefix: str
         :param secret_id: Name of the secret
-        :type secret_id: str
         :param sep: Separator used to concatenate path_prefix and secret_id
-        :type sep: str
         """
         path = f'{path_prefix}{sep}{secret_id}'
         return path.replace('_', sep)
@@ -163,9 +154,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         Get an Azure Key Vault secret value
 
         :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
-        :type secret_id: str
         """
         name = self.build_path(path_prefix, secret_id, self.sep)
         try:

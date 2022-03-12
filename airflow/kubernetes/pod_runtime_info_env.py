@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1EnvVar`."""
-# flake8: noqa
-
 import warnings
 
 with warnings.catch_warnings():
-    from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
+    from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",

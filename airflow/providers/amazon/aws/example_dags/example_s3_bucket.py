@@ -14,17 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 import os
 from datetime import datetime
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
 
 
+# [START howto_operator_s3_bucket]
 @task(task_id="s3_bucket_dag_add_keys_to_bucket")
 def upload_keys():
     """This is a python callback to add keys into the s3 bucket"""
@@ -38,7 +42,6 @@ def upload_keys():
         )
 
 
-# [START howto_operator_s3_bucket]
 with DAG(
     dag_id='s3_bucket_dag',
     schedule_interval=None,

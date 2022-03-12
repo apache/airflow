@@ -18,6 +18,8 @@
 import os
 from datetime import datetime
 
+from google.protobuf.field_mask_pb2 import FieldMask
+
 from airflow import DAG
 from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsCancelExecutionOperator,
@@ -102,7 +104,7 @@ with DAG(
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        update_mask={"paths": ["name", "description"]},
+        update_mask=FieldMask(paths=["name", "description"]),
     )
     # [END how_to_update_workflow]
 

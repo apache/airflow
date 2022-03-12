@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from airflow.models import BaseOperator
+from airflow.utils.context import Context
 
 
 class DummyOperator(BaseOperator):
@@ -33,5 +33,5 @@ class DummyOperator(BaseOperator):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context: Context):
         pass

@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from kubernetes import client, config, watch
 
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
-    import yaml
+    import yaml  # type: ignore[no-redef]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -59,7 +61,6 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type conn_id: str
     """
 
     conn_name_attr = 'kubernetes_conn_id'
@@ -91,7 +92,7 @@ class KubernetesHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -193,15 +194,10 @@ class KubernetesHook(BaseHook):
         Creates custom resource definition object in Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param body: crd object definition
-        :type body: Union[str, dict]
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -224,15 +220,10 @@ class KubernetesHook(BaseHook):
         Get custom resource definition object from Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param name: crd object name
-        :type name: str
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -252,6 +243,7 @@ class KubernetesHook(BaseHook):
             extras = connection.extra_dejson
             namespace = extras.get("extra__kubernetes__namespace", "default")
             return namespace
+        return None
 
     def get_pod_log_stream(
         self,
@@ -263,10 +255,8 @@ class KubernetesHook(BaseHook):
         Retrieves a log stream for a container in a kubernetes pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
@@ -290,10 +280,8 @@ class KubernetesHook(BaseHook):
         Retrieves a container's log from the specified pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         return api.read_namespaced_pod_log(

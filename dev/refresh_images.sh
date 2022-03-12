@@ -31,8 +31,5 @@ fi
 
 python_version=$1
 
-./breeze build-image --python "${python_version}" --build-cache-pulled  --check-if-base-python-image-updated --verbose
-./breeze build-image --python "${python_version}" --build-cache-pulled  --production-image --verbose
-
-./breeze push-image --python "${python_version}"
-./breeze push-image --production-image --python "${python_version}"
+./breeze prepare-build-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose
+./breeze prepare-build-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --production-image --verbose

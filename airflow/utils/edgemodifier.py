@@ -14,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional, Sequence, Union
 
-from typing import Sequence, Union
-
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 
 
-class EdgeModifier(TaskMixin):
+class EdgeModifier(DependencyMixin):
     """
     Class that represents edge information to be added between two
     tasks/operators. Has shorthand factory functions, like Label("hooray").
@@ -38,77 +37,91 @@ class EdgeModifier(TaskMixin):
     is the representation of the information for one specific edge.
     """
 
-    def __init__(self, label: str = None):
+    def __init__(self, label: Optional[str] = None):
         self.label = label
-        self._upstream = []
-        self._downstream = []
+        self._upstream: List["DependencyMixin"] = []
+        self._downstream: List["DependencyMixin"] = []
 
     @property
     def roots(self):
-        """Should return list of root operator List["BaseOperator"]"""
         return self._downstream
 
     @property
     def leaves(self):
-        """Should return list of leaf operator List["BaseOperator"]"""
         return self._upstream
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], chain: bool = True):
+    @staticmethod
+    def _make_list(item_or_list):
+        if not isinstance(item_or_list, Sequence):
+            return [item_or_list]
+        return item_or_list
+
+    def _save_nodes(
+        self,
+        nodes: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        stream: List["DependencyMixin"],
+    ):
+        from airflow.models.xcom_arg import XComArg
+        from airflow.utils.task_group import TaskGroup
+
+        for node in self._make_list(nodes):
+            if isinstance(node, (TaskGroup, XComArg)):
+                stream.append(node)
+            elif isinstance(node, DAGNode):
+                if node.task_group and not node.task_group.is_root:
+                    stream.append(node.task_group)
+                else:
+                    stream.append(node)
+            else:
+                raise TypeError(
+                    f"Cannot use edge labels with {type(node).__name__}, "
+                    f"only tasks, XComArg or TaskGroups"
+                )
+
+    def set_upstream(
+        self,
+        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
         we have both sides so we can resolve the relationship.
 
-        Providing this also provides << via TaskMixin.
+        Providing this also provides << via DependencyMixin.
         """
-        # Ensure we have a list, even if it's just one item
-        if not isinstance(task_or_task_list, list):
-            task_or_task_list = [task_or_task_list]
-        # Unfurl it into actual operators
-        operators = []
-        for task in task_or_task_list:
-            operators.extend(task.roots)
-        # For each already-declared downstream, pair off with each new upstream
-        # item and store the edge info.
-        for operator in operators:
-            for downstream in self._downstream:
-                self.add_edge_info(operator.dag, operator.task_id, downstream.task_id)
-                if chain:
-                    operator.set_downstream(downstream)
-        # Add the new tasks to our list of ones we've seen
-        self._upstream.extend(operators)
+        self._save_nodes(other, self._upstream)
+        for node in self._downstream:
+            node.set_upstream(other, edge_modifier=self)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]], chain: bool = True):
+    def set_downstream(
+        self,
+        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
         we have both sides so we can resolve the relationship.
 
-        Providing this also provides >> via TaskMixin.
+        Providing this also provides >> via DependencyMixin.
         """
-        # Ensure we have a list, even if it's just one item
-        if not isinstance(task_or_task_list, list):
-            task_or_task_list = [task_or_task_list]
-        # Unfurl it into actual operators
-        operators = []
-        for task in task_or_task_list:
-            operators.extend(task.leaves)
-        # Pair them off with existing
-        for operator in operators:
-            for upstream in self._upstream:
-                self.add_edge_info(upstream.dag, upstream.task_id, operator.task_id)
-                if chain:
-                    upstream.set_downstream(operator)
-        # Add the new tasks to our list of ones we've seen
-        self._downstream.extend(operators)
+        self._save_nodes(other, self._downstream)
+        for node in self._upstream:
+            node.set_downstream(other, edge_modifier=self)
 
-    def update_relative(self, other: "TaskMixin", upstream: bool = True) -> None:
+    def update_relative(
+        self,
+        other: "DependencyMixin",
+        upstream: bool = True,
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ) -> None:
         """
         Called if we're not the "main" side of a relationship; we still run the
         same logic, though.
         """
         if upstream:
-            self.set_upstream(other, chain=False)
+            self.set_upstream(other)
         else:
-            self.set_downstream(other, chain=False)
+            self.set_downstream(other)
 
     def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
         """

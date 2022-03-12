@@ -37,56 +37,75 @@ If release name contains chart name it will be used as a full name.
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
+  {{- end }}
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
+  # (Airflow 1.10.* variant)
   - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
         name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
         key: connection
+    {{- end }}
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
   # The elasticsearch variables were updated to the shorter names in v1.10.4
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
+    {{- end }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST }}
   # This is the older format for these variable names, kept here for backward compatibility
   - name: AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
+    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -143,8 +162,7 @@ If release name contains chart name it will be used as a full name.
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
-  securityContext:
-    runAsUser: {{ .Values.dags.gitSync.uid }}
+  securityContext: {{ include "localSecurityContext" .Values.dags.gitSync | nindent 4 }}
   env:
     {{- if .Values.dags.gitSync.sshKeySecret }}
     - name: GIT_SSH_KEY_FILE
@@ -589,6 +607,41 @@ Create the name of the cleanup service account to use
   {{- end }}
 {{- end }}
 
+{{define "scheduler_liveness_check_command"}}
+
+  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    from airflow.jobs.scheduler_job import SchedulerJob
+    from airflow.utils.db import create_session
+    from airflow.utils.net import get_hostname
+    import sys
+    with create_session() as session:
+        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+    sys.exit(0 if job.is_alive() else 1)"
+  {{- end }}
+{{- end }}
+
+{{define "triggerer_liveness_check_command"}}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+{{- end }}
+
 {{ define "registry_docker_config" -}}
   {{- $host := .Values.registry.connection.host }}
   {{- $email := .Values.registry.connection.email }}
@@ -615,4 +668,85 @@ Create the name of the cleanup service account to use
     {{- $kubeVersion = regexFind "\\d+\\.\\d+\\.\\d+" $kubeVersion -}}
   {{- end -}}
   {{- $kubeVersion -}}
+{{- end -}}
+
+{{/*
+Set the default value for securityContext
+If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+
+    +------------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    +------------------------+      +-----------------+      +-------------------------+
+
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+any extra values set to securityContext or uid+gid will be ignored.
+
+The template can be called like so:
+   include "airflowSecurityContext" (list . .Values.webserver)
+
+Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+*/}}
+{{- define "airflowSecurityContext" -}}
+  {{- $ := index . 0 -}}
+  {{- with index . 1 }}
+    {{- if .securityContext -}}
+{{ toYaml .securityContext | print }}
+    {{- else if $.Values.securityContext -}}
+{{ toYaml $.Values.securityContext | print }}
+    {{- else -}}
+runAsUser: {{ $.Values.uid }}
+fsGroup: {{ $.Values.gid }}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Set the default value for securityContext
+If no value is passed for securityContext or <node>.securityContext, defaults to UID in the local node.
+
+    +------------------------+     +-------------+
+    | <node>.securityContext |  >  | <node>.uid  |
+    +------------------------+     +-------------+
+
+The template can be called like so:
+  include "localSecurityContext" .Values.statsd
+
+It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
+*/}}
+{{- define "localSecurityContext" -}}
+  {{- if .securityContext -}}
+{{ toYaml .securityContext | print }}
+  {{- else -}}
+runAsUser: {{ .uid }}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Set the default value for workers chown for persistent storage
+If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
+
+    +------------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    +------------------------+      +-----------------+      +-------------------------+
+
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+any extra values set to securityContext or uid+gid will be ignored.
+
+The template can be called like so:
+   include "airflowSecurityContextIds" (list . .Values.workers)
+
+Where `.` is the global variables scope and `.Values.workers` the local variables scope for the workers template.
+*/}}
+{{- define "airflowSecurityContextIds" -}}
+  {{- $ := index . 0 -}}
+  {{- with index . 1 }}
+    {{- if .securityContext -}}
+{{ pluck "runAsUser" .securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContext | first | default $.Values.gid }}
+    {{- else if $.Values.securityContext -}}
+{{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
+    {{- else -}}
+{{ $.Values.uid }}:{{ $.Values.gid }}
+    {{- end -}}
+  {{- end -}}
 {{- end -}}

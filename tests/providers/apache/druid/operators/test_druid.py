@@ -74,3 +74,32 @@ def test_render_template_from_file(tmp_path, dag_maker):
 
     dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
     assert RENDERED_INDEX == json.loads(operator.json_index_file)
+
+
+def test_init_with_timeout_and_max_ingestion_time():
+    operator = DruidOperator(
+        task_id="spark_submit_job",
+        json_index_file=JSON_INDEX_STR,
+        timeout=60,
+        max_ingestion_time=180,
+        params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
+    )
+
+    expected_values = {
+        'task_id': 'spark_submit_job',
+        'timeout': 60,
+        'max_ingestion_time': 180,
+    }
+    assert expected_values['task_id'] == operator.task_id
+    assert expected_values['timeout'] == operator.timeout
+    assert expected_values['max_ingestion_time'] == operator.max_ingestion_time
+
+
+def test_init_default_timeout():
+    operator = DruidOperator(
+        task_id="spark_submit_job",
+        json_index_file=JSON_INDEX_STR,
+        params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
+    )
+    expected_default_timeout = 1
+    assert expected_default_timeout == operator.timeout

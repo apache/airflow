@@ -15,10 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
 export PYTHON_MAJOR_MINOR_VERSION="3.7"
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
 export PRINT_INFO_FROM_SCRIPTS="false"
 
-# shellcheck source=scripts/ci/static_checks/mypy.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/mypy.sh" "${@}"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+function run_mypy() {
+    local files=()
+    if [[ "${#@}" == "0" ]]; then
+      files=(airflow tests docs)
+    else
+      files=("$@")
+    fi
+
+    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+        "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
+        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
+        "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
+}
+
+build_images::prepare_ci_build
+
+build_images::rebuild_ci_image_if_confirmed_for_pre_commit
+
+run_mypy "$@"

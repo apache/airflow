@@ -19,11 +19,15 @@
 """This module contains an operator to move data from Hive to Samba."""
 
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HiveToSambaOperator(BaseOperator):
@@ -32,21 +36,18 @@ class HiveToSambaOperator(BaseOperator):
     results of the query as a csv to a Samba location.
 
     :param hql: the hql to be exported. (templated)
-    :type hql: str
     :param destination_filepath: the file path to where the file will be pushed onto samba
-    :type destination_filepath: str
     :param samba_conn_id: reference to the samba destination
-    :type samba_conn_id: str
     :param hiveserver2_conn_id: Reference to the
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
-    :type hiveserver2_conn_id: str
     """
 
-    template_fields = ('hql', 'destination_filepath')
-    template_ext = (
+    template_fields: Sequence[str] = ('hql', 'destination_filepath')
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )
+    template_fields_renderers = {'hql': 'hql'}
 
     def __init__(
         self,
@@ -63,7 +64,7 @@ class HiveToSambaOperator(BaseOperator):
         self.destination_filepath = destination_filepath
         self.hql = hql.strip().rstrip(';')
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)

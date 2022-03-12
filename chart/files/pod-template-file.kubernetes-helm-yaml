@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-{{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
-{{- $affinity := or .Values.affinity .Values.workers.affinity }}
-{{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -83,9 +84,7 @@ spec:
     - name: {{ template "registry_secret" . }}
   {{- end }}
   restartPolicy: Never
-  securityContext:
-    runAsUser: {{ .Values.uid }}
-    fsGroup: {{ .Values.gid }}
+  securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}
   affinity: {{ toYaml $affinity | nindent 4 }}
   tolerations: {{ toYaml $tolerations | nindent 4 }}

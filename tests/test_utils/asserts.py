@@ -63,7 +63,7 @@ class CountQueries:
             and __file__ != f.filename
             and ('session.py' not in f.filename and f.name != 'wrapper')
         ]
-        stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-3:])
+        stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-5:])
         self.result[f"{stack_info}"] += 1
 
 
@@ -75,15 +75,19 @@ def assert_queries_count(expected_count, message_fmt=None):
     with count_queries() as result:
         yield None
 
+    # This is a margin we have for queries - we do not want to change it every time we
+    # changed queries, but we want to catch cases where we spin out of control
+    margin = 15
+
     count = sum(result.values())
-    if expected_count != count:
+    if count > expected_count + margin:
         message_fmt = (
             message_fmt
-            or "The expected number of db queries is {expected_count}. "
+            or "The expected number of db queries is {expected_count} with extra margin: {margin}. "
             "The current number is {current_count}.\n\n"
             "Recorded query locations:"
         )
-        message = message_fmt.format(current_count=count, expected_count=expected_count)
+        message = message_fmt.format(current_count=count, expected_count=expected_count, margin=margin)
 
         for location, count in result.items():
             message += f'\n\t{location}:\t{count}'

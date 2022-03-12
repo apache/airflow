@@ -17,10 +17,13 @@
 # under the License.
 
 """This module contains AWS Lambda hook"""
+import warnings
+from typing import Any, List, Optional
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsLambdaHook(AwsBaseHook):
+class LambdaHook(AwsBaseHook):
     """
     Interact with AWS Lambda
 
@@ -31,39 +34,107 @@ class AwsLambdaHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param function_name: AWS Lambda Function Name
-    :type function_name: str
     :param log_type: Tail Invocation Request
-    :type log_type: str
     :param qualifier: AWS Lambda Function Version or Alias Name
-    :type qualifier: str
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
-    :type invocation_type: str
     """
 
     def __init__(
         self,
-        function_name: str,
-        log_type: str = 'None',
-        qualifier: str = '$LATEST',
-        invocation_type: str = 'RequestResponse',
         *args,
         **kwargs,
     ) -> None:
-        self.function_name = function_name
-        self.log_type = log_type
-        self.invocation_type = invocation_type
-        self.qualifier = qualifier
         kwargs["client_type"] = "lambda"
         super().__init__(*args, **kwargs)
 
-    def invoke_lambda(self, payload: str) -> str:
-        """Invoke Lambda Function"""
-        response = self.conn.invoke(
-            FunctionName=self.function_name,
-            InvocationType=self.invocation_type,
-            LogType=self.log_type,
-            Payload=payload,
-            Qualifier=self.qualifier,
-        )
-
+    def invoke_lambda(
+        self,
+        *,
+        function_name: str,
+        invocation_type: Optional[str] = None,
+        log_type: Optional[str] = None,
+        client_context: Optional[str] = None,
+        payload: Optional[str] = None,
+        qualifier: Optional[str] = None,
+    ):
+        """Invoke Lambda Function. Refer to the boto3 documentation for more info."""
+        invoke_args = {
+            "FunctionName": function_name,
+            "InvocationType": invocation_type,
+            "LogType": log_type,
+            "ClientContext": client_context,
+            "Payload": payload,
+            "Qualifier": qualifier,
+        }
+        response = self.conn.invoke(**{k: v for k, v in invoke_args.items() if v is not None})
         return response
+
+    def create_lambda(
+        self,
+        *,
+        function_name: str,
+        runtime: str,
+        role: str,
+        handler: str,
+        code: dict,
+        description: Optional[str] = None,
+        timeout: Optional[int] = None,
+        memory_size: Optional[int] = None,
+        publish: Optional[bool] = None,
+        vpc_config: Optional[Any] = None,
+        package_type: Optional[str] = None,
+        dead_letter_config: Optional[Any] = None,
+        environment: Optional[Any] = None,
+        kms_key_arn: Optional[str] = None,
+        tracing_config: Optional[Any] = None,
+        tags: Optional[Any] = None,
+        layers: Optional[list] = None,
+        file_system_configs: Optional[List[Any]] = None,
+        image_config: Optional[Any] = None,
+        code_signing_config_arn: Optional[str] = None,
+        architectures: Optional[List[str]] = None,
+    ) -> dict:
+        """Create a Lambda Function"""
+        create_function_args = {
+            "FunctionName": function_name,
+            "Runtime": runtime,
+            "Role": role,
+            "Handler": handler,
+            "Code": code,
+            "Description": description,
+            "Timeout": timeout,
+            "MemorySize": memory_size,
+            "Publish": publish,
+            "VpcConfig": vpc_config,
+            "PackageType": package_type,
+            "DeadLetterConfig": dead_letter_config,
+            "Environment": environment,
+            "KMSKeyArn": kms_key_arn,
+            "TracingConfig": tracing_config,
+            "Tags": tags,
+            "Layers": layers,
+            "FileSystemConfigs": file_system_configs,
+            "ImageConfig": image_config,
+            "CodeSigningConfigArn": code_signing_config_arn,
+            "Architectures": architectures,
+        }
+        response = self.conn.create_function(
+            **{k: v for k, v in create_function_args.items() if v is not None},
+        )
+        return response
+
+
+class AwsLambdaHook(LambdaHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

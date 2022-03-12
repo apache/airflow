@@ -33,12 +33,12 @@ function docker_engine_resources::print_overall_stats() {
 }
 
 function docker_engine_resources::get_available_cpus_in_docker() {
-    CPUS_AVAILABLE_FOR_DOCKER=$(docker run --rm "debian:buster-slim" grep -cE 'cpu[0-9]+' /proc/stat)
+    CPUS_AVAILABLE_FOR_DOCKER=$(docker run --rm "debian:${DEBIAN_VERSION}-slim" grep -cE 'cpu[0-9]+' /proc/stat)
     export CPUS_AVAILABLE_FOR_DOCKER
 }
 
 function docker_engine_resources::get_available_memory_in_docker() {
-    MEMORY_AVAILABLE_FOR_DOCKER=$(docker run --rm  --entrypoint /bin/bash "debian:buster-slim" -c 'echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1024)))')
+    MEMORY_AVAILABLE_FOR_DOCKER=$(docker run --rm  --entrypoint /bin/bash "debian:${DEBIAN_VERSION}-slim" -c 'echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1024)))')
     export MEMORY_AVAILABLE_FOR_DOCKER
 }
 
@@ -46,5 +46,5 @@ function docker_engine_resources::check_all_resources() {
     docker_v run -t "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/bin/bash"  \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        -c "/opt/airflow/scripts/in_container/run_resource_check.sh"
+        -c "python /opt/airflow/scripts/in_container/run_resource_check.py"
 }

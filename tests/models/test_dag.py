@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from unittest import mock
 from unittest.mock import patch
 
@@ -42,7 +42,7 @@ from sqlalchemy import inspect
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
@@ -56,7 +56,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -548,7 +548,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = template_file
-            task.template_fields = ('test_field',)
+            task.template_fields: Sequence[str] = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -566,7 +566,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
-            task.template_fields = ('test_field',)
+            task.template_fields: Sequence[str] = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -581,6 +581,7 @@ class TestDag(unittest.TestCase):
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
+        assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
         dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
         _next = dag.following_schedule(utc)
@@ -781,6 +782,20 @@ class TestDag(unittest.TestCase):
                 ('dag-bulk-sync-2', 'test-dag2'),
                 ('dag-bulk-sync-3', 'test-dag2'),
             } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
+        # Removing all tags
+        for dag in dags:
+            dag.tags = None
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
+                row[0] for row in session.query(DagModel.dag_id).all()
+            }
+            assert not set(session.query(DagTag.dag_id, DagTag.name).all())
 
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
@@ -1331,19 +1346,49 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, NullTimetable()),
-            ("@daily", cron_timetable("0 0 * * *")),
-            ("@weekly", cron_timetable("0 0 * * 0")),
-            ("@monthly", cron_timetable("0 0 1 * *")),
-            ("@quarterly", cron_timetable("0 0 1 */3 *")),
-            ("@yearly", cron_timetable("0 0 1 1 *")),
-            ("@once", OnceTimetable()),
-            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1))),
+            (None, NullTimetable(), "Never, external triggers only"),
+            ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
+            ("@weekly", cron_timetable("0 0 * * 0"), "At 00:00, only on Sunday"),
+            ("@monthly", cron_timetable("0 0 1 * *"), "At 00:00, on day 1 of the month"),
+            ("@quarterly", cron_timetable("0 0 1 */3 *"), "At 00:00, on day 1 of the month, every 3 months"),
+            ("@yearly", cron_timetable("0 0 1 1 *"), "At 00:00, on day 1 of the month, only in January"),
+            ("5 0 * 8 *", cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
+            ("@once", OnceTimetable(), "Once, as soon as possible"),
+            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), ""),
+            ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
         ]
     )
-    def test_timetable_from_schedule_interval(self, schedule_interval, expected_timetable):
+    def test_timetable_and_description_from_schedule_interval(
+        self, schedule_interval, expected_timetable, interval_description
+    ):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
         assert dag.timetable == expected_timetable
+        assert dag.schedule_interval == schedule_interval
+        assert dag.timetable.description == interval_description
+
+    @parameterized.expand(
+        [
+            (NullTimetable(), "Never, external triggers only"),
+            (cron_timetable("0 0 * * *"), "At 00:00"),
+            (cron_timetable("@daily"), "At 00:00"),
+            (cron_timetable("0 0 * * 0"), "At 00:00, only on Sunday"),
+            (cron_timetable("@weekly"), "At 00:00, only on Sunday"),
+            (cron_timetable("0 0 1 * *"), "At 00:00, on day 1 of the month"),
+            (cron_timetable("@monthly"), "At 00:00, on day 1 of the month"),
+            (cron_timetable("0 0 1 */3 *"), "At 00:00, on day 1 of the month, every 3 months"),
+            (cron_timetable("@quarterly"), "At 00:00, on day 1 of the month, every 3 months"),
+            (cron_timetable("0 0 1 1 *"), "At 00:00, on day 1 of the month, only in January"),
+            (cron_timetable("@yearly"), "At 00:00, on day 1 of the month, only in January"),
+            (cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
+            (OnceTimetable(), "Once, as soon as possible"),
+            (delta_timetable(datetime.timedelta(days=1)), ""),
+            (cron_timetable("30 21 * * 5 1"), ""),
+        ]
+    )
+    def test_description_from_timetable(self, timetable, expected_description):
+        dag = DAG("test_schedule_interval_description", timetable=timetable)
+        assert dag.timetable == timetable
+        assert dag.timetable.description == expected_description
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
@@ -1523,7 +1568,7 @@ class TestDag(unittest.TestCase):
         session = settings.Session()  # type: ignore
         dagrun_1 = dag.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
         )
@@ -1830,7 +1875,7 @@ class TestDag(unittest.TestCase):
 
     def test_validate_params_on_trigger_dag(self):
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(TypeError, match="No value passed and Param has no default value"):
+        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -1838,7 +1883,9 @@ class TestDag(unittest.TestCase):
             )
 
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+        with pytest.raises(
+            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
+        ):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -1853,6 +1900,19 @@ class TestDag(unittest.TestCase):
             execution_date=TEST_DATE,
             conf={"param1": "hello"},
         )
+
+    def test_return_date_range_with_num_method(self):
+        start_date = TEST_DATE
+        delta = timedelta(days=1)
+
+        dag = models.DAG('dummy-dag', schedule_interval=delta)
+        dag_dates = dag.date_range(start_date=start_date, num=3)
+
+        assert dag_dates == [
+            start_date,
+            start_date + delta,
+            start_date + 2 * delta,
+        ]
 
 
 class TestDagModel:
@@ -2158,7 +2218,8 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-def test_set_task_instance_state(session, dag_maker):
+@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
+def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2171,7 +2232,12 @@ def test_set_task_instance_state(session, dag_maker):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
+    dagrun = dag_maker.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
 
     def get_ti_from_db(task):
         return (
@@ -2193,7 +2259,11 @@ def test_set_task_instance_state(session, dag_maker):
     session.flush()
 
     altered = dag.set_task_instance_state(
-        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS, session=session
+        task_id=task_1.task_id,
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.SUCCESS,
+        session=session,
     )
 
     # After _mark_task_instance_state, task_1 is marked as SUCCESS
@@ -2212,7 +2282,7 @@ def test_set_task_instance_state(session, dag_maker):
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1)}
+    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1, -1)}
 
 
 @pytest.mark.parametrize(

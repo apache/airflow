@@ -19,6 +19,52 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add-showing-runtime-error-feature-to-DatabricksSubmitRunOperator (#21709)``
+* ``Databricks: add support for triggering jobs by name (#21663)``
+* ``Added template_ext = ('.json') to databricks operators #18925 (#21530)``
+* ``Databricks SQL operators (#21363)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Updated Databricks docs for correct jobs 2.1 API and links (#21494)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'wait_for_termination' argument for Databricks Operators (#20536)``
+* ``Update connection object to ''cached_property'' in ''DatabricksHook'' (#20526)``
+* ``Remove 'host' as an instance attr in 'DatabricksHook' (#20540)``
+* ``Databricks: fix verification of Managed Identity (#20550)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Databricks provider. (#20265)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy databricks operator (#20598)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.1.0
 .....
 
@@ -32,6 +78,7 @@ Features
 * ``Update Databricks API from 2.0 to 2.1 (#19412)``
 * ``Authentication with AAD tokens in Databricks provider (#19335)``
 * ``Update Databricks operators to match latest version of API 2.0 (#19443)``
+* ``Remove db call from DatabricksHook.__init__() (#20180)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -43,7 +90,9 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare documentation for October Provider's release (#19321)``
    * ``Refactor DatabricksHook (#19835)``
-   * ``Update documentation for November 2021 provider&#39;s release (#19882)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Unhide changelog entry for databricks (#20128)``
+   * ``Update documentation for RC2 release of November Databricks Provider (#20086)``
 
 2.0.2
 .....

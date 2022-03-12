@@ -22,6 +22,7 @@ operators to manage a cluster and submit jobs.
 
 import os
 from datetime import datetime
+from uuid import uuid4
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -32,6 +33,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
     DataprocGetBatchOperator,
+    DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
     DataprocListBatchesOperator,
     DataprocSubmitJobOperator,
@@ -178,11 +180,36 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
 }
-BATCH_ID = "test-batch-id"
+BATCH_ID = f"test-batch-id-{str(uuid4())}"
 BATCH_CONFIG = {
     "spark_batch": {
         "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
         "main_class": "org.apache.spark.examples.SparkPi",
+    },
+}
+CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
+    project_id=PROJECT_ID,
+    region=REGION,
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=0,
+    properties={
+        "spark:spark.history.fs.logDirectory": f"gs://{BUCKET}/logging",
+    },
+    enable_component_gateway=True,
+).make()
+CLUSTER_NAME_FOR_PHS = "phs-cluster-name"
+BATCH_CONFIG_WITH_PHS = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+    "environment_config": {
+        "peripherals_config": {
+            "spark_history_server_config": {
+                "dataproc_cluster": f"projects/{PROJECT_ID}/regions/{REGION}/clusters/{CLUSTER_NAME_FOR_PHS}"
+            }
+        }
     },
 }
 
@@ -229,6 +256,12 @@ with models.DAG(
         task_id="trigger_workflow", region=REGION, project_id=PROJECT_ID, template_id=WORKFLOW_NAME
     )
     # [END how_to_cloud_dataproc_trigger_workflow_template]
+
+    # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
+        task_id='instantiate_inline_workflow_template', template=WORKFLOW_TEMPLATE, region=REGION
+    )
+    # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
     pig_task = DataprocSubmitJobOperator(
         task_id="pig_task", job=PIG_JOB, region=REGION, project_id=PROJECT_ID
@@ -310,6 +343,26 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
+    # [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    create_cluster_for_phs = DataprocCreateClusterOperator(
+        task_id="create_cluster_for_phs",
+        project_id=PROJECT_ID,
+        cluster_config=CLUSTER_GENERATOR_CONFIG_FOR_PHS,
+        region=REGION,
+        cluster_name=CLUSTER_NAME_FOR_PHS,
+    )
+    # [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
+    # [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+    create_batch_with_phs = DataprocCreateBatchOperator(
+        task_id="create_batch_with_phs",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG_WITH_PHS,
+        batch_id=BATCH_ID,
+    )
+    # [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+
     # [START how_to_cloud_dataproc_get_batch_operator]
     get_batch = DataprocGetBatchOperator(
         task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
@@ -331,3 +384,4 @@ with models.DAG(
     # [END how_to_cloud_dataproc_delete_batch_operator]
 
     create_batch >> get_batch >> list_batches >> delete_batch
+    create_cluster_for_phs >> create_batch_with_phs

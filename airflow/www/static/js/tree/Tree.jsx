@@ -27,6 +27,7 @@ import {
   FormLabel,
   Spinner,
   Text,
+  Thead,
 } from '@chakra-ui/react';
 
 import useTreeData from './useTreeData';
@@ -36,7 +37,8 @@ import DagRuns from './dagRuns';
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
-  const { data: { groups = {} }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   useEffect(() => {
     // Set initial scroll to far right if it is scrollable
@@ -47,7 +49,7 @@ const Tree = () => {
   }, []);
 
   return (
-    <Box position="relative">
+    <Box position="relative" ref={containerRef}>
       <FormControl display="flex" alignItems="center" justifyContent="flex-end" width="100%">
         {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
         <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
@@ -60,14 +62,15 @@ const Tree = () => {
       <Box px="24px">
         <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
           <Table>
-            <Tbody>
+            <Thead>
               <DagRuns containerRef={containerRef} />
-              {renderTaskRows({ task: groups, containerRef })}
+            </Thead>
+            <Tbody>
+              {renderTaskRows({ task: groups, containerRef, dagRunIds })}
             </Tbody>
           </Table>
         </Box>
       </Box>
-      <div ref={containerRef} />
     </Box>
   );
 };

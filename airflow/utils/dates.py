@@ -63,15 +63,11 @@ def date_range(
         datetime.datetime(2016, 3, 1, 0, 0, tzinfo=Timezone('UTC'))]
 
     :param start_date: anchor date to start the series from
-    :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
-    :type end_date: datetime.datetime
     :param num: alternatively to end_date, you can specify the number of
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
-    :type num: int
     :param delta: step length. It can be datetime.timedelta or cron expression as string
-    :type delta: datetime.timedelta or str or dateutil.relativedelta
     """
     warnings.warn(
         "`airflow.utils.dates.date_range()` is deprecated. Please use `airflow.timetables`.",
@@ -257,6 +253,13 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
+    warnings.warn(
+        "Function `days_ago` is deprecated and will be removed in Airflow 3.0. "
+        "You can achieve equivalent behavior with `pendulum.today('UTC').add(days=-N, ...)`",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     today = timezone.utcnow().replace(hour=hour, minute=minute, second=second, microsecond=microsecond)
     return today - timedelta(days=n)
 

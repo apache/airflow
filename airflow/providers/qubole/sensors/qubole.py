@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, Sequence
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
@@ -23,13 +24,16 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class QuboleSensor(BaseSensorOperator):
     """Base class for all Qubole Sensors"""
 
-    template_fields = ('data', 'qubole_conn_id')
+    template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
-    template_ext = ('.txt',)
+    template_ext: Sequence[str] = ('.txt',)
 
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
@@ -43,7 +47,7 @@ class QuboleSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -72,12 +76,10 @@ class QuboleFileSensor(QuboleSensor):
         :ref:`howto/operator:QuboleFileSensor`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked
         Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.
@@ -98,12 +100,10 @@ class QubolePartitionSensor(QuboleSensor):
         :ref:`howto/operator:QubolePartitionSensor`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-    :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked.
         Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.

@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import logging
 import socket
 import string
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -64,7 +65,7 @@ class StatsLogger(Protocol):
         """Gauge stat"""
 
     @classmethod
-    def timing(cls, stat: str, dt) -> None:
+    def timing(cls, stat: str, dt: Union[float, datetime.timedelta]) -> None:
         """Stats timing"""
 
     @classmethod
@@ -317,10 +318,12 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timing(self, stat, dt, tags=None):
+    def timing(self, stat, dt: Union[float, datetime.timedelta], tags: Optional[List[str]] = None):
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds()
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
         return None
 

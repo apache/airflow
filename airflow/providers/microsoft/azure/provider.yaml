@@ -21,6 +21,9 @@ name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 versions:
+  - 3.7.0
+  - 3.6.0
+  - 3.5.0
   - 3.4.0
   - 3.3.0
   - 3.2.0
@@ -179,6 +182,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
+  - source-integration-name: SSH File Transfer Protocol (SFTP)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
@@ -225,3 +232,6 @@ secrets-backends:
 
 logging:
   - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+
+extra-links:
+  - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink

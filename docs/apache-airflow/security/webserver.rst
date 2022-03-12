@@ -31,6 +31,17 @@ set the below:
     [webserver]
     x_frame_enabled = False
 
+Disable Deployment Exposure Warning
+---------------------------------------
+
+Airflow warns when recent requests are made to ``/robot.txt``. To disable this warning set ``warn_deployment_exposure`` to
+``False`` as below:
+
+.. code-block:: ini
+
+    [webserver]
+    warn_deployment_exposure = False
+
 Sensitive Variable fields
 -------------------------
 
@@ -96,7 +107,7 @@ the Flask App Builder RBAC UI.
 
     rbac = True
 
-The default authentication option described in the :ref:`Web Authentication <web-authentication>` section it's related
+The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
 with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 
 .. code-block:: ini

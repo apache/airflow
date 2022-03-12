@@ -4,6 +4,8 @@ import os
 import sys
 
 # Python <3.4 does not have pathlib
+from venv import EnvBuilder
+
 if sys.version_info.major != 3 or sys.version_info.minor < 7:
     print("ERROR! Make sure you use Python 3.7+ !!")
     sys.exit(1)
@@ -12,13 +14,19 @@ import subprocess
 from os import execv
 from pathlib import Path
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parent.resolve()
+if getattr(sys, 'frozen', False):
+    # If the application is run as a bundle, the PyInstaller bootloader
+    # extends the sys module by a flag frozen=True and sets the temporary app
+    # path into variable _MEIPASS' and sys.executable is Breeze's executable path.
+    AIRFLOW_SOURCES_DIR = Path(sys.executable).parent.resolve()
+else:
+    AIRFLOW_SOURCES_DIR = Path(__file__).parent.resolve()
 BUILD_DIR = AIRFLOW_SOURCES_DIR / ".build"
 BUILD_BREEZE_DIR = BUILD_DIR / "breeze2"
 BUILD_BREEZE_CFG_SAVED = BUILD_BREEZE_DIR / "setup.cfg.saved"
 BUILD_BREEZE_VENV_DIR = BUILD_BREEZE_DIR / "venv"
-BUILD_BREEZE_VENV_BIN_DIR = BUILD_BREEZE_VENV_DIR / "bin"
-BUILD_BREEZE_VENV_PIP = BUILD_BREEZE_VENV_BIN_DIR / "pip"
+BUILD_BREEZE_VENV_BIN_DIR = BUILD_BREEZE_VENV_DIR / ("Scripts" if os.name == 'nt' else "bin")
+BUILD_BREEZE_VENV_PYTHON = BUILD_BREEZE_VENV_BIN_DIR / "python"
 BUILD_BREEZE_VENV_BREEZE = BUILD_BREEZE_VENV_BIN_DIR / "Breeze2"
 
 BREEZE_SOURCE_PATH = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
@@ -41,15 +49,35 @@ def save_config():
 
 if needs_installation():
     print(f"(Re)Installing Breeze's virtualenv in {BUILD_BREEZE_VENV_DIR}")
-    BUILD_BREEZE_VENV_DIR.mkdir(parents=True, exist_ok=True)
-    subprocess.run([sys.executable, "-m", "venv", f"{BUILD_BREEZE_VENV_DIR}"], check=True)
-    subprocess.run(
-        [f"{BUILD_BREEZE_VENV_PIP}", "install", "--upgrade", "-e", "."], cwd=BREEZE_SOURCE_PATH, check=True
-    )
+    try:
+        EnvBuilder(system_site_packages=False, upgrade=True, with_pip=True, prompt="breeze").create(
+            str(BUILD_BREEZE_VENV_DIR)
+        )
+    except Exception as e:
+        # in some cases (mis-configured python) the venv creation might not work via API
+        # (ensurepip missing). This is the case in case of default MacOS Python and Python executable
+        # Bundled in Windows executable, In this case we fallback to running venv as a tool using default
+        # Python3 found on path (in case of Windows Bundled exe, you don't even have a current
+        # interpreted executable available, because Python interpreter is executed through a library.
+        # and sys.executable points to the Bundled exe file.
+        BUILD_BREEZE_VENV_DIR.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["python3", "-m", "venv", f"{BUILD_BREEZE_VENV_DIR}"], check=True)
+    if os.name == 'nt':
+        subprocess.run(
+            [f"{BUILD_BREEZE_VENV_PYTHON}", "-m", "pip", "install", "--upgrade", "-e", "."],
+            cwd=BREEZE_SOURCE_PATH,
+            check=True,
+        )
+    else:
+        subprocess.run(
+            [f"{BUILD_BREEZE_VENV_PYTHON}", "-m", "pip", "install", "--upgrade", "-e", "."],
+            cwd=BREEZE_SOURCE_PATH,
+            check=True,
+        )
     save_config()
 
 if os.name == 'nt':
     # This is the best way of running it on Windows, though it leaves the original process hanging around
-    subprocess.run([f"{BUILD_BREEZE_VENV_BREEZE}.exe"] + sys.argv[1:], check=True)
+    subprocess.run([f"{BUILD_BREEZE_VENV_BREEZE}"] + sys.argv[1:], check=True)
 else:
     execv(f"{BUILD_BREEZE_VENV_BREEZE}", [f"{BUILD_BREEZE_VENV_BREEZE}"] + sys.argv[1:])

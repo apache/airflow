@@ -17,6 +17,7 @@
 
 import datetime
 import inspect
+import json
 import typing
 
 import marshmallow
@@ -24,6 +25,7 @@ from dateutil import relativedelta
 from marshmallow import Schema, fields, validate
 from marshmallow_oneofschema import OneOfSchema
 
+from airflow.models.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.weight_rule import WeightRule
 
@@ -154,13 +156,27 @@ class ClassReferenceSchema(Schema):
     class_name = fields.Method("_get_class_name", required=True)
 
     def _get_module(self, obj):
-        if isinstance(obj, SerializedBaseOperator):
+        if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
             return obj._task_module
         return inspect.getmodule(obj).__name__
 
     def _get_class_name(self, obj):
-        if isinstance(obj, SerializedBaseOperator):
+        if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
             return obj._task_type
         if isinstance(obj, type):
             return obj.__name__
         return type(obj).__name__
+
+
+class JsonObjectField(fields.Field):
+    """JSON object field."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if not value:
+            return {}
+        return json.loads(value) if isinstance(value, str) else value
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, str):
+            return json.loads(value)
+        return value

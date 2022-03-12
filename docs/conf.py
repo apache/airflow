@@ -121,6 +121,9 @@ rst_epilog = f"""
 .. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
+smartquotes_excludes = {'builders': ['man', 'text', 'spelling']}
+
+
 # -- General configuration -----------------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -146,7 +149,7 @@ extensions = [
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
             'sphinx.ext.graphviz',
             'sphinxcontrib.httpdomain',
             'sphinxcontrib.httpdomain',
@@ -161,13 +164,13 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
             'operators_and_hooks_ref',
             'providers_packages_ref',
         ]
     )
 elif PACKAGE_NAME == "helm-chart":
-    extensions.append("sphinxcontrib.jinja")
+    extensions.append("sphinx_jinja")
 elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
@@ -185,7 +188,7 @@ if PACKAGE_NAME == 'apache-airflow':
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
         ]
     )
     exclude_patterns = ['operators/_partials']
@@ -300,7 +303,7 @@ html_sidebars = {
         'searchbox.html',
         'globaltoc.html',
     ]
-    if FOR_PRODUCTION
+    if FOR_PRODUCTION and PACKAGE_VERSION != 'devel'
     else [
         'searchbox.html',
         'globaltoc.html',
@@ -358,7 +361,7 @@ html_context = {
 
 # == Extensions configuration ==================================================
 
-# -- Options for sphinxcontrib.jinjac ------------------------------------------
+# -- Options for sphinx_jinja ------------------------------------------
 # See: https://github.com/tardyp/sphinx-jinja
 
 # Jinja context
@@ -580,11 +583,16 @@ autodoc_mock_imports = [
     'tenacity',
     'vertica_python',
     'winrm',
-    'zdesk',
+    'zenpy',
 ]
 
 # The default options for autodoc directives. They are applied to all autodoc directives automatically.
 autodoc_default_options = {'show-inheritance': True, 'members': True}
+
+autodoc_typehints = 'description'
+autodoc_typehints_description_target = 'documented'
+autodoc_typehints_format = 'short'
+
 
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
@@ -674,6 +682,8 @@ autoapi_ignore = [
 ]
 if PACKAGE_NAME == 'apache-airflow':
     autoapi_ignore.append('*/airflow/providers/*')
+else:
+    autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
@@ -696,6 +706,10 @@ autoapi_options = [
     'special-members',
 ]
 
+suppress_warnings = [
+    "autoapi.python_import_resolution",
+]
+
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
 
@@ -709,6 +723,7 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == 'helm-chart':
     spelling_exclude_patterns = ['changelog.rst']
 spelling_ignore_contributor_names = False
+spelling_ignore_importable_modules = True
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
@@ -730,3 +745,14 @@ if PACKAGE_NAME == 'apache-airflow':
 
     # Options for script updater
     redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+
+def skip_util_classes(app, what, name, obj, skip, options):
+    if (what == "data" and "STATICA_HACK" in name) or ":sphinx-autoapi-skip:" in obj.docstring:
+        skip = True
+    return skip
+
+
+def setup(sphinx):
+    if 'autoapi.extension' in extensions:
+        sphinx.connect("autoapi-skip-member", skip_util_classes)

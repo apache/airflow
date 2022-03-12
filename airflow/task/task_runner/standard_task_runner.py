@@ -73,23 +73,29 @@ class StandardTaskRunner(BaseTaskRunner):
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(self._command[1:])
 
+            # We prefer the job_id passed on the command-line because at this time, the
+            # task instance may not have been updated.
+            job_id = getattr(args, "job_id", self._task_instance.job_id)
             self.log.info('Running: %s', self._command)
-            self.log.info('Job %s: Subtask %s', self._task_instance.job_id, self._task_instance.task_id)
+            self.log.info('Job %s: Subtask %s', job_id, self._task_instance.task_id)
 
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
-            if hasattr(args, "job_id"):
+            if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
 
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
-            except Exception:
+            except Exception as exc:
                 return_code = 1
-                self.log.exception(
-                    "Failed to execute job %s for task %s",
-                    self._task_instance.job_id,
+
+                self.log.error(
+                    "Failed to execute job %s for task %s (%s; %r)",
+                    job_id,
                     self._task_instance.task_id,
+                    exc,
+                    os.getpid(),
                 )
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Transfer sensor."""
-from typing import Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Set, Union
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
@@ -25,6 +25,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
@@ -37,17 +40,13 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         :ref:`howto/operator:CloudDataTransferServiceJobStatusSensor`
 
     :param job_name: The name of the transfer job
-    :type job_name: str
     :param expected_statuses: The expected state of the operation.
         See:
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-    :type expected_statuses: set[str] or string
     :param project_id: (Optional) the ID of the project that owns the Transfer
         Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -56,11 +55,10 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_job_sensor_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'job_name',
         'impersonation_chain',
     )
@@ -85,7 +83,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

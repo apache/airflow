@@ -34,6 +34,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.ingress.web.tls }}
+
+DEPRECATION WARNING:
+   `ingress.web.tls` has been renamed to `ingress.web.hosts[*].tls` and can be set per host.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if .Values.ingress.flower.host }}
 
 DEPRECATION WARNING:
@@ -42,14 +50,39 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+
+{{- if .Values.ingress.flower.tls }}
+
+DEPRECATION WARNING:
+   `ingress.flower.tls` has been renamed to `ingress.flower.hosts[*].tls` and can be set per host.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 Airflow Webserver:
 {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
-      http{{ if $.Values.ingress.web.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.web.path }}/
+      {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.web.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled := .tls.enabled -}}
+      {{- $hostname := $.name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.web.path }}/
 {{- end }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 Flower dashboard:
-{{- range .Values.ingress.flower.hosts }}
-      http{{ if $.Values.ingress.flower.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.flower.path }}/
+{{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
+      {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.flower.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled := .tls.enabled -}}
+      {{- $hostname := $.name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.flower.path }}/
 {{- end }}
 {{- end }}
 {{- else }}

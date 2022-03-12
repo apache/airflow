@@ -22,7 +22,7 @@ from unittest import mock
 import boto3
 import pytest
 
-from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 
 try:
     from moto import mock_glue
@@ -41,38 +41,38 @@ TABLE_INPUT = {
 
 
 @unittest.skipIf(mock_glue is None, "Skipping test because moto.mock_glue is not available")
-class TestAwsGlueCatalogHook(unittest.TestCase):
+class TestGlueCatalogHook(unittest.TestCase):
     @mock_glue
     def setUp(self):
         self.client = boto3.client('glue', region_name='us-east-1')
-        self.hook = AwsGlueCatalogHook(region_name="us-east-1")
+        self.hook = GlueCatalogHook(region_name="us-east-1")
 
     @mock_glue
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsGlueCatalogHook(region_name="us-east-1")
+        hook = GlueCatalogHook(region_name="us-east-1")
         assert hook.get_conn() is not None
 
     @mock_glue
     def test_conn_id(self):
-        hook = AwsGlueCatalogHook(aws_conn_id='my_aws_conn_id', region_name="us-east-1")
+        hook = GlueCatalogHook(aws_conn_id='my_aws_conn_id', region_name="us-east-1")
         assert hook.aws_conn_id == 'my_aws_conn_id'
 
     @mock_glue
     def test_region(self):
-        hook = AwsGlueCatalogHook(region_name="us-west-2")
+        hook = GlueCatalogHook(region_name="us-west-2")
         assert hook.region_name == 'us-west-2'
 
     @mock_glue
-    @mock.patch.object(AwsGlueCatalogHook, 'get_conn')
+    @mock.patch.object(GlueCatalogHook, 'get_conn')
     def test_get_partitions_empty(self, mock_get_conn):
         response = set()
         mock_get_conn.get_paginator.paginate.return_value = response
-        hook = AwsGlueCatalogHook(region_name="us-east-1")
+        hook = GlueCatalogHook(region_name="us-east-1")
 
         assert hook.get_partitions('db', 'tbl') == set()
 
     @mock_glue
-    @mock.patch.object(AwsGlueCatalogHook, 'get_conn')
+    @mock.patch.object(GlueCatalogHook, 'get_conn')
     def test_get_partitions(self, mock_get_conn):
         response = [{'Partitions': [{'Values': ['2015-01-01']}]}]
         mock_paginator = mock.Mock()
@@ -80,7 +80,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
         mock_conn = mock.Mock()
         mock_conn.get_paginator.return_value = mock_paginator
         mock_get_conn.return_value = mock_conn
-        hook = AwsGlueCatalogHook(region_name="us-east-1")
+        hook = GlueCatalogHook(region_name="us-east-1")
         result = hook.get_partitions('db', 'tbl', expression='foo=bar', page_size=2, max_items=3)
 
         assert result == {('2015-01-01',)}
@@ -93,19 +93,19 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
         )
 
     @mock_glue
-    @mock.patch.object(AwsGlueCatalogHook, 'get_partitions')
+    @mock.patch.object(GlueCatalogHook, 'get_partitions')
     def test_check_for_partition(self, mock_get_partitions):
         mock_get_partitions.return_value = {('2018-01-01',)}
-        hook = AwsGlueCatalogHook(region_name="us-east-1")
+        hook = GlueCatalogHook(region_name="us-east-1")
 
         assert hook.check_for_partition('db', 'tbl', 'expr')
         mock_get_partitions.assert_called_once_with('db', 'tbl', 'expr', max_items=1)
 
     @mock_glue
-    @mock.patch.object(AwsGlueCatalogHook, 'get_partitions')
+    @mock.patch.object(GlueCatalogHook, 'get_partitions')
     def test_check_for_partition_false(self, mock_get_partitions):
         mock_get_partitions.return_value = set()
-        hook = AwsGlueCatalogHook(region_name="us-east-1")
+        hook = GlueCatalogHook(region_name="us-east-1")
 
         assert not hook.check_for_partition('db', 'tbl', 'expr')
 

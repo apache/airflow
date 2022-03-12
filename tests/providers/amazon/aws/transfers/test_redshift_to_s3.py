@@ -39,7 +39,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_table_unloading(
         self,
         table_as_file_name,
@@ -103,7 +103,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute_sts_token(
         self,
         table_as_file_name,
@@ -171,7 +171,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_custom_select_query_unloading(
         self,
         table,
@@ -234,7 +234,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_table_unloading_role_arn(
         self,
         table_as_file_name,

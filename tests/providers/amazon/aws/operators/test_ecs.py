@@ -28,8 +28,13 @@ from botocore.exceptions import ClientError
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.exceptions import ECSOperatorError
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator, ECSTaskLogFetcher, should_retry
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
+from airflow.providers.amazon.aws.operators.ecs import (
+    EcsOperator,
+    EcsTaskLogFetcher,
+    should_retry,
+    should_retry_eni,
+)
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {
@@ -55,7 +60,7 @@ RESPONSE_WITHOUT_FAILURES = {
 # fmt: on
 
 
-class TestECSOperator(unittest.TestCase):
+class TestEcsOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsBaseHook')
     def set_up_operator(self, aws_hook_mock, **kwargs):
         self.aws_hook_mock = aws_hook_mock
@@ -77,7 +82,7 @@ class TestECSOperator(unittest.TestCase):
             },
             'propagate_tags': 'TASK_DEFINITION',
         }
-        self.ecs = ECSOperator(**self.ecs_operator_args, **kwargs)
+        self.ecs = EcsOperator(**self.ecs_operator_args, **kwargs)
         self.ecs.get_hook()
 
     def setUp(self):
@@ -105,6 +110,13 @@ class TestECSOperator(unittest.TestCase):
                 None,
                 None,
                 {'launchType': 'EC2'},
+            ],
+            [
+                'EXTERNAL',
+                None,
+                None,
+                None,
+                {'launchType': 'EXTERNAL'},
             ],
             [
                 'FARGATE',
@@ -163,8 +175,8 @@ class TestECSOperator(unittest.TestCase):
             ],
         ]
     )
-    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
-    @mock.patch.object(ECSOperator, '_check_success_task')
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
     def test_execute_without_failures(
         self,
         launch_type,
@@ -214,7 +226,7 @@ class TestECSOperator(unittest.TestCase):
         resp_failures['failures'].append('dummy error')
         client_mock.run_task.return_value = resp_failures
 
-        with pytest.raises(ECSOperatorError):
+        with pytest.raises(EcsOperatorError):
             self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
@@ -261,7 +273,7 @@ class TestECSOperator(unittest.TestCase):
             ]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(EcsTaskFailToStart) as ctx:
             self.ecs._check_success_task()
 
         assert str(ctx.value) == "The task failed to start due to: Task failed to start"
@@ -325,6 +337,26 @@ class TestECSOperator(unittest.TestCase):
         assert "'name': 'foo'" in str(ctx.value)
         assert "'lastStatus': 'STOPPED'" in str(ctx.value)
         assert "'exitCode': 1" in str(ctx.value)
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_handles_initialization_failure(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        # exitCode is missing during some container initialization failures
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}]}]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        print(str(ctx.value))
+        assert "This task is not in success state " in str(ctx.value)
+        assert "'name': 'foo'" in str(ctx.value)
+        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
+        assert "exitCode" not in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
@@ -409,15 +441,15 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-    @mock.patch.object(ECSOperator, "_xcom_del")
+    @mock.patch.object(EcsOperator, "_xcom_del")
     @mock.patch.object(
-        ECSOperator,
+        EcsOperator,
         "xcom_pull",
         return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
     )
-    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
-    @mock.patch.object(ECSOperator, '_check_success_task')
-    @mock.patch.object(ECSOperator, '_start_task')
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
+    @mock.patch.object(EcsOperator, '_start_task')
     def test_reattach_successful(
         self, launch_type, tags, start_mock, check_mock, wait_mock, xcom_pull_mock, xcom_del_mock
     ):
@@ -467,11 +499,11 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-    @mock.patch.object(ECSOperator, '_xcom_del')
-    @mock.patch.object(ECSOperator, '_xcom_set')
-    @mock.patch.object(ECSOperator, '_try_reattach_task')
-    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
-    @mock.patch.object(ECSOperator, '_check_success_task')
+    @mock.patch.object(EcsOperator, '_xcom_del')
+    @mock.patch.object(EcsOperator, '_xcom_set')
+    @mock.patch.object(EcsOperator, '_try_reattach_task')
+    @mock.patch.object(EcsOperator, '_wait_for_task_ended')
+    @mock.patch.object(EcsOperator, '_check_success_task')
     def test_reattach_save_task_arn_xcom(
         self, launch_type, tags, check_mock, wait_mock, reattach_mock, xcom_set_mock, xcom_del_mock
     ):
@@ -532,18 +564,41 @@ class TestECSOperator(unittest.TestCase):
 
 class TestShouldRetry(unittest.TestCase):
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(should_retry(ECSOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
+        self.assertTrue(should_retry(EcsOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(should_retry(ECSOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
+        self.assertFalse(should_retry(EcsOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))
 
 
-class TestECSTaskLogFetcher(unittest.TestCase):
+class TestShouldRetryEni(unittest.TestCase):
+    def test_return_true_on_valid_reason(self):
+        self.assertTrue(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: "
+                    "Timeout waiting for network interface provisioning to complete."
+                )
+            )
+        )
+
+    def test_return_false_on_invalid_reason(self):
+        self.assertFalse(
+            should_retry_eni(
+                EcsTaskFailToStart(
+                    "The task failed to start due to: "
+                    "CannotPullContainerError: "
+                    "ref pull has been retried 5 time(s): failed to resolve reference"
+                )
+            )
+        )
+
+
+class TestEcsTaskLogFetcher(unittest.TestCase):
     @mock.patch('logging.Logger')
     def set_up_log_fetcher(self, logger_mock):
         self.logger_mock = logger_mock
 
-        self.log_fetcher = ECSTaskLogFetcher(
+        self.log_fetcher = EcsTaskLogFetcher(
             log_group="test_log_group",
             log_stream_name="test_log_stream_name",
             fetch_interval=timedelta(milliseconds=1),

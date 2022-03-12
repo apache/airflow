@@ -28,7 +28,7 @@ The recommended way to update your DAGs with this chart is to build a new Docker
 
 .. code-block:: bash
 
-    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow
 
     COPY ./dags/ \${AIRFLOW_HOME}/dags/
@@ -43,7 +43,7 @@ The recommended way to update your DAGs with this chart is to build a new Docker
 
 .. code-block:: bash
 
-    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    docker build --pull --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow:2.0.2
 
     USER root
@@ -101,7 +101,7 @@ for details.
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
-      --set dags.gitSync.enabled=true \
+      --set dags.gitSync.enabled=true
       # you can also override the other persistence or gitSync values
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
@@ -123,19 +123,19 @@ seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an in
       # by setting the  dags.gitSync.* values
       # Refer values.yaml for details
 
-When using ``apache-airflow>=2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
+When using ``apache-airflow >= 2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
 hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is not run on Webserver.
 
 Mounting DAGs from an externally populated PVC
 ----------------------------------------------
 
-In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
+In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required DAGs (this won't be handled by the chart). You pass in the name of the volume claim to the chart:
 
 .. code-block:: bash
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
-      --set dags.persistence.existingClaim=my-volume-claim
+      --set dags.persistence.existingClaim=my-volume-claim \
       --set dags.gitSync.enabled=false
 
 Mounting DAGs from a private Github repo using Git-Sync sidecar

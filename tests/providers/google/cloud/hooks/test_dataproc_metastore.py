@@ -81,7 +81,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
                 backup_id=TEST_BACKUP_ID,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -103,7 +103,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
                 metadata_import_id=TEST_METADATA_IMPORT_ID,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -130,6 +130,24 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    def test_get_backup(self, mock_client) -> None:
+        self.hook.get_backup(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            service_id=TEST_SERVICE_ID,
+            backup_id=TEST_BACKUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.get_backup.assert_called_once_with(
+            request=dict(
+                name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
+            ),
+            metadata=(),
+            retry=None,
+            timeout=None,
+        )
+
+    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
     def test_delete_backup(self, mock_client) -> None:
         self.hook.delete_backup(
             project_id=TEST_PROJECT_ID,
@@ -143,7 +161,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
                 name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -163,7 +181,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
@@ -184,7 +202,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
@@ -199,7 +217,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
             request=dict(
                 name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -220,7 +238,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
                 filter=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -246,7 +264,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
                 restore_type=None,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -269,7 +287,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -297,7 +315,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
                 backup_id=TEST_BACKUP_ID,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -319,7 +337,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
                 metadata_import_id=TEST_METADATA_IMPORT_ID,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -359,7 +377,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
                 name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -379,7 +397,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
@@ -400,7 +418,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
@@ -415,7 +433,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
             request=dict(
                 name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -436,7 +454,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
                 filter=None,
                 order_by=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -462,7 +480,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
                 restore_type=None,
                 request_id=None,
             ),
-            metadata=None,
+            metadata=(),
             retry=None,
             timeout=None,
         )
@@ -485,5 +503,5 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
             ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )

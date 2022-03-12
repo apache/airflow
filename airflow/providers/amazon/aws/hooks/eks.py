@@ -24,7 +24,7 @@ import warnings
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Generator, List, Optional
 
 import yaml
 from botocore.exceptions import ClientError
@@ -75,7 +75,7 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
-class EKSHook(AwsBaseHook):
+class EksHook(AwsBaseHook):
     """
     Interact with Amazon EKS, using the boto3 library.
 
@@ -92,17 +92,20 @@ class EKSHook(AwsBaseHook):
         kwargs["client_type"] = self.client_type
         super().__init__(*args, **kwargs)
 
-    def create_cluster(self, name: str, roleArn: str, resourcesVpcConfig: Dict, **kwargs) -> Dict:
+    def create_cluster(
+        self,
+        name: str,
+        roleArn: str,
+        resourcesVpcConfig: Dict,
+        **kwargs,
+    ) -> Dict:
         """
         Creates an Amazon EKS control plane.
 
         :param name: The unique name to give to your Amazon EKS Cluster.
-        :type name: str
         :param roleArn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
           for the Kubernetes control plane to make calls to AWS API operations on your behalf.
-        :type roleArn: str
         :param resourcesVpcConfig: The VPC configuration used by the cluster control plane.
-        :type resourcesVpcConfig: Dict
 
         :return: Returns descriptive information about the created EKS Cluster.
         :rtype: Dict
@@ -117,38 +120,43 @@ class EKSHook(AwsBaseHook):
         return response
 
     def create_nodegroup(
-        self, clusterName: str, nodegroupName: str, subnets: List[str], nodeRole: str, **kwargs
+        self,
+        clusterName: str,
+        nodegroupName: str,
+        subnets: List[str],
+        nodeRole: Optional[str],
+        *,
+        tags: Optional[Dict] = None,
+        **kwargs,
     ) -> Dict:
         """
         Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
 
         :param clusterName: The name of the Amazon EKS cluster to create the EKS Managed Nodegroup in.
-        :type clusterName: str
         :param nodegroupName: The unique name to give your managed nodegroup.
-        :type nodegroupName: str
         :param subnets: The subnets to use for the Auto Scaling group that is created for your nodegroup.
-        :type subnets: List[str]
         :param nodeRole: The Amazon Resource Name (ARN) of the IAM role to associate with your nodegroup.
-        :type nodeRole: str
+        :param tags: Optional tags to apply to your nodegroup.
 
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         :rtype: Dict
         """
         eks_client = self.conn
+
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        tags = {'kubernetes.io/cluster/' + clusterName: 'owned'}
-        if "tags" in kwargs:
-            tags = {**tags, **kwargs["tags"]}
-            kwargs.pop("tags")
+        cluster_tag_key = f'kubernetes.io/cluster/{clusterName}'
+        resolved_tags = tags or {}
+        if cluster_tag_key not in resolved_tags:
+            resolved_tags[cluster_tag_key] = 'owned'
 
         response = eks_client.create_nodegroup(
             clusterName=clusterName,
             nodegroupName=nodegroupName,
             subnets=subnets,
             nodeRole=nodeRole,
-            tags=tags,
+            tags=resolved_tags,
             **kwargs,
         )
 
@@ -160,20 +168,21 @@ class EKSHook(AwsBaseHook):
         return response
 
     def create_fargate_profile(
-        self, clusterName: str, fargateProfileName: str, podExecutionRoleArn: str, selectors: List, **kwargs
+        self,
+        clusterName: str,
+        fargateProfileName: Optional[str],
+        podExecutionRoleArn: Optional[str],
+        selectors: List,
+        **kwargs,
     ) -> Dict:
         """
         Creates an AWS Fargate profile for an Amazon EKS cluster.
 
         :param clusterName: The name of the Amazon EKS cluster to apply the Fargate profile to.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile.
-        :type fargateProfileName: str
         :param podExecutionRoleArn: The Amazon Resource Name (ARN) of the pod execution role to
             use for pods that match the selectors in the Fargate profile.
-        :type podExecutionRoleArn: str
         :param selectors: The selectors to match for pods to use this Fargate profile.
-        :type selectors: List
 
         :return: Returns descriptive information about the created Fargate profile.
         :rtype: Dict
@@ -200,7 +209,6 @@ class EKSHook(AwsBaseHook):
         Deletes the Amazon EKS Cluster control plane.
 
         :param name: The name of the cluster to delete.
-        :type name: str
 
         :return: Returns descriptive information about the deleted EKS Cluster.
         :rtype: Dict
@@ -217,9 +225,7 @@ class EKSHook(AwsBaseHook):
         Deletes an Amazon EKS managed node group from a specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster that is associated with your nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to delete.
-        :type nodegroupName: str
 
         :return: Returns descriptive information about the deleted EKS Managed Nodegroup.
         :rtype: Dict
@@ -240,9 +246,7 @@ class EKSHook(AwsBaseHook):
         Deletes an AWS Fargate profile from a specified Amazon EKS cluster.
 
         :param clusterName: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to delete.
-        :type fargateProfileName: str
 
         :return: Returns descriptive information about the deleted Fargate profile.
         :rtype: Dict
@@ -265,9 +269,7 @@ class EKSHook(AwsBaseHook):
         Returns descriptive information about an Amazon EKS Cluster.
 
         :param name: The name of the cluster to describe.
-        :type name: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about a specific EKS Cluster.
         :rtype: Dict
@@ -289,11 +291,8 @@ class EKSHook(AwsBaseHook):
         Returns descriptive information about an Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to describe.
-        :type nodegroupName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about a specific EKS Nodegroup.
         :rtype: Dict
@@ -322,11 +321,8 @@ class EKSHook(AwsBaseHook):
         Returns descriptive information about an AWS Fargate profile.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to describe.
-        :type fargateProfileName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: Returns descriptive information about an AWS Fargate profile.
         :rtype: Dict
@@ -354,7 +350,6 @@ class EKSHook(AwsBaseHook):
         Returns the current status of a given Amazon EKS Cluster.
 
         :param clusterName: The name of the cluster to check.
-        :type clusterName: str
 
         :return: Returns the current status of a given Amazon EKS Cluster.
         :rtype: ClusterStates
@@ -366,15 +361,14 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
+            raise
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
         Returns the current status of a given AWS Fargate profile.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
-        :type clusterName: str
         :param fargateProfileName: The name of the Fargate profile to check.
-        :type fargateProfileName: str
 
         :return: Returns the current status of a given AWS Fargate profile.
         :rtype: AWS FargateProfileStates
@@ -392,15 +386,14 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return FargateProfileStates.NONEXISTENT
+            raise
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
         Returns the current status of a given Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
-        :type clusterName: str
         :param nodegroupName: The name of the nodegroup to check.
-        :type nodegroupName: str
 
         :return: Returns the current status of a given Amazon EKS Nodegroup.
         :rtype: NodegroupStates
@@ -416,6 +409,7 @@ class EKSHook(AwsBaseHook):
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return NodegroupStates.NONEXISTENT
+            raise
 
     def list_clusters(
         self,
@@ -425,7 +419,6 @@ class EKSHook(AwsBaseHook):
         Lists all Amazon EKS Clusters in your AWS account.
 
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List containing the cluster names.
         :rtype: List
@@ -444,9 +437,7 @@ class EKSHook(AwsBaseHook):
         Lists all Amazon EKS managed node groups associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
-        :type clusterName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List of nodegroup names within the given cluster.
         :rtype: List
@@ -465,9 +456,7 @@ class EKSHook(AwsBaseHook):
         Lists all AWS Fargate profiles associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing Fargate profiles to list.
-        :type clusterName: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A list of Fargate profile names within a given cluster.
         :rtype: List
@@ -484,16 +473,13 @@ class EKSHook(AwsBaseHook):
         Repeatedly calls a provided boto3 API Callable and collates the responses into a List.
 
         :param api_call: The api command to execute.
-        :type api_call: Callable
         :param response_key: Which dict key to collect into the final list.
-        :type response_key: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-        :type verbose: bool
 
         :return: A List of the combined results of the provided API call.
         :rtype: List
         """
-        name_collection = []
+        name_collection: List = []
         token = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
@@ -512,17 +498,15 @@ class EKSHook(AwsBaseHook):
     def generate_config_file(
         self,
         eks_cluster_name: str,
-        pod_namespace: str,
+        pod_namespace: Optional[str],
         pod_username: Optional[str] = None,
         pod_context: Optional[str] = None,
-    ) -> str:
+    ) -> Generator[str, None, None]:
         """
         Writes the kubeconfig file given an EKS Cluster.
 
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
-        :type eks_cluster_name: str
         :param pod_namespace: The namespace to run within kubernetes.
-        :type pod_namespace: str
         """
         if pod_username:
             warnings.warn(
@@ -593,7 +577,7 @@ class EKSHook(AwsBaseHook):
                             "env": [
                                 {
                                     "name": "AIRFLOW__LOGGING__LOGGING_LEVEL",
-                                    "value": "fatal",
+                                    "value": "FATAL",
                                 }
                             ],
                             "interactiveMode": "Never",
@@ -644,3 +628,18 @@ class EKSHook(AwsBaseHook):
 
         # remove any base64 encoding padding:
         return 'k8s-aws-v1.' + base64_url.rstrip("=")
+
+
+class EKSHook(EksHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.eks.EksHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. " "Please use `airflow.providers.amazon.aws.hooks.eks.EksHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

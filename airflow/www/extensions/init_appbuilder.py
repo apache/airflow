@@ -22,11 +22,10 @@
 
 import logging
 from functools import reduce
-from typing import Dict
+from typing import Dict, List, Union
 
 from flask import Blueprint, current_app, url_for
-from flask_appbuilder import __version__
-from flask_appbuilder.api.manager import OpenApiManager
+from flask_appbuilder import BaseView, __version__
 from flask_appbuilder.babel.manager import BabelManager
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
@@ -38,8 +37,10 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_FAB_VIEW_EXISTS,
 )
 from flask_appbuilder.filters import TemplateFilters
-from flask_appbuilder.menu import Menu, MenuApiManager
+from flask_appbuilder.menu import Menu
+from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
@@ -90,18 +91,16 @@ class AirflowAppBuilder:
     You can also create everything as an application factory.
     """
 
-    baseviews = []
+    baseviews: List[Union[BaseView, Session]] = []
     security_manager_class = None
     # Flask app
     app = None
     # Database Session
     session = None
     # Security Manager Class
-    sm = None
+    sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # OpenAPI Manager Class
-    openapi_manager = None
     # dict with addon name has key and intantiated class has value
     addon_managers = None
     # temporary list that hold addon_managers config key
@@ -208,8 +207,6 @@ class AirflowAppBuilder:
         self.session = session
         self.sm = self.security_manager_class(self)
         self.bm = BabelManager(self)
-        self.openapi_manager = OpenApiManager(self)
-        self.menuapi_manager = MenuApiManager(self)
         self._add_global_static()
         self._add_global_filters()
         app.before_request(self.sm.before_request)
@@ -313,8 +310,6 @@ class AirflowAppBuilder:
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
         self.sm.register_views()
-        self.openapi_manager.register_views()
-        self.menuapi_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -471,6 +466,8 @@ class AirflowAppBuilder:
         :param category_label:
             The label that will be displayed on the menu,
             if absent param name will be used
+        :param baseview:
+            A BaseView type class instantiated.
         :param cond:
             If a callable, :code:`cond` will be invoked when
             constructing the menu items. If it returns :code:`True`,
@@ -527,14 +524,6 @@ class AirflowAppBuilder:
         else:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
         return baseview
-
-    def add_api(self, baseview):
-        """
-            Add a BaseApi class or child to AppBuilder
-        :param baseview: A BaseApi type class
-        :return: The instantiated base view
-        """
-        return self.add_view_no_menu(baseview)
 
     def security_cleanup(self):
         """

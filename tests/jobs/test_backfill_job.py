@@ -41,11 +41,19 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
+from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.db import (
+    clear_db_dags,
+    clear_db_pools,
+    clear_db_runs,
+    clear_db_xcom,
+    set_default_pool_slots,
+)
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
 
@@ -64,6 +72,7 @@ class TestBackfillJob:
     def clean_db():
         clear_db_dags()
         clear_db_runs()
+        clear_db_xcom()
         clear_db_pools()
 
     @pytest.fixture(autouse=True)
@@ -190,7 +199,7 @@ class TestBackfillJob:
             ("run_this_last", end_date),
         ]
         assert [
-            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1, -1), (State.SUCCESS, None))
             for (task_id, when) in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -267,7 +276,7 @@ class TestBackfillJob:
 
         job.run()
         assert [
-            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1), (State.SUCCESS, None))
+            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1, -1), (State.SUCCESS, None))
             for task_id in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -1230,12 +1239,11 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self, dag_maker):
-        with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE) as dag:
+    def test_update_counters(self, dag_maker, session):
+        with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE, session=session) as dag:
             task1 = DummyOperator(task_id='dummy', owner='airflow')
         dr = dag_maker.create_dagrun()
         job = BackfillJob(dag=dag)
-        session = settings.Session()
 
         ti = TI(task1, dr.execution_date)
         ti.refresh_from_db()
@@ -1245,7 +1253,7 @@ class TestBackfillJob:
         # test for success
         ti.set_state(State.SUCCESS, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 1
         assert len(ti_status.skipped) == 0
@@ -1257,7 +1265,7 @@ class TestBackfillJob:
         # test for skipped
         ti.set_state(State.SKIPPED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 1
@@ -1269,7 +1277,7 @@ class TestBackfillJob:
         # test for failed
         ti.set_state(State.FAILED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1281,7 +1289,7 @@ class TestBackfillJob:
         # test for retry
         ti.set_state(State.UP_FOR_RETRY, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1297,7 +1305,7 @@ class TestBackfillJob:
         ti.set_state(State.UP_FOR_RESCHEDULE, session)
         assert ti.try_number == 3  # see ti.try_number property in taskinstance module
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1315,7 +1323,7 @@ class TestBackfillJob:
         session.merge(ti)
         session.commit()
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 0
         assert len(ti_status.skipped) == 0
@@ -1510,3 +1518,29 @@ class TestBackfillJob:
         )
         job.run()
         assert executor.job_id is not None
+
+    @pytest.mark.long_running
+    @pytest.mark.parametrize("executor_name", ["SequentialExecutor", "DebugExecutor"])
+    @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
+    def test_mapped_dag(self, dag_id, executor_name):
+        """
+        End-to-end test of a simple mapped dag.
+
+        We test with multiple executors as they have different "execution environments" -- for instance
+        DebugExecutor runs a lot more in the same process than other Executors.
+
+        """
+        # This test needs a real executor to run, so that the `make_list` task can write out the TaskMap
+        from airflow.executors.executor_loader import ExecutorLoader
+
+        self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
+        dag = self.dagbag.get_dag(dag_id)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=days_ago(1),
+            end_date=days_ago(1),
+            donot_pickle=True,
+            executor=ExecutorLoader.load_executor(executor_name),
+        )
+        job.run()

@@ -17,13 +17,14 @@
 from airflow.api_connexion import security
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.plugins_manager import get_plugin_info
 from airflow.security import permissions
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)])
-@format_parameters({'limit': check_limit})
-def get_plugins(limit, offset=0):
+@format_parameters({"limit": check_limit})
+def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
     """Get plugins endpoint"""
     plugins_info = get_plugin_info()
     total_entries = len(plugins_info)

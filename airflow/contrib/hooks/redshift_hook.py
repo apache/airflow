@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.hooks.redshift`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.hooks.redshift_cluster`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook  # noqa
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+__all__ = ["RedshiftHook"]

@@ -19,8 +19,8 @@
 
 /* global document, window, $ */
 
-import getMetaValue from './meta_value';
-import { formatDateTime } from './datetime_utils';
+import { getMetaValue } from './utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -52,6 +52,7 @@ const nextRun = {
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
+let dagRunId = '';
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -60,7 +61,12 @@ const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-ur
 }, {});
 
 function updateButtonUrl(elm, params) {
-  elm.setAttribute('href', `${elm.dataset.baseUrl}?${$.param(params)}`);
+  let url = elm.dataset.baseUrl;
+  if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
+    url = url.replace(dagId, params.dag_id);
+    delete params.dag_id;
+  }
+  elm.setAttribute('href', `${url}?${$.param(params)}`);
 }
 
 function updateModalUrls() {
@@ -109,7 +115,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd) {
+export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
@@ -117,6 +123,8 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
   });
   subdagId = sd;
   executionDate = d;
+  dagRunId = drID;
+  $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
@@ -222,7 +230,9 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
 export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
+  $('#run_id').text(dag.run_id);
   executionDate = dag.execution_date;
+  dagRunId = dag.run_id;
   updateButtonUrl(buttons.dag_graph_view, {
     dag_id: dag && dag.dag_id,
     execution_date: dag && dag.execution_date,
@@ -237,9 +247,14 @@ export function callModalDag(dag) {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
+  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
+  if (dagRunId || executionDate) {
+    if (form.dag_run_id) {
+      form.dag_run_id.value = dagRunId;
+    }
+    if (form.execution_date) {
+      form.execution_date.value = executionDate;
+    }
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
@@ -252,9 +267,14 @@ $('form[data-action]').on('submit', function submit(e) {
 // DAG Modal actions
 $('form button[data-action]').on('click', function onClick() {
   const form = $(this).closest('form').get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
+  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
+  if (dagRunId || executionDate) {
+    if (form.dag_run_id) {
+      form.dag_run_id.value = dagRunId;
+    }
+    if (form.execution_date) {
+      form.execution_date.value = executionDate;
+    }
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
@@ -283,7 +303,10 @@ $('#pause_resume').on('change', function onChange() {
 $('#next-run').on('mouseover', () => {
   $('#next-run').attr('data-original-title', () => {
     let newTitle = '';
-    if (nextRun.createAfter) newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br><br>`;
+    if (nextRun.createAfter) {
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
+    }
     if (nextRun.intervalStart && nextRun.intervalEnd) {
       newTitle += '<strong>Data Interval</strong><br>';
       newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;

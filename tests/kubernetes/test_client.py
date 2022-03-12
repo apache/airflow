@@ -63,5 +63,9 @@ class TestClient(unittest.TestCase):
 
         _disable_verify_ssl()
 
-        configuration = Configuration()
+        # Support wide range of kube client libraries
+        if hasattr(Configuration, 'get_default_copy'):
+            configuration = Configuration.get_default_copy()
+        else:
+            configuration = Configuration()
         self.assertFalse(configuration.verify_ssl)

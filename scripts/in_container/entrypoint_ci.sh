@@ -22,6 +22,23 @@ fi
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
+# This one is to workaround https://github.com/apache/airflow/issues/17546
+# issue with /usr/lib/<MACHINE>-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
+# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
+# by users of the prod image, we implement the workaround now.
+# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
+# binary started and a little memory used for Heap allocated by initialization of libstdc++
+# This overhead is not happening for binaries that already link dynamically libstdc++
+LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
+export LD_PRELOAD
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    if [[ ${BACKEND} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
+        exit 1
+    fi
+fi
+
 # Add "other" and "group" write permission to the tmp folder
 # Note that it will also change permissions in the /tmp folder on the host
 # but this is necessary to enable some of our CLI tools to work without errors
@@ -35,161 +52,157 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
-echo
-echo "Airflow home: ${AIRFLOW_HOME}"
-echo "Airflow sources: ${AIRFLOW_SOURCES}"
-echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
+if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
-echo
+    echo
+    echo "Airflow home: ${AIRFLOW_HOME}"
+    echo "Airflow sources: ${AIRFLOW_SOURCES}"
+    echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
 
-RUN_TESTS=${RUN_TESTS:="false"}
-CI=${CI:="false"}
-USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    echo
 
-if [[ ${AIRFLOW_VERSION} == *1.10* || ${USE_AIRFLOW_VERSION} == *1.10* ]]; then
-    export RUN_AIRFLOW_1_10="true"
-else
-    export RUN_AIRFLOW_1_10="false"
-fi
+    RUN_TESTS=${RUN_TESTS:="false"}
+    CI=${CI:="false"}
+    USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
 
-if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
-    export PYTHONPATH=${AIRFLOW_SOURCES}
-    echo
-    echo "Using already installed airflow version"
-    echo
-    if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
-        pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
-        ./ask_for_recompile_assets_if_needed.sh
-        popd >/dev/null
-    fi
-    # Cleanup the logs, tmp when entering the environment
-    sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
-    sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
-    mkdir -p "${AIRFLOW_SOURCES}"/logs/
-    mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
-    echo
-    echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
-    echo
-    uninstall_airflow_and_providers
-elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
-    echo
-    echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
-    echo
-    uninstall_airflow_and_providers
-    install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
-    uninstall_providers
-elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
-    echo
-    echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
-    echo
-    uninstall_airflow_and_providers
-    install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
-    uninstall_providers
-else
-    echo
-    echo "Install airflow from PyPI without extras"
-    echo
-    install_released_airflow_version "${USE_AIRFLOW_VERSION}"
-fi
-if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
-    echo
-    echo "Install all packages from dist folder"
-    if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
-        echo "(except apache-airflow)"
-    fi
-    if [[ ${PACKAGE_FORMAT} == "both" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
+        export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
-        echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo "Using already installed airflow version"
         echo
-        exit 1
+        if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
+            pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
+            ./ask_for_recompile_assets_if_needed.sh
+            popd >/dev/null
+        fi
+        # Cleanup the logs, tmp when entering the environment
+        sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
+        sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
+        mkdir -p "${AIRFLOW_SOURCES}"/logs/
+        mkdir -p "${AIRFLOW_SOURCES}"/tmp/
+    elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
+        echo
+        echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+        echo
+        uninstall_airflow_and_providers
+    elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
+        echo
+        echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo
+        uninstall_airflow_and_providers
+        install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
+        uninstall_providers
+    elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
+        echo
+        echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo
+        uninstall_airflow_and_providers
+        install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
+        uninstall_providers
+    else
+        echo
+        echo "Install airflow from PyPI without extras"
+        echo
+        install_released_airflow_version "${USE_AIRFLOW_VERSION}"
     fi
-    echo
-    installable_files=()
-    for file in /dist/*.{whl,tar.gz}
-    do
-        if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
-            # Skip Apache Airflow package - it's just been installed above with extras
-            echo "Skipping ${file}"
-            continue
+    if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
+        echo
+        echo "Install all packages from dist folder"
+        if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
+            echo "(except apache-airflow)"
         fi
-        if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-            echo "Adding ${file} to install"
-            installable_files+=( "${file}" )
+        if [[ ${PACKAGE_FORMAT} == "both" ]]; then
+            echo
+            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+            echo
+            exit 1
         fi
-        if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-            echo "Adding ${file} to install"
-            installable_files+=( "${file}" )
+        echo
+        installable_files=()
+        for file in /dist/*.{whl,tar.gz}
+        do
+            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above with extras
+                echo "Skipping ${file}"
+                continue
+            fi
+            if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
+                echo "Adding ${file} to install"
+                installable_files+=( "${file}" )
+            fi
+            if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
+                echo "Adding ${file} to install"
+                installable_files+=( "${file}" )
+            fi
+        done
+        if (( ${#installable_files[@]} )); then
+            pip install "${installable_files[@]}" --no-deps
         fi
-    done
-    if (( ${#installable_files[@]} )); then
-        pip install "${installable_files[@]}" --no-deps
     fi
-fi
 
-export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
+    # Added to have run-tests on path
+    export PATH=${PATH}:${AIRFLOW_SOURCES}
 
-# Added to have run-tests on path
-export PATH=${PATH}:${AIRFLOW_SOURCES}
+    # This is now set in conftest.py - only for pytest tests
+    unset AIRFLOW__CORE__UNIT_TEST_MODE
 
-# This is now set in conftest.py - only for pytest tests
-unset AIRFLOW__CORE__UNIT_TEST_MODE
+    mkdir -pv "${AIRFLOW_HOME}/logs/"
+    cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
-mkdir -pv "${AIRFLOW_HOME}/logs/"
-cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+    # Change the default worker_concurrency for tests
+    export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
 
-# Change the default worker_concurrency for tests
-export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
+    set +e
 
-set +e
-"${IN_CONTAINER_DIR}/check_environment.sh"
-ENVIRONMENT_EXIT_CODE=$?
-set -e
-if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
-    echo
-    echo "Error: check_environment returned ${ENVIRONMENT_EXIT_CODE}. Exiting."
-    echo
-    exit ${ENVIRONMENT_EXIT_CODE}
-fi
+    "${IN_CONTAINER_DIR}/check_environment.sh"
+    ENVIRONMENT_EXIT_CODE=$?
+    set -e
+    if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
+        echo
+        echo "Error: check_environment returned ${ENVIRONMENT_EXIT_CODE}. Exiting."
+        echo
+        exit ${ENVIRONMENT_EXIT_CODE}
+    fi
+    # Create symbolic link to fix possible issues with kubectl config cmd-path
+    mkdir -p /usr/lib/google-cloud-sdk/bin
+    touch /usr/lib/google-cloud-sdk/bin/gcloud
+    ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
-# Create symbolic link to fix possible issues with kubectl config cmd-path
-mkdir -p /usr/lib/google-cloud-sdk/bin
-touch /usr/lib/google-cloud-sdk/bin/gcloud
-ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
+    if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
+        # Set up ssh keys
+        echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
+            >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
-# Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
-    >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+        ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+        chmod 600 ~/.ssh/*
 
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-chmod 600 ~/.ssh/*
+        # SSH Service
+        sudo service ssh restart >/dev/null 2>&1
 
-# SSH Service
-sudo service ssh restart >/dev/null 2>&1
+        # Sometimes the server is not quick enough to load the keys!
+        while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+            echo "Not all keys yet loaded by the server"
+            sleep 0.05
+        done
 
-# Sometimes the server is not quick enough to load the keys!
-while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
-    echo "Not all keys yet loaded by the server"
-    sleep 0.05
-done
+        ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+    fi
 
-ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+    # shellcheck source=scripts/in_container/configure_environment.sh
+    . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
-# shellcheck source=scripts/in_container/configure_environment.sh
-. "${IN_CONTAINER_DIR}/configure_environment.sh"
+    # shellcheck source=scripts/in_container/run_init_script.sh
+    . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
-# shellcheck source=scripts/in_container/run_init_script.sh
-. "${IN_CONTAINER_DIR}/run_init_script.sh"
+    cd "${AIRFLOW_SOURCES}"
 
-cd "${AIRFLOW_SOURCES}"
-
-echo "START_AIRFLOW:=${START_AIRFLOW}"
-if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
-    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
-    export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
-    # shellcheck source=scripts/in_container/bin/run_tmux
-    exec run_tmux
+    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        # shellcheck source=scripts/in_container/bin/run_tmux
+        exec run_tmux
+    fi
 fi
 
 set +u
@@ -207,8 +220,6 @@ EXTRA_PYTEST_ARGS=(
     "--durations=100"
     "--maxfail=50"
     "--color=yes"
-    "--pythonwarnings=ignore::DeprecationWarning"
-    "--pythonwarnings=ignore::PendingDeprecationWarning"
     "--junitxml=${RESULT_LOG_FILE}"
     # timeouts in seconds for individual tests
     "--timeouts-order"
@@ -286,11 +297,12 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("chart/tests")
+    HELM_CHART_TESTS=("tests/charts")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
+        "${HELM_CHART_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"

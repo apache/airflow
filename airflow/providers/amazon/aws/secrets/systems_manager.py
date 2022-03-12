@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
+import sys
 from typing import Optional
 
 import boto3
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
@@ -48,15 +49,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null), requests for connections will not be sent to AWS SSM Parameter Store.
-    :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for variables will not be sent to AWS SSM Parameter Store.
-    :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for configurations will not be sent to AWS SSM Parameter Store.
-    :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
-    :type profile_name: str
     """
 
     def __init__(
@@ -94,7 +91,6 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         Get param value
 
         :param conn_id: connection id
-        :type conn_id: str
         """
         if self.connections_prefix is None:
             return None
@@ -130,9 +126,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         Get secret value from Parameter Store.
 
         :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
-        :type secret_id: str
         """
         ssm_path = self.build_path(path_prefix, secret_id)
         try:

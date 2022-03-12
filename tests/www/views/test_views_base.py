@@ -30,7 +30,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index(admin_client):
-    with assert_queries_count(49):
+    with assert_queries_count(11):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 
@@ -326,6 +326,7 @@ def test_create_user(app, admin_client, non_exist_username):
             'last_name': 'fake_last_name',
             'username': non_exist_username,
             'email': 'fake_email@email.com',
+            'roles': [1],
             'password': 'test',
             'conf_password': 'test',
         },
@@ -389,3 +390,14 @@ def test_page_instance_name_xss_prevention(admin_client):
         escaped_xss_string = "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
         check_content_in_response(escaped_xss_string, resp)
         check_content_not_in_response(xss_string, resp)
+
+
+@conf_vars(
+    {
+        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+        ("webserver", "instance_name_has_markup"): "True",
+    }
+)
+def test_page_instance_name_with_markup(admin_client):
+    resp = admin_client.get('home', follow_redirects=True)
+    check_content_in_response('<b>Bold Site Title Test</b>', resp)

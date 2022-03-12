@@ -49,8 +49,8 @@ AUTH_TYPE = AUTH_DB
 # Uncomment to setup Full admin role name
 # AUTH_ROLE_ADMIN = 'Admin'
 
-# Uncomment to setup Public role name, no authentication needed
-# AUTH_ROLE_PUBLIC = 'Public'
+# Uncomment and set to desired role to enable access without authentication
+# AUTH_ROLE_PUBLIC = 'Viewer'
 
 # Will allow user self registration
 # AUTH_USER_REGISTRATION = True

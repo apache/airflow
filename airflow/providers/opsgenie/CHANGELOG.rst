@@ -19,6 +19,44 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+``OpsgenieAlertHook`` constructor does not take additional arguments or keyword arguments anymore.
+Changed the return type of ``OpsgenieAlertHook.get_conn`` to return an ``opsgenie_sdk.AlertApi`` object instead of a ``requests.Session`` object.
+Removed the ``OpsegnieAlertHook.execute`` method and replaced it with ``OpsegnieAlertHook.create_alert`` it now returns an
+``opsgenie_sdk.SuccessResponse`` object instead of an ``Any`` type.
+``OpsgenieAlertHook`` now takes ``visible_to`` instead of ``visibleTo`` key in the payload.
+``OpsgenieAlertHook`` now takes ``request_id`` instead of ``requestId`` key in the payload.
+
+* ``Add 'OpsgenieCloseAlertOperator' (#20488)``
+* ``Organize Opsgenie provider classes (#20454)``
+* ``rewrite opsgenie alert hook with official python sdk, related issue #18641 (#20263)``
+* ``Rename 'OpsgenieAlertOperator' to 'OpsgenieCreateAlertOperator' (#20514)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.0.1
 .....
 

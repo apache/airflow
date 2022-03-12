@@ -1,3 +1,94 @@
+Airflow Helm Chart 1.5.0, 2022-03-11
+------------------------------------
+
+New Features
+""""""""""""
+
+- Add support for custom command and args in jobs (#20864)
+- Support for ``priorityClassName`` (#20794)
+- Add ``envFrom`` to the Flower deployment (#21401)
+- Add annotations to cleanup pods (#21484)
+
+Improvements
+""""""""""""
+
+- Speedup liveness probe for scheduler and triggerer (#20833, #21108, #22041)
+- Update git-sync to v3.4.0 (#21309)
+- Remove default auth backend setting (#21640)
+
+Bug Fixes
+"""""""""
+- Fix elasticsearch URL when username/password are empty (#21222)
+- Mount ``airflow.cfg`` in wait-for-airflow-migrations containers (#20609)
+- Grant pod log reader to triggerer serviceaccount (#21111)
+
+Doc only changes
+""""""""""""""""
+- Simplify chart docs for configuring Airflow (#21747)
+- Add extra information about time synchronization needed (#21685)
+- Fix extra containers docs (#20787)
+- Fix example DAGs env var in quickstart (#21990)
+
+Misc
+""""
+- Use ``2.2.4`` as default Airflow version (#21745)
+- Change Redis image to bullseye (#21875)
+
+Airflow Helm Chart 1.4.0, 2022-01-10
+------------------------------------
+
+New Features
+""""""""""""
+
+- Add ``type`` to extra secrets param (#20599)
+- Support elasticsearch connection ``scheme`` (#20564)
+- Allows to disable built-in secret variables individually (#18974)
+- Add support for ``securityContext`` (#18249)
+- Add extra containers, volumes and volume mounts for jobs (#18808)
+- Allow ingress multiple hostnames w/diff secrets (#18542)
+- PgBouncer extra volumes, volume mounts, and sslmode (#19749)
+- Allow specifying kerberos keytab (#19054)
+- Allow disabling the Helm hooks (#18776, #20018)
+- Add ``migration-wait-timeout`` (#20069)
+
+Improvements
+""""""""""""
+
+- Increase default livenessProbe timeout (#20698)
+- Strict schema for k8s objects for values.yaml (#19181)
+- Remove unnecessary ``pod_template_file`` defaults (#19690)
+- Use built-in ``check-migrations`` command for Airflow>=2 (#19676)
+
+Bug Fixes
+"""""""""
+
+- Fix precedence of ``affinity``, ``nodeSelector``, and ``tolerations`` (#20641)
+- Fix chart elasticsearch default port 80 to 9200. (#20616)
+- Fix network policy issue for webserver and flowerui (#20199)
+- Use local definitions for k8s schema validation (#20544)
+- Add custom labels for ingresses/PVCs (#20535)
+- Fix extra secrets/configmaps labels (#20464)
+- Fix flower restarts on update (#20316)
+- Properly quote namespace names (#20266)
+
+Doc only changes
+""""""""""""""""
+
+- Add ``helm dependency update`` step to chart INSTALL (#20702)
+- Reword section covering the envvar secrets (#20566)
+- Add "Customizing Workers" page (#20331)
+- Include Datadog example in production guide (#17996)
+- Update production Helm guide database section to use k8s secret (#19892)
+- Fix ``multiNamespaceMode`` docs to also cover KPO (#19879)
+- Clarify Helm behaviour when it comes to loading default connections (#19708)
+
+Misc
+""""
+
+- Use ``2.2.3`` as default Airflow version (#20450)
+- Add ArtifactHUB annotations for docs and screenshots (#20558)
+- Add kubernetes 1.21 support (#19557)
+
 Airflow Helm Chart 1.3.0, 2021-11-08
 ------------------------------------
 
@@ -26,7 +117,7 @@ Bug Fixes
 Doc only changes
 """"""""""""""""
 
-- Chart: Fix `extraEnvFrom` examples (#19144)
+- Chart: Fix ``extraEnvFrom`` examples (#19144)
 - Chart docs: Update webserver secret key reference configuration (#18595)
 - Fix helm chart links in source install guide (#18588)
 
@@ -141,7 +232,7 @@ Doc only changes
 - Chart Docs: Add single-line description for ``multiNamespaceMode`` (#17147)
 - Chart: Update description for Helm chart to include 'official' (#17040)
 - Chart: Better comment and example for ``podTemplate`` (#16859)
-- Chart: Add more clear docs for setting `pod_template_file.yaml` (#16632)
+- Chart: Add more clear docs for setting ``pod_template_file.yaml`` (#16632)
 - Fix description on ``scheduler.livenessprobe.periodSeconds`` (#16486)
 - Chart docs: Fix ``extrasecrets`` example (#16305)
 - Small improvements for ``README.md`` files (#16244)
@@ -151,5 +242,5 @@ Misc
 - Removes pylint from our toolchain (#16682)
 - Update link to match what is in pre-commit (#16408)
 - Chart: Update the ``appVersion`` to 2.1.0 in ``Chart.yaml`` (#16337)
-- Rename the main branch of the Airflow repo to be `main` (#16149)
+- Rename the main branch of the Airflow repo to be ``main`` (#16149)
 - Update Chart version to ``1.1.0-rc1`` (#16124)

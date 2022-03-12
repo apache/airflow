@@ -21,7 +21,7 @@ Example Airflow DAG for Google ML Engine service.
 """
 import os
 from datetime import datetime
-from typing import Dict
+from typing import Any, Dict
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -65,7 +65,7 @@ with models.DAG(
     tags=['example'],
     params={"model_name": MODEL_NAME},
 ) as dag:
-    hyperparams = {
+    hyperparams: Dict[str, Any] = {
         'goal': 'MAXIMIZE',
         'hyperparameterMetricTag': 'metric1',
         'maxTrials': 30,

@@ -59,6 +59,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -66,6 +67,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     sub_dagrun = sub_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -73,6 +75,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     xcom_dagrun = xcom_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
     )
@@ -112,7 +115,7 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 def test_action_logging_get(session, admin_client):
     url = (
-        f'graph?dag_id=example_bash_operator&'
+        f'dags/example_bash_operator/graph?'
         f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
     )
     resp = admin_client.get(url, follow_redirects=True)
@@ -124,6 +127,24 @@ def test_action_logging_get(session, admin_client):
         session,
         dag_id="example_bash_operator",
         event="graph",
+        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+    )
+
+
+def test_action_logging_get_legacy_view(session, admin_client):
+    url = (
+        f'graph?dag_id=example_bash_operator&'
+        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+    )
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response('runme_1', resp)
+
+    # In mysql backend, this commit() is needed to write down the logs
+    session.commit()
+    _check_last_log(
+        session,
+        dag_id="example_bash_operator",
+        event="legacy_graph",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
 

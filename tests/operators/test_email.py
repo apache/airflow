@@ -50,7 +50,7 @@ class TestEmailOperator(unittest.TestCase):
             html_content='The quick brown fox jumps over the lazy dog',
             task_id='task',
             dag=self.dag,
-            files=["/tmp/Report-A-{{ execution_date.strftime('%Y-%m-%d') }}.csv"],
+            files=["/tmp/Report-A-{{ ds }}.csv"],
             custom_headers={'Reply-To': 'reply_to@example.com'},
             **kwargs,
         )

@@ -27,10 +27,7 @@ from jinja2 import StrictUndefined
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.providers.amazon.aws.operators.emr_create_job_flow import (
-    EmrClusterLink,
-    EmrCreateJobFlowOperator,
-)
+from airflow.providers.amazon.aws.operators.emr import EmrClusterLink, EmrCreateJobFlowOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -178,7 +175,7 @@ def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink": {}}
+        {"airflow.providers.amazon.aws.operators.emr.EmrClusterLink": {}}
     ], "Operator links should exist for serialized DAG"
 
     assert isinstance(
@@ -186,20 +183,20 @@ def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ), "Operator link type should be preserved during deserialization"
 
     assert (
-        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+        ti.task.get_extra_links(ti, EmrClusterLink.name) == ""
     ), "Operator link should only be added if job id is available in XCom"
 
     assert (
-        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == ""
     ), "Operator link should be empty for deserialized task with no XCom push"
 
     ti.xcom_push(key=XCOM_RETURN_KEY, value='j-SomeClusterId')
 
     expected = "https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:j-SomeClusterId"
     assert (
-        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == expected
     ), "Operator link should be preserved in deserialized tasks after execution"
 
     assert (
-        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+        ti.task.get_extra_links(ti, EmrClusterLink.name) == expected
     ), "Operator link should be preserved after execution"

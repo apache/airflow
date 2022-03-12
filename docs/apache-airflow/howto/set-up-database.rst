@@ -169,6 +169,24 @@ the database configuration to load your change. See
 `The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
 in the Postgres documentation to learn more.
 
+.. warning::
+
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
+   SQLAlchemy 1.4.0+ results in:
+
+   .. code-block::
+
+      >       raise exc.NoSuchModuleError(
+                  "Can't load plugin: %s:%s" % (self.group, name)
+              )
+      E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+
+   If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+   1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
+
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
 .. code-block:: text
@@ -214,7 +232,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
-   An example setup for ``keepalives`` that has been observe to fix the problem might be:
+   An example setup for ``keepalives`` that has been observed to fix the problem might be:
 
    .. code-block:: python
 
@@ -224,6 +242,13 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
           "keepalives_interval": 5,
           "keepalives_count": 5,
       }
+
+   Then, if it were placed in ``airflow_local_settings.py``, the config import path would be:
+
+   .. code-block:: text
+
+      sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+
 
 
 .. spelling::
@@ -306,7 +331,7 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
 
 
 Other configuration options

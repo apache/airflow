@@ -20,10 +20,25 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook  # noqa
+from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class SQSHook(SqsHook):
+    """
+    This class is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs.SqsHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

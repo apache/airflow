@@ -19,7 +19,7 @@
 import pathlib
 import tempfile
 from datetime import datetime
-from unittest import TestCase
+from unittest import TestCase, mock
 
 import pytest
 
@@ -30,6 +30,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
@@ -76,15 +77,43 @@ class TestDagRunOperator(TestCase):
 
         pathlib.Path(self._tmpfile).unlink()
 
+    def assert_extra_link(self, triggered_dag_run, triggering_task, session):
+        """
+        Asserts whether the correct extra links url will be created.
+
+        Specifically it tests whether the correct dag id and date are passed to
+        the method which constructs the final url.
+        Note: We can't run that method to generate the url itself because the Flask app context
+        isn't available within the test logic, so it is mocked here.
+        """
+        triggering_ti = (
+            session.query(TaskInstance)
+            .filter_by(
+                task_id=triggering_task.task_id,
+                dag_id=triggering_task.dag_id,
+            )
+            .one()
+        )
+        with mock.patch('airflow.operators.trigger_dagrun.build_airflow_url_with_query') as mock_build_url:
+            triggering_task.get_extra_links(triggering_ti, 'Triggered DAG')
+        assert mock_build_url.called
+        args, _ = mock_build_url.call_args
+        expected_args = {
+            'dag_id': triggered_dag_run.dag_id,
+            'base_date': triggered_dag_run.execution_date.isoformat(),
+        }
+        assert expected_args in args
+
     def test_trigger_dagrun(self):
         """Test TriggerDagRunOperator."""
         task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, dag=self.dag)
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            assert len(dagruns) == 1
-            assert dagruns[0].external_trigger
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.external_trigger
+            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.execution_date)
+            self.assert_extra_link(dagrun, task, session)
 
     def test_trigger_dagrun_custom_run_id(self):
         task = TriggerDagRunOperator(
@@ -102,20 +131,21 @@ class TestDagRunOperator(TestCase):
 
     def test_trigger_dagrun_with_execution_date(self):
         """Test TriggerDagRunOperator with custom execution_date."""
-        utc_now = timezone.utcnow()
+        custom_execution_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=utc_now,
+            execution_date=custom_execution_date,
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            assert len(dagruns) == 1
-            assert dagruns[0].external_trigger
-            assert dagruns[0].execution_date == utc_now
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.external_trigger
+            assert dagrun.execution_date == custom_execution_date
+            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
+            self.assert_extra_link(dagrun, task, session)
 
     def test_trigger_dagrun_twice(self):
         """Test TriggerDagRunOperator with custom execution_date."""
@@ -140,19 +170,21 @@ class TestDagRunOperator(TestCase):
             )
             session.add(dag_run)
             session.commit()
-            task.execute(None)
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].external_trigger
-            assert dagruns[0].execution_date == utc_now
+            triggered_dag_run = dagruns[0]
+            assert triggered_dag_run.external_trigger
+            assert triggered_dag_run.execution_date == utc_now
+            self.assert_extra_link(triggered_dag_run, task, session)
 
     def test_trigger_dagrun_with_templated_execution_date(self):
         """Test TriggerDagRunOperator with templated execution_date."""
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_str_execution_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date="{{ execution_date }}",
+            execution_date="{{ logical_date }}",
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -160,8 +192,10 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].external_trigger
-            assert dagruns[0].execution_date == DEFAULT_DATE
+            triggered_dag_run = dagruns[0]
+            assert triggered_dag_run.external_trigger
+            assert triggered_dag_run.execution_date == DEFAULT_DATE
+            self.assert_extra_link(triggered_dag_run, task, session)
 
     def test_trigger_dagrun_operator_conf(self):
         """Test passing conf to the triggered DagRun."""
@@ -176,7 +210,7 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].conf, {"foo": "bar"}
+            assert dagruns[0].conf == {"foo": "bar"}
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self):
         """Test passing a conf that is not JSON Serializable raise error."""
@@ -202,7 +236,7 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-            assert dagruns[0].conf, {"foo": TEST_DAG_ID}
+            assert dagruns[0].conf == {"foo": TEST_DAG_ID}
 
     def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
@@ -288,7 +322,9 @@ class TestDagRunOperator(TestCase):
                 .all()
             )
             assert len(dagruns) == 2
-            assert dagruns[1].state == State.QUEUED
+            triggered_dag_run = dagruns[1]
+            assert triggered_dag_run.state == State.QUEUED
+            self.assert_extra_link(triggered_dag_run, task, session)
 
     def test_trigger_dagrun_triggering_itself_with_execution_date(self):
         """Test TriggerDagRunOperator that triggers itself with execution date,

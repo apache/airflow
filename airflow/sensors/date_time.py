@@ -17,11 +17,12 @@
 # under the License.
 
 import datetime
-from typing import Dict, Union
+from typing import Sequence, Union
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 
 class DateTimeSensor(BaseSensorOperator):
@@ -51,10 +52,9 @@ class DateTimeSensor(BaseSensorOperator):
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :type target_time: str or datetime.datetime
     """
 
-    template_fields = ("target_time",)
+    template_fields: Sequence[str] = ("target_time",)
 
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
@@ -69,7 +69,7 @@ class DateTimeSensor(BaseSensorOperator):
                 f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
             )
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.utcnow() > timezone.parse(self.target_time)
 
@@ -82,10 +82,9 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :type target_time: str or datetime.datetime
     """
 
-    def execute(self, context):
+    def execute(self, context: Context):
         self.defer(
             trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
             method_name="execute_complete",

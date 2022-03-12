@@ -28,14 +28,70 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2022-03-02
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`ba79adb631 <https://github.com/apache/airflow/commit/ba79adb6318d783807dead86cf209f5f7d6f0452>`_  2022-03-02   ``Make container creation configurable when uploading files via WasbHook (#20510)``
+`f42559a773 <https://github.com/apache/airflow/commit/f42559a773ed51c96ce27bad1d87c4d49bb40d4b>`_  2022-03-02   ``Add 'test_connection' method to 'AzureDataFactoryHook' (#21924)``
+`08575ddd8a <https://github.com/apache/airflow/commit/08575ddd8a72f96a3439f73e973ee9958188eb83>`_  2022-03-01   ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+`3c4524b4ec <https://github.com/apache/airflow/commit/3c4524b4ec2b42a8af0a8c7b9d8f1d065b2bfc83>`_  2022-02-23   ``(AzureCosmosDBHook) Update to latest Cosmos API (#21514)``
+`0a3ff43d41 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
+=================================================================================================  ===========  ===================================================================================
+
+3.6.0
+.....
+
+Latest change: 2022-02-08
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`6c3a67d4fc <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`ddb5246bd1 <https://github.com/apache/airflow/commit/ddb5246bd1576e2ce6abf8c80c3328d7d71a75ce>`_  2022-02-03   ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+`cb73053211 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`602abe8394 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`730db3fb77 <https://github.com/apache/airflow/commit/730db3fb774f60127ab1c865e19031f1f9c193f7>`_  2022-01-18   ``Remove all "fake" stub files (#20936)``
+`f8fd0f7b4c <https://github.com/apache/airflow/commit/f8fd0f7b4ca6cb52307be4323028bf4e409566e7>`_  2022-01-13   ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+=================================================================================================  ===========  ==========================================================================
+
+3.5.0
+.....
+
+Latest change: 2021-12-31
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`a22d5bd076 <https://github.com/apache/airflow/commit/a22d5bd07696d9cafe10a3e246ea9f3a381585ee>`_  2021-12-31   ``Fix mypy errors in Google Cloud provider (#20611)``
+`83f8e178ba <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`3299064958 <https://github.com/apache/airflow/commit/3299064958e5fbcfc8e91e905ababb18d7339421>`_  2021-12-29   ``Use isort on pyi files (#20556)``
+`e63e23c582 <https://github.com/apache/airflow/commit/e63e23c582cd757ea6593bdb4dfde66d76a8c9f1>`_  2021-12-23   ``Fixing MyPy issues inside providers/microsoft (#20409)``
+`341bf5ab1f <https://github.com/apache/airflow/commit/341bf5ab1f528a98fa2c7325113cfe425843cff1>`_  2021-12-22   ``Azure: New sftp to wasb operator (#18877)``
+`05e4cd1c6a <https://github.com/apache/airflow/commit/05e4cd1c6a93ba96f9adbaf7973e7729697ca934>`_  2021-12-18   ``Add operator link to monitor Azure Data Factory pipeline runs (#20207)``
+`2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`42f133c5f6 <https://github.com/apache/airflow/commit/42f133c5f63011399eb46ee6f046c401103cf546>`_  2021-12-06   ``Removes InputRequired validation with azure extra (#20084)``
+`374574b8d0 <https://github.com/apache/airflow/commit/374574b8d0ef795855f8d2bb212ba6d653e62727>`_  2021-12-06   ``Fix mypy errors in Microsoft Azure provider (#19923)``
+=================================================================================================  ===========  ==========================================================================
+
 3.4.0
 .....
 
-Latest change: 2021-11-18
+Latest change: 2021-11-30
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `e25446a8b1 <https://github.com/apache/airflow/commit/e25446a8b19197e55989174f210e1c94ae5ff65f>`_  2021-11-18   ``Fix argument error in AzureContainerInstancesOperator (#19668)``
 `11e73d2db1 <https://github.com/apache/airflow/commit/11e73d2db192e8abb551a728ca5c2d5dcf69d5d8>`_  2021-11-16   ``Remove unnecessary connection form customizations in Azure (#19595)``
 `4212c49324 <https://github.com/apache/airflow/commit/4212c4932433a50bda09f3e771a02f5ded4553a7>`_  2021-11-14   ``Update Azure modules to comply with AIP-21 (#19431)``

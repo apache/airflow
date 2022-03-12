@@ -32,6 +32,7 @@ Prerequisite Tasks
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
+.. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
 Create a Cluster
 ----------------
@@ -212,6 +213,15 @@ Once a workflow is created users can trigger it using
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
 
+The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
+
 Create a Batch
 --------------
 
@@ -225,6 +235,24 @@ A batch can be created using:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_batch_operator]
     :end-before: [END how_to_cloud_dataproc_create_batch_operator]
+
+For creating a batch with Persistent History Server first you should create a Dataproc Cluster
+with specific parameters. Documentation how create cluster you can find here:
+https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
+After Cluster was created you should add it to the Batch configuration.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
 
 Get a Batch
 -----------

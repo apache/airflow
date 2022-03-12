@@ -28,7 +28,6 @@ import pandas as pd
 import pytest
 from hmsclient import HMSClient
 
-from airflow import PY39
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -36,21 +35,25 @@ from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook, HiveServ
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from tests.providers.apache.hive import (
+    BaseMockConnectionCursor,
+    MockHiveCliHook,
+    MockHiveServer2Hook,
+    MockSubProcess,
+)
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from tests.test_utils.mock_hooks import MockHiveCliHook, MockHiveServer2Hook
-from tests.test_utils.mock_process import EmptyMockConnectionCursor, MockSubProcess
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
+class EmptyMockConnectionCursor(BaseMockConnectionCursor):
+    def __init__(self):
+        super().__init__()
+        self.iterable = []
+
+
 class TestHiveEnvironment(unittest.TestCase):
     def setUp(self):
         self.next_day = (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()[:10]
@@ -67,12 +70,6 @@ class TestHiveEnvironment(unittest.TestCase):
             self.hook = HiveMetastoreHook()
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 class TestHiveCliHook(unittest.TestCase):
     @mock.patch('tempfile.tempdir', '/tmp/')
     @mock.patch('tempfile._RandomNameSequence.__next__')
@@ -337,12 +334,6 @@ class TestHiveCliHook(unittest.TestCase):
         assert_equal_ignore_multiple_spaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 class TestHiveMetastoreHook(TestHiveEnvironment):
     VALID_FILTER_MAP = {'key2': 'value2'}
 
@@ -446,7 +437,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert self.hook.check_for_partition(self.database, self.table, partition)
 
-        metastore.get_partitions_by_filter(self.database, self.table, partition, 1)
+        metastore.get_partitions_by_filter(
+            self.database, self.table, partition, HiveMetastoreHook.MAX_PART_COUNT
+        )
 
         # Check for non-existent partition.
         missing_partition = f"{self.partition_by}='{self.next_day}'"
@@ -454,7 +447,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         assert not self.hook.check_for_partition(self.database, self.table, missing_partition)
 
-        metastore.get_partitions_by_filter.assert_called_with(self.database, self.table, missing_partition, 1)
+        metastore.get_partitions_by_filter.assert_called_with(
+            self.database, self.table, missing_partition, HiveMetastoreHook.MAX_PART_COUNT
+        )
 
     def test_check_for_named_partition(self):
 
@@ -582,12 +577,6 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 class TestHiveServer2Hook(unittest.TestCase):
     def _upload_dataframe(self):
         df = pd.DataFrame({'a': [1, 2], 'b': [1, 2]})
@@ -843,12 +832,6 @@ class TestHiveServer2Hook(unittest.TestCase):
         assert 'test_dag_run_id' in output
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 class TestHiveCli(unittest.TestCase):
     def setUp(self):
         self.nondefault_schema = "nondefault"

@@ -24,11 +24,13 @@ from time import sleep
 
 from sqlalchemy import and_, or_, tuple_
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator, DagRun, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
+from airflow.utils.context import Context
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -75,16 +77,12 @@ class SensorWork:
 
         self.poke_context = json.loads(si.poke_context) if si.poke_context else {}
         self.execution_context = json.loads(si.execution_context) if si.execution_context else {}
-        try:
-            self.log = self._get_sensor_logger(si)
-        except Exception as e:
-            self.log = None
-            print(e)
         self.hashcode = si.hashcode
         self.start_date = si.start_date
         self.operator = si.operator
         self.op_classpath = si.op_classpath
         self.encoded_poke_context = si.poke_context
+        self.si = si
 
     def __eq__(self, other):
         if not isinstance(other, SensorWork):
@@ -117,10 +115,12 @@ class SensorWork:
         handler.addFilter(_secrets_masker())
         return handler
 
-    def _get_sensor_logger(self, si):
+    @cached_property
+    def log(self):
         """Return logger for a sensor instance object."""
         # The created log_id is used inside of smart sensor as the key to fetch
         # the corresponding in memory log handler.
+        si = self.si
         si.raw = False  # Otherwise set_context will fail
         log_id = "-".join(
             [si.dag_id, si.task_id, si.execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f"), str(si.try_number)]
@@ -250,10 +250,7 @@ class SensorExceptionInfo:
             self._infra_failure_timeout = timezone.utcnow() + self._infra_failure_retry_window
 
     def should_fail_current_run(self):
-        """
-        :return: Should the sensor fail
-        :type: boolean
-        """
+        """:return: Should the sensor fail"""
         return not self.is_infra_failure or timezone.utcnow() > self._infra_failure_timeout
 
     @property
@@ -263,18 +260,11 @@ class SensorExceptionInfo:
 
     @property
     def is_infra_failure(self):
-        """
-
-        :return: If the exception is an infra failure
-        :type: boolean
-        """
+        """:return: If the exception is an infra failure"""
         return self._is_infra_failure
 
     def is_expired(self):
-        """
-        :return: If current exception need to be kept.
-        :type: boolean
-        """
+        """:return: If current exception need to be kept."""
         if not self._is_infra_failure:
             return True
         return timezone.utcnow() > self._infra_failure_timeout + datetime.timedelta(minutes=30)
@@ -291,19 +281,13 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     all sensor task state in task_instance table
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
-    :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries.
-    :type poke_interval: int
     :param smart_sensor_timeout: Time, in seconds before the internal sensor
         job times out if poke_timeout is not defined.
-    :type smart_sensor_timeout: float
     :param shard_min: shard code lower bound (inclusive)
-    :type shard_min: int
     :param shard_max: shard code upper bound (exclusive)
-    :type shard_max: int
     :param poke_timeout: Time, in seconds before the task times out and fails.
-    :type poke_timeout: float
     """
 
     ui_color = '#e6f1f2'
@@ -494,9 +478,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         logically experienced all retries and the try_number should be set to max_tries.
 
         :param sensor_work: The sensor_work with exception.
-        :type sensor_work: SensorWork
         :param error: The error message for this sensor_work.
-        :type error: str.
         :param session: The sqlalchemy session.
         """
 
@@ -740,7 +722,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         except Exception:
             self.log.exception("Exception at getting loop stats %s")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         started_at = timezone.utcnow()
 
         self.hostname = get_hostname()
@@ -772,7 +754,3 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     def on_kill(self):
         pass
-
-
-if __name__ == '__main__':
-    SmartSensorOperator(task_id='test').execute({})

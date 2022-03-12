@@ -14,13 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Classes for interacting with Kubernetes API"""
+"""
+Classes for interacting with Kubernetes API.
+
+This module is deprecated. Please use :mod:`kubernetes.client.models.V1EnvVar`.
+"""
+
+import warnings
 
 import kubernetes.client.models as k8s
 
+warnings.warn(
+    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class PodRuntimeInfoEnv:
-    """Defines Pod runtime information as environment variable"""
+    """Defines Pod runtime information as environment variable."""
 
     def __init__(self, name, field_path):
         """
@@ -28,9 +40,7 @@ class PodRuntimeInfoEnv:
         Full list of options can be found in kubernetes documentation.
 
         :param name: the name of the environment variable
-        :type: name: str
         :param field_path: path to pod runtime info. Ex: metadata.namespace | status.podIP
-        :type: field_path: str
         """
         self.name = name
         self.field_path = field_path

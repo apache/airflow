@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from airflow.api_connexion.schemas.health_schema import health_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.jobs.scheduler_job import SchedulerJob
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
-def get_health():
+def get_health() -> APIResponse:
     """Return the health of the airflow scheduler and metadatabase"""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None

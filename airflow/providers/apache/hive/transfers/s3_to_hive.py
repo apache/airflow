@@ -23,13 +23,16 @@ import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToHiveOperator(BaseOperator):
@@ -48,34 +51,23 @@ class S3ToHiveOperator(BaseOperator):
     final destination using a ``HiveOperator``.
 
     :param s3_key: The key to be retrieved from S3. (templated)
-    :type s3_key: str
     :param field_dict: A dictionary of the fields name in the file
         as keys and their Hive types as values
-    :type field_dict: dict
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
-    :type hive_table: str
     :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param create: whether to create the table if it doesn't exist
-    :type create: bool
     :param recreate: whether to drop and recreate the table at every
         execution
-    :type recreate: bool
     :param partition: target partition as a dict of partition columns
         and values. (templated)
-    :type partition: dict
     :param headers: whether the file contains column names on the first
         line
-    :type headers: bool
     :param check_headers: whether the column names on the first line should be
         checked against the keys of field_dict
-    :type check_headers: bool
     :param wildcard_match: whether the s3_key should be interpreted as a Unix
         wildcard pattern
-    :type wildcard_match: bool
     :param aws_conn_id: source s3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -86,21 +78,16 @@ class S3ToHiveOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
-    :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
         required to process headers
-    :type input_compressed: bool
     :param tblproperties: TBLPROPERTIES of the hive table being created
-    :type tblproperties: dict
     :param select_expression: S3 Select expression
-    :type select_expression: str
     """
 
-    template_fields = ('s3_key', 'partition', 'hive_table')
-    template_ext = ()
+    template_fields: Sequence[str] = ('s3_key', 'partition', 'hive_table')
+    template_ext: Sequence[str] = ()
     ui_color = '#a0e08c'
 
     def __init__(
@@ -145,7 +132,7 @@ class S3ToHiveOperator(BaseOperator):
         if self.check_headers and not (self.field_dict is not None and self.headers):
             raise AirflowException("To check_headers provide field_dict and headers")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         # Downloading file from S3
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
@@ -175,7 +162,7 @@ class S3ToHiveOperator(BaseOperator):
                 if self.delimiter:
                     option['FieldDelimiter'] = self.delimiter
 
-                input_serialization = {'CSV': option}
+                input_serialization: Dict[str, Any] = {'CSV': option}
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 

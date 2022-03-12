@@ -63,7 +63,6 @@ try:
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
-
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
     # in the code base
@@ -119,11 +118,8 @@ def get_kube_client(
     Retrieves Kubernetes client
 
     :param in_cluster: whether we are in cluster
-    :type in_cluster: bool
     :param cluster_context: context of the cluster
-    :type cluster_context: str
     :param config_file: configuration file
-    :type config_file: str
     :return kubernetes client
     :rtype client.CoreV1Api
     """

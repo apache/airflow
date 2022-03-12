@@ -166,31 +166,16 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
-    if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-        print("Attempting to reset the db using airflow command")
-        os.system("airflow resetdb -y")
-    else:
-        from airflow.utils import db
+    from airflow.utils import db
 
-        db.resetdb()
+    db.resetdb()
 
 
 @pytest.fixture(autouse=True, scope="session")
-def breeze_test_helper(request):
+def initialize_airflow_tests(request):
     """
-    Helper that setups Airflow testing environment. It does the same thing
-    as the old 'run-tests' script.
+    Helper that setups Airflow testing environment.
     """
-
-    # fixme: this should use some other env variable ex. RUNNING_ON_K8S
-    if os.environ.get("SKIP_INIT_DB"):
-        print("Skipping db initialization. Tests do not require database")
-        return
-
-    from airflow import __version__
-
-    if __version__.startswith("1.10"):
-        os.environ['RUN_AIRFLOW_1_10'] = "true"
 
     print(" AIRFLOW ".center(60, "="))
 
@@ -231,6 +216,7 @@ def breeze_test_helper(request):
 
 
 def pytest_configure(config):
+    config.addinivalue_line("filterwarnings", "error::airflow.utils.context.AirflowContextDeprecationWarning")
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
@@ -241,7 +227,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
-    config.addinivalue_line("markers", "airflow_2: mark tests that works only on Airflow 2.0 / master")
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -341,12 +326,6 @@ def skip_if_credential_file_missing(item):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
 
-def skip_if_airflow_2_test(item):
-    for _ in item.iter_markers(name="airflow_2"):
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            pytest.skip("The test works only with Airflow 2.0 / main branch")
-
-
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.getoption("--integration")
     selected_systems_list = item.config.getoption("--system")
@@ -372,7 +351,6 @@ def pytest_runtest_setup(item):
     if not include_quarantined:
         skip_quarantined_test(item)
     skip_if_credential_file_missing(item)
-    skip_if_airflow_2_test(item)
 
 
 @pytest.fixture
@@ -533,7 +511,7 @@ def dag_maker(request):
 
             if "run_type" not in kwargs:
                 kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
-            if "execution_date" not in kwargs:
+            if kwargs.get("execution_date") is None:
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     kwargs["execution_date"] = self.start_date
                 else:
@@ -596,6 +574,7 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             for attempt in run_with_db_retries(logger=self.log):
@@ -610,16 +589,19 @@ def dag_maker(request):
                         SerializedDagModel.dag_id.in_(dag_ids)
                     ).delete(synchronize_session=False)
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
                     )
                     self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False
+                        synchronize_session=False,
+                    )
+                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False,
                     )
                     self.session.commit()
                     if self._own_session:
@@ -698,7 +680,15 @@ def create_task_instance(dag_maker, create_dummy_dag):
     Uses ``create_dummy_dag`` to create the dag structure.
     """
 
-    def maker(execution_date=None, dagrun_state=None, state=None, run_id=None, run_type=None, **kwargs):
+    def maker(
+        execution_date=None,
+        dagrun_state=None,
+        state=None,
+        run_id=None,
+        run_type=None,
+        data_interval=None,
+        **kwargs,
+    ):
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -710,6 +700,8 @@ def create_task_instance(dag_maker, create_dummy_dag):
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:
             dagrun_kwargs["run_type"] = run_type
+        if data_interval is not None:
+            dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
         ti.state = state

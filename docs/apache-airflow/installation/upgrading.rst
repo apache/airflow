@@ -21,9 +21,9 @@ Upgrading Airflow to a newer version
 Why you need to upgrade
 =======================
 
-Newer Airflow versions can contain Database migrations so it is recommended that you run
-``airflow db upgrade`` to Upgrade your Database with the schema changes in the Airflow version
-you are upgrading to.
+Newer Airflow versions can contain database migrations so you must run ``airflow db upgrade``
+to upgrade your database with the schema changes in the Airflow version you are upgrading to.
+Don't worry, it's safe to run even if there are no migrations to perform.
 
 When you need to upgrade
 ========================
@@ -43,6 +43,17 @@ How to upgrade
 In order to manually upgrade the database you should run the ``airflow db upgrade`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
 you access to Airflow ``CLI`` :doc:`/usage-cli` and the database.
+
+Offline SQL migration scripts
+=============================
+If you want to run the upgrade script offline, you can use the ``-r`` or ``--revision-range`` flag
+to get the SQL statements that would be executed. This feature is supported in Postgres and MySQL
+from Airflow 2.0.0 onward and in MSSQL from Airflow 2.2.0 onward.
+
+Sample usage:
+   ``airflow db upgrade -r "2.0.0:2.2.0"``
+   ``airflow db upgrade --revision-range "e959f08ac86c:142555e44c17"``
+
 
 Migration best practices
 ========================
@@ -78,6 +89,21 @@ database using your own tools (often graphical tools showing the database object
 table or rename it or move it to another database using those tools. If you don't have such tools you
 can use the ``airflow db shell`` command - this will drop you in the db shell tool for your database and you
 will be able to both inspect and delete the table.
+
+How to drop the table using Kubernetes:
+
+
+1. Exec into any of the Airflow pods - webserver or scheduler: ``kubectl exec -it <your-webserver-pod> python``
+
+2. Run the following commands in the python shell:
+
+ .. code-block:: python
+
+     from airflow.settings import Session
+
+     session = Session()
+     session.execute("DROP TABLE _airflow_moved__2_2__task_instance")
+     session.commit()
 
 Please replace ``<table>`` in the examples with the actual table name as printed in the warning message.
 

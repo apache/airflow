@@ -25,6 +25,8 @@ from airflow import settings
 @contextlib.contextmanager
 def create_session() -> Iterator[settings.SASession]:
     """Contextmanager that will create and teardown a session."""
+    if not settings.Session:
+        raise RuntimeError("Session must be set before!")
     session = settings.Session()
     try:
         yield session

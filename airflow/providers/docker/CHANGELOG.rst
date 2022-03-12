@@ -19,6 +19,61 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``added docker network_mode options (#21986)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change default python executable to python3 for docker decorator (#21973)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378) (#21875)``
+   * ``Revert "Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)" (#21874)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)``
+
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes Docker xcom functionality (#21175)``
+* ``Fix docker behaviour with byte lines returned (#21429)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Rewrite the task decorator as a composition (#20868)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow DockerOperator's image to be templated (#19997)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy docker provider (#20235)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Remove remaining 'pylint: disable' comments (#19541)``
+   * ``Fix MyPy errors for Airflow decorators (#20034)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.3.0
 .....
 

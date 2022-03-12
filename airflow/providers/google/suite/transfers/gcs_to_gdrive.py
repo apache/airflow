@@ -17,12 +17,16 @@
 # under the License.
 """This module contains a Google Cloud Storage to Google Drive transfer operator."""
 import tempfile
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 WILDCARD = "*"
 
@@ -43,13 +47,11 @@ class GCSToGoogleDriveOperator(BaseOperator):
         :ref:`howto/operator:GCSToGoogleDriveOperator`
 
     :param source_bucket: The source Google Cloud Storage bucket where the object is. (templated)
-    :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
         storage bucket. (templated)
         You can use only one wildcard for objects (filenames) within your bucket. The wildcard can appear
         inside the object name or at the end of the object name. Appending a wildcard to the bucket name
         is unsupported.
-    :type source_object: str
     :param destination_object: The destination name of the object in the destination Google Drive
         service. (templated)
         If a wildcard is supplied in the source_object argument, this is the prefix that will be prepended
@@ -59,16 +61,12 @@ class GCSToGoogleDriveOperator(BaseOperator):
         For example, with prefix ``foo/*`` and destination_object ``blah/``, the file ``foo/baz`` will be
         copied to ``blah/baz``; to retain the prefix write the destination_object as e.g. ``blah/foo``, in
         which case the copied file will be named ``blah/foo/baz``.
-    :type destination_object: str
     :param move_object: When move object is True, the object is moved instead of copied to the new location.
         This is the equivalent of a mv command as opposed to a cp command.
-    :type move_object: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -77,10 +75,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "source_bucket",
         "source_object",
         "destination_object",
@@ -112,7 +109,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gcs_hook = None  # type: Optional[GCSHook]
         self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
 
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

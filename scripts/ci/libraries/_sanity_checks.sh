@@ -90,17 +90,17 @@ Then link the gnu-getopt to become default as suggested by brew.
 
 If you use bash, you should run these commands:
 
-echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile
+echo 'export PATH=\"$(brew --prefix)/opt/gnu-getopt/bin:\$PATH\"' >> ~/.bash_profile
 . ~/.bash_profile
 
 If you use zsh, you should run these commands:
 
-echo 'export PATH=\"/usr/local/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile
+echo 'export PATH=\"$(brew --prefix)/opt/gnu-getopt/bin:\$PATH\"' >> ~/.zprofile
 . ~/.zprofile
 
 Either source the profile file as shown above, or re-login afterwards.
 
-After that, your PATH variable should start with \"/usr/local/opt/gnu-getopt/bin\"
+After that, your PATH variable should start with \"$(brew --prefix)/opt/gnu-getopt/bin\"
 Your current path is ${PATH}
 ${COLOR_RESET}
 """

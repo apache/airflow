@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import functools
-from typing import Any, Type
+from typing import Any
 
 from sqlalchemy import MetaData, String
 from sqlalchemy.ext.declarative import declarative_base
@@ -29,14 +28,9 @@ SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
 metadata = (
     None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
 )
-Base = declarative_base(metadata=metadata)  # type: Any
+Base: Any = declarative_base(metadata=metadata)
 
 ID_LEN = 250
-
-
-# used for typing
-class Operator:
-    """Class just used for Typing"""
 
 
 def get_id_collation_args():
@@ -63,4 +57,6 @@ def get_id_collation_args():
 
 COLLATION_ARGS = get_id_collation_args()
 
-StringID: Type[String] = functools.partial(String, length=ID_LEN, **COLLATION_ARGS)  # type: ignore
+
+def StringID(*, length=ID_LEN, **kwargs) -> String:
+    return String(length=length, **kwargs, **COLLATION_ARGS)

@@ -23,6 +23,10 @@ To obtain info about this token, run the following commands:
 
     ID_TOKEN="$(python -m airflow.providers.google.common.utils.id_token_credentials)"
     curl "https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${ID_TOKEN}" -v
+
+.. spelling::
+
+    RefreshError
 """
 
 import json
@@ -62,7 +66,6 @@ def _load_credentials_from_file(
     The credentials file must be a service account key or a stored authorized user credential.
 
     :param filename: The full path to the credentials file.
-    :type filename: str
     :return: Loaded credentials
     :rtype: google.auth.credentials.Credentials
     :raise google.auth.exceptions.DefaultCredentialsError: if the file is in the wrong format or is missing.
@@ -178,11 +181,9 @@ def get_default_id_token_credentials(
         /identity/protocols/application-default-credentials
 
     :param target_audience: The intended audience for these credentials.
-    :type target_audience: Sequence[str]
     :param request: An object used to make HTTP requests. This is used to detect whether the application
             is running on Compute Engine. If not specified, then it will use the standard library http client
             to make requests.
-    :type request: google.auth.transport.Request
     :return: the current environment's credentials.
     :rtype: google.auth.credentials.Credentials
     :raises ~google.auth.exceptions.DefaultCredentialsError:

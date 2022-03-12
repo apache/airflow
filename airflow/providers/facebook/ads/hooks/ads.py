@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ads Reporting hooks"""
+import sys
 import time
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from facebook_business.adobjects.adaccount import AdAccount
@@ -53,10 +54,8 @@ class FacebookAdsReportingHook(BaseHook):
         https://developers.facebook.com/docs/marketing-apis/
 
     :param facebook_conn_id: Airflow Facebook Ads connection ID
-    :type facebook_conn_id: str
     :param api_version: The version of Facebook API. Default to None. If it is None,
         it will use the Facebook business SDK default version.
-    :type api_version: Optional[str]
 
     """
 
@@ -107,7 +106,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     def bulk_facebook_report(
         self,
-        params: Dict[str, Any],
+        params: Optional[Dict[str, Any]],
         fields: List[str],
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:
@@ -121,12 +120,9 @@ class FacebookAdsReportingHook(BaseHook):
 
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type fields: List[str]
         :param params: Parameters that determine the query for Facebook
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type params: Dict[str, Any]
         :param sleep_time: Time to sleep when async call is happening
-        :type sleep_time: int
 
         :return: Facebook Ads API response,
             converted to Facebook Ads Row objects regarding given Account ID type
@@ -156,7 +152,7 @@ class FacebookAdsReportingHook(BaseHook):
         self,
         account_id: str,
         api: FacebookAdsApi,
-        params: Dict[str, Any],
+        params: Optional[Dict[str, Any]],
         fields: List[str],
         sleep_time: int = 5,
     ) -> List[AdsInsights]:
@@ -165,17 +161,12 @@ class FacebookAdsReportingHook(BaseHook):
 
         :param account_id: Facebook Account ID that holds ads information
                 https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
-        :type account_id: str
         :param api: FacebookAdsApi created in the hook
-        :type api: FacebookAdsApi
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type fields: List[str]
         :param params: Parameters that determine the query for Facebook
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type params: Dict[str, Any]
         :param sleep_time: Time to sleep when async call is happening
-        :type sleep_time: int
         """
         ad_account = AdAccount(account_id, api=api)
         _async = ad_account.get_insights(params=params, fields=fields, is_async=True)

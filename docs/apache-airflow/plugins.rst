@@ -27,7 +27,7 @@ features to its core by simply dropping files in your
 The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
-To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
+To troubleshoot issues with plugins, you can use the ``airflow plugins`` command.
 This command dumps information about loaded plugins.
 
 .. versionchanged:: 2.0
@@ -93,6 +93,8 @@ config setting to True, resulting in launching a whole new python interpreter fo
 (Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
 loaded/parsed in any long-running Airflow process.)
 
+.. _plugins:interface:
+
 Interface
 ---------
 
@@ -142,6 +144,11 @@ looks like:
         # A list of timetable classes to register so they can be used in DAGs.
         timetables = []
 
+        # A list of Listeners that plugin provides. Listeners can register to
+        # listen to particular events that happen in Airflow, like
+        # TaskInstance state changes. Listeners are python modules.
+        listeners = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
@@ -167,7 +174,6 @@ definitions in Airflow.
 
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
-    from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
     # Will show up in Connections screen in a future version
@@ -229,30 +235,6 @@ definitions in Airflow.
         "href": "https://www.apache.org/",
     }
 
-    # A global operator extra link that redirect you to
-    # task logs stored in S3
-    class GoogleLink(BaseOperatorLink):
-        name = "Google"
-
-        def get_link(self, operator, dttm):
-            return "https://www.google.com"
-
-
-    # A list of operator extra links to override or add operator links
-    # to existing Airflow Operators.
-    # These extra links will be available on the task page in form of
-    # buttons.
-    class S3LogLink(BaseOperatorLink):
-        name = "S3"
-        operators = [GCSToS3Operator]
-
-        def get_link(self, operator, dttm):
-            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
-                dag_id=operator.dag_id,
-                task_id=operator.task_id,
-                logical_date=dttm,
-            )
-
 
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
@@ -262,13 +244,8 @@ definitions in Airflow.
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
-        global_operator_extra_links = [
-            GoogleLink(),
-        ]
-        operator_extra_links = [
-            S3LogLink(),
-        ]
 
+.. seealso:: :doc:`/howto/define_extra_link`
 
 Note on role based views
 ------------------------

@@ -20,17 +20,22 @@
 Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
 virtual environment.
 """
+import logging
+import shutil
 import time
-from datetime import datetime
 from pprint import pprint
+
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
 
+log = logging.getLogger(__name__)
+
 with DAG(
     dag_id='example_python_operator',
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:
@@ -59,29 +64,32 @@ with DAG(
         run_this >> sleeping_task
     # [END howto_operator_python_kwargs]
 
-    # [START howto_operator_python_venv]
-    @task.virtualenv(
-        task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
-    )
-    def callable_virtualenv():
-        """
-        Example function that will be performed in a virtual environment.
+    if not shutil.which("virtualenv"):
+        log.warning("The virtalenv_python example task requires virtualenv, please install it.")
+    else:
+        # [START howto_operator_python_venv]
+        @task.virtualenv(
+            task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
+        )
+        def callable_virtualenv():
+            """
+            Example function that will be performed in a virtual environment.
 
-        Importing at the module level ensures that it will not attempt to import the
-        library before it is installed.
-        """
-        from time import sleep
+            Importing at the module level ensures that it will not attempt to import the
+            library before it is installed.
+            """
+            from time import sleep
 
-        from colorama import Back, Fore, Style
+            from colorama import Back, Fore, Style
 
-        print(Fore.RED + 'some red text')
-        print(Back.GREEN + 'and with a green background')
-        print(Style.DIM + 'and in dim text')
-        print(Style.RESET_ALL)
-        for _ in range(10):
-            print(Style.DIM + 'Please wait...', flush=True)
-            sleep(10)
-        print('Finished')
+            print(Fore.RED + 'some red text')
+            print(Back.GREEN + 'and with a green background')
+            print(Style.DIM + 'and in dim text')
+            print(Style.RESET_ALL)
+            for _ in range(10):
+                print(Style.DIM + 'Please wait...', flush=True)
+                sleep(10)
+            print('Finished')
 
-    virtualenv_task = callable_virtualenv()
-    # [END howto_operator_python_venv]
+        virtualenv_task = callable_virtualenv()
+        # [END howto_operator_python_venv]

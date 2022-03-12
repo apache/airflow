@@ -19,7 +19,7 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
 try:
     from moto import mock_iam
@@ -34,7 +34,7 @@ class TestGlueJobHook(unittest.TestCase):
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam
     def test_get_iam_execution_role(self):
-        hook = AwsGlueJobHook(
+        hook = GlueJobHook(
             job_name='aws_test_glue_job', s3_bucket='some_bucket', iam_role_name='my_test_role'
         )
         iam_role = hook.get_client_type('iam').create_role(
@@ -57,15 +57,15 @@ class TestGlueJobHook(unittest.TestCase):
         assert "Arn" in iam_role['Role']
         assert iam_role['Role']['Arn'] == "arn:aws:iam::123456789012:role/my_test_role"
 
-    @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
-    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
     def test_get_or_create_glue_job(self, mock_get_conn, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
         mock_glue_job = mock_get_conn.return_value.get_job()['Job']['Name']
-        glue_job = AwsGlueJobHook(
+        glue_job = GlueJobHook(
             job_name='aws_test_glue_job',
             desc='This is test case job from Airflow',
             script_location=some_script,
@@ -75,15 +75,15 @@ class TestGlueJobHook(unittest.TestCase):
         ).get_or_create_glue_job()
         assert glue_job == mock_glue_job
 
-    @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
-    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
     def test_get_or_create_glue_job_worker_type(self, mock_get_conn, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
         mock_glue_job = mock_get_conn.return_value.get_job()['Job']['Name']
-        glue_job = AwsGlueJobHook(
+        glue_job = GlueJobHook(
             job_name='aws_test_glue_job',
             desc='This is test case job from Airflow',
             script_location=some_script,
@@ -94,8 +94,8 @@ class TestGlueJobHook(unittest.TestCase):
         ).get_or_create_glue_job()
         assert glue_job == mock_glue_job
 
-    @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
-    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
     def test_init_worker_type_value_error(self, mock_get_conn, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
@@ -105,7 +105,7 @@ class TestGlueJobHook(unittest.TestCase):
             ValueError,
             msg="ValueError should be raised for specifying the num_of_dpus and worker type together!",
         ):
-            AwsGlueJobHook(
+            GlueJobHook(
                 job_name='aws_test_glue_job',
                 desc='This is test case job from Airflow',
                 script_location=some_script,
@@ -116,9 +116,9 @@ class TestGlueJobHook(unittest.TestCase):
                 create_job_kwargs={'WorkerType': 'G.2X', 'NumberOfWorkers': 60},
             )
 
-    @mock.patch.object(AwsGlueJobHook, "get_job_state")
-    @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
-    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "get_or_create_glue_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
     def test_initialize_job(self, mock_get_conn, mock_get_or_create_glue_job, mock_get_job_state):
         some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
@@ -130,7 +130,7 @@ class TestGlueJobHook(unittest.TestCase):
         mock_get_conn.return_value.start_job_run()
 
         mock_job_run_state = mock_get_job_state.return_value
-        glue_job_hook = AwsGlueJobHook(
+        glue_job_hook = GlueJobHook(
             job_name='aws_test_glue_job',
             desc='This is test case job from Airflow',
             iam_role_name='my_test_role',

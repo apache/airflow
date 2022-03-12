@@ -14,17 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmixin import TaskMixin
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 
+if TYPE_CHECKING:
+    from airflow.models.operator import Operator
 
-class XComArg(TaskMixin):
+
+class XComArg(DependencyMixin):
     """
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
@@ -54,21 +56,35 @@ class XComArg(TaskMixin):
         op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
 
     :param operator: operator to which the XComArg belongs to
-    :type operator: airflow.models.baseoperator.BaseOperator
     :param key: key value which is used for xcom_pull (key in the XCom table)
-    :type key: str
     """
 
-    def __init__(self, operator: BaseOperator, key: str = XCOM_RETURN_KEY):
-        self._operator = operator
-        self._key = key
+    def __init__(self, operator: "Operator", key: str = XCOM_RETURN_KEY):
+        self.operator = operator
+        self.key = key
 
     def __eq__(self, other):
         return self.operator == other.operator and self.key == other.key
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> "XComArg":
         """Implements xcomresult['some_result_key']"""
+        if not isinstance(item, str):
+            raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return XComArg(operator=self.operator, key=item)
+
+    def __iter__(self):
+        """Override iterable protocol to raise error explicitly.
+
+        The default ``__iter__`` implementation in Python calls ``__getitem__``
+        with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
+        well with our custom ``__getitem__`` implementation, and results in poor
+        DAG-writing experience since a misplaced ``*`` expansion would create an
+        infinite loop consuming the entire DAG parser.
+
+        This override catches the error eagerly, so an incorrectly implemented
+        DAG fails fast and avoids wasting resources on nonsensical iterating.
+        """
+        raise TypeError(f"{self.__class__.__name__!r} object is not iterable")
 
     def __str__(self):
         """
@@ -93,28 +109,18 @@ class XComArg(TaskMixin):
         return xcom_pull
 
     @property
-    def operator(self) -> BaseOperator:
-        """Returns operator of this XComArg."""
-        return self._operator
-
-    @property
-    def roots(self) -> List[BaseOperator]:
+    def roots(self) -> List[DAGNode]:
         """Required by TaskMixin"""
-        return [self._operator]
+        return [self.operator]
 
     @property
-    def leaves(self) -> List[BaseOperator]:
+    def leaves(self) -> List[DAGNode]:
         """Required by TaskMixin"""
-        return [self._operator]
-
-    @property
-    def key(self) -> str:
-        """Returns keys of this XComArg"""
-        return self._key
+        return [self.operator]
 
     def set_upstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
@@ -122,24 +128,21 @@ class XComArg(TaskMixin):
 
     def set_downstream(
         self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Dict) -> Any:
+    def resolve(self, context: Context) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = self.operator.xcom_pull(
-            context=context,
-            task_ids=[self.operator.task_id],
-            key=str(self.key),  # xcom_pull supports only key as str
-            dag_id=self.operator.dag.dag_id,
-        )
+        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
         if not resolved_value:
+            if TYPE_CHECKING:
+                assert self.operator.dag
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
                 f'with key="{self.key}"" is not found!'
@@ -147,3 +150,23 @@ class XComArg(TaskMixin):
         resolved_value = resolved_value[0]
 
         return resolved_value
+
+    @staticmethod
+    def apply_upstream_relationship(op: "Operator", arg: Any):
+        """
+        Set dependency for XComArgs.
+
+        This looks for XComArg objects in ``arg`` "deeply" (looking inside lists, dicts and classes decorated
+        with "template_fields") and sets the relationship to ``op`` on any found.
+        """
+        if isinstance(arg, XComArg):
+            op.set_upstream(arg.operator)
+        elif isinstance(arg, (tuple, set, list)):
+            for elem in arg:
+                XComArg.apply_upstream_relationship(op, elem)
+        elif isinstance(arg, dict):
+            for elem in arg.values():
+                XComArg.apply_upstream_relationship(op, elem)
+        elif hasattr(arg, "template_fields"):
+            for elem in arg.template_fields:
+                XComArg.apply_upstream_relationship(op, elem)

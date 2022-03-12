@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.providers.oracle.operators.oracle import OracleOperator
+from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStoredProcedureOperator
 
 
 class TestOracleOperator(unittest.TestCase):
@@ -45,4 +45,30 @@ class TestOracleOperator(unittest.TestCase):
             sql,
             autocommit=autocommit,
             parameters=parameters,
+        )
+
+
+class TestOracleStoredProcedureOperator(unittest.TestCase):
+    @mock.patch.object(OracleHook, 'run', autospec=OracleHook.run)
+    def test_execute(self, mock_run):
+        procedure = 'test'
+        oracle_conn_id = 'oracle_default'
+        parameters = {'parameter': 'value'}
+        context = "test_context"
+        task_id = "test_task_id"
+
+        operator = OracleStoredProcedureOperator(
+            procedure=procedure,
+            oracle_conn_id=oracle_conn_id,
+            parameters=parameters,
+            task_id=task_id,
+        )
+        result = operator.execute(context=context)
+        assert result is mock_run.return_value
+        mock_run.assert_called_once_with(
+            mock.ANY,
+            'BEGIN test(:parameter); END;',
+            autocommit=True,
+            parameters=parameters,
+            handler=mock.ANY,
         )

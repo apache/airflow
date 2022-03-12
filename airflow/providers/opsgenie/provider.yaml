@@ -22,6 +22,8 @@ description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 
 versions:
+  - 3.0.1
+  - 3.0.0
   - 2.0.1
   - 2.0.0
   - 1.0.2
@@ -34,6 +36,8 @@ additional-dependencies:
 integrations:
   - integration-name: Opsgenie
     external-doc-url: https://www.opsgenie.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-opsgenie/operators/opsgenie_alert.rst
     logo: /integration-logos/opsgenie/Opsgenie.png
     tags: [service]
 
@@ -41,15 +45,17 @@ operators:
   - integration-name: Opsgenie
     python-modules:
       - airflow.providers.opsgenie.operators.opsgenie_alert
+      - airflow.providers.opsgenie.operators.opsgenie
 
 hooks:
   - integration-name: Opsgenie
     python-modules:
       - airflow.providers.opsgenie.hooks.opsgenie_alert
+      - airflow.providers.opsgenie.hooks.opsgenie
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook
+  - airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook
 
 connection-types:
-  - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook
+  - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook
     connection-type: opsgenie

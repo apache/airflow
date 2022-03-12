@@ -88,9 +88,18 @@ function run_all_test_types_in_parallel() {
         echo "${COLOR_YELLOW}Heavy tests will be run sequentially after parallel tests including cleaning up docker between tests${COLOR_RESET}"
         echo ""
         if [[ ${test_types_to_run} == *"Integration"* ]]; then
-            echo "${COLOR_YELLOW}Remove Integration from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
             test_types_to_run="${test_types_to_run//Integration/}"
-            sequential_tests+=("Integration")
+            if [[ ${BACKEND} == "mssql" ]]; then
+                # Also for mssql we skip Integration tests altogether on Public Runners. Mssql uses far
+                # too much memory and often shuts down and similarly as in case of Providers tests,
+                # there is no need to run them also for MsSQL engine as those integration tests
+                # are not really using any metadata-specific behaviour.
+                # Those tests will run in `main` anyway.
+                echo "${COLOR_YELLOW}Do not run integration tests for mssql in small systems due to memory issues.${COLOR_RESET}"
+            else
+                echo "${COLOR_YELLOW}Remove Integration from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
+                sequential_tests+=("Integration")
+            fi
         fi
         if [[ ${BACKEND} == "mssql" || ${BACKEND} == "mysql" ]]; then
             # For mssql/mysql - they take far more memory than postgres (or sqlite) - we skip the Provider
@@ -110,17 +119,21 @@ function run_all_test_types_in_parallel() {
     # Run all tests that should run in parallel (from test_types_to_run variable)
     run_test_types_in_parallel "${@}"
 
-    # if needed run remaining tests sequentially
-    for sequential_test in "${sequential_tests[@]}"; do
-        parallel::cleanup_runner
-        test_types_to_run="${sequential_test}"
-        run_test_types_in_parallel "${@}"
-    done
+    # Check if sequential_tests contains any values since accessing an empty (and only initted) array throws an
+    # error in some versions of Bash 4
+    if [[ ${sequential_tests[0]+"${sequential_tests[@]}"} ]]
+    then
+        # If needed run remaining tests sequentially
+        for sequential_test in "${sequential_tests[@]}"; do
+            parallel::cleanup_runner
+            test_types_to_run="${sequential_test}"
+            run_test_types_in_parallel "${@}"
+        done
+    fi
     set -e
-    # this will exit with error code in case some of the non-Quarantined tests failed
+    # This will exit with error code in case some of the non-Quarantined tests failed
     parallel::print_job_summary_and_return_status_code
 }
-
 
 testing::skip_tests_if_requested
 

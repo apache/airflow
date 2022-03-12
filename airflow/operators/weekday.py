@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Iterable, Union
+from typing import Iterable, Union
 
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.weekday import WeekDay
 
 
@@ -30,9 +31,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     :ref:`howto/operator:BranchDayOfWeekOperator`
 
     :param follow_task_ids_if_true: task id or task ids to follow if criteria met
-    :type follow_task_ids_if_true: str or list[str]
     :param follow_task_ids_if_false: task id or task ids to follow if criteria does not met
-    :type follow_task_ids_if_false: str or list[str]
     :param week_day: Day of the week to check (full name). Optionally, a set
         of days can also be provided using a set.
         Example values:
@@ -42,11 +41,9 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :type week_day: iterable or airflow.utils.weekday.WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with is_today. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week.
-    :type use_task_execution_day: bool
     """
 
     def __init__(
@@ -65,9 +62,9 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         self.use_task_execution_day = use_task_execution_day
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         if self.use_task_execution_day:
-            now = context["execution_date"]
+            now = context["logical_date"]
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 

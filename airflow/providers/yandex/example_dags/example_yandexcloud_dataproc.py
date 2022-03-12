@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import uuid
 from datetime import datetime
 
 from airflow import DAG
@@ -81,7 +81,7 @@ with DAG(
             '-input',
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             '-output',
-            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/dataproc/job/results',
+            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/dataproc/job/results/{uuid.uuid4()}',
         ],
         properties={
             'yarn.app.mapreduce.am.resource.mb': '2048',
@@ -113,6 +113,9 @@ with DAG(
         properties={
             'spark.submit.deployMode': 'cluster',
         },
+        packages=['org.slf4j:slf4j-simple:1.7.30'],
+        repositories=['https://repo1.maven.org/maven2'],
+        exclude_packages=['com.amazonaws:amazon-kinesis-client'],
     )
 
     create_pyspark_job = DataprocCreatePysparkJobOperator(
@@ -129,7 +132,7 @@ with DAG(
         ],
         args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
-            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/jobs/results/${{JOB_ID}}',
+            f's3a://{S3_BUCKET_NAME_FOR_JOB_LOGS}/dataproc/job/results/${{JOB_ID}}',
         ],
         jar_file_uris=[
             's3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
@@ -139,6 +142,9 @@ with DAG(
         properties={
             'spark.submit.deployMode': 'cluster',
         },
+        packages=['org.slf4j:slf4j-simple:1.7.30'],
+        repositories=['https://repo1.maven.org/maven2'],
+        exclude_packages=['com.amazonaws:amazon-kinesis-client'],
     )
 
     delete_cluster = DataprocDeleteClusterOperator(

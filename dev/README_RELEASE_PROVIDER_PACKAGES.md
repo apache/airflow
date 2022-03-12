@@ -110,18 +110,6 @@ are updated, run it in non-interactive mode:
 ./breeze --non-interactive prepare-provider-documentation [packages]
 ```
 
-When you run the command and documentation generation is successful you will get a command that you can run to
-create GitHub issue where you will be tracking status of tests for the providers you release.
-
-You can also trigger automated execution of the issue by running:
-
-```shell script
-./breeze --non-interactive --generate-providers-issue prepare-provider-documentation [packages]
-```
-
-Once you release packages, you should create the issue with the content specified and link to it in
-the email sent to the devlist.
-
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -352,8 +340,18 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create GitHub issue with the content generated via prepare-provider-documentation or manual
-execution of the script above. You will use link to that issue in the next step.
+Create a GitHub issue with the content generated via manual
+execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
+set as your environment variable.
+
+You can also pass the token as `--github-token` option in the script.
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+```
+
+You can also generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
 
 ## Prepare voting email for Providers release candidate
 
@@ -473,7 +471,7 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
 * Enter the sources folder run the check
 
 ```shell script
@@ -590,21 +588,25 @@ downloaded from the SVN).
 You have to make sure you have Airflow 2* installed in your PIP virtualenv
 (the version you want to install providers with).
 
-```shell script
+```shell
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
 
-There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario.
-
-First copy all the provider packages .whl files to the `dist` folder.
-
-```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --use-packages-from-dist
+```shell
+./breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+    --load-example-dags --load-default-connections
 ```
+
+After you are in Breeze:
+
+```shell
+pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
+```
+
+NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
+provider packages is used.
 
 ### Building your own docker image
 
@@ -613,9 +615,9 @@ provider packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
-FROM apache/airflow:2.0.0
+FROM apache/airflow:2.2.3
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
 
 USER ${AIRFLOW_UID}
 ```
@@ -775,6 +777,18 @@ Copy links to updated packages.
 ## Publish documentation prepared before
 
 Merge the PR that you prepared before with the documentation.
+
+If you decided to remove some packages from the release make sure to do amend the commit in this way:
+
+* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
+* remove the latest version (the one you were releasing)
+* update `stable.txt` to the previous version
+* in the (unlikely) event you are removing first version of package:
+   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
 
 ## Add tags in git
 

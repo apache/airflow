@@ -17,11 +17,14 @@
 
 import os
 import tempfile
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SalesforceToGcsOperator(BaseOperator):
@@ -33,39 +36,29 @@ class SalesforceToGcsOperator(BaseOperator):
         :ref:`howto/operator:SalesforceToGcsOperator`
 
     :param query: The query to make to Salesforce.
-    :type query: str
     :param bucket_name: The bucket to upload to.
-    :type bucket_name: str
     :param object_name: The object name to set when uploading the file.
-    :type object_name: str
     :param salesforce_conn_id: the name of the connection that has the parameters
         we need to connect to Salesforce.
-    :type salesforce_conn_id: str
     :param include_deleted: True if the query should include deleted records.
-    :type include_deleted: bool
     :param query_params: Additional optional arguments
-    :type query_params: dict
     :param export_format: Desired format of files to be exported.
-    :type export_format: str
     :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
         False if you want them to be left in the same format as they were in Salesforce.
         Leaving the value as False will result in datetimes being strings. Default: False
-    :type coerce_to_timestamp: bool
     :param record_time_added: True if you want to add a Unix timestamp field
         to the resulting data that marks when the data was fetched from Salesforce. Default: False
-    :type record_time_added: bool
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param gcp_conn_id: the name of the connection that has the parameters we need to connect to GCS.
-    :type gcp_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'query',
         'bucket_name',
         'object_name',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
 
     def __init__(
         self,
@@ -96,7 +89,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.include_deleted = include_deleted
         self.query_params = query_params
 
-    def execute(self, context: Dict):
+    def execute(self, context: 'Context'):
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params

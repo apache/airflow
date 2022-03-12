@@ -41,67 +41,43 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     supplied.
 
     :param conf: Arbitrary Spark configuration properties
-    :type conf: dict
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default
         to yarn.
-    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
         comma. Files will be placed in the working directory of each executor.
         For example, serialized objects.
-    :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
-    :type py_files: str
-    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+    :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
     :param driver_class_path: Additional, driver-specific, classpath settings.
-    :type driver_class_path: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
-    :type jars: str
     :param java_class: the main class of the Java application
-    :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
         driver and executor classpaths
-    :type packages: str
     :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
         while resolving the dependencies provided in 'packages'
-    :type exclude_packages: str
     :param repositories: Comma-separated list of additional remote repositories to search
         for the maven coordinates given with 'packages'
-    :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
         (Default: all the available cores on the worker)
-    :type total_executor_cores: int
     :param executor_cores: (Standalone, YARN and Kubernetes only) Number of cores per
         executor (Default: 2)
-    :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
-    :type executor_memory: str
     :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
-    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
-    :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
-    :type principal: str
     :param proxy_user: User to impersonate when submitting the application
-    :type proxy_user: str
     :param name: Name of the job (default airflow-spark)
-    :type name: str
     :param num_executors: Number of executors to launch
-    :type num_executors: int
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
         mode (Default: 1)
-    :type status_poll_interval: int
     :param application_args: Arguments for the application being submitted
-    :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
         supports yarn and k8s mode too.
-    :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
-    :type verbose: bool
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit.
-    :type spark_binary: str
     """
 
     conn_name_attr = 'conn_id'
@@ -110,7 +86,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     hook_name = 'Spark'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'login', 'password'],
@@ -279,7 +255,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Construct the spark-submit command to execute.
 
         :param application: command to append to the spark-submit command
-        :type application: str
         :return: full command to be executed
         """
         connection_cmd = self._get_spark_binary_path()
@@ -411,7 +386,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Remote Popen to execute the spark-submit job
 
         :param application: Submitted application, jar or py file
-        :type application: str
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
         spark_submit_cmd = self._build_spark_submit_command(application)

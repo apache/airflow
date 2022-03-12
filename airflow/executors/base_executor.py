@@ -17,8 +17,10 @@
 """Base executor - this is the base class for all the implemented executors."""
 import sys
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Counter, Dict, List, Optional, Set, Tuple, Union
 
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -28,6 +30,8 @@ from airflow.utils.state import State
 PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
 NOT_STARTED_MESSAGE = "The executor should be started first!"
+
+QUEUEING_ATTEMPTS = 5
 
 # Command to execute - list of strings
 # the first element is always "airflow".
@@ -55,7 +59,8 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
-    job_id: Optional[int] = None
+    job_id: Union[None, int, str] = None
+    callback_sink: Optional[BaseCallbackSink] = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -63,6 +68,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
         self.running: Set[TaskInstanceKey] = set()
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
+        self.attempts: Counter[TaskInstanceKey] = Counter()
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -78,7 +84,7 @@ class BaseExecutor(LoggingMixin):
         queue: Optional[str] = None,
     ):
         """Queues command to task"""
-        if task_instance.key not in self.queued_tasks and task_instance.key not in self.running:
+        if task_instance.key not in self.queued_tasks:
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
@@ -183,9 +189,32 @@ class BaseExecutor(LoggingMixin):
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, ti) = sorted_queue.pop(0)
-            self.queued_tasks.pop(key)
-            self.running.add(key)
-            self.execute_async(key=key, command=command, queue=queue, executor_config=ti.executor_config)
+
+            # If a task makes it here but is still understood by the executor
+            # to be running, it generally means that the task has been killed
+            # externally and not yet been marked as failed.
+            #
+            # However, when a task is deferred, there is also a possibility of
+            # a race condition where a task might be scheduled again during
+            # trigger processing, even before we are able to register that the
+            # deferred task has completed. In this case and for this reason,
+            # we make a small number of attempts to see if the task has been
+            # removed from the running set in the meantime.
+            if key in self.running:
+                attempt = self.attempts[key]
+                if attempt < QUEUEING_ATTEMPTS - 1:
+                    self.attempts[key] = attempt + 1
+                    self.log.info("task %s is still running", key)
+                    continue
+
+                # We give up and remove the task from the queue.
+                self.log.error("could not queue task %s (still running after %d attempts)", key, attempt)
+                del self.attempts[key]
+                del self.queued_tasks[key]
+            else:
+                del self.queued_tasks[key]
+                self.running.add(key)
+                self.execute_async(key=key, command=command, queue=queue, executor_config=ti.executor_config)
 
     def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """
@@ -310,3 +339,14 @@ class BaseExecutor(LoggingMixin):
             len(self.event_buffer),
             "\n\t".join(map(repr, self.event_buffer.items())),
         )
+
+    def send_callback(self, request: CallbackRequest) -> None:
+        """Sends callback for execution.
+
+        Provides a default implementation which sends the callback to the `callback_sink` object.
+
+        :param request: Callback request to be executed.
+        """
+        if not self.callback_sink:
+            raise ValueError("Callback sink is not ready.")
+        self.callback_sink.send(request)

@@ -18,6 +18,7 @@
 #
 import sys
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 from unittest import mock
@@ -52,7 +53,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -62,6 +63,8 @@ from ..utils.eks_test_constants import (
     INSTANCE_TYPES,
     LAUNCH_TEMPLATE,
     MAX_FARGATE_LABELS,
+    NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE,
+    NODEGROUP_OWNERSHIP_TAG_KEY,
     NON_EXISTING_CLUSTER_NAME,
     NON_EXISTING_FARGATE_PROFILE_NAME,
     NON_EXISTING_NODEGROUP_NAME,
@@ -124,13 +127,11 @@ def cluster_builder():
                 inputs=ClusterInputs, cluster_name=self.existing_cluster_name
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, ClusterTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
     mock_eks().start()
-    eks_hook = EKSHook(
+    eks_hook = EksHook(
         aws_conn_id=DEFAULT_CONN_ID,
         region_name=REGION,
     )
@@ -173,9 +174,7 @@ def fargate_profile_builder(cluster_builder):
                 fargate_profile_name=self.existing_fargate_profile_name,
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, FargateProfileTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, FargateProfileTestDataFactory]:
         return eks_hook, FargateProfileTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -217,9 +216,7 @@ def nodegroup_builder(cluster_builder):
                 nodegroup_name=self.existing_nodegroup_name,
             )
 
-    def _execute(
-        count: Optional[int] = 1, minimal: Optional[bool] = True
-    ) -> Tuple[EKSHook, NodegroupTestDataFactory]:
+    def _execute(count: int = 1, minimal: bool = True) -> Tuple[EksHook, NodegroupTestDataFactory]:
         return eks_hook, NodegroupTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -227,7 +224,7 @@ def nodegroup_builder(cluster_builder):
 
 
 @pytest.mark.skipif(mock_eks is None, reason=PACKAGE_NOT_PRESENT_MSG)
-class TestEKSHooks:
+class TestEksHooks:
     def test_hook(self, cluster_builder) -> None:
         eks_hook, _ = cluster_builder()
         assert eks_hook.get_conn() is not None
@@ -242,7 +239,7 @@ class TestEKSHooks:
     ###
     @mock_eks
     def test_list_clusters_returns_empty_by_default(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
 
         result: List = eks_hook.list_clusters()
 
@@ -280,7 +277,7 @@ class TestEKSHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)
+                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -311,7 +308,7 @@ class TestEKSHooks:
     def test_create_cluster_generates_valid_cluster_created_timestamp(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
 
-        result_time: str = generated_test_data.cluster_describe_output[ClusterAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.cluster_describe_output[ClusterAttributes.CREATED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -429,7 +426,7 @@ class TestEKSHooks:
 
     @mock_eks
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
@@ -441,7 +438,7 @@ class TestEKSHooks:
             eks_hook.create_nodegroup(
                 clusterName=non_existent_cluster_name,
                 nodegroupName=non_existent_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),
+                **dict(NodegroupInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -464,7 +461,7 @@ class TestEKSHooks:
             eks_hook.create_nodegroup(
                 clusterName=generated_test_data.cluster_name,
                 nodegroupName=generated_test_data.existing_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),
+                **dict(NodegroupInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -493,7 +490,7 @@ class TestEKSHooks:
                 eks_hook.create_nodegroup(
                     clusterName=generated_test_data.cluster_name,
                     nodegroupName=non_existent_nodegroup_name,
-                    **dict(NodegroupInputs.REQUIRED),
+                    **dict(NodegroupInputs.REQUIRED),  # type: ignore
                 )
 
         assert_client_error_exception_thrown(
@@ -528,7 +525,7 @@ class TestEKSHooks:
     def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: str = generated_test_data.nodegroup_describe_output[NodegroupAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.CREATED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -536,7 +533,7 @@ class TestEKSHooks:
     def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: str = generated_test_data.nodegroup_describe_output[NodegroupAttributes.MODIFIED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.MODIFIED_AT]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -563,6 +560,32 @@ class TestEKSHooks:
 
         for key, expected_value in generated_test_data.attributes_to_test:
             assert generated_test_data.nodegroup_describe_output[key] == expected_value
+
+    def test_create_nodegroup_without_tags_uses_default(self, nodegroup_builder) -> None:
+        _, generated_test_data = nodegroup_builder()
+        tag_list: Dict = generated_test_data.nodegroup_describe_output[NodegroupAttributes.TAGS]
+        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(
+            cluster_name=generated_test_data.cluster_name
+        )
+
+        assert tag_list.get(ownership_tag_key) == NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE
+
+    def test_create_nodegroup_with_ownership_tag_uses_provided_value(self, cluster_builder) -> None:
+        eks_hook, generated_test_data = cluster_builder()
+        cluster_name: str = generated_test_data.existing_cluster_name
+        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(cluster_name=cluster_name)
+        provided_tag_value: str = "shared"
+
+        created_nodegroup: Dict = eks_hook.create_nodegroup(
+            clusterName=cluster_name,
+            nodegroupName="nodegroup",
+            tags={ownership_tag_key: provided_tag_value},
+            **dict(deepcopy(NodegroupInputs.REQUIRED)),
+        )[ResponseAttributes.NODEGROUP]
+
+        tags = created_nodegroup.get(NodegroupAttributes.TAGS)
+        assert tags is not None
+        assert tags.get(ownership_tag_key) == provided_tag_value
 
     def test_describe_nodegroup_throws_exception_when_cluster_not_found(self, nodegroup_builder) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
@@ -751,7 +774,14 @@ class TestEKSHooks:
         if expected_result == PossibleTestResults.SUCCESS:
             result: Dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttributes.NODEGROUP]
 
-            for key, expected_value in test_inputs.items():
+            expected_output = deepcopy(test_inputs)
+            # The Create Nodegroup hook magically adds the required
+            # cluster/owned tag, so add that to the expected outputs.
+            expected_output['tags'] = {
+                f'kubernetes.io/cluster/{generated_test_data.existing_cluster_name}': 'owned'
+            }
+
+            for key, expected_value in expected_output.items():
                 assert result[key] == expected_value
         else:
             if launch_template and disk_size:
@@ -803,7 +833,7 @@ class TestEKSHooks:
 
     @mock_eks
     def test_create_fargate_profile_throws_exception_when_cluster_not_found(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
@@ -813,7 +843,7 @@ class TestEKSHooks:
             eks_hook.create_fargate_profile(
                 clusterName=non_existent_cluster_name,
                 fargateProfileName=non_existent_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),
+                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -833,7 +863,7 @@ class TestEKSHooks:
             eks_hook.create_fargate_profile(
                 clusterName=generated_test_data.cluster_name,
                 fargateProfileName=generated_test_data.existing_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),
+                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -862,7 +892,7 @@ class TestEKSHooks:
                 eks_hook.create_fargate_profile(
                     clusterName=generated_test_data.cluster_name,
                     fargateProfileName=non_existent_fargate_profile_name,
-                    **dict(FargateProfileInputs.REQUIRED),
+                    **dict(FargateProfileInputs.REQUIRED),  # type: ignore
                 )
 
         assert_client_error_exception_thrown(
@@ -897,7 +927,9 @@ class TestEKSHooks:
     def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
         _, generated_test_data = fargate_profile_builder()
 
-        result_time: str = generated_test_data.fargate_describe_output[FargateProfileAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.fargate_describe_output[
+            FargateProfileAttributes.CREATED_AT
+        ]
 
         assert iso_date(result_time) == FROZEN_TIME
 
@@ -1167,7 +1199,7 @@ class TestEKSHooks:
             )
 
 
-class TestEKSHook:
+class TestEksHook:
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
     @pytest.mark.parametrize(
         "aws_conn_id, region_name, expected_args",
@@ -1209,7 +1241,7 @@ class TestEKSHook:
         mock_conn.describe_cluster.return_value = {
             'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
         }
-        hook = EKSHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        hook = EksHook(aws_conn_id=aws_conn_id, region_name=region_name)
         with hook.generate_config_file(
             eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
         ) as config_file:
@@ -1239,7 +1271,7 @@ class TestEKSHook:
                                 'apiVersion': 'client.authentication.k8s.io/v1alpha1',
                                 'args': expected_args,
                                 'command': sys.executable,
-                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'fatal'}],
+                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'FATAL'}],
                                 'interactiveMode': 'Never',
                             }
                         },
@@ -1253,7 +1285,7 @@ class TestEKSHook:
     def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
         mock_signer.return_value.generate_presigned_url.return_value = 'http://example.com'
         mock_get_session.return_value.region_name = 'us-east-1'
-        hook = EKSHook()
+        hook = EksHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name='test-cluster')
         mock_signer.assert_called_once_with(
             service_id=mock_conn.meta.service_model.service_id,

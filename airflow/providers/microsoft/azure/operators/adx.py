@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer operators"""
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -26,26 +26,25 @@ from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class AzureDataExplorerQueryOperator(BaseOperator):
     """
     Operator for querying Azure Data Explorer (Kusto).
 
     :param query: KQL query to run (templated).
-    :type query: str
     :param database: Database to run the query on (templated).
-    :type database: str
     :param options: Optional query options. See:
       https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
-    :type options: dict
     :param azure_data_explorer_conn_id: Reference to the
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
-    :type azure_data_explorer_conn_id: str
     """
 
     ui_color = '#00a1f2'
-    template_fields = ('query', 'database')
-    template_ext = ('.kql',)
+    template_fields: Sequence[str] = ('query', 'database')
+    template_ext: Sequence[str] = ('.kql',)
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    def execute(self, context: dict) -> Union[KustoResultTable, str]:
+    def execute(self, context: "Context") -> Union[KustoResultTable, str]:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents

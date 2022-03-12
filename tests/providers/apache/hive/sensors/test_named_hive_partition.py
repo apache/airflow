@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import random
 import unittest
 from datetime import timedelta
 from unittest import mock
@@ -27,9 +26,7 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
-from tests.providers.apache.hive import TestHiveEnvironment
-from tests.test_utils.mock_hooks import MockHiveMetastoreHook
-from tests.test_utils.mock_operators import MockHiveOperator
+from tests.providers.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -59,14 +56,6 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
                 ADD PARTITION({{ params.partition_by }}='{{ ds }}');
                 """
         self.hook = MockHiveMetastoreHook()
-        op = MockHiveOperator(
-            task_id='HiveHook_' + str(random.randint(1, 10000)),
-            params={'database': self.database, 'table': self.table, 'partition_by': self.partition_by},
-            hive_cli_conn_id='hive_cli_default',
-            hql=self.hql,
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_parse_partition_name_correct(self):
         schema = 'default'

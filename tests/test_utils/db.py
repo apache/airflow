@@ -22,6 +22,7 @@ from airflow.models import (
     DagModel,
     DagRun,
     DagTag,
+    DbCallbackRequest,
     Log,
     Pool,
     RenderedTaskInstanceFields,
@@ -36,8 +37,10 @@ from airflow.models import (
 )
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
 from airflow.utils.session import create_session
+from airflow.www.fab_security.sqla.models import Permission, Resource, assoc_permission_role
 
 
 def clear_db_runs():
@@ -87,6 +90,11 @@ def clear_db_dag_code():
         session.query(DagCode).delete()
 
 
+def clear_db_callbacks():
+    with create_session() as session:
+        session.query(DbCallbackRequest).delete()
+
+
 def set_default_pool_slots(slots):
     with create_session() as session:
         default_pool = Pool.get_default_pool(session)
@@ -126,3 +134,20 @@ def clear_db_task_fail():
 def clear_db_task_reschedule():
     with create_session() as session:
         session.query(TaskReschedule).delete()
+
+
+def clear_dag_specific_permissions():
+    with create_session() as session:
+        dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
+        dag_resource_ids = [d.id for d in dag_resources]
+
+        dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
+        dag_permission_ids = [d.id for d in dag_permissions]
+
+        session.query(assoc_permission_role).filter(
+            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
+        ).delete(synchronize_session=False)
+        session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)

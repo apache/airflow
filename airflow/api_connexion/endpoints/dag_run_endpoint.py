@@ -14,18 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import pendulum
+from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
+from sqlalchemy.orm import Query, Session
 
-from airflow._vendor.connexion import NoContent
-from airflow.api.common.experimental.mark_tasks import (
-    set_dag_run_state_to_failed,
-    set_dag_run_state_to_success,
-)
+from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
@@ -36,10 +34,11 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
     set_dagrun_state_form_schema,
 )
+from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
-from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
@@ -47,10 +46,10 @@ from airflow.utils.types import DagRunType
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-    ]
+    ],
 )
 @provide_session
-def delete_dag_run(dag_id, dag_run_id, session):
+def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run"""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
@@ -61,10 +60,10 @@ def delete_dag_run(dag_id, dag_run_id, session):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ]
+    ],
 )
 @provide_session
-def get_dag_run(dag_id, dag_run_id, session):
+def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a DAG Run."""
     dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
@@ -75,109 +74,19 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ]
-)
-@format_parameters(
-    {
-        'start_date_gte': format_datetime,
-        'start_date_lte': format_datetime,
-        'execution_date_gte': format_datetime,
-        'execution_date_lte': format_datetime,
-        'end_date_gte': format_datetime,
-        'end_date_lte': format_datetime,
-        'limit': check_limit,
-    }
-)
-@provide_session
-def get_dag_runs(
-    session,
-    dag_id,
-    start_date_gte=None,
-    start_date_lte=None,
-    execution_date_gte=None,
-    execution_date_lte=None,
-    end_date_gte=None,
-    end_date_lte=None,
-    offset=None,
-    limit=None,
-    order_by='id',
-):
-    """Get all DAG Runs."""
-    query = session.query(DagRun)
-
-    #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
-    if dag_id == "~":
-        appbuilder = current_app.appbuilder
-        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
-    else:
-        query = query.filter(DagRun.dag_id == dag_id)
-
-    dag_run, total_entries = _fetch_dag_runs(
-        query,
-        end_date_gte,
-        end_date_lte,
-        execution_date_gte,
-        execution_date_lte,
-        start_date_gte,
-        start_date_lte,
-        limit,
-        offset,
-        order_by,
-    )
-
-    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
-
-
 def _fetch_dag_runs(
-    query,
-    end_date_gte,
-    end_date_lte,
-    execution_date_gte,
-    execution_date_lte,
-    start_date_gte,
-    start_date_lte,
-    limit,
-    offset,
-    order_by,
-):
-    query = _apply_date_filters_to_query(
-        query,
-        end_date_gte,
-        end_date_lte,
-        execution_date_gte,
-        execution_date_lte,
-        start_date_gte,
-        start_date_lte,
-    )
-    # Count items
-    total_entries = query.count()
-    # sort
-    to_replace = {"dag_run_id": "run_id"}
-    allowed_filter_attrs = [
-        "id",
-        "state",
-        "dag_id",
-        "execution_date",
-        "dag_run_id",
-        "start_date",
-        "end_date",
-        "external_trigger",
-        "conf",
-    ]
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    # apply offset and limit
-    dag_run = query.offset(offset).limit(limit).all()
-    return dag_run, total_entries
-
-
-def _apply_date_filters_to_query(
-    query, end_date_gte, end_date_lte, execution_date_gte, execution_date_lte, start_date_gte, start_date_lte
-):
-    # filter start date
+    query: Query,
+    *,
+    end_date_gte: Optional[str],
+    end_date_lte: Optional[str],
+    execution_date_gte: Optional[str],
+    execution_date_lte: Optional[str],
+    start_date_gte: Optional[str],
+    start_date_lte: Optional[str],
+    limit: Optional[int],
+    offset: Optional[int],
+    order_by: str,
+) -> Tuple[List[DagRun], int]:
     if start_date_gte:
         query = query.filter(DagRun.start_date >= start_date_gte)
     if start_date_lte:
@@ -192,17 +101,93 @@ def _apply_date_filters_to_query(
         query = query.filter(DagRun.end_date >= end_date_gte)
     if end_date_lte:
         query = query.filter(DagRun.end_date <= end_date_lte)
-    return query
+
+    total_entries = query.count()
+    to_replace = {"dag_run_id": "run_id"}
+    allowed_filter_attrs = [
+        "id",
+        "state",
+        "dag_id",
+        "execution_date",
+        "dag_run_id",
+        "start_date",
+        "end_date",
+        "external_trigger",
+        "conf",
+    ]
+    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    return query.offset(offset).limit(limit).all(), total_entries
 
 
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    ]
+    ],
+)
+@format_parameters(
+    {
+        'start_date_gte': format_datetime,
+        'start_date_lte': format_datetime,
+        'execution_date_gte': format_datetime,
+        'execution_date_lte': format_datetime,
+        'end_date_gte': format_datetime,
+        'end_date_lte': format_datetime,
+        'limit': check_limit,
+    }
 )
 @provide_session
-def get_dag_runs_batch(session):
+def get_dag_runs(
+    *,
+    dag_id: str,
+    start_date_gte: Optional[str] = None,
+    start_date_lte: Optional[str] = None,
+    execution_date_gte: Optional[str] = None,
+    execution_date_lte: Optional[str] = None,
+    end_date_gte: Optional[str] = None,
+    end_date_lte: Optional[str] = None,
+    state: Optional[List[str]] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
+    order_by: str = "id",
+    session: Session = NEW_SESSION,
+):
+    """Get all DAG Runs."""
+    query = session.query(DagRun)
+
+    #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
+    if dag_id == "~":
+        appbuilder = current_app.appbuilder
+        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
+    else:
+        query = query.filter(DagRun.dag_id == dag_id)
+
+    if state:
+        query = query.filter(DagRun.state.in_(state))
+
+    dag_run, total_entries = _fetch_dag_runs(
+        query,
+        end_date_gte=end_date_gte,
+        end_date_lte=end_date_lte,
+        execution_date_gte=execution_date_gte,
+        execution_date_lte=execution_date_lte,
+        start_date_gte=start_date_gte,
+        start_date_lte=start_date_lte,
+        limit=limit,
+        offset=offset,
+        order_by=order_by,
+    )
+    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+    ],
+)
+@provide_session
+def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     """Get list of DAG Runs"""
     body = request.get_json()
     try:
@@ -219,17 +204,21 @@ def get_dag_runs_batch(session):
     else:
         query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
 
+    states = data.get("states")
+    if states:
+        query = query.filter(DagRun.state.in_(states))
+
     dag_runs, total_entries = _fetch_dag_runs(
         query,
-        data["end_date_gte"],
-        data["end_date_lte"],
-        data["execution_date_gte"],
-        data["execution_date_lte"],
-        data["start_date_gte"],
-        data["start_date_lte"],
-        data["page_limit"],
-        data["page_offset"],
-        order_by=data.get('order_by', "id"),
+        end_date_gte=data["end_date_gte"],
+        end_date_lte=data["end_date_lte"],
+        execution_date_gte=data["execution_date_gte"],
+        execution_date_lte=data["execution_date_lte"],
+        start_date_gte=data["start_date_gte"],
+        start_date_lte=data["start_date_lte"],
+        limit=data["page_limit"],
+        offset=data["page_offset"],
+        order_by=data.get("order_by", "id"),
     )
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
@@ -239,10 +228,10 @@ def get_dag_runs_batch(session):
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-    ]
+    ],
 )
 @provide_session
-def post_dag_run(dag_id, session):
+def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if not dm:
@@ -275,7 +264,7 @@ def post_dag_run(dag_id, session):
                 run_id=run_id,
                 execution_date=logical_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
-                state=State.QUEUED,
+                state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
                 dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
@@ -299,10 +288,10 @@ def post_dag_run(dag_id, session):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-    ]
+    ],
 )
 @provide_session
-def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
+def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
     dag_run: Optional[DagRun] = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
@@ -317,9 +306,9 @@ def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
 
     state = post_body['state']
     dag = current_app.dag_bag.get_dag(dag_id)
-    if state == State.SUCCESS:
-        set_dag_run_state_to_success(dag, dag_run.execution_date, commit=True)
+    if state == DagRunState.SUCCESS:
+        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
-        set_dag_run_state_to_failed(dag, dag_run.execution_date, commit=True)
+        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
     dag_run = session.query(DagRun).get(dag_run.id)
     return dagrun_schema.dump(dag_run)

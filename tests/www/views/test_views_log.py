@@ -27,7 +27,8 @@ import pytest
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DagBag
+from airflow.models import DagBag, DagRun
+from airflow.models.tasklog import LogTemplate
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
@@ -136,15 +137,18 @@ def tis(dags, session):
     dagrun = dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
     )
     (ti,) = dagrun.task_instances
     ti.try_number = 1
+    ti.hostname = 'localhost'
     dagrun_removed = dag_removed.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
@@ -212,10 +216,11 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
         "try_number={}&metadata={}&format=file"
     )
     try_number = 1
+    date = DEFAULT_DATE.isoformat()
     url = url_template.format(
         DAG_ID,
         TASK_ID,
-        urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+        urllib.parse.quote_plus(date),
         try_number,
         "{}",
     )
@@ -223,9 +228,54 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
 
     content_disposition = response.headers['Content-Disposition']
     assert content_disposition.startswith('attachment')
-    assert f'{DAG_ID}/{TASK_ID}/{DEFAULT_DATE.isoformat()}/{try_number}.log' in content_disposition
+    assert (
+        f'dag_id={DAG_ID}/run_id=scheduled__{date}/task_id={TASK_ID}/attempt={try_number}.log'
+        in content_disposition
+    )
     assert 200 == response.status_code
     assert 'Log for testing.' in response.data.decode('utf-8')
+    assert 'localhost\n' in response.data.decode('utf-8')
+
+
+DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
+
+
+@pytest.fixture()
+def dag_run_with_log_filename():
+    run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
+    with create_session() as session:
+        log_template = session.merge(
+            LogTemplate(filename=DIFFERENT_LOG_FILENAME, elasticsearch_id="irrelevant")
+        )
+        session.flush()  # To populate 'log_template.id'.
+        run_query = session.query(DagRun).filter(*run_filters)
+        run_query.update({"log_template_id": log_template.id})
+        dag_run = run_query.one()
+    yield dag_run
+    with create_session() as session:
+        session.query(DagRun).filter(*run_filters).update({"log_template_id": None})
+        session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
+
+
+def test_get_logs_for_changed_filename_format_db(log_admin_client, dag_run_with_log_filename):
+    try_number = 1
+    url = (
+        f"get_logs_with_metadata?dag_id={dag_run_with_log_filename.dag_id}&"
+        f"task_id={TASK_ID}&"
+        f"execution_date={urllib.parse.quote_plus(dag_run_with_log_filename.logical_date.isoformat())}&"
+        f"try_number={try_number}&metadata={{}}&format=file"
+    )
+    response = log_admin_client.get(url)
+
+    # Should find the log under corresponding db entry.
+    assert 200 == response.status_code
+    assert "Log for testing." in response.data.decode("utf-8")
+    content_disposition = response.headers['Content-Disposition']
+    expected_filename = (
+        f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
+    )
+    assert content_disposition.startswith("attachment")
+    assert expected_filename in content_disposition
 
 
 @unittest.mock.patch(

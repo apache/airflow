@@ -22,12 +22,10 @@
 from datetime import timedelta
 from typing import Optional
 
-from pendulum import Date, DateTime, Time, timezone
+from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-
-UTC = timezone("UTC")
 
 
 class AfterWorkdayTimetable(Timetable):

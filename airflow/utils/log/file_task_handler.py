@@ -18,14 +18,15 @@
 """File logging handler for tasks."""
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
-import httpx
 from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
-from airflow.utils.helpers import parse_template_string
+from airflow.utils.context import Context
+from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 if TYPE_CHECKING:
@@ -45,7 +46,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
-        self.handler = None  # type: Optional[logging.FileHandler]
+        self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
@@ -73,25 +74,41 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti, try_number):
+    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
         if self.filename_jinja_template:
-            if hasattr(ti, 'task'):
-                jinja_context = ti.get_template_context()
-                jinja_context['try_number'] = try_number
+            if hasattr(ti, "task"):
+                context = ti.get_template_context()
             else:
-                jinja_context = {
-                    'ti': ti,
-                    'ts': ti.execution_date.isoformat(),
-                    'try_number': try_number,
-                }
-            return self.filename_jinja_template.render(**jinja_context)
-
-        return self.filename_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(),
-            try_number=try_number,
-        )
+                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+            context["try_number"] = try_number
+            return render_template_to_string(self.filename_jinja_template, context)
+        elif self.filename_template:
+            dag_run = ti.get_dagrun()
+            dag = ti.task.dag
+            assert dag is not None  # For Mypy.
+            try:
+                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+            except AttributeError:  # ti.task is not always set.
+                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            if data_interval[0]:
+                data_interval_start = data_interval[0].isoformat()
+            else:
+                data_interval_start = ""
+            if data_interval[1]:
+                data_interval_end = data_interval[1].isoformat()
+            else:
+                data_interval_end = ""
+            return self.filename_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                data_interval_start=data_interval_start,
+                data_interval_end=data_interval_end,
+                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                try_number=try_number,
+            )
+        else:
+            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _read_grouped_logs(self):
         return False
@@ -160,6 +177,8 @@ class FileTaskHandler(logging.Handler):
             except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
+            import httpx
+
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
@@ -188,8 +207,9 @@ class FileTaskHandler(logging.Handler):
                 if response.status_code == 403:
                     log += (
                         "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have"
-                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                        "schedulers, webservers and workers) have "
+                        "the same 'secret_key' configured in 'webserver' section and "
+                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
                     )
                     log += (
                         "*** See more at https://airflow.apache.org/docs/apache-airflow/"

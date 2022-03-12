@@ -10,7 +10,6 @@
     "google",
     "imap",
     "mongo",
-    "mysql",
     "salesforce",
     "ssh"
   ],
@@ -29,6 +28,9 @@
     "vertica"
   ],
   "apache.livy": [
+    "http"
+  ],
+  "dbt.cloud": [
     "http"
   ],
   "dingding": [
@@ -59,7 +61,8 @@
   ],
   "microsoft.azure": [
     "google",
-    "oracle"
+    "oracle",
+    "sftp"
   ],
   "mysql": [
     "amazon",
@@ -67,11 +70,11 @@
     "trino",
     "vertica"
   ],
-  "opsgenie": [
-    "http"
-  ],
   "postgres": [
     "amazon"
+  ],
+  "presto": [
+    "google"
   ],
   "salesforce": [
     "tableau"
@@ -84,5 +87,8 @@
   ],
   "snowflake": [
     "slack"
+  ],
+  "trino": [
+    "google"
   ]
 }

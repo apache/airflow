@@ -16,11 +16,14 @@
 # under the License.
 
 import os
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToMySqlOperator(BaseOperator):
@@ -28,28 +31,22 @@ class S3ToMySqlOperator(BaseOperator):
     Loads a file from S3 into a MySQL table.
 
     :param s3_source_key: The path to the file (S3 key) that will be loaded into MySQL.
-    :type s3_source_key: str
     :param mysql_table: The MySQL table into where the data will be sent.
-    :type mysql_table: str
     :param mysql_duplicate_key_handling: Specify what should happen to duplicate data.
         You can choose either `IGNORE` or `REPLACE`.
 
         .. seealso::
             https://dev.mysql.com/doc/refman/8.0/en/load-data.html#load-data-duplicate-key-handling
-    :type mysql_duplicate_key_handling: str
     :param mysql_extra_options: MySQL options to specify exactly how to load the data.
-    :type mysql_extra_options: Optional[str]
     :param aws_conn_id: The S3 connection that contains the credentials to the S3 Bucket.
-    :type aws_conn_id: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         's3_source_key',
         'mysql_table',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#f4a460'
 
     def __init__(
@@ -71,12 +68,11 @@ class S3ToMySqlOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.mysql_conn_id = mysql_conn_id
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         """
         Executes the transfer operation from S3 to MySQL.
 
         :param context: The context that is being provided when executing.
-        :type context: dict
         """
         self.log.info('Loading %s to MySql table %s...', self.s3_source_key, self.mysql_table)
 

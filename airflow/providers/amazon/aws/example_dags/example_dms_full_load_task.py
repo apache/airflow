@@ -22,10 +22,12 @@ from datetime import datetime, timedelta
 from os import getenv
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.dms_create_task import DmsCreateTaskOperator
-from airflow.providers.amazon.aws.operators.dms_delete_task import DmsDeleteTaskOperator
-from airflow.providers.amazon.aws.operators.dms_start_task import DmsStartTaskOperator
-from airflow.providers.amazon.aws.sensors.dms_task import DmsTaskCompletedSensor
+from airflow.providers.amazon.aws.operators.dms import (
+    DmsCreateTaskOperator,
+    DmsDeleteTaskOperator,
+    DmsStartTaskOperator,
+)
+from airflow.providers.amazon.aws.sensors.dms import DmsTaskCompletedSensor
 
 REPLICATION_TASK_ID = getenv('REPLICATION_TASK_ID', 'full-load-test-export')
 SOURCE_ENDPOINT_ARN = getenv('SOURCE_ENDPOINT_ARN', 'source_endpoint_arn')

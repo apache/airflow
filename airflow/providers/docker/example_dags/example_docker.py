@@ -34,7 +34,6 @@ t1 = BashOperator(task_id='print_date', bash_command='date', dag=dag)
 t2 = BashOperator(task_id='sleep', bash_command='sleep 5', retries=3, dag=dag)
 
 t3 = DockerOperator(
-    api_version='1.19',
     docker_url='tcp://localhost:2375',  # Set your docker URL
     command='/bin/sleep 30',
     image='centos:latest',

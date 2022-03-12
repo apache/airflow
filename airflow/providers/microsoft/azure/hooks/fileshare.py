@@ -17,7 +17,7 @@
 # under the License.
 #
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
 from azure.storage.file import File, FileService
 
@@ -64,7 +64,7 @@ class AzureFileShareHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -118,12 +118,9 @@ class AzureFileShareHook(BaseHook):
         Check if a directory exists on Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
-        :type kwargs: object
         :return: True if the file exists, False otherwise.
         :rtype: bool
         """
@@ -134,14 +131,10 @@ class AzureFileShareHook(BaseHook):
         Check if a file exists on Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.exists()` takes.
-        :type kwargs: object
         :return: True if the file exists, False otherwise.
         :rtype: bool
         """
@@ -154,12 +147,9 @@ class AzureFileShareHook(BaseHook):
         Return the list of directories and files stored on a Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
-        :type kwargs: object
         :return: A list of files and directories
         :rtype: list
         """
@@ -170,12 +160,9 @@ class AzureFileShareHook(BaseHook):
         Return the list of files stored on a Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.list_directories_and_files()` takes.
-        :type kwargs: object
         :return: A list of files
         :rtype: list
         """
@@ -190,10 +177,8 @@ class AzureFileShareHook(BaseHook):
         Create new Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.create_share()` takes.
-        :type kwargs: object
         :return: True if share is created, False if share already exists.
         :rtype: bool
         """
@@ -204,10 +189,8 @@ class AzureFileShareHook(BaseHook):
         Delete existing Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.delete_share()` takes.
-        :type kwargs: object
         :return: True if share is deleted, False if share does not exist.
         :rtype: bool
         """
@@ -218,12 +201,9 @@ class AzureFileShareHook(BaseHook):
         Create a new directory on a Azure File Share.
 
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.create_directory()` takes.
-        :type kwargs: object
         :return: A list of files and directories
         :rtype: list
         """
@@ -236,36 +216,26 @@ class AzureFileShareHook(BaseHook):
         Download a file from Azure File Share.
 
         :param file_path: Where to store the file.
-        :type file_path: str
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.get_file_to_path()` takes.
-        :type kwargs: object
         """
         self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def get_file_to_stream(
-        self, stream: str, share_name: str, directory_name: str, file_name: str, **kwargs
+        self, stream: IO, share_name: str, directory_name: str, file_name: str, **kwargs
     ) -> None:
         """
         Download a file from Azure File Share.
 
         :param stream: A filehandle to store the file to.
-        :type stream: file-like object
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.get_file_to_stream()` takes.
-        :type kwargs: object
         """
         self.get_conn().get_file_to_stream(share_name, directory_name, file_name, stream, **kwargs)
 
@@ -276,16 +246,11 @@ class AzureFileShareHook(BaseHook):
         Upload a file to Azure File Share.
 
         :param file_path: Path to the file to load.
-        :type file_path: str
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_path()` takes.
-        :type kwargs: object
         """
         self.get_conn().create_file_from_path(share_name, directory_name, file_name, file_path, **kwargs)
 
@@ -296,16 +261,11 @@ class AzureFileShareHook(BaseHook):
         Upload a string to Azure File Share.
 
         :param string_data: String to load.
-        :type string_data: str
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_text()` takes.
-        :type kwargs: object
         """
         self.get_conn().create_file_from_text(share_name, directory_name, file_name, string_data, **kwargs)
 
@@ -316,18 +276,12 @@ class AzureFileShareHook(BaseHook):
         Upload a stream to Azure File Share.
 
         :param stream: Opened file/stream to upload as the file content.
-        :type stream: file-like
         :param share_name: Name of the share.
-        :type share_name: str
         :param directory_name: Name of the directory.
-        :type directory_name: str
         :param file_name: Name of the file.
-        :type file_name: str
         :param count: Size of the stream in bytes
-        :type count: int
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_stream()` takes.
-        :type kwargs: object
         """
         self.get_conn().create_file_from_stream(
             share_name, directory_name, file_name, stream, count, **kwargs

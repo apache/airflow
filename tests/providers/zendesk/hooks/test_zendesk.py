@@ -16,103 +16,70 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import unittest
-from unittest import mock
+from unittest.mock import patch
 
 import pytest
-from zdesk import RateLimitError
+from zenpy.lib.api_objects import Ticket
 
+from airflow.models import Connection
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
+from airflow.utils import db
 
 
-class TestZendeskHook(unittest.TestCase):
-    @mock.patch("airflow.providers.zendesk.hooks.zendesk.time")
-    def test_sleeps_for_correct_interval(self, mocked_time):
-        sleep_time = 10
-        # To break out of the otherwise infinite tries
-        mocked_time.sleep = mock.Mock(side_effect=ValueError, return_value=3)
-        conn_mock = mock.Mock()
-        mock_response = mock.Mock()
-        mock_response.headers.get.return_value = sleep_time
-        conn_mock.call = mock.Mock(
-            side_effect=RateLimitError(msg="some message", code="some code", response=mock_response)
+class TestZendeskHook:
+    conn_id = 'zendesk_conn_id_test'
+
+    @pytest.fixture(autouse=True)
+    def init_connection(self):
+        db.merge_conn(
+            Connection(
+                conn_id=self.conn_id,
+                conn_type='zendesk',
+                host='yoursubdomain.zendesk.com',
+                login='user@gmail.com',
+                password='eb243592-faa2-4ba2-a551q-1afdf565c889',
+            )
         )
+        self.hook = ZendeskHook(zendesk_conn_id=self.conn_id)
 
-        zendesk_hook = ZendeskHook("conn_id")
-        zendesk_hook.get_conn = mock.Mock(return_value=conn_mock)
+    def test_hook_init_and_get_conn(self):
+        # Verify config of zenpy APIs
+        zenpy_client = self.hook.get_conn()
+        assert zenpy_client.users.subdomain == 'yoursubdomain'
+        assert zenpy_client.users.domain == 'zendesk.com'
+        assert zenpy_client.users.session.auth == ('user@gmail.com', 'eb243592-faa2-4ba2-a551q-1afdf565c889')
+        assert not zenpy_client.cache.disabled
+        assert self.hook._ZendeskHook__url == 'https://yoursubdomain.zendesk.com'
 
-        with pytest.raises(ValueError):
-            zendesk_hook.call("some_path", get_all_pages=False)
-            mocked_time.sleep.assert_called_once_with(sleep_time)
+    def test_get_ticket(self):
+        zenpy_client = self.hook.get_conn()
+        with patch.object(zenpy_client, 'tickets') as tickets_mock:
+            self.hook.get_ticket(ticket_id=1)
+            tickets_mock.assert_called_once_with(id=1)
 
-    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
-    def test_returns_single_page_if_get_all_pages_false(self, _):
-        zendesk_hook = ZendeskHook("conn_id")
-        mock_connection = mock.Mock()
-        mock_connection.host = "some_host"
-        zendesk_hook.get_connection = mock.Mock(return_value=mock_connection)
-        zendesk_hook.get_conn()
+    def test_search_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        with patch.object(zenpy_client, 'search') as search_mock:
+            self.hook.search_tickets(status='open', sort_order='desc')
+            search_mock.assert_called_once_with(type='ticket', status='open', sort_order='desc')
 
-        mock_conn = mock.Mock()
-        mock_call = mock.Mock(return_value={'next_page': 'https://some_host/something', 'path': []})
-        mock_conn.call = mock_call
-        zendesk_hook.get_conn = mock.Mock(return_value=mock_conn)
-        zendesk_hook.call("path", get_all_pages=False)
-        mock_call.assert_called_once_with("path", {})
+    def test_create_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to create")
+        with patch.object(zenpy_client.tickets, 'create') as search_mock:
+            self.hook.create_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")
 
-    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
-    def test_returns_multiple_pages_if_get_all_pages_true(self, _):
-        zendesk_hook = ZendeskHook("conn_id")
-        mock_connection = mock.Mock()
-        mock_connection.host = "some_host"
-        zendesk_hook.get_connection = mock.Mock(return_value=mock_connection)
-        zendesk_hook.get_conn()
+    def test_update_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to update")
+        with patch.object(zenpy_client.tickets, 'update') as search_mock:
+            self.hook.update_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")
 
-        mock_conn = mock.Mock()
-        mock_call = mock.Mock(return_value={'next_page': 'https://some_host/something', 'path': []})
-        mock_conn.call = mock_call
-        zendesk_hook.get_conn = mock.Mock(return_value=mock_conn)
-        zendesk_hook.call("path", get_all_pages=True)
-        assert mock_call.call_count == 2
-
-    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
-    def test_zdesk_is_inited_correctly(self, mock_zendesk):
-        conn_mock = mock.Mock()
-        conn_mock.host = "conn_host"
-        conn_mock.login = "conn_login"
-        conn_mock.password = "conn_pass"
-
-        zendesk_hook = ZendeskHook("conn_id")
-        zendesk_hook.get_connection = mock.Mock(return_value=conn_mock)
-        zendesk_hook.get_conn()
-        mock_zendesk.assert_called_once_with(
-            zdesk_url='https://conn_host',
-            zdesk_email='conn_login',
-            zdesk_password='conn_pass',
-            zdesk_token=True,
-        )
-
-    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
-    def test_zdesk_sideloading_works_correctly(self, mock_zendesk):
-        zendesk_hook = ZendeskHook("conn_id")
-        mock_connection = mock.Mock()
-        mock_connection.host = "some_host"
-        zendesk_hook.get_connection = mock.Mock(return_value=mock_connection)
-        zendesk_hook.get_conn()
-
-        mock_conn = mock.Mock()
-        mock_call = mock.Mock(
-            return_value={
-                'next_page': 'https://some_host/something',
-                'tickets': [],
-                'users': [],
-                'groups': [],
-            }
-        )
-        mock_conn.call = mock_call
-        zendesk_hook.get_conn = mock.Mock(return_value=mock_conn)
-        results = zendesk_hook.call(
-            ".../tickets.json", query={"include": "users,groups"}, get_all_pages=False, side_loading=True
-        )
-        assert results == {'groups': [], 'users': [], 'tickets': []}
+    def test_delete_tickets(self):
+        zenpy_client = self.hook.get_conn()
+        ticket = Ticket(subject="This is a test ticket to delete")
+        with patch.object(zenpy_client.tickets, 'delete') as search_mock:
+            self.hook.delete_tickets(ticket, extra_parameter="extra_parameter")
+            search_mock.assert_called_once_with(ticket, extra_parameter="extra_parameter")

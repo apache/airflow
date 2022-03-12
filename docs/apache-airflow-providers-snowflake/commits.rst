@@ -28,16 +28,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.0
+.....
+
+Latest change: 2022-02-08
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`6c3a67d4fc <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`39e395f981 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`534e9ae117 <https://github.com/apache/airflow/commit/534e9ae117641b4147542f2deec2a077f0a42e2f>`_  2022-01-28   ``Fix #21096: Support boolean in extra__snowflake__insecure_mode (#21155)``
+`cb73053211 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
+`602abe8394 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`9ea459a6bd <https://github.com/apache/airflow/commit/9ea459a6bd8073f16dc197b1147f220293557dc8>`_  2022-01-08   ``Snowflake Provider: Improve tests for Snowflake Hook (#20745)``
+=================================================================================================  ===========  ===========================================================================
+
+2.4.0
+.....
+
+Latest change: 2021-12-31
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178ba <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`a632b74846 <https://github.com/apache/airflow/commit/a632b74846bae28408fb4c1b38671fae23ca005c>`_  2021-12-28   ``Improvements for 'SnowflakeHook.get_sqlalchemy_engine'  (#20509)``
+`fcc3b92fb6 <https://github.com/apache/airflow/commit/fcc3b92fb6770597c4058c547a49f391de4dba44>`_  2021-12-13   ``Fix MyPy Errors for Snowflake provider. (#20212)``
+`89a66ae023 <https://github.com/apache/airflow/commit/89a66ae02319a20d6170187527d4535a26078378>`_  2021-12-13   ``Support insecure mode in SnowflakeHook (#20106)``
+`7fb301b0b4 <https://github.com/apache/airflow/commit/7fb301b0b466f470c737ded99b670b3f0605f1a4>`_  2021-12-08   ``Remove unused code in SnowflakeHook (#20107)``
+=================================================================================================  ===========  =========================================================================
+
 2.3.1
 .....
 
-Latest change: 2021-11-12
+Latest change: 2021-11-30
 
-=================================================================================================  ===========  =============================================================
+=================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================================================
+=================================================================================================  ===========  ======================================================================
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `de9900539c <https://github.com/apache/airflow/commit/de9900539c9731325e29fd1bbac37c4bc1363bc4>`_  2021-11-12   ``Remove duplicate get_connection in SnowflakeHook (#19543)``
-=================================================================================================  ===========  =============================================================
+=================================================================================================  ===========  ======================================================================
 
 2.3.0
 .....

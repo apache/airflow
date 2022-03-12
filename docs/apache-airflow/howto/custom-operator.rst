@@ -153,7 +153,7 @@ the operator.
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ["name"]
+            template_fields: Sequence[str] = ("name",)
 
             def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
@@ -186,8 +186,8 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ["guest_name"]
-            template_ext = [".sql"]
+            template_fields: Sequence[str] = ("guest_name",)
+            template_ext = ".sql"
 
             def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
@@ -201,7 +201,7 @@ from template field renders in Web UI. For example:
 .. code-block:: python
 
         class MyRequestOperator(BaseOperator):
-            template_fields = ["request_body"]
+            template_fields: Sequence[str] = ("request_body",)
             template_fields_renderers = {"request_body": "json"}
 
             def __init__(self, request_body: str, **kwargs) -> None:
@@ -214,7 +214,7 @@ dot-separated key path to extract and render individual elements appropriately. 
 .. code-block:: python
 
         class MyConfigOperator(BaseOperator):
-            template_fields = ["configuration"]
+            template_fields: Sequence[str] = ("configuration",)
             template_fields_renderers = {
                 "configuration": "json",
                 "configuration.query.sql": "sql",
@@ -243,19 +243,29 @@ configuration at ``query.sql`` to be rendered with the SQL lexer.
 Currently available lexers:
 
   - bash
+  - bash_command
   - doc
+  - doc_json
+  - doc_md
+  - doc_rst
+  - doc_yaml
+  - doc_md
   - hql
   - html
   - jinja
   - json
   - md
+  - mysql
+  - postgresql
   - powershell
   - py
+  - python_callable
   - rst
   - sql
+  - tsql
   - yaml
 
-If you use a non existing lexer then the value of the template field will be rendered as a pretty printed object.
+If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

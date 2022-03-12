@@ -30,23 +30,15 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     Copy data from SQL results to provided Google Spreadsheet.
 
     :param sql: The SQL to execute.
-    :type sql: str
     :param spreadsheet_id: The Google Sheet ID to interact with.
-    :type spreadsheet_id: str
     :param conn_id: the connection ID used to connect to the database.
-    :type sql_conn_id: str
     :param parameters: The parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param database: name of database which overwrite the defined one in connection
-    :type database: str
     :param spreadsheet_range: The A1 notation of the values to retrieve.
-    :type spreadsheet_range: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -55,10 +47,9 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "sql",
         "spreadsheet_id",
         "spreadsheet_range",
@@ -66,7 +57,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     )
 
     template_fields_renderers = {"sql": "sql"}
-    template_ext = (".sql",)
+    template_ext: Sequence[str] = (".sql",)
 
     ui_color = "#a0e08c"
 
@@ -77,7 +68,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         spreadsheet_id: str,
         sql_conn_id: str,
         parameters: Optional[Union[Mapping, Iterable]] = None,
-        database: str = None,
+        database: Optional[str] = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,

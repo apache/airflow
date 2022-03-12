@@ -18,12 +18,15 @@
 """This module contains Google Search Ads operators."""
 import json
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleSearchAdsInsertReportOperator(BaseOperator):
@@ -39,15 +42,11 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         :ref:`howto/operator:GoogleSearchAdsInsertReportOperator`
 
     :param report: Report to be generated
-    :type report: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -56,14 +55,13 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report",
         "impersonation_chain",
     )
-    template_ext = (".json",)
+    template_ext: Sequence[str] = (".json",)
 
     def __init__(
         self,
@@ -88,7 +86,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -116,22 +114,15 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         :ref:`howto/operator:GoogleSearchAdsGetfileReportOperator`
 
     :param report_id: ID of the report.
-    :type report_id: str
     :param bucket_name: The bucket to upload to.
-    :type bucket_name: str
     :param report_name: The report name to set when uploading the local file. If not provided then
         report_id is used.
-    :type report_name: str
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param api_version: The version of the api that will be requested for example 'v3'.
-    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -140,10 +131,9 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "report_name",
         "report_id",
         "bucket_name",
@@ -197,7 +187,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             return fragment_records[1]
         return b""
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

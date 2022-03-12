@@ -16,10 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Bigquery sensor."""
-from typing import Optional, Sequence, Union
+import warnings
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
+_DEPRECATION_MSG = (
+    "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter."
+)
 
 
 class BigQueryTableExistenceSensor(BaseSensorOperator):
@@ -29,19 +38,15 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     :param project_id: The Google cloud project in which to look for the table.
         The connection supplied to the hook must provide
         access to the specified project.
-    :type project_id: str
     :param dataset_id: The name of the dataset in which to look for the table.
         storage bucket.
-    :type dataset_id: str
     :param table_id: The name of the table to check the existence of.
-    :type table_id: str
-    :param bigquery_conn_id: The connection ID to use when connecting to
-        Google BigQuery.
-    :type bigquery_conn_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -50,10 +55,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',
@@ -67,25 +71,31 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         project_id: str,
         dataset_id: str,
         table_id: str,
-        bigquery_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
+
+        if bigquery_conn_id:
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
-            bigquery_conn_id=self.bigquery_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -101,21 +111,16 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :param project_id: The Google cloud project in which to look for the table.
         The connection supplied to the hook must provide
         access to the specified project.
-    :type project_id: str
     :param dataset_id: The name of the dataset in which to look for the table.
         storage bucket.
-    :type dataset_id: str
     :param table_id: The name of the table to check the existence of.
-    :type table_id: str
     :param partition_id: The name of the partition to check the existence of.
-    :type partition_id: str
-    :param bigquery_conn_id: The connection ID to use when connecting to
-        Google BigQuery.
-    :type bigquery_conn_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -124,10 +129,9 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'dataset_id',
         'table_id',
@@ -143,26 +147,32 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         partition_id: str,
-        bigquery_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
+
+        if bigquery_conn_id:
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.partition_id = partition_id
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
-            bigquery_conn_id=self.bigquery_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

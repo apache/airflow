@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
@@ -29,6 +27,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
@@ -45,7 +44,7 @@ class DummySensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.return_value = return_value
 
-    def poke(self, context):
+    def poke(self, context: Context):
         return self.return_value
 
 
@@ -333,15 +332,11 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_should_include_ready_to_reschedule_dep_in_reschedule_mode(self):
-        sensor = DummySensor(task_id='a', return_value=True, mode='reschedule')
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_should_include_ready_to_reschedule_dep(self, mode):
+        sensor = DummySensor(task_id='a', return_value=True, mode=mode)
         deps = sensor.deps
         assert ReadyToRescheduleDep() in deps
-
-    def test_should_not_include_ready_to_reschedule_dep_in_poke_mode(self, make_sensor):
-        sensor = DummySensor(task_id='a', return_value=False, mode='poke')
-        deps = sensor.deps
-        assert ReadyToRescheduleDep() not in deps
 
     def test_invalid_mode(self):
         with pytest.raises(AirflowException):
@@ -498,6 +493,28 @@ class TestBaseSensor:
             assert interval2 >= sensor.poke_interval
             assert interval2 > interval1
 
+    @pytest.mark.backend("mysql")
+    def test_reschedule_poke_interval_too_long_on_mysql(self, make_sensor):
+        with pytest.raises(AirflowException) as ctx:
+            make_sensor(poke_interval=863998946, mode="reschedule", return_value="irrelevant")
+        assert str(ctx.value) == (
+            "Cannot set poke_interval to 863998946 seconds in reschedule mode "
+            "since it will take reschedule time over MySQL's TIMESTAMP limit."
+        )
+
+    @pytest.mark.backend("mysql")
+    def test_reschedule_date_too_late_on_mysql(self, make_sensor):
+        sensor, _ = make_sensor(poke_interval=60 * 60 * 24, mode="reschedule", return_value=False)
+
+        # A few hours until TIMESTAMP's limit, the next poke will take us over.
+        with freeze_time(datetime(2038, 1, 19, tzinfo=timezone.utc)):
+            with pytest.raises(AirflowSensorTimeout) as ctx:
+                self._run(sensor)
+        assert str(ctx.value) == (
+            "Cannot reschedule DAG unit_test_dag to 2038-01-20T00:00:00+00:00 "
+            "since it is over MySQL's TIMESTAMP storage limit."
+        )
+
     def test_reschedule_and_retry_timeout(self, make_sensor):
         """
         Test mode="reschedule", retries and timeout configurations interact correctly.
@@ -599,7 +616,7 @@ class DummyPokeOnlySensor(BaseSensorOperator):
         self.poke_changes_mode = poke_changes_mode
         self.return_value = True
 
-    def poke(self, context):
+    def poke(self, context: Context):
         if self.poke_changes_mode:
             self.change_mode('reschedule')
         return self.return_value

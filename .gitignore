@@ -17,6 +17,7 @@ airflow/www/static/dist
 
 /logs/
 airflow-webserver.pid
+standalone_admin_password.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -220,3 +221,6 @@ pip-wheel-metadata
 
 # Generated UI licenses
 licenses/LICENSES-ui.txt
+
+# Packaged Breeze2 on Windows
+/Breeze2.exe

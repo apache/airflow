@@ -20,7 +20,7 @@ import csv
 import tempfile
 import warnings
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
@@ -28,6 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class FlushAction(Enum):
@@ -56,33 +59,23 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         :ref:`howto/operator:FacebookAdsReportToGcsOperator`
 
     :param bucket_name: The GCS bucket to upload to
-    :type bucket_name: str
     :param object_name: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
-    :type object_name: str
     :param gcp_conn_id: Airflow Google Cloud connection ID
-    :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
-    :type facebook_conn_id: str
     :param api_version: The version of Facebook API. Default to None. If it is None,
         it will use the Facebook business SDK default version.
-    :type api_version: str
     :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type fields: List[str]
     :param params: Parameters that determine the query for Facebook. This keyword is deprecated,
         please use `parameters` keyword to pass the parameters.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type params: Dict[str, Any]
     :param parameters: Parameters that determine the query for Facebook
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :type parameters: Dict[str, Any]
     :param gzip: Option to compress local file or file data for upload
-    :type gzip: bool
     :param upload_as_account: Option to export file with account_id
         This parameter only works if Account Id sets as array in Facebook Connection
         If set as True, each file will be exported in a separate file that has a prefix of account_id
         If set as False, a single file will be exported for all account_id
-    :type upload_as_account: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -91,10 +84,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "facebook_conn_id",
         "bucket_name",
         "object_name",
@@ -108,8 +100,8 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         bucket_name: str,
         object_name: str,
         fields: List[str],
-        params: Dict[str, Any] = None,
-        parameters: Dict[str, Any] = None,
+        params: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         gzip: bool = False,
         upload_as_account: bool = False,
         api_version: Optional[str] = None,
@@ -141,7 +133,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
             self.parameters = params
 
-    def execute(self, context: dict):
+    def execute(self, context: 'Context'):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
@@ -200,30 +192,33 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _decide_and_flush(self, converted_rows_with_action: Dict[FlushAction, list]):
         total_data_count = 0
-        if FlushAction.EXPORT_ONCE in converted_rows_with_action:
+        once_action = converted_rows_with_action.get(FlushAction.EXPORT_ONCE)
+        if once_action is not None:
             self._flush_rows(
-                converted_rows=converted_rows_with_action.get(FlushAction.EXPORT_ONCE),
+                converted_rows=once_action,
                 object_name=self.object_name,
             )
-            total_data_count += len(converted_rows_with_action.get(FlushAction.EXPORT_ONCE))
-        elif FlushAction.EXPORT_EVERY_ACCOUNT in converted_rows_with_action:
-            for converted_rows in converted_rows_with_action.get(FlushAction.EXPORT_EVERY_ACCOUNT):
-                self._flush_rows(
-                    converted_rows=converted_rows.get("converted_rows"),
-                    object_name=self._transform_object_name_with_account_id(
-                        account_id=converted_rows.get("account_id")
-                    ),
-                )
-                total_data_count += len(converted_rows.get("converted_rows"))
+            total_data_count += len(once_action)
         else:
-            message = (
-                "FlushAction not found in the data. Please check the FlushAction in the operator. Converted "
-                "Rows with Action: " + str(converted_rows_with_action)
-            )
-            raise AirflowException(message)
+            every_account_action = converted_rows_with_action.get(FlushAction.EXPORT_EVERY_ACCOUNT)
+            if every_account_action:
+                for converted_rows in every_account_action:
+                    self._flush_rows(
+                        converted_rows=converted_rows.get("converted_rows"),
+                        object_name=self._transform_object_name_with_account_id(
+                            account_id=converted_rows.get("account_id")
+                        ),
+                    )
+                    total_data_count += len(converted_rows.get("converted_rows"))
+            else:
+                message = (
+                    "FlushAction not found in the data. Please check the FlushAction in "
+                    "the operator. Converted Rows with Action: " + str(converted_rows_with_action)
+                )
+                raise AirflowException(message)
         return total_data_count
 
-    def _flush_rows(self, converted_rows: list, object_name: str):
+    def _flush_rows(self, converted_rows: Optional[List[Any]], object_name: str):
         if converted_rows:
             headers = converted_rows[0].keys()
             with tempfile.NamedTemporaryFile("w", suffix=".csv") as csvfile:

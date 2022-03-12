@@ -20,6 +20,7 @@
 /* global stateColors */
 
 import React from 'react';
+import { isEqual } from 'lodash';
 import {
   Flex,
   Box,
@@ -30,12 +31,22 @@ import { callModal } from '../dag';
 import InstanceTooltip from './InstanceTooltip';
 
 const StatusBox = ({
-  group, instance, containerRef, extraLinks = [], ...rest
+  group, instance, containerRef, extraLinks = [],
 }) => {
   const {
-    executionDate, taskId, tryNumber = 0, operator,
+    executionDate, taskId, tryNumber = 0, operator, runId,
   } = instance;
-  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined);
+  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId);
+
+  // Fetch the corresponding column element and set its background color when hovering
+  const onMouseOver = () => {
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+  };
+  const onMouseLeave = () => {
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+      .forEach((e) => { e.style.backgroundColor = null; });
+  };
 
   return (
     <Tooltip
@@ -44,7 +55,7 @@ const StatusBox = ({
       portalProps={{ containerRef }}
       hasArrow
       placement="top"
-      openDelay={100}
+      openDelay={400}
     >
       <Flex
         p="1px"
@@ -55,7 +66,9 @@ const StatusBox = ({
         onClick={onClick}
         cursor={!group.children && 'pointer'}
         data-testid="task-instance"
-        {...rest}
+        zIndex={1}
+        onMouseEnter={onMouseOver}
+        onMouseLeave={onMouseLeave}
       >
         <Box
           width="10px"
@@ -69,4 +82,16 @@ const StatusBox = ({
   );
 };
 
-export default StatusBox;
+// The default equality function is a shallow comparison and json objects will return false
+// This custom compare function allows us to do a deeper comparison
+const compareProps = (
+  prevProps,
+  nextProps,
+) => (
+  isEqual(prevProps.group, nextProps.group)
+  && isEqual(prevProps.instance, nextProps.instance)
+  && prevProps.extraLinks === nextProps.extraLinks
+  && prevProps.containerRef === nextProps.containerRef
+);
+
+export default React.memo(StatusBox, compareProps);

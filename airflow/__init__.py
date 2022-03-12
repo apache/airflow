@@ -26,6 +26,7 @@ in their PYTHONPATH. airflow_login should be based off the
 isort:skip_file
 """
 
+
 # flake8: noqa: F401
 
 import sys

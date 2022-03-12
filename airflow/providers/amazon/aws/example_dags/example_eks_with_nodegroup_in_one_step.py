@@ -14,17 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 from datetime import datetime
 from os import environ
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
-    EKSCreateClusterOperator,
-    EKSDeleteClusterOperator,
-    EKSPodOperator,
+    EksCreateClusterOperator,
+    EksDeleteClusterOperator,
+    EksPodOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
+from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 
 CLUSTER_NAME = environ.get('EKS_CLUSTER_NAME', 'eks-demo')
 NODEGROUP_NAME = f'{CLUSTER_NAME}-nodegroup'
@@ -38,19 +42,18 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='example_eks_using_defaults_dag',
-    default_args={'cluster_name': CLUSTER_NAME},
+    dag_id='example_eks_with_nodegroup_in_one_step',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
-    max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_eks_create_cluster_with_nodegroup]
     # Create an Amazon EKS cluster control plane and an EKS nodegroup compute platform in one step.
-    create_cluster_and_nodegroup = EKSCreateClusterOperator(
+    create_cluster_and_nodegroup = EksCreateClusterOperator(
         task_id='create_eks_cluster_and_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         cluster_role_arn=ROLE_ARN,
         nodegroup_role_arn=ROLE_ARN,
@@ -62,14 +65,16 @@ with DAG(
     )
     # [END howto_operator_eks_create_cluster_with_nodegroup]
 
-    await_create_nodegroup = EKSNodegroupStateSensor(
+    await_create_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
     )
 
-    start_pod = EKSPodOperator(
+    start_pod = EksPodOperator(
         task_id="run_pod",
+        cluster_name=CLUSTER_NAME,
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
@@ -82,12 +87,23 @@ with DAG(
     # [START howto_operator_eks_force_delete_cluster]
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
-    delete_all = EKSDeleteClusterOperator(task_id='delete_nodegroup_and_cluster', force_delete_compute=True)
+    delete_all = EksDeleteClusterOperator(
+        task_id='delete_nodegroup_and_cluster',
+        cluster_name=CLUSTER_NAME,
+        force_delete_compute=True,
+    )
     # [END howto_operator_eks_force_delete_cluster]
 
-    await_delete_cluster = EKSClusterStateSensor(
+    await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 
-    create_cluster_and_nodegroup >> await_create_nodegroup >> start_pod >> delete_all >> await_delete_cluster
+    (
+        create_cluster_and_nodegroup
+        >> await_create_nodegroup
+        >> start_pod
+        >> delete_all
+        >> await_delete_cluster
+    )

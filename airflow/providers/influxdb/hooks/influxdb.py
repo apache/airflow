@@ -16,9 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module allows to connect to a InfluxDB database."""
+"""
+This module allows to connect to a InfluxDB database.
 
-from typing import List
+.. spelling::
+
+    FluxTable
+"""
+
+from typing import Dict, List
 
 import pandas as pd
 from influxdb_client import InfluxDBClient
@@ -37,7 +43,6 @@ class InfluxDBHook(BaseHook):
     Performs a connection to InfluxDB and retrieves client.
 
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
-    :type influxdb_conn_id: str
     """
 
     conn_name_attr = 'influxdb_conn_id'
@@ -50,7 +55,7 @@ class InfluxDBHook(BaseHook):
         self.influxdb_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras = None
+        self.extras: Dict = {}
         self.uri = None
         self.org_name = None
 

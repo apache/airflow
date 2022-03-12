@@ -18,11 +18,12 @@
 
 """Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
 
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -32,7 +33,7 @@ class DummySkipOperator(DummyOperator):
 
     ui_color = '#e8b7e4'
 
-    def execute(self, context):
+    def execute(self, context: Context):
         raise AirflowSkipException
 
 
@@ -54,6 +55,11 @@ def create_test_pipeline(suffix, trigger_rule):
     join >> final
 
 
-with DAG(dag_id='example_skip_dag', start_date=datetime(2021, 1, 1), catchup=False, tags=['example']) as dag:
+with DAG(
+    dag_id='example_skip_dag',
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=['example'],
+) as dag:
     create_test_pipeline('1', TriggerRule.ALL_SUCCESS)
     create_test_pipeline('2', TriggerRule.ONE_SUCCESS)

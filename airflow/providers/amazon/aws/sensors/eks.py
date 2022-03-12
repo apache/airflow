@@ -16,16 +16,21 @@
 # under the License.
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
-from typing import Optional
+import warnings
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
-    EKSHook,
+    EksHook,
     FargateProfileStates,
     NodegroupStates,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 DEFAULT_CONN_ID = "aws_default"
 
@@ -51,26 +56,26 @@ UNEXPECTED_TERMINAL_STATE_MSG = (
 )
 
 
-class EKSClusterStateSensor(BaseSensorOperator):
+class EksClusterStateSensor(BaseSensorOperator):
     """
     Check the state of an Amazon EKS Cluster until it reaches the target state or another terminal state.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EksClusterStateSensor`
+
     :param cluster_name: The name of the Cluster to watch. (templated)
-    :type cluster_name: str
     :param target_state: Target state of the Cluster. (templated)
-    :type target_state: ClusterStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -93,8 +98,8 @@ class EKSClusterStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
-        eks_hook = EKSHook(
+    def poke(self, context: 'Context'):
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -111,28 +116,33 @@ class EKSClusterStateSensor(BaseSensorOperator):
         return cluster_state == self.target_state
 
 
-class EKSFargateProfileStateSensor(BaseSensorOperator):
+class EksFargateProfileStateSensor(BaseSensorOperator):
     """
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/sensor:EksFargateProfileStateSensor`
+
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
-    :type cluster_name: str
     :param fargate_profile_name: The name of the Fargate profile to watch. (templated)
-    :type fargate_profile_name: str
     :param target_state: Target state of the Fargate profile. (templated)
-    :type target_state: FargateProfileStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "fargate_profile_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "fargate_profile_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -157,8 +167,8 @@ class EKSFargateProfileStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
-        eks_hook = EKSHook(
+    def poke(self, context: 'Context'):
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -177,28 +187,33 @@ class EKSFargateProfileStateSensor(BaseSensorOperator):
         return fargate_profile_state == self.target_state
 
 
-class EKSNodegroupStateSensor(BaseSensorOperator):
+class EksNodegroupStateSensor(BaseSensorOperator):
     """
     Check the state of an EKS managed node group until it reaches the target state or another terminal state.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EksNodegroupStateSensor`
+
     :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
-    :type cluster_name: str
     :param nodegroup_name: The name of the Nodegroup to watch. (templated)
-    :type nodegroup_name: str
     :param target_state: Target state of the Nodegroup. (templated)
-    :type target_state: NodegroupStates
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "nodegroup_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "nodegroup_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -223,8 +238,8 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context):
-        eks_hook = EKSHook(
+    def poke(self, context: 'Context'):
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
@@ -241,3 +256,51 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
                 )
             )
         return nodegroup_state == self.target_state
+
+
+class EKSClusterStateSensor(EksClusterStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSFargateProfileStateSensor(EksFargateProfileStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EKSNodegroupStateSensor(EksNodegroupStateSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This sensor is deprecated. "
+            "Please use `airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

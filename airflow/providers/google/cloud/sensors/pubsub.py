@@ -17,12 +17,15 @@
 # under the License.
 """This module contains a Google PubSub sensor."""
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PubSubPullSensor(BaseSensorOperator):
@@ -50,13 +53,10 @@ class PubSubPullSensor(BaseSensorOperator):
     variables in them.
 
     :param project: the Google Cloud project ID for the subscription (templated)
-    :type project: str
     :param subscription: the Pub/Sub subscription name. Do not include the
         full subscription path.
-    :type subscription: str
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
-    :type max_messages: int
     :param return_immediately:
         (Deprecated) This is an underlying PubSub API implementation detail.
         It has no real effect on Sensor behaviour other than some internal wait time before retrying
@@ -66,23 +66,18 @@ class PubSubPullSensor(BaseSensorOperator):
         If you want a non-blocking task that does not to wait for messages, please use
         :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator`
         instead.
-    :type return_immediately: bool
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
-    :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param messages_callback: (Optional) Callback to process received messages.
         It's return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
-    :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -91,14 +86,13 @@ class PubSubPullSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         'project_id',
         'subscription',
         'impersonation_chain',
-    ]
+    )
     ui_color = '#ff7f50'
 
     def __init__(
@@ -110,7 +104,7 @@ class PubSubPullSensor(BaseSensorOperator):
         return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
-        messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
+        messages_callback: Optional[Callable[[List[ReceivedMessage], "Context"], Any]] = None,
         delegate_to: Optional[str] = None,
         project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -151,12 +145,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context: dict):
+    def execute(self, context: "Context") -> Any:
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -186,14 +180,13 @@ class PubSubPullSensor(BaseSensorOperator):
     def _default_message_callback(
         self,
         pulled_messages: List[ReceivedMessage],
-        context: Dict[str, Any],
+        context: "Context",
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.
-        :type pulled_messages: List[ReceivedMessage]
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """

@@ -19,7 +19,7 @@
 
 /* global document, window, $, moment, Airflow */
 import { escapeHtml } from './main';
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 import { formatDateTime } from './datetime_utils';
 
 const executionDate = getMetaValue('execution_date');

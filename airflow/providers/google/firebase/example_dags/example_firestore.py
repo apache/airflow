@@ -119,10 +119,6 @@ with models.DAG(
                 "csvOptions": {"skipLeadingRows": 1},
             },
         },
-        source_objects=[
-            f"{EXPORT_PREFIX}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
-            f"/all_namespaces_kind_{EXPORT_COLLECTION_ID}.export_metadata"
-        ],
     )
     # [END howto_operator_create_external_table_multiple_types]
 

@@ -19,28 +19,26 @@
 
 /* global localStorage */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
-  Text,
   Flex,
   useDisclosure,
   Collapse,
 } from '@chakra-ui/react';
-import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
-import useTreeData from './useTreeData';
 import StatusBox from './StatusBox';
+import TaskName from './TaskName';
 
-import getMetaValue from '../meta_value';
+import { getMetaValue } from '../utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
-  task, containerRef, level = 0, isParentOpen,
+  task, containerRef, level = 0, isParentOpen, dagRunIds,
 }) => task.children.map((t) => (
   <Row
     key={t.id}
@@ -49,64 +47,36 @@ const renderTaskRows = ({
     containerRef={containerRef}
     prevTaskId={task.id}
     isParentOpen={isParentOpen}
+    dagRunIds={dagRunIds}
   />
 ));
 
-const TaskName = ({
-  isGroup, onToggle, isOpen, level, taskName,
-}) => (
-  <Box _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}>
-    <Flex
-      as={isGroup ? 'button' : 'div'}
-      onClick={() => isGroup && onToggle()}
-      color={level > 4 && 'white'}
-      aria-label={taskName}
-      title={taskName}
-      mr={4}
-      width="100%"
-      backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}
-      alignItems="center"
-    >
-      <Text
-        display="inline"
-        fontSize="12px"
-        ml={level * 4 + 4}
-        isTruncated
-      >
-        {taskName}
-      </Text>
-      {isGroup && (
-        isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
-      )}
-    </Flex>
-  </Box>
-);
-
-const TaskInstances = ({ task, containerRef, dagRuns }) => (
+const TaskInstances = ({ task, containerRef, dagRunIds }) => (
   <Flex justifyContent="flex-end">
-    {dagRuns.map((run) => {
+    {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
-      const instance = task.instances.find((gi) => gi.runId === run.runId);
+      const instance = task.instances.find((gi) => gi.runId === runId);
       return instance
         ? (
           <StatusBox
-            key={`${run.runId}-${task.id}`}
+            key={`${runId}-${task.id}`}
             instance={instance}
             containerRef={containerRef}
             extraLinks={task.extraLinks}
             group={task}
           />
         )
-        : <Box key={`${run.runId}-${task.id}`} width="18px" data-testid="blank-task" />;
+        : <Box key={`${runId}-${task.id}`} width="18px" data-testid="blank-task" />;
     })}
   </Flex>
 );
 
-const Row = ({
-  task, containerRef, level, prevTaskId, isParentOpen = true,
-}) => {
-  const { data: { dagRuns = [] } } = useTreeData();
+const Row = (props) => {
+  const {
+    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds,
+  } = props;
   const isGroup = !!task.children;
+
   const taskName = prevTaskId ? task.id.replace(`${prevTaskId}.`, '') : task.id;
 
   const storageKey = `${dagId}-open-groups`;
@@ -119,6 +89,12 @@ const Row = ({
     localStorage.setItem(storageKey, JSON.stringify(openGroups.filter((g) => g !== taskName)));
   };
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
+
+  // assure the function is the same across renders
+  const memoizedToggle = useCallback(
+    () => isGroup && onToggle(),
+    [onToggle, isGroup],
+  );
 
   const parentTasks = task.id.split('.');
   parentTasks.splice(-1);
@@ -144,10 +120,11 @@ const Row = ({
           backgroundColor="white"
           borderBottom={0}
         >
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
-              onToggle={onToggle}
+              onToggle={memoizedToggle}
               isGroup={isGroup}
+              isMapped={task.isMapped}
               taskName={taskName}
               isOpen={isOpen}
               level={level}
@@ -155,15 +132,15 @@ const Row = ({
           </Collapse>
         </Td>
         <Td width={0} p={0} borderBottom={0} />
-        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} borderBottom={0}>
-          <Collapse in={isFullyOpen}>
-            <TaskInstances dagRuns={dagRuns} task={task} containerRef={containerRef} />
+        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
+          <Collapse in={isFullyOpen} unmountOnExit>
+            <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>
         </Td>
       </Tr>
       {isGroup && (
         renderTaskRows({
-          task, containerRef, level: level + 1, isParentOpen: isOpen,
+          ...props, level: level + 1, isParentOpen: isOpen,
         })
       )}
     </>

@@ -21,7 +21,7 @@ import io
 import pickle
 import tarfile
 from tempfile import TemporaryDirectory
-from typing import Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 from docker import APIClient, tls
 from docker.errors import APIError
@@ -30,6 +30,18 @@ from docker.types import Mount
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
+def stringify(line: Union[str, bytes]):
+    """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
+    decode_method = getattr(line, 'decode', None)
+    if decode_method:
+        return decode_method(encoding='utf-8', errors='surrogateescape')
+    else:
+        return line
 
 
 class DockerOperator(BaseOperator):
@@ -59,101 +71,74 @@ class DockerOperator(BaseOperator):
 
     :param image: Docker image from which to create the container.
         If image tag is omitted, "latest" will be used. (templated)
-    :type image: str
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
-    :type api_version: str
     :param command: Command to be run in the container. (templated)
-    :type command: str or list
     :param container_name: Name of the container. Optional (templated)
-    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :type cpus: float
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
-    :type docker_url: str
     :param environment: Environment variables to set in the container. (templated)
-    :type environment: dict
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
-    :type private_environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
-    :type force_pull: bool
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
-    :type mem_limit: float or str
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
-    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
-    :type network_mode: str
+        It can be one of the following:
+        bridge - Create new network stack for the container with default docker bridge network
+        None - No networking for this container
+        container:<name|id> - Use the network stack of another container specified via <name|id>
+        host - Use the host network stack. Incompatible with `port_bindings`
+        '<network-name>|<network-id>' - Connects the container to user created network
+        (using `docker network create` command)
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
-    :type tls_ca_cert: str
     :param tls_client_cert: Path to the PEM-encoded certificate
         used to authenticate docker client.
-    :type tls_client_cert: str
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
-    :type tls_client_key: str
     :param tls_hostname: Hostname to match against
         the docker server certificate or False to disable the check.
-    :type tls_hostname: str or bool
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
-    :type tls_ssl_version: str
     :param mount_tmp_dir: Specify whether the temporary directory should be bind-mounted
         from the host to the container. Defaults to True
-    :type mount_tmp_dir: bool
     :param tmp_dir: Mount point inside the container to
         a temporary directory created on the host by the operator.
         The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
-    :type tmp_dir: str
     :param user: Default user inside the docker container.
-    :type user: int or str
     :param mounts: List of volumes to mount into the container. Each item should
         be a :py:class:`docker.types.Mount` instance.
-    :type mounts: list[docker.types.Mount]
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
-    :type entrypoint: str or list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
-    :type working_dir: str
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
-    :type xcom_all: bool
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
-    :type docker_conn_id: str
     :param dns: Docker custom DNS servers
-    :type dns: list[str]
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: list[str]
     :param auto_remove: Auto-removal of the container on daemon side when the
         container's process exits.
         The default is False.
-    :type auto_remove: bool
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
-    :type shm_size: int
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
-    :type tty: bool
     :param privileged: Give extended privileges to this container.
-    :type privileged: bool
     :param cap_add: Include container capabilities
-    :type cap_add: list[str]
     :param retrieve_output: Should this docker image consistently attempt to pull from and output
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
-    :type retrieve_output: bool
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
-    :type retrieve_output_path: Optional[str]
     """
 
-    template_fields = ('image', 'command', 'environment', 'container_name')
-    template_ext = (
+    template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
+    template_ext: Sequence[str] = (
         '.sh',
         '.bash',
     )
@@ -253,7 +238,7 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config(),
         )
 
-    def _run_image(self) -> Optional[str]:
+    def _run_image(self) -> Optional[Union[List[str], str]]:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
@@ -276,11 +261,15 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> Optional[str]:
+    def _run_image_with_mounts(
+        self, target_mounts, add_tmp_variable: bool
+    ) -> Optional[Union[List[str], str]]:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -304,32 +293,40 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
-        lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container['Id'])
 
-            line = ''
-            res_lines = []
-            return_value = None
-            for line in lines:
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                line = line.strip()
-                res_lines.append(line)
-                self.log.info(line)
+            log_lines = []
+            for log_chunk in logstream:
+                log_chunk = stringify(log_chunk).strip()
+                log_lines.append(log_chunk)
+                self.log.info("%s", log_chunk)
+
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                res_lines = "\n".join(res_lines)
-                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-            if self.retrieve_output and not return_value:
-                return_value = self._attempt_to_retrieve_result()
-            ret = None
+                joined_log_lines = "\n".join(log_lines)
+                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
+
             if self.retrieve_output:
-                ret = return_value
+                return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                ret = self._get_return_value_from_logs(res_lines, line)
-            return ret
+                log_parameters = {
+                    'container': self.container['Id'],
+                    'stdout': True,
+                    'stderr': True,
+                    'stream': True,
+                }
+                try:
+                    if self.xcom_all:
+                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                    else:
+                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
+                        return lines[-1] if lines else None
+                except StopIteration:
+                    # handle the case when there is not a single line to iterate on
+                    return None
+            return None
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])
@@ -355,15 +352,11 @@ class DockerOperator(BaseOperator):
             return lib.loads(file.read())
 
         try:
-            return_value = copy_from_docker(self.container['Id'], self.retrieve_output_path)
-            return return_value
+            return copy_from_docker(self.container['Id'], self.retrieve_output_path)
         except APIError:
             return None
 
-    def _get_return_value_from_logs(self, res_lines, line):
-        return res_lines if self.xcom_all else line
-
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context: 'Context') -> Optional[str]:
         self.cli = self._get_cli()
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
@@ -402,7 +395,6 @@ class DockerOperator(BaseOperator):
         Retrieve command(s). if command string starts with [, it returns the command list)
 
         :param command: Docker command or entrypoint
-        :type command: str | List[str]
 
         :return: the command (or commands)
         :rtype: str | List[str]
@@ -414,6 +406,9 @@ class DockerOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Stopping docker container')
+            if self.container is None:
+                self.log.info('Not attempting to kill container as it was not created')
+                return
             self.cli.stop(self.container['Id'])
 
     def __get_tls_config(self) -> Optional[tls.TLSConfig]:

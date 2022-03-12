@@ -59,7 +59,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             kms_key_name=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
@@ -78,7 +78,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             kms_key_name=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -94,7 +94,7 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
             fail_if_not_exists=False,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -124,7 +124,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             retry_policy=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -158,7 +158,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             retry_policy=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -187,7 +187,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             retry_policy=None,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -206,7 +206,7 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
             fail_if_not_exists=False,
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 

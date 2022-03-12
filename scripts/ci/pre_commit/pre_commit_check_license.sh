@@ -16,12 +16,57 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
+export PYTHON_MAJOR_MINOR_VERSION="3.7"
 
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# Hide lines between ****/**** (detailed list of files)
-"$( dirname "${BASH_SOURCE[0]}" )/../static_checks/check_license.sh" 2>&1 | \
-    (sed "/Files with Apache License headers will be marked AL.*$/,/^\**$/d" || true)
+function run_check_license() {
+    echo
+    echo "Running Licence check"
+    echo
+
+    # This is the target of a symlink in airflow/www/static/docs -
+    # and rat exclude doesn't cope with the symlink target doesn't exist
+    mkdir -p docs/_build/html/
+
+    echo "Running license checks. This can take a while."
+    # We mount ALL airflow files for the licence check. We want to check them all!
+    if ! docker_v run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
+            --user "$(id -ur):$(id -gr)" \
+            --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
+            -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
+            ghcr.io/apache/airflow-apache-rat:0.13-2021.07.04 \
+            --exclude-file /opt/airflow/.rat-excludes \
+            --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
+        echo
+        echo  "${COLOR_RED}ERROR: RAT exited abnormally  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
+    set +e
+    local errors
+    errors=$(grep -F "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
+    set -e
+    if test ! -z "${errors}"; then
+        echo
+        echo  "${COLOR_RED}ERROR: Could not find Apache license headers in the following files:  ${COLOR_RESET}"
+        echo
+        echo "${errors}"
+        exit 1
+    else
+        echo
+        echo "${COLOR_GREEN}OK. RAT checks passed.  ${COLOR_RESET}"
+        echo
+    fi
+}
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    echo "Skip RAT check on ARM devices util we push multiplatform images"
+else
+    run_check_license
+fi

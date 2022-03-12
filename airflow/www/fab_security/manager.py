@@ -24,9 +24,10 @@ import datetime
 import json
 import logging
 import re
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
-from flask import g, session, url_for
+from flask import current_app, g, session, url_for
+from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
@@ -40,7 +41,6 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_NO_USER,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
 )
-from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -67,9 +67,10 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
-from flask_login import LoginManager, current_user
+from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.www.views import ResourceModelView
 
 log = logging.getLogger(__name__)
@@ -85,10 +86,37 @@ def _oauth_tokengetter(token=None):
     return token
 
 
+class AnonymousUser(AnonymousUserMixin):
+    """User object used when no active user is logged in."""
+
+    _roles: Set[Tuple[str, str]] = set()
+    _perms: Set[Tuple[str, str]] = set()
+
+    @property
+    def roles(self):
+        if not self._roles:
+            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
+        return self._roles
+
+    @roles.setter
+    def roles(self, roles):
+        self._roles = roles
+        self._perms = set()
+
+    @property
+    def perms(self):
+        if not self._perms:
+            self._perms = set()
+            for role in self.roles:
+                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
+        return self._perms
+
+
 class BaseSecurityManager:
     """Base class to define the Security Manager interface."""
 
-    appbuilder = None
+    appbuilder: AppBuilder
     """The appbuilder instance for the current security manager."""
     auth_view = None
     """ The obj instance for authentication view """
@@ -104,25 +132,31 @@ class BaseSecurityManager:
     """ Flask-OpenID OpenID """
     oauth = None
     """ Flask-OAuth """
-    oauth_remotes = None
+    oauth_remotes: Dict[str, Any]
     """ OAuth email whitelists """
-    oauth_whitelists = {}
+    oauth_whitelists: Dict[str, List] = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
-    oauth_tokengetter = _oauth_tokengetter
-    """ OAuth tokengetter function override to implement your own tokengetter method """
+
+    @staticmethod
+    def oauth_tokengetter(token=None):
+        """Authentication (OAuth) token getter function.
+        Override to implement your own token getter method
+        """
+        return _oauth_tokengetter(token)
+
     oauth_user_info = None
 
-    user_model = None
+    user_model: Type[User]
     """ Override to set your own User Model """
-    role_model = None
+    role_model: Type[Role]
     """ Override to set your own Role Model """
-    action_model = None
+    action_model: Type[Action]
     """ Override to set your own Action Model """
-    resource_model = None
+    resource_model: Type[Resource]
     """ Override to set your own Resource Model """
-    permission_model = None
+    permission_model: Type[Permission]
     """ Override to set your own Permission Model """
-    registeruser_model = None
+    registeruser_model: Type[RegisterUser]
     """ Override to set your own RegisterUser Model """
 
     userdbmodelview = UserDBModelView
@@ -162,10 +196,6 @@ class BaseSecurityManager:
     userinfoeditview = UserInfoEditView
     """ Override if you want your own User information edit view """
 
-    # API
-    security_api = SecurityApi
-    """ Override if you want your own Security API login endpoint """
-
     rolemodelview = RoleModelView
     actionmodelview = PermissionModelView
     userstatschartview = UserStatsChartView
@@ -186,6 +216,7 @@ class BaseSecurityManager:
         # Role Mapping
         app.config.setdefault("AUTH_ROLES_MAPPING", {})
         app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
+        app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
@@ -249,6 +280,7 @@ class BaseSecurityManager:
         :param app: Flask app
         """
         lm = LoginManager(app)
+        lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
         lm.user_loader(self.load_user)
         return lm
@@ -268,7 +300,7 @@ class BaseSecurityManager:
         """Returns FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
-    def get_roles_from_keys(self, role_keys: List[str]) -> Set[role_model]:
+    def get_roles_from_keys(self, role_keys: List[str]) -> Set[RoleModelView]:
         """
         Construct a list of FAB role objects, from a list of keys.
 
@@ -292,9 +324,19 @@ class BaseSecurityManager:
         return _roles
 
     @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
+    @property
     def get_url_for_registeruser(self):
         """Gets the URL for Register User"""
         return url_for(f"{self.registeruser_view.endpoint}.{self.registeruser_view.default_view}")
+
+    @property
+    def get_user_datamodel(self):
+        """Gets the User data model"""
+        return self.user_view.datamodel
 
     @property
     def get_register_user_datamodel(self):
@@ -305,6 +347,10 @@ class BaseSecurityManager:
     def builtin_roles(self):
         """Get the builtin roles"""
         return self._builtin_roles
+
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
     @property
     def auth_type(self):
@@ -590,6 +636,7 @@ class BaseSecurityManager:
                 "last_name": me.get("family_name", ""),
                 "id": me["oid"],
                 "username": me["oid"],
+                "role_keys": me.get("roles", []),
             }
         # for OpenShift
         if provider == "openshift":
@@ -646,8 +693,6 @@ class BaseSecurityManager:
     def register_views(self):
         if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
-        # Security APIs
-        self.appbuilder.add_api(self.security_api)
 
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
@@ -886,7 +931,7 @@ class BaseSecurityManager:
         except (IndexError, NameError):
             return None, None
 
-    def _ldap_calculate_user_roles(self, user_attributes: Dict[str, bytes]) -> List[str]:
+    def _ldap_calculate_user_roles(self, user_attributes: Dict[str, List[bytes]]) -> List[str]:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
@@ -939,13 +984,13 @@ class BaseSecurityManager:
             return False
 
     @staticmethod
-    def ldap_extract(ldap_dict: Dict[str, bytes], field_name: str, fallback: str) -> str:
+    def ldap_extract(ldap_dict: Dict[str, List[bytes]], field_name: str, fallback: str) -> str:
         raw_value = ldap_dict.get(field_name, [bytes()])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
 
     @staticmethod
-    def ldap_extract_list(ldap_dict: Dict[str, bytes], field_name: str) -> List[str]:
+    def ldap_extract_list(ldap_dict: Dict[str, List[bytes]], field_name: str) -> List[str]:
         raw_list = ldap_dict.get(field_name, [])
         # decode - removing empty strings
         return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
@@ -1138,7 +1183,6 @@ class BaseSecurityManager:
         Openid user Authentication
 
         :param email: user's email to authenticate
-        :type self: User model
         """
         user = self.find_user(email=email)
         if user is None or (not user.is_active):
@@ -1153,7 +1197,6 @@ class BaseSecurityManager:
         REMOTE_USER user Authentication
 
         :param username: user's username for remote auth
-        :type self: User model
         """
         user = self.find_user(username=username)
 
@@ -1265,22 +1308,6 @@ class BaseSecurityManager:
         else:
             return None
 
-    def is_item_public(self, action_name, resource_name):
-        """
-        Check if view has public permissions
-
-        :param action_name:
-            the action: can_show, can_edit...
-        :param resource_name:
-            the name of the resource
-        """
-        perms = self.get_public_permissions()
-        if perms:
-            for perm in perms:
-                if (resource_name == perm.resource.name) and (action_name == perm.action.name):
-                    return True
-        return False
-
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role"""
         perms = self.builtin_roles.get(role.name, [])
@@ -1289,54 +1316,17 @@ class BaseSecurityManager:
                 return True
         return False
 
-    def _has_resource_access(self, user: object, action_name: str, resource_name: str) -> bool:
-        roles = user.roles
-        db_role_ids = []
-        # First check against builtin (statically configured) roles
-        # because no database query is needed
-        for role in roles:
-            if role.name in self.builtin_roles:
-                if self._has_access_builtin_roles(role, action_name, resource_name):
-                    return True
-            else:
-                db_role_ids.append(role.id)
-
-        # If it's not a builtin role check against database store roles
-        return self.permission_exists_in_one_or_more_roles(resource_name, action_name, db_role_ids)
-
-    def get_user_roles(self, user) -> List[object]:
-        """Get current user roles, if user is not authenticated returns the public role"""
-        if not user.is_authenticated:
-            return [self.get_public_role()]
-        return user.roles
-
-    def get_role_permissions(self, role) -> Set[Tuple[str, str]]:
-        """Get all permissions for a certain role"""
-        result = set()
-        if role.name in self.builtin_roles:
-            for permission in self.builtin_roles[role.name]:
-                result.add((permission[1], permission[0]))
-        else:
-            for permission in self.get_role_permissions_from_db(role.id):
-                result.add((permission.action.name, permission.resource.name))
-        return result
-
-    def get_user_permissions(self, user) -> Set[Tuple[str, str]]:
-        """Get all permissions from the current user"""
-        roles = self.get_user_roles(user)
-        result = set()
-        for role in roles:
-            result.update(self.get_role_permissions(role))
-        return result
-
     def _get_user_permission_resources(
-        self, user: object, action_name: str, resource_names: List[str]
+        self, user: Optional[User], action_name: str, resource_names: Optional[List[str]] = None
     ) -> Set[str]:
         """
         Return a set of resource names with a certain action name
         that a user has access to. Mainly used to fetch all menu permissions
         on a single db call, will also check public permissions and builtin roles
         """
+        if not resource_names:
+            resource_names = []
+
         db_role_ids = []
         if user is None:
             # include public role
@@ -1360,16 +1350,7 @@ class BaseSecurityManager:
         result.update(role_resource_names)
         return result
 
-    def has_access(self, action_name, resource_name):
-        """Check if current user or public has access to resource."""
-        if current_user.is_authenticated:
-            return self._has_resource_access(g.user, action_name, resource_name)
-        elif current_user_jwt:
-            return self._has_resource_access(current_user_jwt, action_name, resource_name)
-        else:
-            return self.is_item_public(action_name, resource_name)
-
-    def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
+    def get_user_menu_access(self, menu_names: Optional[List[str]] = None) -> Set[str]:
         if current_user.is_authenticated:
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
@@ -1383,7 +1364,7 @@ class BaseSecurityManager:
         """
         Adds an action on a resource to the backend
 
-        :param base_permissions:
+        :param base_action_names:
             list of permissions from view (all exposed methods):
              'can_add','can_edit' etc...
         :param resource_name:
@@ -1415,12 +1396,11 @@ class BaseSecurityManager:
                 if perm.action.name not in base_action_names:
                     # perm to delete
                     roles = self.get_all_roles()
-                    action = self.get_action(perm.action.name)
                     # del permission from all roles
                     for role in roles:
                         # TODO: An action can't be removed from a role.
                         # This is a bug in FAB. It has been reported.
-                        self.remove_permission_from_role(role, action)
+                        self.remove_permission_from_role(role, perm)
                     self.delete_permission(perm.action.name, resource_name)
                 elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
                     # Role Admin must have all permissions
@@ -1490,7 +1470,7 @@ class BaseSecurityManager:
         """Generic function that returns all existing users"""
         raise NotImplementedError
 
-    def get_role_permissions_from_db(self, role_id: int) -> List[object]:
+    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
         """Get all DB permissions from a role id"""
         raise NotImplementedError
 
@@ -1526,16 +1506,11 @@ class BaseSecurityManager:
         """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def get_public_permissions(self):
-        """Returns all permissions from public role"""
-        raise NotImplementedError
-
     def get_action(self, name: str):
         """
         Gets an existing action record.
 
         :param name: name
-        :type name: str
         :return: Action record, if it exists
         :rtype: Action
         """
@@ -1564,7 +1539,6 @@ class BaseSecurityManager:
         Deletes a permission action.
 
         :param name: Name of action to delete (e.g. can_read).
-        :type name: str
         :return: Whether or not delete was successful.
         :rtype: bool
         """
@@ -1581,7 +1555,6 @@ class BaseSecurityManager:
         Returns a resource record by name, if it exists.
 
         :param name: Name of resource
-        :type name: str
         """
         raise NotImplementedError
 
@@ -1599,7 +1572,6 @@ class BaseSecurityManager:
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
-        :type name: str
         """
         raise NotImplementedError
 
@@ -1623,9 +1595,7 @@ class BaseSecurityManager:
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
-        :type action_name: str
         :param resource_name: Name of resource
-        :type resource_name: str
         :return: The existing permission
         :rtype: Permission
         """
@@ -1636,7 +1606,6 @@ class BaseSecurityManager:
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :type resource: Resource
         :return: Action objects representing resource->action pair
         :rtype: Permission
         """
@@ -1647,9 +1616,7 @@ class BaseSecurityManager:
         Creates a permission linking an action and resource.
 
         :param action_name: Name of existing action
-        :type action_name: str
         :param resource_name: Name of existing resource
-        :type resource_name: str
         :return: Resource created
         :rtype: Permission
         """
@@ -1661,9 +1628,7 @@ class BaseSecurityManager:
         underlying action or resource.
 
         :param action_name: Name of existing action
-        :type action_name: str
         :param resource_name: Name of existing resource
-        :type resource_name: str
         :return: None
         :rtype: None
         """
@@ -1677,9 +1642,7 @@ class BaseSecurityManager:
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
-        :type role
         :param permission: The permission pair to add to a role.
-        :type permission: Permission
         :return: None
         :rtype: None
         """
@@ -1690,9 +1653,7 @@ class BaseSecurityManager:
         Remove a permission pair from a role.
 
         :param role: User role containing permissions.
-        :type role
         :param permission: Object representing resource-> action pair
-        :type permission: Permission
         """
         raise NotImplementedError
 

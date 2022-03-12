@@ -20,7 +20,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -29,54 +29,43 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
     Copy data from SQL to Google Cloud Storage in JSON or CSV format.
 
     :param sql: The SQL to execute.
-    :type sql: str
     :param bucket: The bucket to upload to.
-    :type bucket: str
     :param filename: The filename to use as the object name when uploading
         to Google Cloud Storage. A ``{}`` should be specified in the filename
         to allow the operator to inject file numbers in cases where the
         file is split due to size.
-    :type filename: str
     :param schema_filename: If set, the filename to use as the object name
         when uploading a .json file containing the BigQuery schema fields
         for the table that was dumped from the database.
-    :type schema_filename: str
     :param approx_max_file_size_bytes: This operator supports the ability
         to split large table dumps into multiple files (see notes in the
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :type approx_max_file_size_bytes: long
     :param export_format: Desired format of files to be exported.
-    :type export_format: str
     :param field_delimiter: The delimiter to be used for CSV files.
-    :type field_delimiter: str
     :param null_marker: The null marker to be used for CSV files.
-    :type null_marker: str
     :param gzip: Option to compress file for upload (does not apply to schemas).
-    :type gzip: bool
     :param schema: The schema to use, if any. Should be a list of dict or
         a str. Pass a string if using Jinja template, otherwise, pass a list of
         dict. Examples could be seen: https://cloud.google.com/bigquery/docs
         /schemas#specifying_a_json_schema_file
-    :type schema: str or list
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param parameters: a parameters dict that is substituted at query runtime.
-    :type parameters: dict
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -85,10 +74,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'sql',
         'bucket',
         'filename',
@@ -97,7 +85,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         'parameters',
         'impersonation_chain',
     )
-    template_ext = ('.sql',)
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#a0e08c'
 
     def __init__(
@@ -146,7 +135,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info("Executing query")
         cursor = self.query()
 

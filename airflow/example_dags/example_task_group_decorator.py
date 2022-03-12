@@ -18,7 +18,7 @@
 
 """Example DAG demonstrating the usage of the @taskgroup decorator."""
 
-from datetime import datetime
+import pendulum
 
 from airflow.decorators import task, task_group
 from airflow.models.dag import DAG
@@ -33,39 +33,42 @@ def task_start():
 
 
 @task
-def task_1(value):
+def task_1(value: int) -> str:
     """Dummy Task1"""
     return f'[ Task1 {value} ]'
 
 
 @task
-def task_2(value):
+def task_2(value: str) -> str:
     """Dummy Task2"""
     return f'[ Task2 {value} ]'
 
 
 @task
-def task_3(value):
+def task_3(value: str) -> None:
     """Dummy Task3"""
     print(f'[ Task3 {value} ]')
 
 
 @task
-def task_end():
+def task_end() -> None:
     """Dummy Task which is Last Task of Dag"""
     print('[ Task_End  ]')
 
 
 # Creating TaskGroups
 @task_group
-def task_group_function(value):
+def task_group_function(value: int) -> None:
     """TaskGroup for grouping related Tasks"""
-    return task_3(task_2(task_1(value)))
+    task_3(task_2(task_1(value)))
 
 
 # Executing Tasks and TaskGroups
 with DAG(
-    dag_id="example_task_group_decorator", start_date=datetime(2021, 1, 1), catchup=False, tags=["example"]
+    dag_id="example_task_group_decorator",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
 ) as dag:
     start_task = task_start()
     end_task = task_end()

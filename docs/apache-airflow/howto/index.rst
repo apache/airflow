@@ -37,6 +37,7 @@ configuring an Airflow environment.
     customize-ui
     custom-operator
     create-custom-decorator
+    export-more-env-vars
     connection
     variable
     run-behind-proxy
@@ -44,3 +45,4 @@ configuring an Airflow environment.
     use-test-config
     define_extra_link
     email-config
+    dynamic-dag-generation

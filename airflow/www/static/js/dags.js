@@ -19,9 +19,9 @@
 
 /* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
 
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
-import { formatDateTime } from './datetime_utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -36,7 +36,7 @@ const csrfToken = getMetaValue('csrf_token');
 const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
-const treeUrl = getMetaValue('tree_url');
+const gridUrl = getMetaValue('grid_url');
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -122,8 +122,7 @@ $('.typeahead').typeahead({
     const dagId = value.trim();
     if (dagId) {
       const query = new URLSearchParams(window.location.search);
-      query.set('dag_id', dagId);
-      window.location = `${treeUrl}?${query}`;
+      window.location = `${gridUrl.replace('__DAG_ID__', dagId)}?${query}`;
     }
   },
 });
@@ -371,7 +370,8 @@ $('.js-next-run-tooltip').each((i, run) => {
       const nextRunData = $(run).attr('data-nextrun');
       const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
       let newTitle = '';
-      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br><br>`;
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
       newTitle += '<strong>Data Interval</strong><br>';
       newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
       newTitle += `End: ${formatDateTime(intervalEnd)}`;

@@ -23,11 +23,10 @@ from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
-from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.compat import sqlalchemy as sqla_compat
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -100,7 +99,7 @@ class SecurityManager(BaseSecurityManager):
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = Inspector.from_engine(engine)
+            inspector = sqla_compat.inspect(engine)
             if "ab_user" not in inspector.get_table_names():
                 log.info(c.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
@@ -252,7 +251,7 @@ class SecurityManager(BaseSecurityManager):
     def update_role(self, role_id, name: str) -> Optional[Role]:
         role = self.get_session.query(self.role_model).get(role_id)
         if not role:
-            return
+            return None
         try:
             role.name = name
             self.get_session.merge(role)
@@ -261,7 +260,8 @@ class SecurityManager(BaseSecurityManager):
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))
             self.get_session.rollback()
-            return
+            return None
+        return role
 
     def find_role(self, name):
         return self.get_session.query(self.role_model).filter_by(name=name).one_or_none()
@@ -272,18 +272,11 @@ class SecurityManager(BaseSecurityManager):
     def get_public_role(self):
         return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
-    def get_public_permissions(self):
-        role = self.get_public_role()
-        if role:
-            return role.permissions
-        return []
-
     def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
 
         :param name: name
-        :type name: str
         :return: Action record, if it exists
         :rtype: Action
         """
@@ -339,19 +332,6 @@ class SecurityManager(BaseSecurityManager):
             )
         ).all()
 
-    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
-        """Get all DB permissions from a role (one single query)"""
-        return (
-            self.appbuilder.get_session.query(Permission)
-            .join(Action)
-            .join(Resource)
-            .join(Permission.role)
-            .filter(Role.id == role_id)
-            .options(contains_eager(Permission.action))
-            .options(contains_eager(Permission.resource))
-            .all()
-        )
-
     def create_action(self, name):
         """
         Adds an action to the backend, model action
@@ -377,7 +357,6 @@ class SecurityManager(BaseSecurityManager):
         Deletes a permission action.
 
         :param name: Name of action to delete (e.g. can_read).
-        :type name: str
         :return: Whether or not delete was successful.
         :rtype: bool
         """
@@ -407,7 +386,6 @@ class SecurityManager(BaseSecurityManager):
         Returns a resource record by name, if it exists.
 
         :param name: Name of resource
-        :type name: str
         :return: Resource record
         :rtype: Resource
         """
@@ -427,7 +405,6 @@ class SecurityManager(BaseSecurityManager):
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
-        :type name: str
         :return: The FAB resource created.
         :rtype: Resource
         """
@@ -478,14 +455,12 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> Permission:
+    def get_permission(self, action_name: str, resource_name: str) -> Optional[Permission]:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
-        :type action_name: str
         :param resource_name: Name of resource
-        :type resource_name: str
         :return: The existing permission
         :rtype: Permission
         """
@@ -497,19 +472,19 @@ class SecurityManager(BaseSecurityManager):
                 .filter_by(action=action, resource=resource)
                 .one_or_none()
             )
+        return None
 
     def get_resource_permissions(self, resource: Resource) -> Permission:
         """
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :type resource: Resource
         :return: Action objects representing resource->action pair
         :rtype: Permission
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
-    def create_permission(self, action_name, resource_name):
+    def create_permission(self, action_name, resource_name) -> Optional[Permission]:
         """
         Adds a permission on a resource to the backend
 
@@ -535,6 +510,7 @@ class SecurityManager(BaseSecurityManager):
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
             self.get_session.rollback()
+            return None
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
@@ -542,9 +518,7 @@ class SecurityManager(BaseSecurityManager):
         underlying action or resource.
 
         :param action_name: Name of existing action
-        :type action_name: str
         :param resource_name: Name of existing resource
-        :type resource_name: str
         :return: None
         :rtype: None
         """
@@ -582,9 +556,7 @@ class SecurityManager(BaseSecurityManager):
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
-        :type role: Role
         :param permission: The permission pair to add to a role.
-        :type permission: Permission
         :return: None
         :rtype: None
         """
@@ -603,9 +575,7 @@ class SecurityManager(BaseSecurityManager):
         Remove a permission pair from a role.
 
         :param role: User role containing permissions.
-        :type role: Role
         :param permission: Object representing resource-> action pair
-        :type permission: Permission
         """
         if permission in role.permissions:
             try:

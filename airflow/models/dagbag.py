@@ -40,6 +40,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
+    ParamValidationError,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -76,24 +77,16 @@ class DagBag(LoggingMixin):
     independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :type dag_folder: unicode
     :param include_examples: whether to include the examples that ship
         with airflow or not
-    :type include_examples: bool
     :param include_smart_sensor: whether to include the smart sensor native
         DAGs that create the smart sensor operators for whole cluster
-    :type include_smart_sensor: bool
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
-    :type read_dags_from_db: bool
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
-    :type load_op_links: bool
     """
-
-    DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
-    SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
         self,
@@ -172,7 +165,6 @@ class DagBag(LoggingMixin):
         Gets the DAG out of the dictionary, and refreshes it if expired
 
         :param dag_id: DAG Id
-        :type dag_id: str
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
@@ -290,7 +282,7 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             return []
 
-        if not zipfile.is_zipfile(filepath):
+        if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
             mods = self._load_modules_from_file(filepath, safe_mode)
         else:
             mods = self._load_modules_from_zip(filepath, safe_mode)
@@ -316,13 +308,7 @@ class DagBag(LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        timeout_msg = (
-            f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s.\n"
-            "Please take a look at these docs to improve your DAG import time:\n"
-            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
-            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
-        )
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
+        def parse(mod_name, filepath):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -338,7 +324,26 @@ class DagBag(LoggingMixin):
                     )
                 else:
                     self.import_errors[filepath] = str(e)
-        return []
+                return []
+
+        dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
+
+        if not isinstance(dagbag_import_timeout, (int, float)):
+            raise TypeError(
+                f'Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float'
+            )
+
+        if dagbag_import_timeout <= 0:  # no parsing timeout
+            return parse(mod_name, filepath)
+
+        timeout_msg = (
+            f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
+            "Please take a look at these docs to improve your DAG import time:\n"
+            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
+            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
+        )
+        with timeout(dagbag_import_timeout, error_message=timeout_msg):
+            return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []
@@ -398,6 +403,8 @@ class DagBag(LoggingMixin):
             dag.fileloc = mod.__file__
             try:
                 dag.timetable.validate()
+                # validate dag params
+                dag.params.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
@@ -409,6 +416,7 @@ class DagBag(LoggingMixin):
                 AirflowDagCycleException,
                 AirflowDagDuplicatedIdException,
                 AirflowClusterPolicyViolation,
+                ParamValidationError,
             ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = str(exception)

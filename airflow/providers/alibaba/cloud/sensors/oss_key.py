@@ -15,16 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-try:
+import sys
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
-from typing import Optional
+
+from typing import TYPE_CHECKING, Optional, Sequence
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OSSKeySensor(BaseSensorOperator):
@@ -36,16 +42,12 @@ class OSSKeySensor(BaseSensorOperator):
     :param bucket_key: The key being waited on. Supports full oss:// style url
         or relative path from root level. When it's specified as a full oss://
         url, please leave bucket_name as `None`.
-    :type bucket_key: str
     :param region: OSS region
-    :type region: str
     :param bucket_name: OSS bucket name
-    :type bucket_name: str
     :param oss_conn_id: The Airflow connection used for OSS credentials.
-    :type oss_conn_id: Optional[str]
     """
 
-    template_fields = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
 
     def __init__(
         self,
@@ -63,7 +65,7 @@ class OSSKeySensor(BaseSensorOperator):
         self.oss_conn_id = oss_conn_id
         self.hook: Optional[OSSHook] = None
 
-    def poke(self, context):
+    def poke(self, context: 'Context'):
 
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)

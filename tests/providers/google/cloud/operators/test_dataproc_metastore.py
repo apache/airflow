@@ -18,6 +18,7 @@
 from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreCreateBackupOperator,
@@ -63,7 +64,7 @@ TEST_SERVICE_TO_UPDATE = {
         "second_key": "second_value",
     }
 }
-TEST_UPDATE_MASK: dict = {"paths": ["labels"]}
+TEST_UPDATE_MASK: FieldMask = FieldMask(paths=["labels"])
 TEST_DESTINATION_GCS_FOLDER: str = "gs://bucket_name/path_inside_bucket"
 
 

@@ -355,6 +355,7 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
     def test_execute(self, mock_temp, gcs_mock_hook, mock_hook):
         operation_name = "operation_name"
         operation = {"key": "value"}
+        operation = {"response": {"resourceName": "test_name"}}
         gzip = False
 
         # mock_hook.return_value.create_sdf_download_operation.return_value = response_name
@@ -415,14 +416,20 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
 
 class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator(TestCase):
     @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator.xcom_push"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
     )
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, xcom_mock):
         body_request = {
             "version": "1",
             "id": "id",
             "filter": {"id": []},
         }
+        test_name = 'test_task'
+        mock_hook.return_value.create_sdf_download_operation.return_value = {"name": test_name}
 
         op = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
             body_request=body_request,
@@ -443,3 +450,4 @@ class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator(TestCase):
         mock_hook.return_value.create_sdf_download_operation.assert_called_once_with(
             body_request=body_request
         )
+        xcom_mock.assert_called_once_with(None, key="name", value=test_name)

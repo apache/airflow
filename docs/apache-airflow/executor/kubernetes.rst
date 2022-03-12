@@ -100,21 +100,21 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
 Storing DAGs in the image:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 Storing DAGs in a ``persistentVolume``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 Pulling DAGs from ``git``:
 
-.. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
+.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
@@ -154,7 +154,8 @@ Here is an example of a task with both features:
 .. code-block:: python
 
     import os
-    from datetime import datetime
+
+    import pendulum
 
     from airflow import DAG
     from airflow.decorators import task
@@ -166,7 +167,7 @@ Here is an example of a task with both features:
     with DAG(
         dag_id="example_pod_template_file",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=["example3"],
     ) as dag:

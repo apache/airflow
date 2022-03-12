@@ -20,9 +20,10 @@
 #################################
 {{- $persistence := .Values.workers.persistence.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-{{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
-{{- $affinity := or .Values.affinity .Values.workers.affinity }}
-{{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -82,10 +83,24 @@ spec:
         {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.workers.priorityClassName }}
+      priorityClassName: {{ .Values.workers.priorityClassName }}
+      {{- end }}
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
       affinity:
+{{- if $affinity }}
 {{ toYaml $affinity | indent 8 }}
+{{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: worker
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+{{- end }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
 {{- if .Values.workers.hostAliases }}
@@ -95,9 +110,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.uid }}
-        fsGroup: {{ .Values.gid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -112,7 +125,7 @@ spec:
           command:
             - chown
             - -R
-            - "{{ .Values.uid }}:{{ .Values.gid }}"
+            - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext:
             runAsUser: 0
@@ -125,6 +138,11 @@ spec:
 {{ toYaml .Values.workers.resources | indent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -267,15 +285,13 @@ spec:
 {{- if .Values.workers.extraVolumes }}
 {{ toYaml .Values.workers.extraVolumes | indent 8 }}
 {{- end }}
-        {{- if .Values.kerberos.enabled }}
-        - name: kerberos-keytab
-          secret:
-            secretName: {{ include "kerberos_keytab_secret" . | quote }}
-        {{- end }}
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
         {{- if .Values.kerberos.enabled }}
+        - name: kerberos-keytab
+          secret:
+            secretName: {{ include "kerberos_keytab_secret" . | quote }}
         - name: kerberos-ccache
           emptyDir: {}
         {{- end }}

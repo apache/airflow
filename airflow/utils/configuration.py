@@ -21,6 +21,7 @@ import os
 from tempfile import mkstemp
 
 from airflow.configuration import conf
+from airflow.utils.platform import IS_WINDOWS
 
 
 def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
@@ -30,11 +31,9 @@ def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
 
     :param include_env: Should the value of configuration from ``AIRFLOW__``
         environment variables be included or not
-    :type include_env: bool
     :param include_cmds: Should the result of calling any *_cmd config be
         set (True, default), or should the _cmd options be left as the
         command to run (False)
-    :type include_cmds: bool
     :return: a path to a temporary file
     """
     cfg_dict = conf.as_dict(
@@ -44,7 +43,7 @@ def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
 
     with os.fdopen(temp_fd, 'w') as temp_file:
         # Set the permissions before we write anything to it.
-        if chmod is not None:
+        if chmod is not None and not IS_WINDOWS:
             os.fchmod(temp_fd, chmod)
         json.dump(cfg_dict, temp_file)
 

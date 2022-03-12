@@ -20,10 +20,10 @@
 # Allowed values for the commands & flags used
 # The values here should be synchronized with the ones in
 # the ./scripts/ci/libraries/_initialization.sh and it is verified
-# by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9 3.6"
+_breeze_allowed_python_major_minor_versions="3.7 3.8 3.9 3.10"
+_breeze_allowed_debian_versions="bullseye buster"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
@@ -35,14 +35,16 @@ _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_mssql_versions="2017-latest 2019-latest"
 _breeze_allowed_postgres_versions="10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
-_breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor"
+_breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor LocalKubernetesExecutor"
 _breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
+_breeze_allowed_platforms="linux/amd64 linux/arm64 linux/amd64,linux/arm64"
 
 # shellcheck disable=SC2034
 {
     # Default values for the commands & flags used
+    _breeze_default_debian_version=$(echo "${_breeze_allowed_debian_versions}" | awk '{print $1}')
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
     _breeze_default_generate_providers_mode=$(echo "${_breeze_allowed_generate_constraints_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
@@ -55,6 +57,7 @@ _breeze_allowed_installation_methods=". apache-airflow"
     _breeze_default_mssql_version=$(echo "${_breeze_allowed_mssql_versions}" | awk '{print $1}')
     _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
     _breeze_default_package_format=$(echo "${_breeze_allowed_package_formats}" | awk '{print $1}')
+    _breeze_default_platform=$(echo "${_breeze_allowed_platforms}" | awk '{print $1}')
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
@@ -77,14 +80,14 @@ all
 airflow-config-yaml
 airflow-providers-available
 airflow-provider-yaml-files-ok
+autoflake
 base-operator
-bats-tests
-bats-in-container-tests
 black
 blacken-docs
 boring-cyborg
 build
 build-providers-dependencies
+chart-schema-lint
 capitalized-breeze
 changelog-duplicates
 check-apache-license
@@ -98,6 +101,7 @@ check-xml
 daysago-import-check
 debug-statements
 detect-private-key
+docstring-params
 doctoc
 dont-use-safe-filter
 end-of-file-fixer
@@ -117,11 +121,13 @@ lint-dockerfile
 lint-openapi
 markdownlint
 mermaid
+migration-reference
 mixed-line-ending
 mypy
 mypy-helm
 no-providers-in-core-examples
 no-relative-imports
+persist-credentials-disabled
 pre-commit-descriptions
 pre-commit-hook-names
 pretty-format-json
@@ -148,7 +154,9 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-supported-versions
 update-versions
+vendor-k8s-json-schema
 verify-db-migrations-documented
 version-sync
 www-lint
@@ -161,7 +169,7 @@ _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 
 _breeze_short_options="
-h p: b: i:
+h p: d: b: i:
 K: V:
 l a: t: d:
 v y n q f
@@ -172,7 +180,7 @@ S: N:
 "
 
 _breeze_long_options="
-help python: backend: integration:
+help python: debian-version: backend: integration: platform:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
@@ -189,7 +197,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
-cleanup-docker-context-files
+cleanup-docker-context-files prepare-buildx-cache
 test-type: preserve-volumes dry-run-docker
 executor:
 "
@@ -198,10 +206,10 @@ _breeze_commands="
 shell
 build-docs
 build-image
+prepare-build-cache
 cleanup-image
 exec
 generate-constraints
-push-image
 initialize-local-virtualenv
 prepare-airflow-packages
 setup-autocomplete
@@ -250,6 +258,9 @@ function breeze_complete::get_known_values_breeze() {
     case "$1" in
     -p | --python)
         _breeze_known_values=${_breeze_allowed_python_major_minor_versions}
+        ;;
+    -d | --debian-version)
+        _breeze_known_values=${_breeze_allowed_debian_versions}
         ;;
     -b | --backend)
         _breeze_known_values=${_breeze_allowed_backends}

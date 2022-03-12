@@ -70,13 +70,13 @@ class AirflowConsole(Console):
             self.print("No data found")
             return
         rows = [d.values() for d in data]
-        output = tabulate(rows, tablefmt="plain", headers=data[0].keys())
+        output = tabulate(rows, tablefmt="plain", headers=list(data[0].keys()))
         print(output)
 
     def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
         if isinstance(value, (tuple, list)):
             if output == "table":
-                return ",".join(self._normalize_data(x, output) for x in value)
+                return ",".join(str(self._normalize_data(x, output)) for x in value)
             return [self._normalize_data(x, output) for x in value]
         if isinstance(value, dict) and output != "table":
             return {k: self._normalize_data(v, output) for k, v in value.items()}
@@ -88,7 +88,7 @@ class AirflowConsole(Console):
 
     def print_as(self, data: List[Union[Dict, Any]], output: str, mapper: Optional[Callable] = None):
         """Prints provided using format specified by output argument"""
-        output_to_renderer = {
+        output_to_renderer: Dict[str, Callable[[Any], None]] = {
             "json": self.print_as_json,
             "yaml": self.print_as_yaml,
             "table": self.print_as_table,
@@ -106,7 +106,7 @@ class AirflowConsole(Console):
         if mapper:
             dict_data: List[Dict] = [mapper(d) for d in data]
         else:
-            dict_data: List[Dict] = data
+            dict_data = data
         dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data]
         renderer(dict_data)
 

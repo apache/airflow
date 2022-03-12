@@ -19,6 +19,7 @@ import os
 from unittest import mock
 
 import flask
+import markupsafe
 import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
@@ -225,7 +226,7 @@ def test_dashboard_flash_messages_many(user_client):
 
 def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
-    user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
+    user_input = markupsafe.Markup("Hello <em>%s</em>") % ("foo&bar",)
     messages = [
         UIAlert(link, html=True),
         UIAlert(user_input),
@@ -244,3 +245,9 @@ def test_dashboard_flash_messages_type(user_client):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_in_response("alert-foo", resp)
+
+
+def test_audit_log_view(user_client, working_dags):
+    url = 'audit_log?dag_id=filter_test_1'
+    resp = user_client.get(url, follow_redirects=True)
+    check_content_in_response('Dag Audit Log', resp)

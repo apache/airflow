@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Pool APIs."""
+from deprecated import deprecated
+
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.session import provide_session
 
 
+@deprecated(reason="Use Pool.get_pool() instead", version="2.2.4")
 @provide_session
 def get_pool(name, session=None):
     """Get pool by a given name."""
@@ -34,12 +37,14 @@ def get_pool(name, session=None):
     return pool
 
 
+@deprecated(reason="Use Pool.get_pools() instead", version="2.2.4")
 @provide_session
 def get_pools(session=None):
     """Get all pools."""
     return session.query(Pool).all()
 
 
+@deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
 @provide_session
 def create_pool(name, slots, description, session=None):
     """Create a pool with given parameters."""
@@ -70,6 +75,7 @@ def create_pool(name, slots, description, session=None):
     return pool
 
 
+@deprecated(reason="Use Pool.delete_pool() instead", version="2.2.4")
 @provide_session
 def delete_pool(name, session=None):
     """Delete pool by a given name."""

@@ -136,11 +136,12 @@ def _check_missing_guide_references(operator_names, python_module_paths) -> List
                 continue
 
             docstring = ast.get_docstring(class_def)
-            if "This class is deprecated." in docstring:
-                continue
+            if docstring:
+                if "This class is deprecated." in docstring:
+                    continue
 
-            if f":ref:`howto/operator:{existing_operator}`" in ast.get_docstring(class_def):
-                continue
+                if f":ref:`howto/operator:{existing_operator}`" in docstring:
+                    continue
 
             build_errors.append(
                 _generate_missing_guide_error(py_module_path, class_def.lineno, existing_operator)

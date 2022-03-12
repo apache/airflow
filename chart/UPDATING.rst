@@ -35,13 +35,57 @@ assists users migrating to a new version.
 
 Run ``helm repo update`` before upgrading the chart to the latest version.
 
-Airflow Helm Chart 1.4.0 (dev)
-------------------------------
 
-Default Airflow image is updated to ``2.2.2``
+Airflow Helm Chart 1.5.0
+------------------------
+
+Default Airflow image is updated to ``2.2.4``
 """""""""""""""""""""""""""""""""""""""""""""
 
-The default Airflow image that is used with the Chart is now ``2.2.2``, previously it was ``2.2.1``.
+The default Airflow image that is used with the Chart is now ``2.2.4``, previously it was ``2.2.3``.
+
+Removed ``config.api``
+""""""""""""""""""""""
+
+This section configured the authentication backend for the Airflow API but used the same values as the Airflow default setting, which made it unnecessary to
+declare the same again.
+
+Airflow Helm Chart 1.4.0
+------------------------
+
+Default Airflow image is updated to ``2.2.3``
+"""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.2.3``, previously it was ``2.2.1``.
+
+``ingress.web.hosts`` and ``ingress.flower.hosts`` parameters data type has changed and ``ingress.web.tls`` and ``ingress.flower.tls`` have moved
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``ingress.web.hosts`` and ``ingress.flower.hosts`` have had their types have been changed from an array of strings to an array of objects. ``ingress.web.tls`` and ``ingress.flower.tls`` can now be specified per host in ``ingress.web.hosts`` and ``ingress.flower.hosts`` respectively.
+
+The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
+
+Fixed precedence of ``nodeSelector``, ``affinity`` and ``tolerations`` params
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``nodeSelector``, ``affinity`` and ``tolerations`` params precedence has been fixed on all components. Now component-specific params
+(e.g. ``webserver.affinity``) takes precedence over the global param (e.g. ``affinity``).
+
+Default ``KubernetesExecutor`` worker affinity removed
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Previously a default affinity was added to ``KubernetesExecutor`` workers to spread the workers out across nodes. This default affinity is no
+longer set because, in general, there is no reason to spread task-specific workers across nodes.
+
+Changes in webserver and flower ``NetworkPolicy`` default ports
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The defaults for ``webserver.networkPolicy.ingress.ports`` and ``flower.networkPolicy.ingress.ports`` moved away from using named ports to numerical ports to avoid issues with OpenShift.
+
+Increase default ``livenessProbe`` ``timeoutSeconds`` for scheduler and triggerer
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default timeout for the scheduler and triggerer ``livenessProbe`` has been increased from 10 seconds to 20 seconds.
 
 Airflow Helm Chart 1.3.0
 ------------------------

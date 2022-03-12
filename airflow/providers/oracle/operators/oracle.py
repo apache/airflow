@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OracleOperator(BaseOperator):
@@ -29,19 +32,16 @@ class OracleOperator(BaseOperator):
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
         (templated)
-    :type sql: str or list[str]
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
-    :type oracle_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
 
     def __init__(
@@ -59,7 +59,40 @@ class OracleOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        if self.sql:
+            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+
+
+class OracleStoredProcedureOperator(BaseOperator):
+    """
+    Executes stored procedure in a specific Oracle database.
+
+    :param procedure: name of stored procedure to call (templated)
+    :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
+        reference to a specific Oracle database.
+    :param parameters: (optional) the parameters provided in the call
+    """
+
+    template_fields: Sequence[str] = ('procedure',)
+    ui_color = '#ededed'
+
+    def __init__(
+        self,
+        *,
+        procedure: str,
+        oracle_conn_id: str = 'oracle_default',
+        parameters: Optional[Union[Dict, List]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.oracle_conn_id = oracle_conn_id
+        self.procedure = procedure
+        self.parameters = parameters
+
+    def execute(self, context: 'Context') -> Optional[Union[List, Dict]]:
+        self.log.info('Executing: %s', self.procedure)
+        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
+        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

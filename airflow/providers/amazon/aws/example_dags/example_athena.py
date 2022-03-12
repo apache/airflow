@@ -21,7 +21,7 @@ from os import getenv
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator
+from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
 # [START howto_operator_athena_env_variables]
@@ -91,7 +91,7 @@ with DAG(
     # Using a task-decorated function to create a CSV file in S3
     add_sample_data_to_s3 = add_sample_data_to_s3()
 
-    create_table = AWSAthenaOperator(
+    create_table = AthenaOperator(
         task_id='setup__create_table',
         query=QUERY_CREATE_TABLE,
         database=ATHENA_DATABASE,
@@ -100,7 +100,7 @@ with DAG(
         max_tries=None,
     )
 
-    read_table = AWSAthenaOperator(
+    read_table = AthenaOperator(
         task_id='query__read_table',
         query=QUERY_READ_TABLE,
         database=ATHENA_DATABASE,
@@ -119,7 +119,7 @@ with DAG(
     # Using a task-decorated function to read the results from S3
     read_results_from_s3 = read_results_from_s3(read_table.output)
 
-    drop_table = AWSAthenaOperator(
+    drop_table = AthenaOperator(
         task_id='teardown__drop_table',
         query=QUERY_DROP_TABLE,
         database=ATHENA_DATABASE,
@@ -132,7 +132,7 @@ with DAG(
     remove_sample_data_from_s3 = remove_sample_data_from_s3()
 
     (
-        add_sample_data_to_s3
+        add_sample_data_to_s3  # type: ignore
         >> create_table
         >> read_table
         >> get_read_state

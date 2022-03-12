@@ -29,15 +29,18 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, overload
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
-from google.cloud import storage
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
@@ -58,11 +61,8 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     Decorator factory that convert object URL parameter to object name and bucket name parameter.
 
     :param object_url_keyword_arg_name: Name of the object URL parameter
-    :type object_url_keyword_arg_name: str
     :param bucket_name_keyword_arg_name: Name of the bucket name parameter
-    :type bucket_name_keyword_arg_name: str
     :param object_name_keyword_arg_name: Name of the object name parameter
-    :type object_name_keyword_arg_name: str
     :return: Decorator
     """
 
@@ -114,6 +114,13 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     return _wrapper
 
 
+# A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
+# This allows the 'bucket' argument to be of type str instead of Optional[str],
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+PROVIDE_BUCKET: str = cast(str, None)
+
+
 class GCSHook(GoogleBaseHook):
     """
     Interact with Google Cloud Storage. This hook uses the Google Cloud
@@ -149,7 +156,7 @@ class GCSHook(GoogleBaseHook):
         """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id
+                credentials=self._get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
         return self._conn
@@ -168,15 +175,11 @@ class GCSHook(GoogleBaseHook):
         source bucket/object is used, but not both.
 
         :param source_bucket: The bucket of the object to copy from.
-        :type source_bucket: str
         :param source_object: The object to copy.
-        :type source_object: str
         :param destination_bucket: The destination of the object to copied to.
             Can be omitted; then the same bucket is used.
-        :type destination_bucket: str
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
-        :type destination_object: str
         """
         destination_bucket = destination_bucket or source_bucket
         destination_object = destination_object or source_object
@@ -221,14 +224,10 @@ class GCSHook(GoogleBaseHook):
         destination_object can be omitted, in which case source_object is used.
 
         :param source_bucket: The bucket of the object to copy from.
-        :type source_bucket: str
         :param source_object: The object to copy.
-        :type source_object: str
         :param destination_bucket: The destination of the object to copied to.
-        :type destination_bucket: str
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
-        :type destination_object: str
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -264,6 +263,30 @@ class GCSHook(GoogleBaseHook):
             destination_bucket.name,  # type: ignore[attr-defined]
         )
 
+    @overload
+    def download(
+        self,
+        bucket_name: str,
+        object_name: str,
+        filename: None = None,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> bytes:
+        ...
+
+    @overload
+    def download(
+        self,
+        bucket_name: str,
+        object_name: str,
+        filename: str,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> str:
+        ...
+
     def download(
         self,
         bucket_name: str,
@@ -282,24 +305,18 @@ class GCSHook(GoogleBaseHook):
         to write to a file.
 
         :param bucket_name: The bucket to fetch from.
-        :type bucket_name: str
         :param object_name: The object to fetch.
-        :type object_name: str
         :param filename: If set, a local file path where the file should be written to.
-        :type filename: str
         :param chunk_size: Blob chunk size.
-        :type chunk_size: int
         :param timeout: Request timeout in seconds.
-        :type timeout: int
         :param num_max_attempts: Number of attempts to download the file.
-        :type num_max_attempts: int
         """
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
         num_file_attempts = 0
 
-        while num_file_attempts < num_max_attempts:
+        while True:
             try:
                 num_file_attempts += 1
                 client = self.get_conn()
@@ -329,13 +346,45 @@ class GCSHook(GoogleBaseHook):
                 time.sleep(timeout_seconds)
                 continue
 
+    def download_as_byte_array(
+        self,
+        bucket_name: str,
+        object_name: str,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        num_max_attempts: Optional[int] = 1,
+    ) -> bytes:
+        """
+        Downloads a file from Google Cloud Storage.
+
+        When no filename is supplied, the operator loads the file into memory and returns its
+        content. When a filename is supplied, it writes the file to the specified location and
+        returns the location. For file sizes that exceed the available memory it is recommended
+        to write to a file.
+
+        :param bucket_name: The bucket to fetch from.
+        :param object_name: The object to fetch.
+        :param chunk_size: Blob chunk size.
+        :param timeout: Request timeout in seconds.
+        :param num_max_attempts: Number of attempts to download the file.
+        """
+        # We do not pass filename, so will never receive string as response
+        return self.download(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            chunk_size=chunk_size,
+            timeout=timeout,
+            num_max_attempts=num_max_attempts,
+        )
+
     @_fallback_object_url_to_object_name_and_bucket_name()
     @contextmanager
     def provide_file(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
+        dir: Optional[str] = None,
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -344,17 +393,15 @@ class GCSHook(GoogleBaseHook):
         or just object_url parameter.
 
         :param bucket_name: The bucket to fetch from.
-        :type bucket_name: str
         :param object_name: The object to fetch.
-        :type object_name: str
         :param object_url: File reference url. Must start with "gs: //"
-        :type object_url: str
+        :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
         :return: File handler
         """
         if object_name is None:
             raise ValueError("Object name can not be empty")
         _, _, file_name = object_name.rpartition("/")
-        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+        with NamedTemporaryFile(suffix=file_name, dir=dir) as tmp_file:
             self.download(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
             tmp_file.flush()
             yield tmp_file
@@ -363,7 +410,7 @@ class GCSHook(GoogleBaseHook):
     @contextmanager
     def provide_file_and_upload(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
     ):
@@ -375,11 +422,8 @@ class GCSHook(GoogleBaseHook):
         or just object_url parameter.
 
         :param bucket_name: The bucket to fetch from.
-        :type bucket_name: str
         :param object_name: The object to fetch.
-        :type object_name: str
         :param object_url: File reference url. Must start with "gs: //"
-        :type object_url: str
         :return: File handler
         """
         if object_name is None:
@@ -403,36 +447,27 @@ class GCSHook(GoogleBaseHook):
         chunk_size: Optional[int] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
+        metadata: Optional[dict] = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
 
         :param bucket_name: The bucket to upload to.
-        :type bucket_name: str
         :param object_name: The object name to set when uploading the file.
-        :type object_name: str
         :param filename: The local file path to the file to be uploaded.
-        :type filename: str
         :param data: The file's data as a string or bytes to be uploaded.
-        :type data: str
         :param mime_type: The file's mime type set when uploading the file.
-        :type mime_type: str
         :param gzip: Option to compress local file or file data for upload
-        :type gzip: bool
         :param encoding: bytes encoding for file data if provided as string
-        :type encoding: str
         :param chunk_size: Blob chunk size.
-        :type chunk_size: int
         :param timeout: Request timeout in seconds.
-        :type timeout: int
         :param num_max_attempts: Number of attempts to try to upload the file.
-        :type num_max_attempts: int
+        :param metadata: The metadata to be uploaded with the file.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
             """Helper functions to upload a file or a string with a retry mechanism and exponential back-off.
             :param f: Callable that should be retried.
-            :type f: Callable[[], None]
             """
             num_file_attempts = 0
 
@@ -460,6 +495,10 @@ class GCSHook(GoogleBaseHook):
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
+
+        if metadata:
+            blob.metadata = metadata
+
         if filename and data:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
@@ -506,10 +545,8 @@ class GCSHook(GoogleBaseHook):
         Checks for the existence of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
-        :type object_name: str
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -521,10 +558,8 @@ class GCSHook(GoogleBaseHook):
         Get the update time of a file in Google Cloud Storage
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the blob to get updated time from the Google cloud
             storage bucket.
-        :type object_name: str
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -538,12 +573,9 @@ class GCSHook(GoogleBaseHook):
         Checks if an blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
-        :type object_name: str
         :param ts: The timestamp to check against.
-        :type ts: datetime.datetime
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
@@ -562,14 +594,10 @@ class GCSHook(GoogleBaseHook):
         Checks if an blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
                 storage bucket.
-        :type object_name: str
         :param min_ts: The minimum timestamp to check against.
-        :type min_ts: datetime.datetime
         :param max_ts: The maximum timestamp to check against.
-        :type max_ts: datetime.datetime
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
@@ -588,12 +616,9 @@ class GCSHook(GoogleBaseHook):
         Checks if an blob_name is updated before given time in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
-        :type object_name: str
         :param ts: The timestamp to check against.
-        :type ts: datetime.datetime
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
@@ -610,12 +635,9 @@ class GCSHook(GoogleBaseHook):
         Check if object is older than given time
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
-        :type object_name: str
         :param seconds: The time in seconds to check against
-        :type seconds: int
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
@@ -633,9 +655,7 @@ class GCSHook(GoogleBaseHook):
         Deletes an object from the bucket.
 
         :param bucket_name: name of the bucket, where the object resides
-        :type bucket_name: str
         :param object_name: name of the object to delete
-        :type object_name: str
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -649,10 +669,8 @@ class GCSHook(GoogleBaseHook):
         Delete a bucket object from the Google Cloud Storage.
 
         :param bucket_name: name of the bucket which will be deleted
-        :type bucket_name: str
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
-        :type: bool
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
@@ -669,16 +687,11 @@ class GCSHook(GoogleBaseHook):
         List all objects from the bucket with the give string prefix in name
 
         :param bucket_name: bucket name
-        :type bucket_name: str
         :param versions: if true, list all versions of the objects
-        :type versions: bool
         :param max_results: max count of items to return in a single page of responses
-        :type max_results: int
         :param prefix: prefix string which filters objects whose name begin with
             this prefix
-        :type prefix: str
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
-        :type delimiter: str
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
@@ -716,30 +729,23 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         timespan_start: datetime,
         timespan_end: datetime,
-        versions: bool = None,
-        max_results: int = None,
-        prefix: str = None,
-        delimiter: str = None,
-    ) -> list:
+        versions: Optional[bool] = None,
+        max_results: Optional[int] = None,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+    ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
         updated in the time between ``timespan_start`` and ``timespan_end``.
 
         :param bucket_name: bucket name
-        :type bucket_name: str
         :param timespan_start: will return objects that were updated at or after this datetime (UTC)
-        :type timespan_start: datetime
         :param timespan_end: will return objects that were updated before this datetime (UTC)
-        :type timespan_end: datetime
         :param versions: if true, list all versions of the objects
-        :type versions: bool
         :param max_results: max count of items to return in a single page of responses
-        :type max_results: int
         :param prefix: prefix string which filters objects whose name begin with
             this prefix
-        :type prefix: str
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
-        :type delimiter: str
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
@@ -779,10 +785,8 @@ class GCSHook(GoogleBaseHook):
         Gets the size of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google
             cloud storage bucket_name.
-        :type object_name: str
 
         """
         self.log.info('Checking the file size of object: %s in bucket_name: %s', object_name, bucket_name)
@@ -798,10 +802,8 @@ class GCSHook(GoogleBaseHook):
         Gets the CRC32c checksum of an object in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
-        :type object_name: str
         """
         self.log.info(
             'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
@@ -820,10 +822,8 @@ class GCSHook(GoogleBaseHook):
         Gets the MD5 hash of an object in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
-        :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
-        :type object_name: str
         """
         self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
@@ -852,11 +852,9 @@ class GCSHook(GoogleBaseHook):
             https://cloud.google.com/storage/docs/bucketnaming.html#requirements
 
         :param bucket_name: The name of the bucket.
-        :type bucket_name: str
         :param resource: An optional dict with parameters for creating the bucket.
             For information on available parameters, see Cloud Storage API doc:
             https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
-        :type resource: dict
         :param storage_class: This defines how objects in the bucket are stored
             and determines the SLA and the cost of storage. Values include
 
@@ -868,7 +866,6 @@ class GCSHook(GoogleBaseHook):
 
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
-        :type storage_class: str
         :param location: The location of the bucket.
             Object data for objects in the bucket resides in physical storage
             within this region. Defaults to US.
@@ -876,11 +873,8 @@ class GCSHook(GoogleBaseHook):
             .. seealso::
                 https://developers.google.com/storage/docs/bucket-locations
 
-        :type location: str
         :param project_id: The ID of the Google Cloud Project.
-        :type project_id: str
         :param labels: User-provided labels, in key/value pairs.
-        :type labels: dict
         :return: If successful, it returns the ``id`` of the bucket.
         """
         self.log.info(
@@ -912,18 +906,14 @@ class GCSHook(GoogleBaseHook):
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
-        :type bucket_name: str
         :param entity: The entity holding the permission, in one of the following forms:
             user-userId, user-email, group-groupId, group-email, domain-domain,
             project-team-projectId, allUsers, allAuthenticatedUsers.
             See: https://cloud.google.com/storage/docs/access-control/lists#scopes
-        :type entity: str
         :param role: The access permission for the entity.
             Acceptable values are: "OWNER", "READER", "WRITER".
-        :type role: str
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
-        :type user_project: str
         """
         self.log.info('Creating a new ACL entry in bucket: %s', bucket_name)
         client = self.get_conn()
@@ -950,24 +940,18 @@ class GCSHook(GoogleBaseHook):
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
-        :type bucket_name: str
         :param object_name: Name of the object. For information about how to URL encode
             object names to be path safe, see:
             https://cloud.google.com/storage/docs/json_api/#encoding
-        :type object_name: str
         :param entity: The entity holding the permission, in one of the following forms:
             user-userId, user-email, group-groupId, group-email, domain-domain,
             project-team-projectId, allUsers, allAuthenticatedUsers
             See: https://cloud.google.com/storage/docs/access-control/lists#scopes
-        :type entity: str
         :param role: The access permission for the entity.
             Acceptable values are: "OWNER", "READER".
-        :type role: str
         :param generation: Optional. If present, selects a specific revision of this object.
-        :type generation: long
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
-        :type user_project: str
         """
         self.log.info('Creating a new ACL entry for object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
@@ -993,12 +977,9 @@ class GCSHook(GoogleBaseHook):
 
         :param bucket_name: The name of the bucket containing the source objects.
             This is also the same bucket to store the composed destination object.
-        :type bucket_name: str
         :param source_objects: The list of source objects that will be composed
             into a single object.
-        :type source_objects: list
         :param destination_object: The path of the object if given.
-        :type destination_object: str
         """
         if not source_objects:
             raise ValueError('source_objects cannot be empty.')
@@ -1038,27 +1019,19 @@ class GCSHook(GoogleBaseHook):
             synchronized.
 
         :param source_bucket: The name of the bucket containing the source objects.
-        :type source_bucket: str
         :param destination_bucket: The name of the bucket containing the destination objects.
-        :type destination_bucket: str
         :param source_object: The root sync directory in the source bucket.
-        :type source_object: Optional[str]
         :param destination_object: The root sync directory in the destination bucket.
-        :type destination_object: Optional[str]
         :param recursive: If True, subdirectories will be considered
-        :type recursive: bool
         :param recursive: If True, subdirectories will be considered
-        :type recursive: bool
         :param allow_overwrite: if True, the files will be overwritten if a mismatched file is found.
             By default, overwriting files is not allowed
-        :type allow_overwrite: bool
         :param delete_extra_files: if True, deletes additional files from the source that not found in the
             destination. By default extra files are not deleted.
 
             .. note::
                 This option can delete data quickly if you specify the wrong source/destination combination.
 
-        :type delete_extra_files: bool
         :return: none
         """
         client = self.get_conn()

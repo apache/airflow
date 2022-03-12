@@ -17,31 +17,45 @@
 # under the License.
 #
 from datetime import datetime
-from typing import Callable, Dict, List, Mapping, Tuple, Union
+from typing import Any, Callable, Collection, Dict, Mapping, TypeVar
+
+from airflow import settings
+from airflow.utils.context import Context, lazy_mapping_from_context
+
+R = TypeVar("R")
+
+DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
+ENV_VAR_FORMAT_PREFIX = 'AIRFLOW_CTX_'
 
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
-    'AIRFLOW_CONTEXT_DAG_ID': {'default': 'airflow.ctx.dag_id', 'env_var_format': 'AIRFLOW_CTX_DAG_ID'},
-    'AIRFLOW_CONTEXT_TASK_ID': {'default': 'airflow.ctx.task_id', 'env_var_format': 'AIRFLOW_CTX_TASK_ID'},
+    'AIRFLOW_CONTEXT_DAG_ID': {
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_ID',
+    },
+    'AIRFLOW_CONTEXT_TASK_ID': {
+        'default': f'{DEFAULT_FORMAT_PREFIX}task_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}TASK_ID',
+    },
     'AIRFLOW_CONTEXT_EXECUTION_DATE': {
-        'default': 'airflow.ctx.execution_date',
-        'env_var_format': 'AIRFLOW_CTX_EXECUTION_DATE',
+        'default': f'{DEFAULT_FORMAT_PREFIX}execution_date',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE',
     },
     'AIRFLOW_CONTEXT_DAG_RUN_ID': {
-        'default': 'airflow.ctx.dag_run_id',
-        'env_var_format': 'AIRFLOW_CTX_DAG_RUN_ID',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_run_id',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID',
     },
     'AIRFLOW_CONTEXT_DAG_OWNER': {
-        'default': 'airflow.ctx.dag_owner',
-        'env_var_format': 'AIRFLOW_CTX_DAG_OWNER',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_owner',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_OWNER',
     },
     'AIRFLOW_CONTEXT_DAG_EMAIL': {
-        'default': 'airflow.ctx.dag_email',
-        'env_var_format': 'AIRFLOW_CTX_DAG_EMAIL',
+        'default': f'{DEFAULT_FORMAT_PREFIX}dag_email',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL',
     },
 }
 
 
-def context_to_airflow_vars(context, in_env_var_format=False):
+def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> Dict[str, str]:
     """
     Given a context, this function provides a dictionary of values that can be used to
     externally reconstruct relations between dags, dag_runs, tasks and task_instances.
@@ -49,9 +63,7 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     in_env_var_format is set to True.
 
     :param context: The context for the task_instance of interest.
-    :type context: dict
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
-    :type in_env_var_format: bool
     :return: task_instance context as dict.
     """
     params = {}
@@ -73,6 +85,21 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
     ]
 
+    context_params = settings.get_airflow_context_vars(context)
+    for key, value in context_params.items():
+        if not isinstance(key, str):
+            raise TypeError(f"key <{key}> must be string")
+        if not isinstance(value, str):
+            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+
+        if in_env_var_format:
+            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
+                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        else:
+            if not key.startswith(DEFAULT_FORMAT_PREFIX):
+                key = DEFAULT_FORMAT_PREFIX + key
+        params[key] = value
+
     for subject, attr, mapping_key in ops:
         _attr = getattr(subject, attr, None)
         if subject and _attr:
@@ -88,7 +115,67 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     return params
 
 
-def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Mapping) -> Dict:
+class KeywordParameters:
+    """Wrapper representing ``**kwargs`` to a callable.
+
+    The actual ``kwargs`` can be obtained by calling either ``unpacking()`` or
+    ``serializing()``. They behave almost the same and are only different if
+    the containing ``kwargs`` is an Airflow Context object, and the calling
+    function uses ``**kwargs`` in the argument list.
+
+    In this particular case, ``unpacking()`` uses ``lazy-object-proxy`` to
+    prevent the Context from emitting deprecation warnings too eagerly when it's
+    unpacked by ``**``. ``serializing()`` does not do this, and will allow the
+    warnings to be emitted eagerly, which is useful when you want to dump the
+    content and use it somewhere else without needing ``lazy-object-proxy``.
+    """
+
+    def __init__(self, kwargs: Mapping[str, Any], *, wildcard: bool) -> None:
+        self._kwargs = kwargs
+        self._wildcard = wildcard
+
+    @classmethod
+    def determine(
+        cls,
+        func: Callable[..., Any],
+        args: Collection[Any],
+        kwargs: Mapping[str, Any],
+    ) -> "KeywordParameters":
+        import inspect
+        import itertools
+
+        signature = inspect.signature(func)
+        has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
+
+        for name in itertools.islice(signature.parameters.keys(), len(args)):
+            # Check if args conflict with names in kwargs.
+            if name in kwargs:
+                raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
+
+        if has_wildcard_kwargs:
+            # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
+            return cls(kwargs, wildcard=True)
+
+        # If the callable has no **kwargs argument, it only wants the arguments it requested.
+        kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
+        return cls(kwargs, wildcard=False)
+
+    def unpacking(self) -> Mapping[str, Any]:
+        """Dump the kwargs mapping to unpack with ``**`` in a function call."""
+        if self._wildcard and isinstance(self._kwargs, Context):
+            return lazy_mapping_from_context(self._kwargs)
+        return self._kwargs
+
+    def serializing(self) -> Mapping[str, Any]:
+        """Dump the kwargs mapping for serialization purposes."""
+        return self._kwargs
+
+
+def determine_kwargs(
+    func: Callable[..., Any],
+    args: Collection[Any],
+    kwargs: Mapping[str, Any],
+) -> Mapping[str, Any]:
     """
     Inspect the signature of a given callable to determine which arguments in kwargs need
     to be passed to the callable.
@@ -99,26 +186,10 @@ def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Mapping) 
     :param kwargs: The keyword arguments that need to be filtered before passing to the callable.
     :return: A dictionary which contains the keyword arguments that are compatible with the callable.
     """
-    import inspect
-    import itertools
-
-    signature = inspect.signature(func)
-    has_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
-
-    for name in itertools.islice(signature.parameters.keys(), len(args)):
-        # Check if args conflict with names in kwargs
-        if name in kwargs:
-            raise ValueError(f"The key {name} in args is part of kwargs and therefore reserved.")
-
-    if has_kwargs:
-        # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
-        return kwargs
-
-    # If the callable has no **kwargs argument, it only wants the arguments it requested.
-    return {key: kwargs[key] for key in signature.parameters if key in kwargs}
+    return KeywordParameters.determine(func, args, kwargs).unpacking()
 
 
-def make_kwargs_callable(func: Callable) -> Callable:
+def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
     """
     Make a new callable that can accept any number of positional or keyword arguments
     but only forwards those required by the given callable func.

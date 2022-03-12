@@ -15,9 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
@@ -26,17 +30,13 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     It will create both the database and collection if they do not already exist
 
     :param database_name: The name of the database. (templated)
-    :type database_name: str
     :param collection_name: The name of the collection. (templated)
-    :type collection_name: str
     :param document: The document to insert
-    :type document: dict
     :param azure_cosmos_conn_id: Reference to the
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
-    :type azure_cosmos_conn_id: str
     """
 
-    template_fields = ('database_name', 'collection_name')
+    template_fields: Sequence[str] = ('database_name', 'collection_name')
     ui_color = '#e4f0e8'
 
     def __init__(
@@ -54,7 +54,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         self.document = document
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: "Context") -> None:
         # Create the hook
         hook = AzureCosmosDBHook(azure_cosmos_conn_id=self.azure_cosmos_conn_id)
 

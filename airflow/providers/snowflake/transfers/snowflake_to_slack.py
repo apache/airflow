@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -24,6 +24,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SnowflakeToSlackOperator(BaseOperator):
@@ -40,36 +43,25 @@ class SnowflakeToSlackOperator(BaseOperator):
         :ref:`howto/operator:SnowflakeToSlackOperator`
 
     :param sql: The SQL statement to execute on Snowflake (templated)
-    :type sql: str
     :param slack_message: The templated Slack message to send with the data returned from Snowflake.
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
-    :type slack_message: str
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :type snowflake_conn_id: str
     :param slack_conn_id: The connection id for Slack
-    :type slack_conn_id: str
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
-    :type results_df_name: str
     :param parameters: The parameters to pass to the SQL query
-    :type parameters: Optional[Union[Iterable, Mapping]]
     :param warehouse: The Snowflake virtual warehouse to use to run the SQL query
-    :type warehouse: Optional[str]
     :param database: The Snowflake database to use for the SQL query
-    :type database: Optional[str]
     :param schema: The schema to run the SQL against in Snowflake
-    :type schema: Optional[str]
     :param role: The role to use when connecting to Snowflake
-    :type role: Optional[str]
     :param slack_token: The token to use to authenticate to Slack. If this is not provided, the
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id
-    :type slack_token: Optional[str]
     """
 
-    template_fields = ['sql', 'slack_message']
-    template_ext = ['.sql', '.jinja', '.j2']
-    template_fields_renderers = {"slack_message": "jinja"}
+    template_fields: Sequence[str] = ('sql', 'slack_message')
+    template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
+    template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0
 
     def __init__(
@@ -149,7 +141,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         if not isinstance(self.sql, str):
             raise AirflowException("Expected 'sql' parameter should be a string.")
         if self.sql is None or self.sql.strip() == "":

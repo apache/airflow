@@ -19,6 +19,37 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
+2.3.0
+.....
+
+Misc
+~~~~
+
+* ``Fix: pin pymongo < 4.0.0 (#20511)``
+* ``add mongo_db param to function doc string (#19280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix duplicate changelog entries (#19759)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.2.0
 .....
 

@@ -19,6 +19,34 @@
 Changelog
 ---------
 
+2.2.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support to specify kernel name in PapermillOperator (#20035)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.1.0
 .....
 

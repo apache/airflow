@@ -51,9 +51,7 @@ def mkdirs(path, mode):
     as necessary. If directory already exists, this is a no-op.
 
     :param path: The directory to create
-    :type path: str
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
-    :type mode: int
     """
     import warnings
 
@@ -85,7 +83,10 @@ def correct_maybe_zipped(fileloc: Union[None, str, Path]) -> Union[None, str, Pa
     """
     if not fileloc:
         return fileloc
-    _, archive, _ = ZIP_REGEX.search(fileloc).groups()
+    search_ = ZIP_REGEX.search(str(fileloc))
+    if not search_:
+        return fileloc
+    _, archive, _ = search_.groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:
@@ -157,16 +158,12 @@ def list_py_file_paths(
     Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
-    :type directory: unicode
     :param safe_mode: whether to use a heuristic to determine whether a file
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
-    :type safe_mode: bool
     :param include_examples: include example DAGs
-    :type include_examples: bool
     :param include_smart_sensor: include smart sensor native control DAGs
-    :type include_examples: bool
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
