@@ -72,7 +72,7 @@ Extra (optional)
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
-Note that all components of the URI should be URL-encoded. The URI and and the mongo
+Note that all components of the URI should be URL-encoded. The URI and the mongo
 connection string are not the same.
 
 For example:
