@@ -383,7 +383,6 @@ class DagFileProcessor(LoggingMixin):
 
         max_tis: Iterator[TI] = (
             session.query(TI)
-            .join(TI.dag_run)  # todo: why?
             .filter(
                 TI.dag_id == dag.dag_id,
                 TI.task_id == qry.c.task_id,
