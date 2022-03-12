@@ -371,7 +371,7 @@ class TestPubSubHook(unittest.TestCase):
             mock.call(topic=EXPANDED_TOPIC, data=message.get("data", b''), **message.get('attributes', {}))
             for message in TEST_MESSAGES
         ]
-        publish_method.assert_has_calls(calls,any_order=True)
+        publish_method.assert_has_calls(calls, any_order=True)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_publish_api_call_error(self, mock_service):
