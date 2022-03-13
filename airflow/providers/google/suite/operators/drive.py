@@ -64,7 +64,7 @@ class GoogleDriveUploadOperator(BaseOperator):
         self,
         local_paths,
         drive_folder: str,
-        gcp_conn_id: str,
+        gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
