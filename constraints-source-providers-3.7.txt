@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-13T17:43:37Z
+# This constraints file was automatically generated on 2022-03-13T20:25:29Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -236,7 +236,7 @@ identify==2.4.11
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
-importlib-metadata==4.11.2
+importlib-metadata==4.11.3
 importlib-resources==5.4.0
 inflection==0.5.1
 influxdb-client==1.26.0
