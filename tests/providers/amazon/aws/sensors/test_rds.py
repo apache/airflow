@@ -28,9 +28,9 @@ from airflow.providers.amazon.aws.sensors.rds import (
 from airflow.utils import timezone
 
 try:
-    from moto import mock_rds2
+    from moto import mock_rds
 except ImportError:
-    mock_rds2 = None
+    mock_rds = None
 
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
@@ -132,7 +132,7 @@ class TestBaseRdsSensor:
         assert not self.base_sensor._check_item(item_type='instance_snapshot', item_name='')
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsSnapshotExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -144,7 +144,7 @@ class TestRdsSnapshotExistenceSensor:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_db_instance_snapshot_poke_true(self):
         _create_db_instance_snapshot(self.hook)
         op = RdsSnapshotExistenceSensor(
@@ -156,7 +156,7 @@ class TestRdsSnapshotExistenceSensor:
         )
         assert op.poke(None)
 
-    @mock_rds2
+    @mock_rds
     def test_db_instance_snapshot_poke_false(self):
         op = RdsSnapshotExistenceSensor(
             task_id='test_instance_snap_false',
@@ -167,7 +167,7 @@ class TestRdsSnapshotExistenceSensor:
         )
         assert not op.poke(None)
 
-    @mock_rds2
+    @mock_rds
     def test_db_instance_cluster_poke_true(self):
         _create_db_cluster_snapshot(self.hook)
         op = RdsSnapshotExistenceSensor(
@@ -179,7 +179,7 @@ class TestRdsSnapshotExistenceSensor:
         )
         assert op.poke(None)
 
-    @mock_rds2
+    @mock_rds
     def test_db_instance_cluster_poke_false(self):
         op = RdsSnapshotExistenceSensor(
             task_id='test_cluster_snap_false',
@@ -191,7 +191,7 @@ class TestRdsSnapshotExistenceSensor:
         assert not op.poke(None)
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsExportTaskExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -203,7 +203,7 @@ class TestRdsExportTaskExistenceSensor:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_export_task_poke_true(self):
         _create_db_instance_snapshot(self.hook)
         _start_export_task(self.hook)
@@ -215,7 +215,7 @@ class TestRdsExportTaskExistenceSensor:
         )
         assert op.poke(None)
 
-    @mock_rds2
+    @mock_rds
     def test_export_task_poke_false(self):
         _create_db_instance_snapshot(self.hook)
         op = RdsExportTaskExistenceSensor(

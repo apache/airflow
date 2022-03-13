@@ -62,7 +62,7 @@ class RdsBaseSensor(BaseSensorOperator):
         except ClientError:
             return False
         else:
-            return bool(items) and any(map(lambda s: items[0]['Status'] == s, self.target_statuses))
+            return bool(items) and any(map(lambda s: items[0]['Status'].lower() == s, self.target_statuses))
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -80,7 +80,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
 
     template_fields: Sequence[str] = (
         'db_snapshot_identifier',
-        'target_status',
+        'target_statuses',
     )
 
     def __init__(
@@ -121,7 +121,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
     template_fields: Sequence[str] = (
         'export_task_identifier',
-        'target_status',
+        'target_statuses',
     )
 
     def __init__(
@@ -135,7 +135,13 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
 
         self.export_task_identifier = export_task_identifier
-        self.target_statuses = target_statuses or ['available']
+        self.target_statuses = target_statuses or [
+            'starting',
+            'in_progress',
+            'complete',
+            'canceling',
+            'canceled',
+        ]
 
     def poke(self, context: 'Context'):
         self.log.info(
