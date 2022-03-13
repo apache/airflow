@@ -17,6 +17,7 @@
 """This file contains Google Drive operators"""
 
 import os
+from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -62,8 +63,8 @@ class GoogleDriveUploadOperator(BaseOperator):
 
     def __init__(
         self,
-        local_paths,
-        drive_folder: str,
+        local_paths: Sequence[Path],
+        drive_folder: Path,
         gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
@@ -93,12 +94,11 @@ class GoogleDriveUploadOperator(BaseOperator):
 
         for local_path in self.local_paths:
             self.log.info(f'Uploading file to Google Drive: {local_path}')
-            file_name = local_path.split('/')[-1]
 
             try:
                 remote_file_id = hook.upload_file(
-                    local_location=local_path,
-                    remote_location=os.path.join(self.drive_folder, file_name),
+                    local_location=str(local_path),
+                    remote_location=str(self.drive_folder / local_path.name),
                     chunk_size=self.chunk_size,
                     resumable=self.resumable,
                 )
