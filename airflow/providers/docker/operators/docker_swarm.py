@@ -86,8 +86,19 @@ class DockerSwarmOperator(DockerOperator):
     :param mode: Indicate whether a service should be deployed as a replicated or global service,
         and associated parameters
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
-    :param placement: Placement instructions for the scheduler. If a list is passed instead,
-        it is assumed to be a list of constraints as part of a Placement object.
+        NetworkAttachmentConfig object accepts following params:
+        * target: (str) - The target network for attachment. Can be a network name or ID.
+        * aliases: (list) - A list of discoverable alternate names for the service.
+        * options: (dict) - Driver attachment options for the network target.
+    :param placement: Placement instructions for the scheduler. If a list of str is passed instead
+    of Placement object, it is assumed to be a list of constraints.
+        Placement object accepts following params:
+        * constraints: (list of str) - A list of constraints
+        * preferences: (list of tuple) - Preferences provide a way to make the scheduler aware of
+        factors such as topology. They are provided in order from highest to lowest precedence and
+        are expressed as (strategy, descriptor) tuples.
+        * maxreplicas: (int) Maximum number of replicas per node
+        * platforms: (list of tuple) - A list of platforms expressed as (arch, os) tuples
     """
 
     def __init__(

@@ -1013,6 +1013,7 @@ makedsn
 mapred
 mapreduce
 masterType
+maxreplicas
 mb
 md
 mediawiki
