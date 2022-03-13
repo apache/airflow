@@ -49,6 +49,8 @@ Operator loads data from a specified location into a table using a configured en
      - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection, or the ``sql_endpoint_name`` parameter must be set.
    * - session_configuration: dict[str,str]
      - optional dict specifying Spark configuration parameters that will be set for the session.
+   * - metadata: list[tuple[str, str]]
+     - Optional list of (k, v) pairs that will be set as Http headers on every request
    * - files: Optional[List[str]]
      - optional list of files to import. Can't be specified together with ``pattern``.
    * - pattern: Optional[str]

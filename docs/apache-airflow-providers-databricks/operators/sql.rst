@@ -51,6 +51,12 @@ Operator executes given SQL queries against configured endpoint.  There are 3 wa
      - Optional parameters that will be used to substitute variable(s) in SQL query.
    * - session_configuration: dict[str,str]
      - optional dict specifying Spark configuration parameters that will be set for the session.
+   * - metadata: list[tuple[str, str]]
+     - Optional list of (k, v) pairs that will be set as Http headers on every request
+   * - catalog: str
+     - Optional initial catalog to use. Requires DBR version 9.0+
+   * - schema: str
+     - Optional initial schema to use. Requires DBR version 9.0+
    * - output_path: str
      - Optional path to the file to which results will be written.
    * - output_format: str
