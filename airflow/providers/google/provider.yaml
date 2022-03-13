@@ -411,6 +411,9 @@ operators:
   - integration-name: Google Datastore
     python-modules:
       - airflow.providers.google.cloud.operators.datastore
+  - integration-name: Google Drive
+    python-modules:
+      - airflow.providers.google.suite.operators.drive
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     python-modules:
       - airflow.providers.google.cloud.operators.dlp
