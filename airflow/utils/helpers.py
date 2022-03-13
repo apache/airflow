@@ -288,7 +288,7 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
         import jinja2.nativetypes
 
         return jinja2.nativetypes.native_concat(nodes)
-    return "".join((str(n) for n in nodes))
+    return "".join(nodes)
 
 
 def render_template_to_string(template: "jinja2.Template", context: MutableMapping[str, Any]) -> str:
