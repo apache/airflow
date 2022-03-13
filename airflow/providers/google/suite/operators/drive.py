@@ -40,7 +40,6 @@ class GoogleDriveUploadOperator(BaseOperator):
         or to -1.
     :param resumable: True if this is a resumable upload. False means upload
         in a single request.
-    :param api_version: version of the Google Drive API
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -66,7 +65,6 @@ class GoogleDriveUploadOperator(BaseOperator):
         delete: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
-        api_version: str = 'v3',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
@@ -78,13 +76,11 @@ class GoogleDriveUploadOperator(BaseOperator):
         self.delete = delete
         self.chunk_size = chunk_size
         self.resumable = resumable
-        self.api_version = api_version
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Any) -> Sequence[str]:
         hook = GoogleDriveHook(
-            api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
