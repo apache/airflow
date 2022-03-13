@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-11T21:25:43Z
+# This constraints file was automatically generated on 2022-03-13T14:19:36Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -86,14 +86,20 @@ apache-airflow-providers-docker==2.5.0
 apache-airflow-providers-elasticsearch==3.0.0
 apache-airflow-providers-exasol==2.1.1
 apache-airflow-providers-facebook==2.2.1
+apache-airflow-providers-ftp==2.1.0
+apache-airflow-providers-github==1.0.1
 apache-airflow-providers-google==6.5.0
 apache-airflow-providers-grpc==2.0.2
 apache-airflow-providers-hashicorp==2.1.2
+apache-airflow-providers-http==2.1.0
+apache-airflow-providers-imap==2.2.1
+apache-airflow-providers-influxdb==1.1.1
 apache-airflow-providers-jdbc==2.1.1
 apache-airflow-providers-jenkins==2.0.5
 apache-airflow-providers-jira==2.0.2
 apache-airflow-providers-microsoft-azure==3.7.0
 apache-airflow-providers-microsoft-mssql==2.1.1
+apache-airflow-providers-microsoft-psrp==1.1.1
 apache-airflow-providers-microsoft-winrm==2.0.3
 apache-airflow-providers-mongo==2.3.1
 apache-airflow-providers-mysql==2.2.1
@@ -112,10 +118,12 @@ apache-airflow-providers-redis==2.0.2
 apache-airflow-providers-salesforce==3.4.1
 apache-airflow-providers-samba==3.0.2
 apache-airflow-providers-segment==2.0.2
+apache-airflow-providers-sendgrid==2.0.2
 apache-airflow-providers-sftp==2.5.0
 apache-airflow-providers-singularity==2.0.2
 apache-airflow-providers-slack==4.2.1
 apache-airflow-providers-snowflake==2.5.1
+apache-airflow-providers-sqlite==2.1.1
 apache-airflow-providers-ssh==2.4.1
 apache-airflow-providers-tableau==2.1.5
 apache-airflow-providers-telegram==2.0.2
@@ -130,7 +138,7 @@ argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.3
 asn1crypto==1.5.0
-astroid==2.10.0
+astroid==2.11.0
 asttokens==2.0.5
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -336,13 +344,13 @@ lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.14.1
+marshmallow==3.15.0
 matplotlib-inline==0.1.3
 mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.0.7
+moto==3.1.0
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
@@ -375,7 +383,7 @@ pandas-gbq==0.17.3
 pandas==1.3.5
 papermill==2.3.4
 parameterized==0.8.1
-paramiko==2.9.2
+paramiko==2.10.1
 parso==0.8.3
 partd==1.2.0
 pathspec==0.9.0
@@ -551,13 +559,13 @@ types-python-dateutil==2.8.9
 types-python-slugify==5.0.3
 types-pytz==2021.3.5
 types-redis==4.1.17
-types-requests==2.27.11
+types-requests==2.27.12
 types-setuptools==57.4.10
 types-six==1.16.12
 types-tabulate==0.8.5
 types-termcolor==1.1.3
 types-toml==0.10.4
-types-urllib3==1.26.10
+types-urllib3==1.26.11
 typing_extensions==4.1.1
 tzdata==2021.5
 tzlocal==4.1
