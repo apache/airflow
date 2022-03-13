@@ -556,7 +556,6 @@ Setting up Debug
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
-    ...
 
     if __name__ == "__main__":
         dag.clear()
@@ -1355,7 +1354,7 @@ Setting up Debug
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
-    ...
+
 
     if __name__ == "__main__":
         dag.clear()
