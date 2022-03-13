@@ -33,8 +33,8 @@ class GoogleDriveUploadOperator(BaseOperator):
     This operator uploads a list of local files to a Google Drive folder.
     The local files can be deleted after upload (optional)
 
-    :param local_paths: Python list of local file paths as pathlib.Path
-    :param drive_folder: path of the Drive folder as pathlib.Path
+    :param local_paths: Python list of local file paths
+    :param drive_folder: path of the Drive folder
     :param gcp_conn_id: Airflow Connection ID for GCP
     :param delete: should the local files be deleted after upload?
     :param chunk_size: File will be uploaded in chunks of this many bytes. Only
