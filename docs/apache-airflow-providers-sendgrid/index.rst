@@ -51,7 +51,7 @@ Package apache-airflow-providers-sendgrid
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 2.0.2
+Release: 2.0.3
 
 Provider package
 ----------------

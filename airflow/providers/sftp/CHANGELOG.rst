@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.5.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 2.5.0
 .....
 

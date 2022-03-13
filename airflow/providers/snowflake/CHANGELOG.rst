@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Snowflake limits (#22181)``
+
 2.5.1
 .....
 

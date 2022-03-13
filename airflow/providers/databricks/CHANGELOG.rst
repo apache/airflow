@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add new options to DatabricksCopyIntoOperator (#22076)``
+* ``Databricks hook - retry on HTTP Status 429 as well (#21852)``
+
+Misc
+~~~~
+
+* ``Skip some tests for Databricks from running on Python 3.10 (#22221)``
+
 2.3.0
 .....
 

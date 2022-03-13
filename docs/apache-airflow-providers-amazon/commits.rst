@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.1.0
+3.1.1
 .....
 
-Latest change: 2022-03-07
+Latest change: 2022-03-14
 
-=================================================================================================  ===========  ====================================================================================
+=================================================================================================  ===========  =====================================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ====================================================================================
+=================================================================================================  ===========  =====================================================================================================================================
+`46c61ed3e9 <https://github.com/apache/airflow/commit/46c61ed3e94de1484f5f8f3f2fa74e522d67ba9d>`_  2022-03-14   ``EMR Sample DAG and Docs Update (#22189)``
+`c1ab8e2d7b <https://github.com/apache/airflow/commit/c1ab8e2d7b68a31408e750129592e16432474512>`_  2022-03-14   ``Protect against accidental misuse of XCom.get_value() (#22244)``
+`4f6d24f865 <https://github.com/apache/airflow/commit/4f6d24f8658e0896c46e613aa656a853b358c321>`_  2022-03-14   ``use different logger to avoid duplicate log entry (#22256)``
+`6f8f535619 <https://github.com/apache/airflow/commit/6f8f5356194c0dbacfaaf530cfb990f845e52fb2>`_  2022-03-14   ``Add sample dags and update doc for RedshiftClusterSensor, RedshiftPauseClusterOperator and RedshiftResumeClusterOperator (#22128)``
+`a840561e1f <https://github.com/apache/airflow/commit/a840561e1f00ce026a813039e430a085d2cfe35e>`_  2022-03-13   ``AWS RDS integration fixes (#22125)``
+`d08284ed25 <https://github.com/apache/airflow/commit/d08284ed251b7c5712190181623b500a38cd640d>`_  2022-03-11   `` Add map_index to XCom model and interface (#22112)``
+`46a120dc5f <https://github.com/apache/airflow/commit/46a120dc5f37d0a38cbfe338af215dc63e590aff>`_  2022-03-11   ``Fix RedshiftDataOperator and update doc (#22157)``
+`e63f6e36d1 <https://github.com/apache/airflow/commit/e63f6e36d14a8cd2462e80f26fb4809ab8698380>`_  2022-03-11   ``additional information in the ECSOperator around support of launch_type=EXTERNAL (#22093)``
+`16ad03cae5 <https://github.com/apache/airflow/commit/16ad03cae500ff8166df0d8966d932e7329507b4>`_  2022-03-11   ``Bugfix for retrying on provision failuers(#22137)``
+`bd809bc83a <https://github.com/apache/airflow/commit/bd809bc83a0727700504c3546fbb58b3421ada90>`_  2022-03-09   ``If uploading task logs to S3 fails, retry once (#21981)``
+`45162565db <https://github.com/apache/airflow/commit/45162565dbfbd0322a5d07afdd4247f69395f071>`_  2022-03-08   ``EMR on EKS Sample DAG and Docs Update (#22095)``
+`c7286e5306 <https://github.com/apache/airflow/commit/c7286e53064d717c97807f7ccd6cad515f88fe52>`_  2022-03-08   ``Bug-fix GCSToS3Operator (#22071)``
+`184a46fc93 <https://github.com/apache/airflow/commit/184a46fc93cf78e6531f25d53aa022ee6fd66496>`_  2022-03-08   ``refactors polling logic for athena queries (#21488)``
+`a150ee0bc1 <https://github.com/apache/airflow/commit/a150ee0bc124f21b99fa94adbb16e6ccfe654ae4>`_  2022-03-08   ``Add template fields to DynamoDBToS3Operator (#22080)``
+`c8d49f63ca <https://github.com/apache/airflow/commit/c8d49f63ca60fa0fb447768546c2503b746a66dd>`_  2022-03-08   ``fixes query status polling logic (#21423)``
+`374354dda7 <https://github.com/apache/airflow/commit/374354dda7bea02aa8c31a1d27a75c3f120f74e8>`_  2022-03-08   ``Dynamo to S3 Sample DAG and Docs (#21920)``
+`c1faaf3745 <https://github.com/apache/airflow/commit/c1faaf3745dd631d4491202ed245cf8190f35697>`_  2022-03-07   ``Add sample dag and doc for RedshiftToS3Operator (#22060)``
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `0209a5c3f0 <https://github.com/apache/airflow/commit/0209a5c3f07d21f70a81bc3c99c67e72cf3c2e97>`_  2022-03-07   ``Add docs and sample dags for AWS Batch (#22010)``
 `01a1a263fd <https://github.com/apache/airflow/commit/01a1a263fdac53f4cd9fa82e5ae89172cf68b91c>`_  2022-03-07   ``retry on very specific eni provision failures (#22002)``
 `c22fb319ff <https://github.com/apache/airflow/commit/c22fb319fffa56d0e93b60b3bd4495b60c74c4ab>`_  2022-03-07   ``Cleanup RedshiftSQLOperator documentation (#21976)``
@@ -63,7 +81,7 @@ Commit                                                                          
 `2c5f636e5c <https://github.com/apache/airflow/commit/2c5f636e5cfac7cc246d6ed93660bf0f8e968982>`_  2022-02-11   ``Use temporary file in GCSToS3Operator (#21295)``
 `598e836043 <https://github.com/apache/airflow/commit/598e836043d3d1899087c3a78640f192f9681321>`_  2022-02-09   ``Added SNS example DAG and rst (#21475)``
 `0a3ff43d41 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
-=================================================================================================  ===========  ====================================================================================
+=================================================================================================  ===========  =====================================================================================================================================
 
 3.0.0
 .....

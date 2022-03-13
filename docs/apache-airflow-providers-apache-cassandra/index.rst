@@ -58,7 +58,7 @@ Package apache-airflow-providers-apache-cassandra
 `Apache Cassandra <http://cassandra.apache.org/>`__.
 
 
-Release: 2.1.1
+Release: 2.1.2
 
 Provider package
 ----------------
