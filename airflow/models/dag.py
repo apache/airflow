@@ -1277,11 +1277,9 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
-        if self.render_template_as_native_obj:
-            if force_string:
-                env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
-            else:
-                env = airflow.templates.NativeEnvironment(**jinja_env_options)
+        use_native_env = self.render_template_as_native_obj and not force_string
+        if use_native_env:
+            env = airflow.templates.NativeEnvironment(**jinja_env_options)
         else:
             env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
 
