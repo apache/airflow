@@ -55,7 +55,10 @@ class GoogleDriveUploadOperator(BaseOperator):
     :rtype: Sequence[str]
     """
 
-    template_fields = ('local_paths', 'drive_folder',)
+    template_fields = (
+        'local_paths',
+        'drive_folder',
+    )
 
     def __init__(
         self,
@@ -67,7 +70,7 @@ class GoogleDriveUploadOperator(BaseOperator):
         resumable: bool = False,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.local_paths = local_paths
