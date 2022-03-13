@@ -184,7 +184,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self,
         local_location: str,
         remote_location: str,
-        chunk_size: int = 104857600,
+        chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
     ) -> str:
         """
@@ -195,7 +195,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :param chunk_size: File will be uploaded in chunks of this many bytes. Only
             used if resumable=True. Pass in a value of -1 if the file is to be
             uploaded as a single chunk. Note that Google App Engine has a 5MB limit
-            on request size, so you should never set your chunksize larger than 5MB,
+            on request size, so you should never set your chunk size larger than 5MB,
             or to -1.
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
