@@ -18,7 +18,7 @@
 import re
 from contextlib import closing
 from copy import copy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
@@ -42,6 +42,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         be provided as described above.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
+    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+
     """
 
     hook_name = 'Databricks SQL'
@@ -52,6 +55,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         http_path: Optional[str] = None,
         sql_endpoint_name: Optional[str] = None,
         session_configuration: Optional[Dict[str, str]] = None,
+        metadata: Optional[List[Tuple[str, str]]] = None,
+        catalog: Optional[str] = None,
+        schema: Optional[str] = None,
     ) -> None:
         super().__init__(databricks_conn_id)
         self._sql_conn = None
@@ -60,6 +66,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self._sql_endpoint_name = sql_endpoint_name
         self.supports_autocommit = True
         self.session_config = session_configuration
+        self.metadata = metadata
+        self.catalog = catalog
+        self.schema = schema
 
     def _get_extra_config(self) -> Dict[str, Optional[Any]]:
         extra_params = copy(self.databricks_conn.extra_dejson)

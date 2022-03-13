@@ -53,7 +53,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == mock_results
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            metadata=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
@@ -78,7 +84,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == ["id,value", "1,value1"]
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            metadata=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 

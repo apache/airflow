@@ -20,9 +20,9 @@
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from databricks.sql.common import ParamEscaper
+from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -53,13 +53,16 @@ class DatabricksSqlOperator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
+    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+
     :param output_path: optional string specifying the file to which write selected data. (templated)
     :param output_format: format of output data if ``output_path` is specified.
         Possible values are ``csv``, ``json``, ``jsonl``. Default is ``csv``.
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = ('sql', '_output_path')
+    template_fields: Sequence[str] = ('sql', '_output_path', 'schema', 'metadata')
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'sql': 'sql'}
 
@@ -72,6 +75,9 @@ class DatabricksSqlOperator(BaseOperator):
         sql_endpoint_name: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         session_configuration=None,
+        metadata: Optional[List[Tuple[str, str]]] = None,
+        catalog: Optional[str] = None,
+        schema: Optional[str] = None,
         do_xcom_push: bool = False,
         output_path: Optional[str] = None,
         output_format: str = 'csv',
@@ -90,6 +96,9 @@ class DatabricksSqlOperator(BaseOperator):
         self.parameters = parameters
         self.do_xcom_push = do_xcom_push
         self.session_config = session_configuration
+        self.metadata = metadata
+        self.catalog = catalog
+        self.schema = schema
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -97,6 +106,9 @@ class DatabricksSqlOperator(BaseOperator):
             http_path=self._http_path,
             session_configuration=self.session_config,
             sql_endpoint_name=self._sql_endpoint_name,
+            metadata=self.metadata,
+            catalog=self.catalog,
+            schema=self.schema,
         )
 
     def _format_output(self, schema, results):
@@ -165,6 +177,9 @@ class DatabricksCopyIntoOperator(BaseOperator):
         or ``sql_endpoint_name`` must be specified.
     :param sql_endpoint_name: Optional name of Databricks SQL Endpoint.
         If not specified, ``http_path`` must be provided as described above.
+    :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
+        If not specified, it could be specified in the Databricks connection's extra parameters.
+    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
     :param files: optional list of files to import. Can't be specified together with ``pattern``. (templated)
     :param pattern: optional regex string to match file names to import.
         Can't be specified together with ``files``.
@@ -195,6 +210,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         http_path: Optional[str] = None,
         sql_endpoint_name: Optional[str] = None,
         session_configuration=None,
+        metadata: Optional[List[Tuple[str, str]]] = None,
         files: Optional[List[str]] = None,
         pattern: Optional[str] = None,
         expression_list: Optional[str] = None,
@@ -231,6 +247,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._format_options = format_options
         self._copy_options = copy_options or {}
         self._validate = validate
+        self.metadata = metadata
         if force_copy is not None:
             self._copy_options["force"] = 'true' if force_copy else 'false'
 
@@ -240,6 +257,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
             http_path=self._http_path,
             session_configuration=self.session_config,
             sql_endpoint_name=self._sql_endpoint_name,
+            metadata=self.metadata,
         )
 
     @staticmethod
