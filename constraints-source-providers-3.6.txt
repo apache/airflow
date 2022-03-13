@@ -159,7 +159,7 @@ fastavro==1.4.7
 filelock==3.4.0
 fissix==21.11.13
 flake8-colors==0.1.9
-flake8==4.0.1
+flake8==3.9.2
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
