@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from pathlib import Path
 from unittest import mock
 
 from airflow.providers.google.suite.operators.drive import GoogleDriveUploadOperator
 
 GCP_CONN_ID = "test"
-DRIVE_FOLDER = "test_folder"
-LOCAL_PATHS = ["test1", "test2"]
+DRIVE_FOLDER = Path("test_folder")
+LOCAL_PATHS = [Path("test1"), Path("test2")]
 REMOTE_FILE_IDS = ["rtest1", "rtest2"]
 
 
