@@ -158,7 +158,7 @@ fastavro==1.4.9
 filelock==3.6.0
 fissix==21.11.13
 flake8-colors==0.1.9
-flake8==4.0.1
+flake8==3.9.2
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
@@ -338,7 +338,7 @@ pyOpenSSL==20.0.1
 pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.8.0
+pycodestyle==2.7.0
 pycountry==22.1.10
 pycparser==2.21
 pycryptodome==3.14.1
@@ -348,7 +348,7 @@ pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.2
 pyexasol==0.24.0
-pyflakes==2.4.0
+pyflakes==2.3.1
 pykerberos==1.2.1
 pymongo==3.12.3
 pymssql==2.2.4

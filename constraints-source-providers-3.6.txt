@@ -341,7 +341,7 @@ pyOpenSSL==20.0.1
 pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.8.0
+pycodestyle==2.7.0
 pycountry==22.1.10
 pycparser==2.21
 pycryptodome==3.14.1
