@@ -83,7 +83,7 @@ Example “extras” field using ``host_key``:
        "host_key": "AAAHD...YDWwq=="
     }
 
-Example “extras” field using ``key_file`` or ``private_key```:
+Example “extras” field using ``key_file`` or ``private_key``:
 
 .. code-block:: json
 
