@@ -109,7 +109,7 @@ class GoogleDriveUploadOperator(BaseOperator):
                     os.remove(local_path)
                     self.log.info(f'Deleted local file: {local_path}')
             except FileNotFoundError:
-                self.log.error(f"File {local_path} can't be found")
+                self.log.warning(f"File {local_path} can't be found")
 
         self.xcom_push(context, "remote_file_ids", remote_file_ids)
         return remote_file_ids
