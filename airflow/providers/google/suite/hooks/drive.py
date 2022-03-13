@@ -180,12 +180,25 @@ class GoogleDriveHook(GoogleBaseHook):
             file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
         return file_metadata
 
-    def upload_file(self, local_location: str, remote_location: str) -> str:
+    def upload_file(
+        self,
+        local_location: str,
+        remote_location: str,
+        chunk_size: int = 100 * 1024 * 1024,
+        resumable: bool = False,
+    ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
 
         :param local_location: The path where the file is available.
         :param remote_location: The path where the file will be send
+        :param chunk_size: File will be uploaded in chunks of this many bytes. Only
+            used if resumable=True. Pass in a value of -1 if the file is to be
+            uploaded as a single chunk. Note that Google App Engine has a 5MB limit
+            on request size, so you should never set your chunk size larger than 5MB,
+            or to -1.
+        :param resumable: True if this is a resumable upload. False means upload
+            in a single request.
         :return: File ID
         :rtype: str
         """
@@ -197,7 +210,7 @@ class GoogleDriveHook(GoogleBaseHook):
             parent = "root"
 
         file_metadata = {"name": file_name, "parents": [parent]}
-        media = MediaFileUpload(local_location)
+        media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
         file = (
             service.files()
             .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
