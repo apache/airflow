@@ -1803,7 +1803,7 @@ class TaskInstance(Base, LoggingMixin):
             session.add(
                 TaskFail(
                     task=task,
-                    run_id=dag_run.run_id,
+                    run_id=self.run_id,
                     start_date=self.start_date,
                     end_date=self.end_date,
                     map_index=self.map_index,
