@@ -26,7 +26,6 @@ import {
   FormControl,
   FormLabel,
   Spinner,
-  Text,
   Thead,
 } from '@chakra-ui/react';
 
