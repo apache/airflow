@@ -1664,15 +1664,15 @@ class Airflow(AirflowBaseView):
         """Retrieve XCOM."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
+        map_index = request.args.get('map_index', -1, type=int)
         # Carrying execution_date through, even though it's irrelevant for
         # this context
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        ti_db = models.TaskInstance
         dag = DagModel.get_dagmodel(dag_id)
-        ti = session.query(ti_db).filter(and_(ti_db.dag_id == dag_id, ti_db.task_id == task_id)).first()
+        ti = session.query(TaskInstance).filter_by(dag_id=dag_id, task_id=task_id).first()
 
         if not ti:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
@@ -1680,7 +1680,7 @@ class Airflow(AirflowBaseView):
 
         xcomlist = (
             session.query(XCom)
-            .filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.execution_date == dttm)
+            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=dttm, map_index=map_index)
             .all()
         )
 
@@ -1695,6 +1695,7 @@ class Airflow(AirflowBaseView):
             attributes=attributes,
             task_id=task_id,
             execution_date=execution_date,
+            map_index=map_index,
             form=form,
             root=root,
             dag=dag,
