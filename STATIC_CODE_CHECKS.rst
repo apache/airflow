@@ -166,6 +166,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-watcher-in-examples``          Check if watcher is properly used in examples
+------------------------------------ ---------------------------------------------------------------- ------------
 ``daysago-import-check``               Checks if daysago is properly imported
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``debug-statements``                   Detects accidentally committed debug statements

@@ -98,6 +98,7 @@ check-hooks-apply
 check-integrations
 check-merge-conflict
 check-xml
+check-watcher-in-examples
 daysago-import-check
 debug-statements
 detect-private-key
