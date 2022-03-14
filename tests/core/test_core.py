@@ -99,12 +99,20 @@ class TestCore:
             pass
         op1_fails = (
             session.query(TaskFail)
-            .filter_by(task_id='pass_sleepy', dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
+            .filter(
+                TaskFail.task_id == 'pass_sleepy',
+                TaskFail.dag_id == dag.dag_id,
+                TaskFail.task_instance.execution_date == DEFAULT_DATE,
+            )
             .all()
         )
         op2_fails = (
             session.query(TaskFail)
-            .filter_by(task_id='fail_sleepy', dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
+            .filter(
+                TaskFail.task_id == 'pass_sleepy',
+                TaskFail.dag_id == dag.dag_id,
+                TaskFail.task_instance.execution_date == DEFAULT_DATE,
+            )
             .all()
         )
 
