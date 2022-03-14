@@ -518,7 +518,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           VERBOSE: false
   docs:
-    timeout-minutes: 45
+    timeout-minutes: 60
     name: "Build docs"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
