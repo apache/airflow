@@ -483,7 +483,7 @@ def wrapped_markdown(s, css_class='rich_doc'):
     if s is None:
         return None
     s = textwrap.dedent(s)
-    return Markup(f'<div class="{css_class}" >' + md.render(s) + "</div>")
+    return Markup(f'<div class="{css_class}" >{md.render(s)}</div>')
 
 
 def get_attr_renderer():
