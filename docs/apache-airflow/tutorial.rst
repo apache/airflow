@@ -416,7 +416,7 @@ Table Creation Tasks
 
 We can use the `PostgresOperator <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ to define tasks that create tables in our postgres db.
 
-We'll create one table to facilitate preprocessing steps (``employees_temp``) and another table to store our cleaned data (``employees``).
+We'll create one table to facilitate data cleaning steps (``employees_temp``) and another table to store our cleaned data (``employees``).
 
 .. code-block:: python
 
@@ -466,7 +466,7 @@ and repeat for the ``employees_temp`` table.
 Data Retrieval Task
 ~~~~~~~~~~~~~~~~~~~
 
-Here we retrieve data, save it to a file on our Airflow instance, and load the data from that file into an intermediate table where we can execute preprocessing steps.
+Here we retrieve data, save it to a file on our Airflow instance, and load the data from that file into an intermediate table where we can execute data cleaning steps.
 
 .. code-block:: python
 
