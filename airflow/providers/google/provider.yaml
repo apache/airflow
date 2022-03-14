@@ -235,6 +235,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/datafusion.rst
     logo: /integration-logos/gcp/Google-Data-Fusion.png
     tags: [gcp]
+  - integration-name: Google Dataplex
+    external-doc-url: https://cloud.google.com/dataplex/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataplex.rst
+    tags: [gcp]
   - integration-name: Google Dataprep
     external-doc-url: https://cloud.google.com/dataprep/
     how-to-guide:
@@ -399,6 +404,9 @@ operators:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataplex
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.operators.dataprep
@@ -513,6 +521,9 @@ sensors:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.sensors.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
@@ -585,6 +596,9 @@ hooks:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.hooks.dataplex
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.hooks.dataprep
@@ -853,6 +867,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
