@@ -1716,8 +1716,9 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
         dag_run_id = request.form.get('dag_run_id')
+        map_index = request.args.get('map_index', -1, type=int)
         origin = get_safe_url(request.form.get('origin'))
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
         ignore_all_deps = request.form.get('ignore_all_deps') == "true"
@@ -1731,7 +1732,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
-        ti = dag_run.get_task_instance(task_id=task.task_id)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
             flash(
                 "Could not queue task instance for execution, task instance is missing",
