@@ -30,7 +30,7 @@
 
 {% block head_meta %}
   {{ super() }}
-  {% if scheduler_job is defined and scheduler_job.is_alive() %}
+  {% if scheduler_job is defined and (scheduler_job and scheduler_job.is_alive()) %}
     <meta name="is_scheduler_running" content="True">
   {% endif %}
 {% endblock %}
