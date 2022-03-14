@@ -100,13 +100,16 @@ class SparkKubernetesOperator(BaseOperator):
         spark_version: str = '3.0.0',
         success_run_history_limit: int = 1,
         is_delete_operator_pod: bool = False,
+        dynamic_allocation: bool = False,
+        dynamic_alloc_max_executors: int = 5,
+        dynamic_alloc_initial_executors: int = 1,
+        dynamic_alloc_min_executors: int = 1,
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
         api_kind: str = 'SparkApplication',
         api_plural: str = 'sparkapplications',
         image_pull_policy: str = 'Always',
-        # TODO: service_account_name: str = 'default',
-        service_account_name: str = 'spark8s-spark',
+        service_account_name: str = 'default',
         spark_job_mode: str = 'cluster',
         spark_job_python_version: str = '3',
         spark_job_type: str = 'Python',
@@ -148,6 +151,10 @@ class SparkKubernetesOperator(BaseOperator):
         self.api_kind = api_kind
         self.api_plural = api_plural
         self.code_path = code_path
+        self.dynamic_allocation = dynamic_allocation
+        self.dynamic_alloc_max_executors = dynamic_alloc_max_executors
+        self.dynamic_alloc_min_executors = dynamic_alloc_min_executors
+        self.dynamic_alloc_initial_executors = dynamic_alloc_initial_executors
         if config_map_mounts:
             vols, vols_mounts = convert_configmap_to_volume(config_map_mounts)
             self.volumes.extend(vols)
@@ -282,6 +289,10 @@ class SparkKubernetesOperator(BaseOperator):
             labels=self.labels,
             success_run_history_limit=self.success_run_history_limit,
             service_account_name=self.service_account_name,
+            dynamic_allocation=self.dynamic_allocation,
+            dynamic_alloc_initial_executors=self.dynamic_alloc_initial_executors,
+            dynamic_alloc_max_executors=self.dynamic_alloc_max_executors,
+            dynamic_alloc_min_executors=self.dynamic_alloc_min_executors,
             driver_cpu=self.resources['driver_limit_cpu'],
             driver_memory=self.resources['driver_limit_memory'],
             executor_cpu=self.resources['executor_limit_cpu'],

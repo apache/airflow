@@ -29,6 +29,9 @@ class CustomObjectStatus:
     INITIAL_SPEC = {
         'metadata': {},
         'spec': {
+            'dynamicAllocation': {
+                'enabled': False
+            },
             'driver': {
                 'cores': 1,
                 'coreLimit': '1',
@@ -192,6 +195,10 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['executor']['memory'] = kwargs['executor_memory']
         body_template['spec']['executor']['instances'] = int(kwargs['number_workers'])
         body_template['spec']['executor']['labels'] = kwargs['labels']
+        body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
+        body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs['dynamic_alloc_initial_executors']
+        body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
+        body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
 
         body_template['spec']['volumes'] = kwargs['volumes']
         for item in ['driver', 'executor']:
