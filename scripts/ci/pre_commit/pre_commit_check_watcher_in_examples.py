@@ -34,6 +34,14 @@ errors: List[str] = []
 
 WATCHER_APPEND_INSTRUCTION = "list(dag.tasks) >> watcher()"
 
+PYTEST_FUNCTION = """
+def test_run():
+    from airflow.utils.state import State
+
+    dag.clear(dag_run_state=State.NONE)
+    dag.run()
+"""
+
 
 def _check_file(file: Path):
     content = file.read_text()
@@ -59,6 +67,13 @@ def _check_file(file: Path):
                     f"        {WATCHER_APPEND_INSTRUCTION}\n\n"
                     "[yellow]as last instruction in your example DAG.[/]\n"
                 )
+        if PYTEST_FUNCTION not in content:
+            errors.append(
+                f"[yellow]The  example {file} missed the pytest function at the end.[/]\n\n"
+                "All example tests should have this function added:\n\n" + PYTEST_FUNCTION + "\n\n"
+                "[yellow]Automatically adding it now!\n"
+            )
+            file.write_text(content + "\n" + PYTEST_FUNCTION)
 
 
 if __name__ == '__main__':
