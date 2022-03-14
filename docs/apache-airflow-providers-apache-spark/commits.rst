@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.1
 .....
 
-Latest change: 2022-02-25
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ===========================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `6322dad2ca <https://github.com/apache/airflow/commit/6322dad2caa0e5b4d339c5d9a73ec7ff3fd4bc25>`_  2022-02-25   ``fix param rendering in docs of SparkSubmitHook (#21788)``
 =================================================================================================  ===========  ===========================================================
 

@@ -351,7 +351,7 @@ def get_long_description(provider_package_id: str) -> str:
     return long_description
 
 
-def get_install_requirements(provider_package_id: str, version_suffix: str) -> List[str]:
+def get_install_requirements(provider_package_id: str, version_suffix: str) -> str:
     """
     Returns install requirements for the package.
 
@@ -380,15 +380,19 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> L
             install_requires.extend(additional_dependencies)
 
     install_requires.extend(dependencies)
-    return install_requires
+    prefix = "\n    "
+    return prefix + prefix.join(install_requires)
 
 
-def get_setup_requirements() -> List[str]:
+def get_setup_requirements() -> str:
     """
     Returns setup requirements (common for all package for now).
     :return: setup requirements
     """
-    return ['setuptools', 'wheel']
+    return """
+    setuptools
+    wheel
+"""
 
 
 def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
@@ -1931,8 +1935,8 @@ def cleanup_remnants(verbose: bool):
         shutil.rmtree(file, ignore_errors=True)
 
 
-def verify_setup_py_prepared(provider_package):
-    with open("setup.py") as f:
+def verify_setup_cfg_prepared(provider_package):
+    with open("setup.cfg") as f:
         setup_content = f.read()
     search_for = f"providers-{provider_package.replace('.','-')} for Apache Airflow"
     if search_for not in setup_content:
@@ -1994,7 +1998,7 @@ def build_provider_packages(
             os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
             cleanup_remnants(verbose)
             provider_package = package_id
-            verify_setup_py_prepared(provider_package)
+            verify_setup_cfg_prepared(provider_package)
 
             console.print(f"Building provider package: {provider_package} in format {package_format}")
             command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]

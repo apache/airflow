@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.2.0
 .....
 
-Latest change: 2022-02-15
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `5fdd6fa479 <https://github.com/apache/airflow/commit/5fdd6fa4796bd52b3ce52ef8c3280999f4e2bb1c>`_  2022-02-15   `` Added retries to LivyHook #19384  (#21550)``
 `c25534be56 <https://github.com/apache/airflow/commit/c25534be56cee39b6be38a9928cd5b2e107a32be>`_  2022-02-11   ``add how-to guide for livy operator (#21529)``
 `d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``

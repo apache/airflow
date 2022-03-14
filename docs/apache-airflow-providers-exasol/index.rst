@@ -51,7 +51,7 @@ Package apache-airflow-providers-exasol
 `Exasol <https://docs.exasol.com/home.htm>`__
 
 
-Release: 2.1.1
+Release: 2.1.2
 
 Provider package
 ----------------
