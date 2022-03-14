@@ -447,7 +447,7 @@ If you want to abstract these sql statements out of your DAG, you can move the s
 
 and repeat for the ``employees_temp`` table.
 
-Data Retrival Task
+Data Retrieval Task
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table.
