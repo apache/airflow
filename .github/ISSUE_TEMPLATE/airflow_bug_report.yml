@@ -118,7 +118,7 @@ body:
         <details><summary>x.log</summary> lots of stuff </details>
   - type: checkboxes
     attributes:
-      label: Are you will ing to submit PR?
+      label: Are you willing to submit PR?
       description: >
         This is absolutely not required, but we are happy to guide you in the contribution process
         especially if you already have a good understanding of how to implement the fix.
