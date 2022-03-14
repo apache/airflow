@@ -23,51 +23,51 @@ from tests.charts.helm_template_generator import render_chart
 
 
 class DagsPersistentVolumeClaimTest(unittest.TestCase):
-    # def test_should_not_generate_a_document_if_persistence_is_disabled(self):
-    #     docs = render_chart(
-    #         values={"dags": {"persistence": {"enabled": False}}},
-    #         show_only=["templates/dags-persistent-volume-claim.yaml"],
-    #     )
+    def test_should_not_generate_a_document_if_persistence_is_disabled(self):
+        docs = render_chart(
+            values={"dags": {"persistence": {"enabled": False}}},
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
 
-    #     assert 0 == len(docs)
+        assert 0 == len(docs)
 
-    # def test_should_not_generate_a_document_when_using_an_existing_claim(self):
-    #     docs = render_chart(
-    #         values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
-    #         show_only=["templates/dags-persistent-volume-claim.yaml"],
-    #     )
+    def test_should_not_generate_a_document_when_using_an_existing_claim(self):
+        docs = render_chart(
+            values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
 
-    #     assert 0 == len(docs)
+        assert 0 == len(docs)
 
-    # def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
-    #     docs = render_chart(
-    #         values={"dags": {"persistence": {"enabled": True, "existingClaim": None}}},
-    #         show_only=["templates/dags-persistent-volume-claim.yaml"],
-    #     )
+    def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
+        docs = render_chart(
+            values={"dags": {"persistence": {"enabled": True, "existingClaim": None}}},
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
 
-    #     assert 1 == len(docs)
+        assert 1 == len(docs)
 
-    # def test_should_set_pvc_details_correctly(self):
-    #     docs = render_chart(
-    #         values={
-    #             "dags": {
-    #                 "persistence": {
-    #                     "enabled": True,
-    #                     "size": "1G",
-    #                     "existingClaim": None,
-    #                     "storageClassName": "MyStorageClass",
-    #                     "accessMode": "ReadWriteMany",
-    #                 }
-    #             }
-    #         },
-    #         show_only=["templates/dags-persistent-volume-claim.yaml"],
-    #     )
+    def test_should_set_pvc_details_correctly(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "persistence": {
+                        "enabled": True,
+                        "size": "1G",
+                        "existingClaim": None,
+                        "storageClassName": "MyStorageClass",
+                        "accessMode": "ReadWriteMany",
+                    }
+                }
+            },
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
 
-    #     assert {
-    #         "accessModes": ["ReadWriteMany"],
-    #         "resources": {"requests": {"storage": "1G"}},
-    #         "storageClassName": "MyStorageClass",
-    #     } == jmespath.search("spec", docs[0])
+        assert {
+            "accessModes": ["ReadWriteMany"],
+            "resources": {"requests": {"storage": "1G"}},
+            "storageClassName": "MyStorageClass",
+        } == jmespath.search("spec", docs[0])
 
     def test_single_annotation(self):
         docs = render_chart(
