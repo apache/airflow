@@ -160,7 +160,7 @@ class TestAttrRenderer(unittest.TestCase):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable():
+        def example_callable(unused_self):
             print("example")
 
         rendered = self.attr_renderer["python_callable"](example_callable)
