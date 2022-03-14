@@ -377,9 +377,25 @@ Lets look at another example; we need to get some data from a file which is host
 
 Initial setup
 ''''''''''''''''''''
-We need to have Docker and Postgres installed.
-We will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for the following steps.
-Follow the instructions properly to set up Airflow.
+We need to have Docker installed as we will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for this example.
+The steps below should be sufficient, but see the quick-start documentation for full instructions.
+
+.. code-block:: bash
+
+  # Download the docker-compose.yaml file
+  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
+
+  # Make expected directories and set an expected environment variable
+  mkdir -p ./dags ./logs ./plugins
+  echo -e "AIRFLOW_UID=$(id -u)" > .env
+
+  # Initialize the database
+  docker-compose up airflow-init
+
+  # Start up all services
+  docker-compose up
+
+After all services have started up, the web UI will be available at: ``http://localhost:8080``. The default account has the username ``airflow`` and the password ``airflow``.
 
 We will also need to create a `connection <https://airflow.apache.org/docs/apache-airflow/stable/concepts/connections.html>`_ to the postgres db. To create one via the web UI, from the "Admin" menu, select "Connections", then click the Plus sign to "Add a new record" to the list of connections.
 
@@ -400,7 +416,7 @@ Table Creation Tasks
 
 We can use the `PostgresOperator <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ to define tasks that create tables in our postgres db.
 
-We'll create one table to serve as the destination for the retrieved data and another to facilitate
+We'll create one table to facilitate preprocessing steps (``employees_temp``) and another table to store our cleaned data (``employees``).
 
 .. code-block:: python
 
@@ -435,7 +451,7 @@ We'll create one table to serve as the destination for the retrieved data and an
 
 Optional Note:
 """"""""""""""
-If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to
+If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to:
 
 .. code-block:: python
 
@@ -448,9 +464,9 @@ If you want to abstract these sql statements out of your DAG, you can move the s
 and repeat for the ``employees_temp`` table.
 
 Data Retrieval Task
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
-Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table.
+Here we retrieve data, save it to a file on our Airflow instance, and load the data from that file into an intermediate table where we can execute preprocessing steps.
 
 .. code-block:: python
 
@@ -484,9 +500,9 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
       conn.commit()
 
 Data Merge Task
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
-Here we select completely unique records from the retrieved data, then we check to see if any employee ``Serial Number``s are already in the database (if they are, we update those records with the new data).
+Here we select completely unique records from the retrieved data, then we check to see if any employee ``Serial Numbers`` are already in the database (if they are, we update those records with the new data).
 
 .. code-block:: python
 
@@ -518,8 +534,22 @@ Here we select completely unique records from the retrieved data, then we check 
 
 
 
+Completing our DAG:
+~~~~~~~~~~~~~~~~~~~
+We've developed our tasks, now we need to wrap them in a DAG, which enables us to define when and how tasks should run, and state any dependencies that tasks have on other tasks. The DAG below is configured to:
 
-Lets look at our DAG:
+* run every day a midnight starting on Jan 1, 2021,
+* only run once in the event that days are missed, and
+* timeout after 60 minutes
+
+And from the last line in the definition of the ``Etl`` DAG, we see:
+
+ [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
+* the ``merge_data()`` task depends on the ``get_data()`` task,
+* the ``get_data()`` depends on both the ``create_employees_table`` and ``create_employees_temp_table`` tasks, and
+* the ``create_employees_table`` and ``create_employees_temp_table`` tasks can run independently.
+
+Putting all of the pieces together, we have our completed DAG.
 
 .. code-block:: python
 
@@ -617,23 +647,15 @@ Lets look at our DAG:
 
   dag = Etl()
 
-This dag runs daily at 00:00.
-Add this python file to airflow/dags folder (e.g. ``dags/etl.py``) and go back to the main folder and run:
-
-.. code-block:: bash
-
-  docker-compose up airflow-init
-  docker-compose up
-
-Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example:
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
 
 .. image:: img/new_tutorial-1.png
 
+You can trigger the ``Etl`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
 
 .. image:: img/new_tutorial-3.png
 
-The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows.
+In the ``Etl`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!
 
 
 What's Next?
