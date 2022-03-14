@@ -425,7 +425,16 @@ class TaskInstance(Base, LoggingMixin):
 
     dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy='noload', uselist=False)
-    sla_miss = relationship("SlaMiss", lazy='noload', uselist=False)
+    sla_miss = relationship(
+        "SlaMiss",
+        primaryjoin="and_("
+        + ', '.join(
+            [f"foreign(TaskInstance.{x})==SlaMiss.{x}" for x in ('dag_id', 'task_id', 'run_id', 'map_index')]
+        )
+        + ")",
+        lazy='noload',
+        uselist=False,
+    )
 
     execution_date = association_proxy("dag_run", "execution_date")
 

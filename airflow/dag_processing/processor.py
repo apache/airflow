@@ -49,6 +49,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_c
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DR = models.DagRun
 TI = models.TaskInstance
@@ -381,13 +382,10 @@ class DagFileProcessor(LoggingMixin):
             )
         )
 
-        max_tis: Iterator[TI] = (
-            session.query(TI)
-            .filter(
-                TI.dag_id == dag.dag_id,
-                TI.task_id == qry.c.task_id,
-                DR.execution_date == qry.c.max_ti,
-            )
+        max_tis: Iterator[TI] = session.query(TI).filter(
+            TI.dag_id == dag.dag_id,
+            TI.task_id == qry.c.task_id,
+            DR.execution_date == qry.c.max_ti,
         )
 
         ts = timezone.utcnow()
@@ -410,16 +408,17 @@ class DagFileProcessor(LoggingMixin):
             else:
                 while next_info.logical_date < ts:
                     next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+                    next_run_id = DR.generate_run_id(DagRunType.SCHEDULED, next_info.logical_date)
                     if next_info is None:
                         break
-                    if (ti.dag_id, ti.task_id, ti.run_id, ti.map_index) in recorded_sla_misses:
+                    if (ti.dag_id, ti.task_id, next_run_id, ti.map_index) in recorded_sla_misses:
                         break
                     if next_info.logical_date + task.sla < ts:
                         sla_misses.append(
                             SlaMiss(
                                 task_id=ti.task_id,
                                 dag_id=ti.dag_id,
-                                run_id=ti.run_id,
+                                run_id=next_run_id,
                                 timestamp=ts,
                             )
                         )

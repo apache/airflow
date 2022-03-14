@@ -132,13 +132,6 @@ def upgrade():
         batch_op.alter_column('run_id', existing_type=StringID(), existing_nullable=True, nullable=False)
         batch_op.drop_column('execution_date')
         batch_op.create_primary_key('sla_miss_pkey', ['dag_id', 'task_id', 'run_id', 'map_index'])
-        batch_op.create_foreign_key(
-            'sla_miss_ti_fkey',
-            'task_instance',
-            ['dag_id', 'task_id', 'run_id', 'map_index'],
-            ['dag_id', 'task_id', 'run_id', 'map_index'],
-            ondelete='CASCADE',
-        )
 
 
 def downgrade():
@@ -155,7 +148,6 @@ def downgrade():
     with op.batch_alter_table('sla_miss', copy_from=sla_miss) as batch_op:
         batch_op.alter_column('execution_date', existing_type=TIMESTAMP, nullable=False)
         if dialect_name != 'sqlite':
-            batch_op.drop_constraint('sla_miss_ti_fkey', type_='foreignkey')
             batch_op.drop_constraint('sla_miss_pkey', type_='primary')
         batch_op.create_primary_key('sla_miss_pkey', ['dag_id', 'task_id', 'execution_date'])
         batch_op.drop_column('map_index', mssql_drop_default=True)

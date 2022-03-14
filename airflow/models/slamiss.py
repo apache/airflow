@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Index, Integer, Text
+from sqlalchemy import Boolean, Column, Index, Integer, Text
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -40,20 +40,7 @@ class SlaMiss(Base):
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
 
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name='sla_miss_ti_fkey',
-            ondelete="CASCADE",
-        ),
-    )
+    __table_args__ = (Index('sm_dag', dag_id, unique=False),)
 
     def __repr__(self):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
