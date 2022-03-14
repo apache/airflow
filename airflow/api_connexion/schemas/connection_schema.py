@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import warnings
 from typing import List, NamedTuple
 
 from marshmallow import Schema, fields
@@ -46,29 +45,23 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)
-    extra = fields.Method('get_extra', deserialize='set_extra')
+    extra = fields.Method('serialize_extra', deserialize='deserialize_extra')
 
     @staticmethod
-    def get_extra(obj: Connection):
+    def serialize_extra(obj: Connection):
         if obj.extra is None:
             return
         from airflow.utils.log.secrets_masker import redact
 
         try:
             extra = json.loads(obj.extra)
-            return str(redact(extra))
+            return json.dumps(redact(extra))
         except json.JSONDecodeError:
-            warnings.warn(
-                f"Encountered non-JSON in `extra` field for connection {obj.conn_id!r}. Support for "
-                "non-JSON `extra` will be removed in Airflow 3.0",
-                DeprecationWarning,
-                stacklevel=2,
-            )
             # we can't redact fields in an unstructured `extra`
             return obj.extra
 
     @staticmethod
-    def set_extra(value):  # an explicit deserialize method is required for field.Method
+    def deserialize_extra(value):  # an explicit deserialize method is required for field.Method
         return value
 
 
