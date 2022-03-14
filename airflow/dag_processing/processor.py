@@ -367,10 +367,11 @@ class DagFileProcessor(LoggingMixin):
             return
 
         qry = (
-            session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
+            session.query(TI.task_id, func.max(DR.execution_date).label('max_exec_date'))
             .join(TI.dag_run)
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
+            .filter(TI.map_index == -1)  # ignore mapped tasks
             .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
             .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
@@ -385,7 +386,8 @@ class DagFileProcessor(LoggingMixin):
         max_tis: Iterator[TI] = session.query(TI).filter(
             TI.dag_id == dag.dag_id,
             TI.task_id == qry.c.task_id,
-            DR.execution_date == qry.c.max_ti,
+            DR.execution_date == qry.c.max_exec_date,
+            TI.map_index == -1,  # ignore mapped tasks
         )
 
         ts = timezone.utcnow()
