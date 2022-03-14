@@ -67,7 +67,7 @@ class GoogleDriveUploadOperator(BaseOperator):
     def __init__(
         self,
         local_paths: Union[Sequence[Path], Sequence[str]],
-        drive_folder: Path,
+        drive_folder: Union[Path, str],
         gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
@@ -98,10 +98,15 @@ class GoogleDriveUploadOperator(BaseOperator):
         for local_path in self.local_paths:
             self.log.info(f'Uploading file to Google Drive: {local_path}')
 
+            local_path_normalized = Path(local_path) if type(local_path) is str else local_path
+            drive_folder_normalized = (
+                Path(self.drive_folder) if type(self.drive_folder) is str else self.drive_folder
+            )
+
             try:
                 remote_file_id = hook.upload_file(
-                    local_location=str(local_path),
-                    remote_location=str(self.drive_folder / local_path.name),
+                    local_location=str(local_path_normalized),
+                    remote_location=str(drive_folder_normalized / local_path_normalized.name),
                     chunk_size=self.chunk_size,
                     resumable=self.resumable,
                 )
