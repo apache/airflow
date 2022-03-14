@@ -1335,12 +1335,13 @@ class Airflow(AirflowBaseView):
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
+        map_index = request.args.get('map_index', -1, type=int)
         logging.info("Retrieving rendered templates.")
 
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
 
         pod_spec = None
         try:
@@ -1368,6 +1369,7 @@ class Airflow(AirflowBaseView):
             dag=dag,
             task_id=task_id,
             execution_date=execution_date,
+            map_index=map_index,
             form=form,
             root=root,
             title=title,
