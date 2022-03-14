@@ -1578,13 +1578,7 @@ class Airflow(AirflowBaseView):
                 joinedload(TaskInstance.queued_by_job, innerjoin=False),
                 joinedload(TaskInstance.trigger, innerjoin=False),
             )
-            .join(TaskInstance.dag_run)
-            .filter(
-                DagRun.execution_date == dttm,
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.task_id == task_id,
-                TaskInstance.map_index == map_index,
-            )
+            .filter_by(execution_date=dttm, dag_id=dag_id, task_id=task_id, map_index=map_index)
             .one_or_none()
         )
         if ti is None:
