@@ -1521,15 +1521,12 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
+        map_index = request.args.get('map_index', -1, type=int)
         try_number = request.args.get('try_number', 1)
 
         ti = (
             session.query(models.TaskInstance)
-            .filter(
-                models.TaskInstance.dag_id == dag_id,
-                models.TaskInstance.task_id == task_id,
-                models.TaskInstance.execution_date == dttm,
-            )
+            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=dttm, map_index=map_index)
             .first()
         )
 
