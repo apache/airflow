@@ -20,8 +20,10 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock as MM
 
+import pytest
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 
 TRANSFER_CONFIG_ID = "config_id"
@@ -42,9 +44,9 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             project_id=PROJECT_ID,
             expected_statuses={"SUCCEEDED"},
         )
-        result = op.poke({})
 
-        assert result is False
+        with pytest.raises(AirflowException, match="Transfer"):
+            op.poke({})
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
