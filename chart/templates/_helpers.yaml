@@ -607,6 +607,41 @@ Create the name of the cleanup service account to use
   {{- end }}
 {{- end }}
 
+{{define "scheduler_liveness_check_command"}}
+
+  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    from airflow.jobs.scheduler_job import SchedulerJob
+    from airflow.utils.db import create_session
+    from airflow.utils.net import get_hostname
+    import sys
+    with create_session() as session:
+        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+    sys.exit(0 if job.is_alive() else 1)"
+  {{- end }}
+{{- end }}
+
+{{define "triggerer_liveness_check_command"}}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+{{- end }}
+
 {{ define "registry_docker_config" -}}
   {{- $host := .Values.registry.connection.host }}
   {{- $email := .Values.registry.connection.email }}

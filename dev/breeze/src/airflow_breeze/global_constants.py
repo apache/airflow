@@ -32,7 +32,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = '3.7'
 DEFAULT_BACKEND = 'sqlite'
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_STATIC_CHECKS = [
     "all",
@@ -213,8 +213,8 @@ SQLITE_URL = "sqlite:////root/airflow/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
-CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13']
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']

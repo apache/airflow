@@ -18,7 +18,7 @@
 import os
 from contextlib import closing
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -262,7 +262,7 @@ class SnowflakeHook(DbApiHook):
         self,
         sql: Union[str, list],
         autocommit: bool = False,
-        parameters: Optional[Union[dict, Iterable]] = None,
+        parameters: Optional[Union[Sequence[Any], Dict[Any, Any]]] = None,
         handler: Optional[Callable] = None,
     ):
         """
@@ -290,7 +290,8 @@ class SnowflakeHook(DbApiHook):
                 sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
 
             self.log.debug("Executing %d statements against Snowflake DB", len(sql))
-            with closing(conn.cursor(DictCursor)) as cur:
+            # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
+            with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
 
                 for sql_statement in sql:
 

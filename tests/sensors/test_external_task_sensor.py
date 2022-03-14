@@ -427,7 +427,7 @@ def test_external_task_sensor_templated(dag_maker, app):
     with app.app_context():
         url = instance.task.get_extra_links(instance, "External DAG")
 
-        assert f"tree?dag_id=dag_{DEFAULT_DATE.date()}" in url
+        assert f"/dags/dag_{DEFAULT_DATE.date()}/grid" in url
 
 
 class TestExternalTaskMarker(unittest.TestCase):

@@ -40,7 +40,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -224,25 +223,20 @@ def get_task_instances(
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
     # Add join
-    base_query = base_query.join(
-        SlaMiss,
-        and_(
-            SlaMiss.dag_id == TI.dag_id,
-            SlaMiss.task_id == TI.task_id,
-            SlaMiss.execution_date == DR.execution_date,
-        ),
-        isouter=True,
-    ).add_entity(SlaMiss)
-    ti_query = base_query.outerjoin(
-        RTIF,
-        and_(
-            RTIF.dag_id == TI.dag_id,
-            RTIF.task_id == TI.task_id,
-            RTIF.run_id == TI.run_id,
-        ),
-    ).add_entity(RTIF)
-    task_instances = ti_query.offset(offset).limit(limit).all()
-
+    query = (
+        base_query.join(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.task_id == TI.task_id,
+                SlaMiss.execution_date == DR.execution_date,
+            ),
+            isouter=True,
+        )
+        .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
+    )
+    task_instances = query.offset(offset).limit(limit).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )

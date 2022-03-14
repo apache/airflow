@@ -21,6 +21,7 @@ function runs::run_docs() {
     start_end::group_start "Run build docs"
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
         -e "GITHUB_ACTIONS=${GITHUB_ACTIONS="false"}" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
@@ -31,6 +32,7 @@ function runs::run_docs() {
 function runs::run_generate_constraints() {
     start_end::group_start "Run generate constraints"
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
@@ -43,6 +45,7 @@ function runs::run_prepare_airflow_packages() {
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"
@@ -56,6 +59,7 @@ function runs::run_prepare_provider_packages() {
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         --pull never \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh" "${@}"
@@ -72,6 +76,7 @@ function runs::run_prepare_provider_documentation() {
         "${term_flag}" \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         -e "NON_INTERACTIVE" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         -e "GENERATE_PROVIDERS_ISSUE" \
         -e "GITHUB_TOKEN" \
         --pull never \
