@@ -198,9 +198,7 @@ class BaseTaskRunner(LoggingMixin):
         if self.impersonation:
             # Clean up all temporary files with sudo since they were made with
             # sudo and the regular airflow user does not own them anymore.
-            subprocess.call(
-              ['sudo', 'rm', '-f', self._cfg_path, self._error_file.name], close_fds=True
-            )
+            subprocess.call(['sudo', 'rm', '-f', self._cfg_path, self._error_file.name], close_fds=True)
         else:
             if self._cfg_path:
                 try:
