@@ -1558,6 +1558,7 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
+        map_index = request.args.get('map_index', -1, type=int)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         dag = current_app.dag_bag.get_dag(dag_id)
@@ -1582,6 +1583,7 @@ class Airflow(AirflowBaseView):
                 DagRun.execution_date == dttm,
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
+                TaskInstance.map_index == map_index,
             )
             .one_or_none()
         )
@@ -1646,6 +1648,7 @@ class Airflow(AirflowBaseView):
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
+            map_index=map_index,
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             root=root,
