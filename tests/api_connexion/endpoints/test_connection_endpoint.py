@@ -141,7 +141,7 @@ class TestGetConnection(TestConnectionEndpoint):
             conn_id='test-connection-id',
             conn_type='mysql',
             description='test description',
-            extra="{\"nonsensitive\": \"just_a_value\", \"api_token\": \"***\"}",
+            extra={"nonsensitive": "just_a_value", "api_token": "secretvalue"},
         )
         session.add(connection_model)
         session.commit()
@@ -150,7 +150,7 @@ class TestGetConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test"}
         )
 
-        assert response.json['extra'] == "{'nonsensitive': 'just_a_value', 'api_token': '***'}"
+        assert response.json['extra'] == '{"nonsensitive": "just_a_value", "api_token": "***"}'
 
     def test_should_respond_404(self):
         response = self.client.get(
