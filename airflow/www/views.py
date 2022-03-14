@@ -3277,6 +3277,7 @@ class Airflow(AirflowBaseView):
         """
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
+        map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
         link_name = request.args.get('link_name')
         dttm = timezone.parse(execution_date)
@@ -3296,11 +3297,7 @@ class Airflow(AirflowBaseView):
 
         ti = (
             session.query(TaskInstance)
-            .filter(
-                models.TaskInstance.dag_id == dag_id,
-                models.TaskInstance.task_id == task_id,
-                models.TaskInstance.execution_date == dttm,
-            )
+            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=dttm, map_index=map_index)
             .options(joinedload(TaskInstance.dag_run))
             .first()
         )
