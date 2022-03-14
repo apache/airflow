@@ -518,7 +518,10 @@ ARG_MIGRATION_TIMEOUT = Arg(
 )
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--version"),
-    help="(Optional) The airflow version to upgrade to. Note: must provide either `--revision` or `--version`.",
+    help=(
+        "(Optional) The airflow version to upgrade to. Note: must provide either "
+        "`--revision` or `--version`."
+    ),
 )
 ARG_DB_REVISION__UPGRADE = Arg(
     ("-r", "--revision"),
@@ -1364,8 +1367,9 @@ DB_COMMANDS = (
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
-            "If using options ``--from-revision`` or ``--from-version``, you must also use ``--show-sql-only``, "
-            "because if actually *running* migrations, we should only migrate from the *current* revision."
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
         args=(

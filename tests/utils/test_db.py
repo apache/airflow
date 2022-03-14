@@ -122,16 +122,6 @@ class TestDb:
 
     @pytest.mark.parametrize(
         'from_revision, to_revision',
-        [('be2bfac3da23', 'e959f08ac86c'), ("ccde3e26fe78", "2e42bb497a22")],
-    )
-    def test_offline_upgrade_version(self, from_revision, to_revision):
-        with mock.patch('airflow.utils.db.settings.engine.dialect'):
-            with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
-        mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
-
-    @pytest.mark.parametrize(
-        'from_revision, to_revision',
         [('be2bfac3da23', 'e959f08ac86c'), ('ccde3e26fe78', '2e42bb497a22')],
     )
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
@@ -146,7 +136,7 @@ class TestDb:
             ('e959f08ac86c', 'e959f08ac86c'),
         ],
     )
-    def test_offline_upgrade_version(self, from_revision, to_revision):
+    def test_offline_upgrade_revision_nothing(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade'):
                 with redirect_stdout(io.StringIO()) as temp_stdout:
@@ -156,10 +146,7 @@ class TestDb:
 
     @pytest.mark.parametrize(
         'from_revision, to_revision',
-        [
-            ("90d1635d7b86", "54bebd308c5f"),
-            ("e959f08ac86c", "587bdf053233"),
-        ],
+        [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
     )
     def test_offline_upgrade_revision(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
