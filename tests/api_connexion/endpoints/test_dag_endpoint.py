@@ -834,3 +834,426 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert response.status_code == 403
+
+
+class TestPatchDags(TestDagEndpoint):
+
+    file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+    file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
+
+    @provide_session
+    def test_should_respond_200_on_patch_is_paused(self, session):
+        self._create_dag_models(2)
+        self._create_deactivated_dag()
+
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        assert len(dags_query.all()) == 3
+
+        response = self.client.patch(
+            "/api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": self.file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_2",
+                    "description": None,
+                    "fileloc": "/tmp/dag_2.py",
+                    "file_token": self.file_token2,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+    def test_only_active_true_returns_active_dags(self):
+        self._create_dag_models(1)
+        self._create_deactivated_dag()
+        response = self.client.patch(
+            "/api/v1/dags?only_active=True&dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": self.file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                }
+            ],
+            "total_entries": 1,
+        } == response.json
+
+    def test_only_active_false_returns_all_dags(self):
+        self._create_dag_models(1)
+        self._create_deactivated_dag()
+        response = self.client.patch(
+            "/api/v1/dags?only_active=False&dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        file_token_2 = SERIALIZER.dumps("/tmp/dag_del_1.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": self.file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_DELETED_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_del_1.py",
+                    "file_token": file_token_2,
+                    "is_paused": False,
+                    "is_active": False,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?tags=t1&dag_id_pattern=~", ['TEST_DAG_1', 'TEST_DAG_3']),
+            ("api/v1/dags?tags=t2&dag_id_pattern=~", ['TEST_DAG_2', 'TEST_DAG_3']),
+            ("api/v1/dags?tags=t1,t2&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3"]),
+            ("api/v1/dags?dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3", "TEST_DAG_4"]),
+        ]
+    )
+    def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
+        # test filter by tags
+        dag1 = DAG(dag_id="TEST_DAG_1", tags=['t1'])
+        dag2 = DAG(dag_id="TEST_DAG_2", tags=['t2'])
+        dag3 = DAG(dag_id="TEST_DAG_3", tags=['t1', 't2'])
+        dag4 = DAG(dag_id="TEST_DAG_4")
+        dag1.sync_to_db()
+        dag2.sync_to_db()
+        dag3.sync_to_db()
+        dag4.sync_to_db()
+        response = self.client.patch(
+            url,
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
+
+        assert expected_dag_ids == dag_ids
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?dag_id_pattern=DAG_1", {'TEST_DAG_1', 'SAMPLE_DAG_1'}),
+            ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {'SAMPLE_DAG_1', 'SAMPLE_DAG_2'}),
+            (
+                "api/v1/dags?dag_id_pattern=_DAG_",
+                {"TEST_DAG_1", "TEST_DAG_2", 'SAMPLE_DAG_1', 'SAMPLE_DAG_2'},
+            ),
+        ]
+    )
+    def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
+        # test filter by tags
+        dag1 = DAG(dag_id="TEST_DAG_1")
+        dag2 = DAG(dag_id="TEST_DAG_2")
+        dag3 = DAG(dag_id="SAMPLE_DAG_1")
+        dag4 = DAG(dag_id="SAMPLE_DAG_2")
+        dag1.sync_to_db()
+        dag2.sync_to_db()
+        dag3.sync_to_db()
+        dag4.sync_to_db()
+
+        response = self.client.patch(
+            url,
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
+
+        assert expected_dag_ids == dag_ids
+
+    def test_should_respond_200_with_granular_dag_access(self):
+        self._create_dag_models(3)
+        response = self.client.patch(
+            "api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test_granular_permissions"},
+        )
+        assert response.status_code == 200
+        assert len(response.json['dags']) == 1
+        assert response.json['dags'][0]['dag_id'] == 'TEST_DAG_1'
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?limit=1&dag_id_pattern=~", ["TEST_DAG_1"]),
+            ("api/v1/dags?limit=2&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_10"]),
+            (
+                "api/v1/dags?offset=5&dag_id_pattern=~",
+                ["TEST_DAG_5", "TEST_DAG_6", "TEST_DAG_7", "TEST_DAG_8", "TEST_DAG_9"],
+            ),
+            (
+                "api/v1/dags?offset=0&dag_id_pattern=~",
+                [
+                    "TEST_DAG_1",
+                    "TEST_DAG_10",
+                    "TEST_DAG_2",
+                    "TEST_DAG_3",
+                    "TEST_DAG_4",
+                    "TEST_DAG_5",
+                    "TEST_DAG_6",
+                    "TEST_DAG_7",
+                    "TEST_DAG_8",
+                    "TEST_DAG_9",
+                ],
+            ),
+            ("api/v1/dags?limit=1&offset=5&dag_id_pattern=~", ["TEST_DAG_5"]),
+            ("api/v1/dags?limit=1&offset=1&dag_id_pattern=~", ["TEST_DAG_10"]),
+            ("api/v1/dags?limit=2&offset=2&dag_id_pattern=~", ["TEST_DAG_2", "TEST_DAG_3"]),
+        ]
+    )
+    def test_should_respond_200_and_handle_pagination(self, url, expected_dag_ids):
+        self._create_dag_models(10)
+
+        response = self.client.patch(
+            url,
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+
+        dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
+
+        assert expected_dag_ids == dag_ids
+        assert 10 == response.json["total_entries"]
+
+    def test_should_respond_200_default_limit(self):
+        self._create_dag_models(101)
+
+        response = self.client.patch(
+            "api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+
+        assert 100 == len(response.json["dags"])
+        assert 101 == response.json["total_entries"]
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.patch(
+            "api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_respond_403_unauthorized(self):
+        self._create_dag_models(1)
+        response = self.client.patch(
+            "api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+    def test_should_respond_200_and_pause_dags(self):
+        self._create_dag_models(2)
+
+        response = self.client.patch(
+            "/api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": True,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": self.file_token,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_2",
+                    "description": None,
+                    "fileloc": "/tmp/dag_2.py",
+                    "file_token": self.file_token2,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+    @provide_session
+    def test_should_respond_200_and_pause_dag_pattern(self, session):
+        self._create_dag_models(10)
+        file_token10 = SERIALIZER.dumps("/tmp/dag_10.py")
+
+        response = self.client.patch(
+            "/api/v1/dags?dag_id_pattern=TEST_DAG_1",
+            json={
+                "is_paused": True,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": self.file_token,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_10",
+                    "description": None,
+                    "fileloc": "/tmp/dag_10.py",
+                    "file_token": file_token10,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+        dags_not_updated = session.query(DagModel).filter(~DagModel.is_paused)
+        assert len(dags_not_updated.all()) == 8
+        dags_updated = session.query(DagModel).filter(DagModel.is_paused)
+        assert len(dags_updated.all()) == 2
+
+    def test_should_respons_400_dag_id_pattern_missing(self):
+        self._create_dag_models(1)
+        response = self.client.patch(
+            "/api/v1/dags?only_active=True",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400
