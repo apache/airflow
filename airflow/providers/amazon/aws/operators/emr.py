@@ -244,7 +244,7 @@ class EmrClusterLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        if ti_key:
+        if ti_key is not None:
             flow_id = XCom.get_value(key="return_value", ti_key=ti_key)
         else:
             assert dttm

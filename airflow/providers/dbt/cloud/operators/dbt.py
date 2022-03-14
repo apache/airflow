@@ -34,7 +34,7 @@ class DbtCloudRunJobOperatorLink(BaseOperatorLink):
     name = "Monitor Job Run"
 
     def get_link(self, operator, dttm=None, *, ti_key=None):
-        if ti_key:
+        if ti_key is not None:
             job_run_url = XCom.get_value(key="job_run_url", ti_key=ti_key)
         else:
             assert dttm
