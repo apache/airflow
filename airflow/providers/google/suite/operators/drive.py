@@ -66,7 +66,7 @@ class GoogleDriveUploadOperator(BaseOperator):
 
     def __init__(
         self,
-        local_paths: Sequence[Path],
+        local_paths: Union[Sequence[Path], Sequence[str]],
         drive_folder: Path,
         gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
