@@ -393,7 +393,7 @@ Fill in the fields as shown below. Note the Connection Id value, which we'll pas
 - Password: airflow
 - Port: 5432
 
-Test your connection and  if the test is successful, save your connection.
+Test your connection and if the test is successful, save your connection.
 
 Table Creation Tasks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
