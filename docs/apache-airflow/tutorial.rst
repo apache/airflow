@@ -544,7 +544,10 @@ We've developed our tasks, now we need to wrap them in a DAG, which enables us t
 
 And from the last line in the definition of the ``Etl`` DAG, we see:
 
- [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
+.. code-block:: python
+
+      [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
+
 * the ``merge_data()`` task depends on the ``get_data()`` task,
 * the ``get_data()`` depends on both the ``create_employees_table`` and ``create_employees_temp_table`` tasks, and
 * the ``create_employees_table`` and ``create_employees_temp_table`` tasks can run independently.
@@ -647,7 +650,7 @@ Putting all of the pieces together, we have our completed DAG.
 
   dag = Etl()
 
-Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
 
 .. image:: img/new_tutorial-1.png
 
