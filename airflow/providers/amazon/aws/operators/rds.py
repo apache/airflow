@@ -82,14 +82,15 @@ class RdsBaseOperator(BaseOperator):
             if len(items) > 1:
                 raise AirflowException(f"There are {len(items)} {item_type} with identifier {item_name}")
 
-            if wait_statuses and items[0]['Status'] in wait_statuses:
+            if wait_statuses and items[0]['Status'].lower() in wait_statuses:
+                time.sleep(self._await_interval)
                 continue
-            elif ok_statuses and items[0]['Status'] in ok_statuses:
+            elif ok_statuses and items[0]['Status'].lower() in ok_statuses:
                 break
-            elif error_statuses and items[0]['Status'] in error_statuses:
+            elif error_statuses and items[0]['Status'].lower() in error_statuses:
                 raise AirflowException(f"Item has error status ({error_statuses}): {items[0]}")
-
-            time.sleep(self._await_interval)
+            else:
+                raise AirflowException(f"Item has uncertain status: {items[0]}")
 
         return None
 
@@ -118,7 +119,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     """
 
-    template_fields = ("db_snapshot_identifier", "db_instance_identifier", "tags")
+    template_fields = ("db_snapshot_identifier", "db_identifier", "tags")
 
     def __init__(
         self,
@@ -257,7 +258,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
             self._await_status(
                 'instance_snapshot',
                 self.target_db_snapshot_identifier,
-                wait_statuses=['copying'],
+                wait_statuses=['creating'],
                 ok_statuses=['available'],
             )
         else:
@@ -392,7 +393,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
             'export_task',
             self.export_task_identifier,
             wait_statuses=['starting', 'in_progress'],
-            ok_statuses=['available', 'complete'],
+            ok_statuses=['complete'],
+            error_statuses=['canceling', 'canceled'],
         )
 
         return json.dumps(start_export, default=str)
@@ -506,7 +508,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
             'event_subscription',
             self.subscription_name,
             wait_statuses=['creating'],
-            ok_statuses=['created', 'available'],
+            ok_statuses=['active'],
         )
 
         return json.dumps(create_subscription, default=str)

@@ -100,6 +100,7 @@ class DatabricksHook(BaseDatabricksHook):
         service outages.
     :param retry_delay: The number of seconds to wait between retries (it
         might be a floating point number).
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
     hook_name = 'Databricks'
@@ -110,8 +111,9 @@ class DatabricksHook(BaseDatabricksHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
+        retry_args: Optional[Dict[Any, Any]] = None,
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args)
 
     def run_now(self, json: dict) -> int:
         """

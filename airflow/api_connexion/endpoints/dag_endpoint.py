@@ -89,7 +89,7 @@ def get_dags(
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
         dags_query = dags_query.filter(or_(*cond))
 
-    total_entries = len(dags_query.all())
+    total_entries = dags_query.count()
 
     dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
 
@@ -100,25 +100,67 @@ def get_dags(
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG"""
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
-    if not dag:
-        raise NotFound(f"Dag with id: '{dag_id}' not found")
     try:
         patch_body = dag_schema.load(request.json, session=session)
     except ValidationError as err:
-        raise BadRequest("Invalid Dag schema", detail=str(err.messages))
+        raise BadRequest(detail=str(err.messages))
     if update_mask:
         patch_body_ = {}
-        if len(update_mask) > 1:
+        if update_mask != ['is_paused']:
+            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
+        patch_body_[update_mask[0]] = patch_body[update_mask[0]]
+        patch_body = patch_body_
+    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    if not dag:
+        raise NotFound(f"Dag with id: '{dag_id}' not found")
+    dag.is_paused = patch_body['is_paused']
+    session.flush()
+    return dag_schema.dump(dag)
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
+@format_parameters({'limit': check_limit})
+@provide_session
+def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
+    """Patch multiple DAGs."""
+    try:
+        patch_body = dag_schema.load(request.json, session=session)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    if update_mask:
+        patch_body_ = {}
+        if update_mask != ['is_paused']:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         update_mask = update_mask[0]
-        if update_mask != 'is_paused':
-            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
-    setattr(dag, 'is_paused', patch_body['is_paused'])
-    session.commit()
-    return dag_schema.dump(dag)
+    if only_active:
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
+    else:
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+
+    if dag_id_pattern == '~':
+        dag_id_pattern = '%'
+    dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+    editable_dags = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
+
+    dags_query = dags_query.filter(DagModel.dag_id.in_(editable_dags))
+    if tags:
+        cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
+        dags_query = dags_query.filter(or_(*cond))
+
+    total_entries = dags_query.count()
+
+    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+
+    dags_to_update = {dag.dag_id for dag in dags}
+    session.query(DagModel).filter(DagModel.dag_id.in_(dags_to_update)).update(
+        {DagModel.is_paused: patch_body['is_paused']}, synchronize_session='fetch'
+    )
+
+    session.flush()
+
+    return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
