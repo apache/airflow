@@ -136,8 +136,9 @@ class DockerOperator(BaseOperator):
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
-    :param device_requests: Expose host resources such as GPUs to the container, as a list of docker.types.DeviceRequest instances.
-        To expose all GPU's to the container you may use device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])]
+    :param device_requests: Expose host resources such as GPUs to the container, as a list of docker.types.DeviceRequest
+        instances. To expose all GPU's to the container you may use
+        device_requests=[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])]
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
@@ -185,7 +186,7 @@ class DockerOperator(BaseOperator):
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
-        device_requests: Optional(List[DeviceRequest]) = None,
+        device_requests: Optional[List[DeviceRequest]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
