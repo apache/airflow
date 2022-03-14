@@ -237,7 +237,6 @@ class PodLauncher(LoggingMixin):
             return self._client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                container='base',
                 follow=True,
                 timestamps=timestamps,
                 _preload_content=False,

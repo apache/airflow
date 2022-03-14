@@ -31,7 +31,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_resources,
     convert_toleration,
     convert_volume,
-    convert_volume_mount,
+    convert_volume_mount, convert_configmap_to_volume,
 )
 from airflow.utils.state import State
 from kubernetes import client
@@ -88,7 +88,7 @@ class SparkKubernetesOperator(BaseOperator):
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
         volumes: Optional[List[k8s.V1Volume]] = None,
-        config_map_files: Optional[Dict[str, str]] = None,
+        config_map_mounts: Optional[Dict[str, str]] = None,
         from_env_config_map: Optional[List[str]] = None,
         from_env_secret: Optional[List[str]] = None,
         hadoop_config: Optional[dict] = None,
@@ -148,8 +148,8 @@ class SparkKubernetesOperator(BaseOperator):
         self.api_kind = api_kind
         self.api_plural = api_plural
         self.code_path = code_path
-        if config_map_files:
-            vols, vols_mounts = convert_configmap_to_volume(config_map_files)
+        if config_map_mounts:
+            vols, vols_mounts = convert_configmap_to_volume(config_map_mounts)
             self.volumes.extend(vols)
             self.volume_mounts.extend(vols_mounts)
         if from_env_config_map:
