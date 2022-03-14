@@ -378,7 +378,7 @@ Lets look at another example; we need to get some data from a file which is host
 Initial setup
 ''''''''''''''''''''
 We need to have Docker and Postgres installed.
-We will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for the following steps. 
+We will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for the following steps.
 Follow the instructions properly to set up Airflow.
 
 We will also need to create a `connection <https://airflow.apache.org/docs/apache-airflow/stable/concepts/connections.html>`_ to the postgres db. To create one via the web UI, from the "Admin" menu, select "Connections", then click the Plus sign to "Add a new record" to the list of connections.
@@ -400,12 +400,12 @@ Table Creation Tasks
 
 We can use the `PostgresOperator <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ to define tasks that create tables in our postgres db.
 
-We'll create one table to serve as the destination for the retrieved data and another to facilitate 
+We'll create one table to serve as the destination for the retrieved data and another to facilitate
 
 .. code-block:: python
 
   from airflow.providers.postgres.operators.postgres import PostgresOperator
-   
+
   create_employees_table = PostgresOperator(
       task_id="create_employees_table",
       postgres_conn_id="tutorial_pg_conn",
@@ -418,7 +418,7 @@ We'll create one table to serve as the destination for the retrieved data and an
               "Leave" INTEGER
           );""",
   )
-  
+
   create_employees_temp_table = PostgresOperator(
       task_id="create_employees_temp_table",
       postgres_conn_id="tutorial_pg_conn",
@@ -433,16 +433,16 @@ We'll create one table to serve as the destination for the retrieved data and an
           );""",
   )
 
-Optional Note: 
+Optional Note:
 """"""""""""""
-If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to 
+If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to
 
 .. code-block:: python
 
   create_employees_table = PostgresOperator(
       task_id="create_employees_table",
       postgres_conn_id="tutorial_pg_conn",
-      sql="sql/employees_schema.sql"
+      sql="sql/employees_schema.sql",
   )
 
 and repeat for the ``employees_temp`` table.
@@ -496,11 +496,11 @@ Here we select completely unique records from the retrieved data, then we check 
 
   @task
   def merge_data():
-      query = """          
+      query = """
           INSERT INTO employees
           SELECT *
           FROM (
-              SELECT DISTINCT * 
+              SELECT DISTINCT *
               FROM employees_temp
           )
           ON CONFLICT ("Serial Number") DO UPDATE
@@ -552,7 +552,7 @@ Lets look at our DAG:
                   "Leave" INTEGER
               );""",
       )
-      
+
       create_employees_temp_table = PostgresOperator(
           task_id="create_employees_temp_table",
           postgres_conn_id="tutorial_pg_conn",
@@ -566,7 +566,7 @@ Lets look at our DAG:
                   "Leave" INTEGER
               );""",
       )
-            
+
       @task
       def get_data():
           # NOTE: configure this as appropriate for your airflow environment
@@ -596,7 +596,7 @@ Lets look at our DAG:
               INSERT INTO employees
               SELECT *
               FROM (
-                  SELECT DISTINCT * 
+                  SELECT DISTINCT *
                   FROM employees_temp
               )
               ON CONFLICT ("Serial Number") DO UPDATE
@@ -613,6 +613,7 @@ Lets look at our DAG:
               return 1
 
       [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
+
 
   dag = Etl()
 
