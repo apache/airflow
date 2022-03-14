@@ -445,6 +445,13 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
+def format_map_index(value: int) -> str:
+    """Format map index for list columns in model view."""
+    if value < 0:
+        return Markup("&nbsp;")
+    return str(value)
+
+
 def pygment_html_render(s, lexer=lexers.TextLexer):
     """Highlight text using a given Lexer"""
     return highlight(s, lexer(), HtmlFormatter(linenos=True))

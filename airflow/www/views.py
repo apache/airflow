@@ -3637,6 +3637,7 @@ class SlaMissModelView(AirflowModelView):
         'execution_date': wwwutils.datetime_f('execution_date'),
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
+        'map_index': wwwutils.format_map_index,
     }
 
 
@@ -3663,7 +3664,7 @@ class XComModelView(AirflowModelView):
     ]
 
     search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'map_index']
     base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -3672,6 +3673,7 @@ class XComModelView(AirflowModelView):
         'task_id': wwwutils.task_instance_link,
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
+        'map_index': wwwutils.format_map_index,
     }
 
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
@@ -4628,6 +4630,7 @@ class TaskRescheduleModelView(AirflowModelView):
         'run_id',
         'dag_run.execution_date',
         'task_id',
+        'map_index',
         'try_number',
         'start_date',
         'end_date',
@@ -4669,6 +4672,7 @@ class TaskRescheduleModelView(AirflowModelView):
         'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),
         'reschedule_date': wwwutils.datetime_f('reschedule_date'),
         'duration': duration_f,
+        'map_index': wwwutils.format_map_index,
     }
 
 
@@ -4814,18 +4818,11 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             return td_format(timedelta(seconds=duration))
         return None
 
-    def format_map_index(self):
-        """Only show indices of mapped tasks"""
-        map_index = self.get('map_index')
-        if map_index < 0:
-            return Markup("&nbsp;")
-        return None
-
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
         'run_id': wwwutils.dag_run_link,
-        'map_index': format_map_index,
+        'map_index': wwwutils.format_map_index,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
         'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),
