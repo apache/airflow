@@ -41,12 +41,12 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.utils.watcher import watcher
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "bigquery_tables"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 SCHEMA_JSON_LOCAL_SRC = str(Path(__file__).parent / "resources" / "update_table_schema.json")
 SCHEMA_JSON_DESTINATION = "update_table_schema.json"
 GCS_PATH_TO_SCHEMA_JSON = f"gs://{BUCKET_NAME}/{SCHEMA_JSON_DESTINATION}"

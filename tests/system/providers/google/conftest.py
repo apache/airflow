@@ -16,22 +16,12 @@
 # under the License.
 
 import os
-import re
 from pathlib import Path
 
 import pytest
 
-OLD_EXECUTOR = os.environ.get("AIRFLOW__CORE__EXECUTOR", default=None)
-REQUIRED_ENV = ("SYSTEM_TESTS_ENV_ID",)
-
-
-def pytest_configure(config):
-    os.environ["AIRFLOW__CORE__EXECUTOR"] = "DebugExecutor"
-
-
-def pytest_unconfigure(config):
-    if OLD_EXECUTOR is not None:
-        os.environ["AIRFLOW__CORE__EXECUTOR"] = OLD_EXECUTOR
+PROVIDER = Path(__file__).parent.name
+REQUIRED_ENV = ("SYSTEM_TESTS_GCP_PROJECT",)
 
 
 def is_env_not_ready():
@@ -42,26 +32,21 @@ def is_env_not_ready():
     return ""
 
 
-def is_system_mark_present(item, provider):
+def is_system_mark_present(item):
     """Don't mark with missing env variables if system mark is missing"""
     selected_systems = item.config.getoption("--system")
-    return selected_systems and (provider in selected_systems or "all" in selected_systems)
+    return selected_systems and (PROVIDER in selected_systems or "all" in selected_systems)
 
 
 def pytest_collection_modifyitems(config, items):
     """
-    Add @pytest.mark.system(provider_name) for every system test.
     Skip tests if environment is not configured
     """
     not_ready = is_env_not_ready()
+    if not not_ready:
+        return
     skip = pytest.mark.skip(reason=not_ready)
-    rootdir = Path(config.rootdir)
     for item in items:
-        rel_path = Path(item.fspath).relative_to(rootdir)
-        match = re.match(".+/providers/([^/]+)", str(rel_path))
-        if not match:
-            continue
-        provider = match.group(1)
-        item.add_marker(pytest.mark.system(provider))
-        if not_ready and is_system_mark_present(item, provider):
+        system_mark_present = is_system_mark_present(item)
+        if system_mark_present and not_ready:
             item.add_marker(skip)

@@ -44,23 +44,8 @@ def example_dags_except_db_exception():
     ]
 
 
-def set_env_vars(*args):
-    """Mocks required ENV variables so it's possible to import example dags"""
-    for arg in args:
-        if arg not in os.environ:
-            os.environ[arg] = "PLACEHOLDER"
-
-
 def relative_path(path):
     return os.path.relpath(path, ROOT_FOLDER)
-
-
-@pytest.fixture(autouse=True, scope="session")
-def required_env_vars():
-    # Common
-    set_env_vars("SYSTEM_TESTS_ENV_ID")
-    # Google
-    set_env_vars("SYSTEM_TESTS_GCP_PROJECT", "SYSTEM_TESTS_GCP_SERVICE_ACCOUNT")
 
 
 @pytest.mark.parametrize("example", list(example_dags()), ids=relative_path)

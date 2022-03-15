@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.utils.watcher import watcher
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "bigquery_operations"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"

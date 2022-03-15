@@ -38,8 +38,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.utils.watcher import watcher
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 LOCATION = "us-east1"
 QUERY_SQL_PATH = str(Path(__file__).parent / "resources" / "example_bigquery_query.sql")
 

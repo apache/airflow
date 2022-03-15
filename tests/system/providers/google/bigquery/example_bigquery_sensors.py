@@ -36,11 +36,11 @@ from airflow.providers.google.cloud.sensors.bigquery import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.utils.watcher import watcher
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "bigquery_sensors"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
 
 TABLE_NAME = "partitioned_table"
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
