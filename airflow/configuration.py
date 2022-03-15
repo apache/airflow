@@ -681,6 +681,15 @@ class AirflowConfigParser(ConfigParser):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
 
+        When materializing current configuration Airflow defaults are
+        materialized along with user set configs. If any of the `include_*`
+        options are False then the result of calling command or secret key
+        configs do not override Airflow defaults and instead are passed through.
+        In order to then avoid Airflow defaults from overwriting user set
+        command or secret key configs we filter out bare sensitive_config_values
+        that are set to Airflow defaults when command or secret key configs
+        produce different values.
+
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
@@ -712,14 +721,21 @@ class AirflowConfigParser(ConfigParser):
         # add env vars and overwrite because they have priority
         if include_env:
             self._include_envs(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
 
         # add bash commands
         if include_cmds:
             self._include_commands(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_cmd_option)
 
         # add config from secret backends
         if include_secret:
             self._include_secrets(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_secret_option)
+
         return config_sources
 
     def _include_secrets(self, config_sources, display_sensitive, display_source, raw):
@@ -776,6 +792,48 @@ class AirflowConfigParser(ConfigParser):
             if section != 'kubernetes_environment_variables':
                 key = key.lower()
             config_sources.setdefault(section, OrderedDict()).update({key: opt})
+
+    def _filter_by_source(self, config_sources, display_source, getter_func):
+        """
+        Deletes default configs from current configuration (an OrderedDict of
+        OrderedDicts) if it would conflict with special sensitive_config_values.
+
+        This is necessary because bare configs take precedence over the command
+        or secret key equivalents so if the current running config is
+        materialized with Airflow defaults they in turn override user set
+        command or secret key configs.
+
+        :param config_sources: The current configuration to operate on
+        :param display_source: If False, configuration options contain raw
+            values. If True, options are a tuple of (option_value, source).
+            Source is either 'airflow.cfg', 'default', 'env var', or 'cmd'.
+        :param getter_func: A callback function that gets the user configured
+            override value for a particular sensitive_config_values config.
+        :rtype: None
+        :return: None, the given config_sources is filtered if necessary,
+            otherwise untouched.
+        """
+        for (section, key) in self.sensitive_config_values:
+            # Don't bother if we don't have section / key
+            if section not in config_sources or key not in config_sources[section]:
+                continue
+            # Check that there is something to override defaults
+            try:
+                getter_opt = getter_func(section, key)
+            except ValueError:
+                continue
+            if not getter_opt:
+                continue
+            # Check to see that there is a default value
+            if not self.airflow_defaults.has_option(section, key):
+                continue
+            # Check to see if bare setting is the same as defaults
+            if display_source:
+                opt, source = config_sources[section][key]
+            else:
+                opt = config_sources[section][key]
+            if opt == self.airflow_defaults.get(section, key):
+                del config_sources[section][key]
 
     @staticmethod
     def _replace_config_with_display_sources(config_sources, configs, display_source, raw):

@@ -100,6 +100,10 @@ The universal order of precedence for all configuration options is as follows:
 #. secret key in ``airflow.cfg``
 #. Airflow's built in defaults
 
+.. note::
+    For Airflow versions >= 2.2.1, < 2.3.0 Airflow's built in defaults took precedence
+    over command and secret key in ``airflow.cfg`` in some circumstances.
+
 You can check the current configuration with the ``airflow config list`` command.
 
 If you only want to see the value for one option, you can use ``airflow config get-value`` command as in
