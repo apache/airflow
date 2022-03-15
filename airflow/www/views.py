@@ -2847,8 +2847,8 @@ class Airflow(AirflowBaseView):
             session.query(TaskFail)
             .filter(
                 TaskFail.dag_id == dag.dag_id,
-                TaskInstance.execution_date >= min_date,
-                TaskInstance.execution_date <= base_date,
+                DagRun.execution_date >= min_date,
+                DagRun.execution_date <= base_date,
                 TaskFail.task_id.in_([t.task_id for t in dag.tasks]),
             )
             .all()
@@ -3185,9 +3185,7 @@ class Airflow(AirflowBaseView):
             .order_by(TaskInstance.start_date)
         )
 
-        ti_fails = session.query(TaskFail).filter(
-            TaskInstance.execution_date == dttm, TaskFail.dag_id == dag_id
-        )
+        ti_fails = session.query(TaskFail).filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
 
         tasks = []
         for ti in tis:
