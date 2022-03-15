@@ -134,8 +134,8 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__database': 'snowflake db name',
                 'extra__snowflake__region': 'snowflake hosted region',
                 'extra__snowflake__role': 'snowflake role',
-                'extra__snowflake__private_key_path': 'Content of snowflake private key (PEM Format)',
-                'extra__snowflake__private_key_content': 'Path to snowflake private key (PEM format)',
+                'extra__snowflake__private_key_path': 'Path of snowflake private key (PEM Format)',
+                'extra__snowflake__private_key_content': 'Content to snowflake private key (PEM format)',
                 'extra__snowflake__insecure_mode': 'insecure mode',
             },
         }
