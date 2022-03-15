@@ -50,10 +50,7 @@ def skip_if_env_var_not_set(provider_env_vars):
 
 
 def pytest_collection_modifyitems(config, items):
-    """
-    Add @pytest.mark.system(provider_name) for every system test.
-    Skip tests if environment is not configured
-    """
+    """Add @pytest.mark.system(provider_name) for every system test."""
     rootdir = Path(config.rootdir)
     for item in items:
         rel_path = Path(item.fspath).relative_to(rootdir)
