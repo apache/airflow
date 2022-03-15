@@ -257,8 +257,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
     # Add join
-    ti_query = base_query.options(joinedload(TI.sla_miss)).options(
-        joinedload(TI.rendered_task_instance_fields)
+    ti_query = base_query.options(
+        joinedload(TI.sla_miss),
+        joinedload(TI.rendered_task_instance_fields),
     )
     task_instances = ti_query.all()
 

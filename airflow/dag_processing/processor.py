@@ -449,7 +449,7 @@ class DagFileProcessor(LoggingMixin):
                     session.delete(ti)
                     session.commit()
 
-            task_list = "\n".join(sla.task_id + ' on ' + sla.run_id for sla in slas)
+            task_list = "\n".join(f"{sla.task_id} on {sla.run_id}" for sla in slas)
             blocking_task_list = "\n".join(
                 ti.task_id + ' on ' + ti.execution_date.isoformat() for ti in blocking_tis
             )
