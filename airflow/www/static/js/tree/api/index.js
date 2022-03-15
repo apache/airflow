@@ -30,6 +30,7 @@ import useRunTask from './useRunTask';
 import useClearTask from './useClearTask';
 import useMarkFailedTask from './useMarkFailedTask';
 import useMarkSuccessTask from './useMarkSuccessTask';
+import useExtraLinks from './useExtraLinks';
 
 axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -46,4 +47,5 @@ export {
   useClearTask,
   useMarkFailedTask,
   useMarkSuccessTask,
+  useExtraLinks,
 };

@@ -39,6 +39,7 @@ import MarkSuccessAction from './taskActions/MarkSuccess';
 import { finalStatesMap, getMetaValue } from '../../../utils';
 import { formatDateTime, getDuration, formatDuration } from '../../../datetime_utils';
 import { SimpleStatus } from '../../StatusBox';
+import { useExtraLinks } from '../../api';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
@@ -153,11 +154,11 @@ const TaskInstance = ({
     const isExternal = index !== 0 && showExternalLogRedirect;
 
     if (isExternal) {
-      const fullExternalUrl = `${externalLogUrl}
-      ?dag_id=${encodeURIComponent(dagId)}
-      &task_id=${encodeURIComponent(taskId)}
-      &execution_date=${encodeURIComponent(executionDate)}
-      &try_number=${index}`;
+      const fullExternalUrl = `${externalLogUrl
+      }?dag_id=${encodeURIComponent(dagId)
+      }&task_id=${encodeURIComponent(taskId)
+      }&execution_date=${encodeURIComponent(executionDate)
+      }&try_number=${index}`;
       externalLogs.push(
         <LinkButton
           // eslint-disable-next-line react/no-array-index-key
@@ -170,12 +171,11 @@ const TaskInstance = ({
       );
     }
 
-    const fullMetadataUrl = `${logsWithMetadataUrl}
-    ?dag_id=${encodeURIComponent(dagId)}
-    &task_id=${encodeURIComponent(taskId)}
-    &execution_date=${encodeURIComponent(executionDate)}
-    ${index > 0 && `&try_number=${index}`}
-    &metadata=null&format=file`;
+    const fullMetadataUrl = `${logsWithMetadataUrl
+    }?dag_id=${encodeURIComponent(dagId)
+    }&task_id=${encodeURIComponent(taskId)
+    }&execution_date=${encodeURIComponent(executionDate)
+    }&metadata=null&format=file${index > 0 && `&try_number=${index}`}`;
 
     return (
       <LinkButton
@@ -185,6 +185,26 @@ const TaskInstance = ({
       >
         {index === 0 ? 'All' : index}
       </LinkButton>
+    );
+  });
+
+  const { extraLinks = [] } = task;
+  const { data: links = [] } = useExtraLinks({
+    dagId, taskId, executionDate, extraLinks,
+  });
+  const externalLinks = links.map(({ name, url }) => {
+    const isExternal = /^(?:[a-z]+:)?\/\//.test(url);
+    return (
+      <Button
+        key={name}
+        as={Link}
+        colorScheme="blue"
+        href={url}
+        isDisabled={!url}
+        target={isExternal ? '_blank' : undefined}
+      >
+        {name}
+      </Button>
     );
   });
 
@@ -208,6 +228,22 @@ const TaskInstance = ({
           <Divider mt={3} />
         </>
       )}
+      {!isGroup && !task.isMapped && (
+        <>
+          <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
+            <RunAction runId={runId} taskId={task.id} dagId={dagId} />
+            <ClearAction
+              runId={runId}
+              taskId={task.id}
+              dagId={dagId}
+              executionDate={executionDate}
+            />
+            <MarkFailedAction runId={runId} taskId={task.id} dagId={dagId} />
+            <MarkSuccessAction runId={runId} taskId={task.id} dagId={dagId} />
+          </VStack>
+          <Divider my={2} />
+        </>
+      )}
       {tryNumber > 0 && (
         <>
           <Box>
@@ -216,7 +252,7 @@ const TaskInstance = ({
               {logAttempts}
             </Flex>
           </Box>
-          <Divider mt={3} />
+          <Divider my={2} />
         </>
       )}
       {externalLogName && externalLogs.length > 0 && (
@@ -233,22 +269,6 @@ const TaskInstance = ({
               {externalLogs}
             </Flex>
           </Box>
-          <Divider mt={3} />
-        </>
-      )}
-      {!isGroup && !task.isMapped && (
-        <>
-          <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
-            <RunAction runId={runId} taskId={task.id} dagId={dagId} />
-            <ClearAction
-              runId={runId}
-              taskId={task.id}
-              dagId={dagId}
-              executionDate={executionDate}
-            />
-            <MarkFailedAction runId={runId} taskId={task.id} dagId={dagId} />
-            <MarkSuccessAction runId={runId} taskId={task.id} dagId={dagId} />
-          </VStack>
           <Divider my={2} />
         </>
       )}
@@ -329,6 +349,10 @@ const TaskInstance = ({
         {' '}
         {endDate && formatDateTime(endDate)}
       </Text>
+      {externalLinks.length > 0 && (<Divider my={2} />)}
+      <Flex flexWrap="wrap">
+        {externalLinks}
+      </Flex>
     </Box>
   );
 };
