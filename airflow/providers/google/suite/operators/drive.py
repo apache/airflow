@@ -18,7 +18,7 @@
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
