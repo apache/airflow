@@ -591,7 +591,8 @@ class SchedulerJob(BaseJob):
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
-                "pool=%s, queue=%s, priority_weight=%d, operator=%s"
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "queued_by_job_id=%s, pid=%s"
             )
             self.log.info(
                 msg,
@@ -611,6 +612,9 @@ class SchedulerJob(BaseJob):
                 ti.queue,
                 ti.priority_weight,
                 ti.operator,
+                ti.queued_dttm,
+                ti.queued_by_job_id,
+                ti.pid,
             )
 
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
