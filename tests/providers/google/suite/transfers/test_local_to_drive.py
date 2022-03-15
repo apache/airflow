@@ -18,7 +18,7 @@
 from pathlib import Path
 from unittest import mock
 
-from airflow.providers.google.suite.transfers.local_to_drive import GoogleDriveUploadOperator
+from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 
 GCP_CONN_ID = "test"
 DRIVE_FOLDER = Path("test_folder")
@@ -26,13 +26,13 @@ LOCAL_PATHS = [Path("test1"), Path("test2")]
 REMOTE_FILE_IDS = ["rtest1", "rtest2"]
 
 
-class TestGoogleDriveUpload:
-    @mock.patch("airflow.providers.google.suite.operators.drive.GoogleDriveHook")
-    @mock.patch("airflow.providers.google.suite.operators.drive.GoogleDriveUploadOperator.xcom_push")
+class TestLocalFilesystemToGoogleDriveOperator:
+    @mock.patch("airflow.providers.google.suite.transfers.local_to_drive.GoogleDriveHook")
+    @mock.patch("airflow.providers.google.suite.transfers.local_to_drive.GoogleDriveUploadOperator.xcom_push")
     def test_execute(self, mock_xcom, mock_hook):
         context = {}
         mock_hook.return_value.upload_file.return_value = REMOTE_FILE_IDS
-        op = GoogleDriveUploadOperator(
+        op = LocalFilesystemToGoogleDriveOperator(
             task_id="test_task", local_paths=LOCAL_PATHS, drive_folder=DRIVE_FOLDER, gcp_conn_id=GCP_CONN_ID
         )
         op.execute(context)
