@@ -251,10 +251,9 @@ cloudant = [
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
-    # TODO: upgrade libraries used or maybe deprecate and drop DASK support
-    'cloudpickle>=1.4.1, <1.5.0',
-    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
-    'distributed>=2.11.1, <2.20',
+    'cloudpickle>=1.4.1',
+    'dask>=2.9.0',
+    'distributed>=2.11.1',
 ]
 databricks = [
     'requests>=2.26.0, <3',
@@ -276,7 +275,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
-    'sphinx-jinja>=1.1',
+    'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
@@ -329,6 +328,7 @@ google = [
     'google-cloud-build>=3.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0',
+    'google-cloud-dataplex>=0.1.0',
     'google-cloud-dataproc>=3.1.0',
     'google-cloud-dataproc-metastore>=1.2.0,<2.0.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
@@ -354,6 +354,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'httpx',
     'json-merge-patch>=0.2',
+    'looker-sdk>=22.2.0',
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
@@ -420,7 +421,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
-leveldb = ['plyvel']
+leveldb = ['plyvel; platform_machine != "aarch64"']
 mongo = [
     'dnspython>=1.13.0',
     # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
@@ -428,11 +429,11 @@ mongo = [
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
-    'pymssql>=2.1.5',
+    'pymssql>=2.1.5; platform_machine != "aarch64"',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11',
-    'mysqlclient>=1.3.6',
+    'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+    'mysqlclient>=1.3.6; platform_machine != "aarch64"',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -510,13 +511,8 @@ slack = [
     'slack_sdk>=3.0.0',
 ]
 snowflake = [
-    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
-    # We should remove the limitation when apache-beam upgrades pyarrow
-    'snowflake-connector-python>=2.4.1,<2.7.2',
-    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
-    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
-    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
-    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
+    'snowflake-connector-python>=2.4.1',
+    'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
     'pyspark',
@@ -552,9 +548,7 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    # Yandexcloud 0.142 broke logging of the yandexcloud provider. The limitation can be removed once
-    # https://github.com/yandex-cloud/python-sdk/issues/47 is fixed.
-    'yandexcloud>=0.122.0, <0.142.0',
+    'yandexcloud>=0.146.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',
@@ -619,9 +613,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Moto3 is limited for unknown reason
-    # TODO: attempt to remove the limitation
-    'moto~=2.2,>=2.2.12',
+    'moto>=3.1.0',
     'parameterized',
     'paramiko',
     'pipdeptree',

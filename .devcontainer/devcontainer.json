@@ -1,0 +1,24 @@
+{
+    "name": "Apache Airflow",
+    "dockerComposeFile": [
+        "../scripts/ci/docker-compose/devcontainer.yml",
+        "../scripts/ci/docker-compose/local.yml",
+        "../scripts/ci/docker-compose/backend-postgres.yml",
+        "../scripts/ci/docker-compose/devcontainer-postgres.yml"
+    ],
+    "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "rogalmic.bash-debug",
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "ecmel.vscode-html-css",
+        "timonwong.shellcheck",
+        "redhat.vscode-yaml",
+        "rogalmic.bash-debug"
+    ],
+    "service": "airflow",
+    "forwardPorts": [8080,5555,5432,6379]
+}

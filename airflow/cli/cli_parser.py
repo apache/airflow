@@ -244,13 +244,8 @@ ARG_REVISION_RANGE = Arg(
     ('--revision-range',),
     help=(
         "Migration revision range(start:end) to use for offline sql generation. "
-        "Example: 'a13f7613ad25:7b2661a43ba3'"
+        "Example: ``a13f7613ad25:7b2661a43ba3``"
     ),
-    default=None,
-)
-ARG_REVISION_RANGE = Arg(
-    ('--revision-range',),
-    help='Revision range(start:end) to use for offline sql generation',
     default=None,
 )
 
@@ -934,6 +929,12 @@ DAGS_COMMANDS = (
         name='list',
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='list-import-errors',
+        help="List all the DAGs that have import errors",
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_import_errors'),
         args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(

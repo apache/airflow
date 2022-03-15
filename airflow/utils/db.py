@@ -29,6 +29,7 @@ from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
@@ -435,7 +436,8 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='''{
                 "auth_type": "AK",
                 "access_key_id": "<ACCESS_KEY_ID>",
-                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                "access_key_secret": "<ACCESS_KEY_SECRET>",
+                "region": "<YOUR_OSS_REGION>"}
                 ''',
         ),
         session,
@@ -946,8 +948,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -1035,7 +1039,6 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
 
 
 def _offline_migration(migration_func: Callable, config, revision):
-    log.info("Running offline migrations for revision range %s", revision)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         logging.disable(logging.CRITICAL)
@@ -1043,7 +1046,7 @@ def _offline_migration(migration_func: Callable, config, revision):
         logging.disable(logging.NOTSET)
 
 
-def _validate_version_range(command, config, version_range):
+def _validate_version_range(script_, version_range):
     if ':' not in version_range:
         raise AirflowException(
             'Please provide Airflow version range with the format "old_version:new_version"'
@@ -1074,9 +1077,11 @@ def _validate_version_range(command, config, version_range):
         raise AirflowException(
             'MSSQL is not supported for offline migration in Airflow versions less than 2.2.0.'
         )
-    revision = f"{REVISION_HEADS_MAP[lower]}:{REVISION_HEADS_MAP[upper]}"
+    _lower, _upper = REVISION_HEADS_MAP[lower], REVISION_HEADS_MAP[upper]
+    revision = f"{_lower}:{_upper}"
     try:
-        command.history(config, rev_range=revision)
+        # Check if there is history between the revisions
+        list(script_.revision_map.iterate_revisions(_upper, _lower))
     except Exception:
         raise AirflowException(
             f"Error while checking history for revision range {revision}. "
@@ -1085,7 +1090,7 @@ def _validate_version_range(command, config, version_range):
     return revision
 
 
-def _validate_revision(command, config, revision_range):
+def _validate_revision(script_, revision_range):
     if ':' not in revision_range:
         raise AirflowException(
             'Please provide Airflow revision range with the format "old_revision:new_revision"'
@@ -1097,21 +1102,17 @@ def _validate_revision(command, config, revision_range):
     rev_2_0_0_head = 'e959f08ac86c'
     _lowerband, _upperband = revision_range.split(':')
     if dbname == 'mssql':
-        rev_2_2_0_head = '7b2661a43ba3'
-        head_to_lowerband_range = f"{rev_2_2_0_head}:{_lowerband}"
-        head_to_upperband_range = f"{rev_2_2_0_head}:{_upperband}"
-        rev_2_0_0_head = rev_2_2_0_head  # for logging purposes
+        rev_2_0_0_head = '7b2661a43ba3'
         start_version = '2.2.0'
-    else:
-        head_to_lowerband_range = f"{rev_2_0_0_head}:{_lowerband}"
-        head_to_upperband_range = f"{rev_2_0_0_head}:{_upperband}"
-    for i in [head_to_lowerband_range, head_to_upperband_range]:
+    for i in [_lowerband, _upperband]:
         try:
-            command.history(config, rev_range=i)
+            # Check if there is history between the revisions and the start revision
+            # This ensures that the revisions are above 2.0.0 head or 2.2.0 head if mssql
+            list(script_.revision_map.iterate_revisions(upper=i, lower=rev_2_0_0_head))
         except Exception:
             raise AirflowException(
-                f"Error while checking history for revision range {i}. "
-                f"Check that {i.split(':')[1]} is a valid revision. "
+                f"Error while checking history for revision range {rev_2_0_0_head}:{i}. "
+                f"Check that {i} is a valid revision. "
                 f"Supported revision for offline migration is from {rev_2_0_0_head} "
                 f"which is airflow {start_version} head"
             )
@@ -1126,17 +1127,21 @@ def upgradedb(
     if not settings.SQL_ALCHEMY_CONN:
         raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is critical assertion.")
     from alembic import command
+    from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
+    script_ = ScriptDirectory.from_config(config)
 
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     if version_range:
-        revision = _validate_version_range(command, config, version_range)
+        revision = _validate_version_range(script_, version_range)
         if not revision:
             return
+        log.info("Running offline migrations for version range %s", version_range)
         return _offline_migration(command.upgrade, config, revision)
     elif revision_range:
-        _validate_revision(command, config, revision_range)
+        _validate_revision(script_, revision_range)
+        log.info("Running offline migrations for revision range %s", revision_range)
         return _offline_migration(command.upgrade, config, revision_range)
 
     errors_seen = False
@@ -1265,7 +1270,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if version.exists(connection):
+    if has_table(connection, version):
         version.drop(connection)
 
 

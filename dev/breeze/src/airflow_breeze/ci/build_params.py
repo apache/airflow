@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
@@ -56,7 +56,7 @@ class BuildParams:
     additional_runtime_apt_command: str = ""
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
-    platform: str = "linux/amd64"
+    platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
     upgrade_to_newer_dependencies: str = "true"
 

@@ -337,7 +337,7 @@ want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG generate simpler structure. Every task dependency adds additional processing overhead for
   scheduling and execution. The DAG that has simple linear structure ``A -> B -> C`` will experience
-  less delays in task scheduling that DAG that has a deeply nested tree structure with exponentially growing
+  less delays in task scheduling than DAG that has a deeply nested tree structure with exponentially growing
   number of depending tasks for example. If you can make your DAGs more linear - where at single point in
   execution there are as few potential candidates to run among the tasks, this will likely improve overall
   scheduling performance.
@@ -610,6 +610,8 @@ Add "integration test" DAGs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+
+For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 
 Prune data before upgrading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

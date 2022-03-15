@@ -627,7 +627,7 @@ class DataflowHook(GoogleBaseHook):
                 `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
                 <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
 
-        :param parameters: Parameters fot the template
+        :param parameters: Parameters for the template
         :param dataflow_template: GCS path to the template.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
             If set to None or missing, the default project_id from the Google Cloud connection is used.

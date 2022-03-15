@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 from databricks.sql.types import Row
 
-from airflow import AirflowException
+from airflow import PY310, AirflowException
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksCopyIntoOperator,
     DatabricksSqlOperator,
@@ -83,6 +83,12 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
 
+@pytest.mark.skipif(
+    PY310,
+    reason="Databricks SQL tests not run on Python 3.10 because there is direct Iterable import from"
+    " collections in the databricks SQL library, where it should be imported from collections.abc."
+    " This could be removed when https://github.com/apache/airflow/issues/22220 is solved",
+)
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
     def test_copy_with_files(self):
         op = DatabricksCopyIntoOperator(
@@ -123,6 +129,92 @@ FILEFORMAT = CSV
 PATTERN = 'folder1/file_[a-g].csv'
 FORMAT_OPTIONS ('header' = 'true')
 COPY_OPTIONS ('force' = 'true')
+""".strip()
+        )
+
+    def test_copy_with_credential(self):
+        expression = "col1, col2"
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            expression_list=expression,
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_encryption(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}' WITH ( ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_encryption_and_credential(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            encryption={'TYPE': 'AWS_SSE_C', 'MASTER_KEY': 'abc'},
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') """
+            """ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_validate_all(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='JSON',
+            table_name='test',
+            task_id=TASK_ID,
+            validate=True,
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}'
+FILEFORMAT = JSON
+VALIDATE ALL
+""".strip()
+        )
+
+    def test_copy_with_validate_N_rows(self):
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='JSON',
+            table_name='test',
+            task_id=TASK_ID,
+            validate=10,
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}'
+FILEFORMAT = JSON
+VALIDATE 10 ROWS
 """.strip()
         )
 

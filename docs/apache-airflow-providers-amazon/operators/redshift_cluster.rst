@@ -15,30 +15,67 @@
     specific language governing permissions and limitations
     under the License.
 
-Redshift cluster management operators
-=====================================
+Amazon Redshift Operators
+=========================
 
-.. contents::
-  :depth: 1
-  :local:
+`Amazon Redshift <https://aws.amazon.com/redshift/>`__ manages all the work of setting up, operating, and scaling a data warehouse:
+provisioning capacity, monitoring and backing up the cluster, and applying patches and upgrades to
+the Amazon Redshift engine. You can focus on using your data to acquire new insights for your
+business and customers.
+
+Airflow provides operators to manage your Redshift clusters.
+
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
+Manage Amazon Redshift Clusters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/sensor:RedshiftClusterSensor:
+
+Amazon Redshift Cluster Sensor
+""""""""""""""""""""""""""""""
+
+To check the state of an Amazon Redshift Cluster until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_redshift_cluster]
+    :end-before: [END howto_sensor_redshift_cluster]
 
 .. _howto/operator:RedshiftResumeClusterOperator:
 
-Resume a Redshift Cluster
-"""""""""""""""""""""""""
+Resume an Amazon Redshift Cluster
+"""""""""""""""""""""""""""""""""
 
-To resume a 'paused' AWS Redshift Cluster you can use
+To resume a 'paused' Amazon Redshift Cluster you can use
 :class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
-This Operator leverages the AWS CLI
-`resume-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/resume-cluster.html>`__ API
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_redshift_resume_cluster]
+    :end-before: [END howto_operator_redshift_resume_cluster]
 
 .. _howto/operator:RedshiftPauseClusterOperator:
 
-Pause a Redshift Cluster
-""""""""""""""""""""""""
+Pause an Amazon Redshift Cluster
+""""""""""""""""""""""""""""""""
 
-To pause an 'available' AWS Redshift Cluster you can use
+To pause an 'available' Amazon Redshift Cluster you can use
 :class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
-This Operator leverages the AWS CLI
-`pause-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/pause-cluster.html>`__ API
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_redshift_pause_cluster]
+    :end-before: [END howto_operator_redshift_pause_cluster]
+
+Reference
+^^^^^^^^^
+
+* `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__

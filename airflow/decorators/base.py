@@ -49,7 +49,6 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
-    create_mocked_kwargs,
     ensure_xcomarg_return_value,
     get_mappable_types,
     prevent_duplicates,
@@ -291,18 +290,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "apply" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
                 continue
             tname = type(value).__name__
-            raise ValueError(f"apply() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def apply(self, **map_kwargs: "Mappable") -> XComArg:
-        self._validate_arg_names("apply", map_kwargs)
+    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+        self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)
 
@@ -411,29 +410,23 @@ class DecoratedMappedOperator(MappedOperator):
         """
         return self.mapped_op_kwargs
 
-    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
-        assert not isinstance(self.operator_class, str)
+    def _get_unmap_kwargs(self) -> Dict[str, Any]:
         partial_kwargs = self.partial_kwargs.copy()
-        if real:
-            mapped_op_kwargs: Dict[str, Any] = self.mapped_op_kwargs
-        else:
-            mapped_op_kwargs = create_mocked_kwargs(self.mapped_op_kwargs)
         op_kwargs = _merge_kwargs(
             partial_kwargs.pop("op_kwargs"),
-            mapped_op_kwargs,
+            self.mapped_op_kwargs,
             fail_reason="mapping already partial",
         )
-        return self.operator_class(
-            dag=self.dag,
-            task_group=self.task_group,
-            task_id=self.task_id,
-            op_kwargs=op_kwargs,
-            multiple_outputs=self.multiple_outputs,
-            python_callable=self.python_callable,
-            _airflow_map_validation=not real,
+        return {
+            "dag": self.dag,
+            "task_group": self.task_group,
+            "task_id": self.task_id,
+            "op_kwargs": op_kwargs,
+            "multiple_outputs": self.multiple_outputs,
+            "python_callable": self.python_callable,
             **partial_kwargs,
-            **mapped_kwargs,
-        )
+            **self.mapped_kwargs,
+        }
 
     def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
         if key != "op_kwargs" or not isinstance(content, collections.abc.Mapping):
@@ -459,7 +452,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def apply(self, **kwargs: "Mappable") -> XComArg:
+    def expand(self, **kwargs: "Mappable") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":

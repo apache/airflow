@@ -61,7 +61,7 @@ class GKEDeleteClusterOperator(BaseOperator):
 
     :param project_id: The Google Developers Console [project ID or project number]
     :param name: The name of the resource to delete, in this case cluster name
-    :param location: The name of the Google Compute Engine zone or region in which the cluster
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster
         resides.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param api_version: The api version to use
@@ -155,7 +155,7 @@ class GKECreateClusterOperator(BaseOperator):
         :ref:`howto/operator:GKECreateClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
-    :param location: The name of the Google Compute Engine  or region in which the cluster
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster
         resides.
     :param body: The Cluster definition to create, can be protobuf or python dict, if
         dict it must match protobuf message Cluster

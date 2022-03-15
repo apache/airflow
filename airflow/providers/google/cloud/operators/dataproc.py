@@ -1673,8 +1673,11 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
-        Please refer to:
-        https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator`
+
+        For more detail on about instantiate inline have a look at the reference:
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.workflowTemplates/instantiateInline
 
     :param template: The template contents. (templated)
     :param project_id: The ID of the google cloud project in which

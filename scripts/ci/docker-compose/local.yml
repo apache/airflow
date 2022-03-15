@@ -58,5 +58,3 @@ services:
       - ../../../chart:/opt/airflow/chart:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
-    ports:
-      - "${WEBSERVER_HOST_PORT}:8080"

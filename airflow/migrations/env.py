@@ -25,8 +25,8 @@ from airflow import models, settings
 
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions"""
-    # Ignore _anything_ to do with Flask AppBuilder's tables
-    if type_ == "table" and name.startswith("ab_"):
+    # Ignore _anything_ to do with Flask AppBuilder, Celery, or FlaskSession's tables
+    if type_ == "table" and (name.startswith("ab_") or name.startswith("celery_") or name == "session"):
         return False
     else:
         return True

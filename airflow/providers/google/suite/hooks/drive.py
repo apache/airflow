@@ -180,12 +180,25 @@ class GoogleDriveHook(GoogleBaseHook):
             file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
         return file_metadata
 
-    def upload_file(self, local_location: str, remote_location: str) -> str:
+    def upload_file(
+        self,
+        local_location: str,
+        remote_location: str,
+        chunk_size: int = 100 * 1024 * 1024,
+        resumable: bool = False,
+    ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
 
         :param local_location: The path where the file is available.
         :param remote_location: The path where the file will be send
+        :param chunk_size: File will be uploaded in chunks of this many bytes. Only
+            used if resumable=True. Pass in a value of -1 if the file is to be
+            uploaded as a single chunk. Note that Google App Engine has a 5MB limit
+            on request size, so you should never set your chunk size larger than 5MB,
+            or to -1.
+        :param resumable: True if this is a resumable upload. False means upload
+            in a single request.
         :return: File ID
         :rtype: str
         """
@@ -197,7 +210,7 @@ class GoogleDriveHook(GoogleBaseHook):
             parent = "root"
 
         file_metadata = {"name": file_name, "parents": [parent]}
-        media = MediaFileUpload(local_location)
+        media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
         file = (
             service.files()
             .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
@@ -206,12 +219,13 @@ class GoogleDriveHook(GoogleBaseHook):
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
         return file.get("id")
 
-    def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 104857600):
+    def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024):
         """
         Download a file from Google Drive.
 
         :param file_id: the id of the file
         :param file_handle: file handle used to write the content to
+        :param chunk_size: File will be downloaded in chunks of this many bytes.
         """
         request = self.get_media_request(file_id=file_id)
         self.download_content_from_request(file_handle=file_handle, request=request, chunk_size=chunk_size)

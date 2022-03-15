@@ -27,6 +27,7 @@ Content
 
     Connection types <connections/alibaba>
     Operators <operators/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

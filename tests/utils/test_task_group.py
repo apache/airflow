@@ -1044,7 +1044,7 @@ def test_map() -> None:
         start = MockOperator(task_id="start")
         end = MockOperator(task_id="end")
         literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").apply(literal) as process_one:
+        with TaskGroup("process_one").expand(literal) as process_one:
             one = MockOperator(task_id='one')
             two = MockOperator(task_id='two')
             three = MockOperator(task_id='three')
@@ -1073,10 +1073,10 @@ def test_nested_map() -> None:
         start = MockOperator(task_id="start")
         end = MockOperator(task_id="end")
         literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").apply(literal) as process_one:
+        with TaskGroup("process_one").expand(literal) as process_one:
             one = MockOperator(task_id='one')
 
-            with TaskGroup("process_two").apply(literal) as process_one_two:
+            with TaskGroup("process_two").expand(literal) as process_one_two:
                 two = MockOperator(task_id='two')
                 three = MockOperator(task_id='three')
                 two >> three
@@ -1147,7 +1147,7 @@ def test_decorator_map():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         lines = ["foo", "bar", "baz"]
 
-        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).apply(my_arg_1=lines)
+        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).expand(my_arg_1=lines)
 
     assert task_1 in dag.tasks
 

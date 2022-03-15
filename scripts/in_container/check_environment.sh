@@ -116,11 +116,7 @@ function resetdb_if_requested() {
         echo
         echo "Resetting the DB"
         echo
-        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
-            airflow resetdb -y
-        else
-            airflow db reset -y
-        fi
+        airflow db reset -y
         echo
         echo "Database has been reset"
         echo
@@ -138,14 +134,8 @@ function startairflow_if_requested() {
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-        # initialize db and create the admin user if it's a new run
-        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
-            airflow initdb
-            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
-        else
-            airflow db init
-            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
-        fi
+        airflow db init
+        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
