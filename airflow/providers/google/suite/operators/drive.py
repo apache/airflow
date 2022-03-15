@@ -114,5 +114,4 @@ class GoogleDriveUploadOperator(BaseOperator):
             except FileNotFoundError:
                 self.log.warning(f"File {local_path} can't be found")
 
-        self.xcom_push(context, "remote_file_ids", remote_file_ids)
         return remote_file_ids
