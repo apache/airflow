@@ -19,7 +19,7 @@
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -48,7 +48,7 @@ BASE_CONNECTION_KWARGS: Dict = {
 
 
 @pytest.fixture()
-def non_encrypted_temporary_private_key(tmp_path: Path):
+def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
@@ -59,7 +59,7 @@ def non_encrypted_temporary_private_key(tmp_path: Path):
 
 
 @pytest.fixture()
-def encrypted_temporary_private_key(tmp_path: Path):
+def encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
         serialization.Encoding.PEM,
@@ -270,6 +270,26 @@ class TestPytestSnowflakeHook:
         ):
             assert SnowflakeHook(snowflake_conn_id='test_conn').get_uri() == expected_uri
             assert SnowflakeHook(snowflake_conn_id='test_conn')._get_conn_params() == expected_conn_params
+
+    def test_get_conn_params_should_support_private_auth_in_connection(
+        self, encrypted_temporary_private_key: Path
+    ):
+        connection_kwargs: Any = {
+            **BASE_CONNECTION_KWARGS,
+            'password': _PASSWORD,
+            'extra': {
+                'database': 'db',
+                'account': 'airflow',
+                'warehouse': 'af_wh',
+                'region': 'af_region',
+                'role': 'af_role',
+                'private_key_content': str(encrypted_temporary_private_key.read_text()),
+            },
+        }
+        with unittest.mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            assert 'private_key' in SnowflakeHook(snowflake_conn_id='test_conn')._get_conn_params()
 
     def test_get_conn_params_should_support_private_auth_with_encrypted_key(
         self, encrypted_temporary_private_key

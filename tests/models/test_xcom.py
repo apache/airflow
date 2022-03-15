@@ -81,7 +81,7 @@ class TestXCom:
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls().serialize_value([1]) == b"[1]"
+        assert cls.serialize_value([1]) == b"[1]"
 
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @conf_vars({("core", "xcom_backend"): "to be removed"})
@@ -89,7 +89,7 @@ class TestXCom:
         conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls().serialize_value([1]) == b"[1]"
+        assert cls.serialize_value([1]) == b"[1]"
 
     def test_xcom_deserialize_with_json_to_pickle_switch(self, dag_run, session):
         ti_key = TaskInstanceKey(
@@ -107,7 +107,7 @@ class TestXCom:
                 session=session,
             )
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(key="xcom_test3", ti_key=ti_key, session=session)
+            ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
     def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):
@@ -226,7 +226,7 @@ class TestXCom:
                 dag_id=None,
                 task_id=None,
                 run_id=None,
-                mapping_index: int = -1,
+                map_index=None,
             ):
                 serialize_watcher(
                     value=value,
@@ -234,6 +234,7 @@ class TestXCom:
                     dag_id=dag_id,
                     task_id=task_id,
                     run_id=run_id,
+                    map_index=map_index,
                 )
                 return json.dumps(value).encode('utf-8')
 
@@ -245,6 +246,7 @@ class TestXCom:
             dag_id="test_dag",
             task_id="test_task",
             run_id=IN_MEMORY_RUN_ID,
+            map_index=-1,
         )
         expected = {**kwargs, 'run_id': '__airflow_in_memory_dagrun__'}
         XCom = resolve_xcom_backend()

@@ -32,6 +32,7 @@ const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const isPaused = getMetaValue('is_paused');
 const baseDate = getMetaValue('base_date');
+const isSchedulerRunning = getMetaValue('is_scheduler_running');
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
@@ -55,7 +56,14 @@ const formatData = (data) => {
 const useTreeData = () => {
   const initialData = formatData(treeData);
 
-  const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem(autoRefreshKey)) && areActiveRuns(initialData.dagRuns);
+  const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
+  const defaultIsOpen = (
+    isPaused !== 'True'
+    && !isRefreshDisabled
+    && areActiveRuns(initialData.dagRuns)
+    && isSchedulerRunning === 'True'
+  );
+
   const { isOpen: isRefreshOn, onToggle, onClose } = useDisclosure({ defaultIsOpen });
 
   const onToggleRefresh = () => {

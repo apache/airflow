@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid trying to kill container when it did not succeed for Docker (#22145)``
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 2.5.0
 .....
 

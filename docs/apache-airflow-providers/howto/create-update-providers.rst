@@ -351,6 +351,44 @@ should be implemented to keep compatibility with Airflow 2.1 and 2.2
         raise AirflowOptionalProviderFeatureException(e)
 
 
+Using Providers with dynamic task mapping
+-----------------------------------------
+
+Airflow 2.3 added `Dynamic Task Mapping <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-42+Dynamic+Task+Mapping>`_
+and it added the possibility of assigning a unique key to each task. Which means that when such dynamically
+mapped task wants to retrieve a value from XCom (for example in case an extra link should calculated)
+it should always check if the ti_key value passed is not None an only then retrieve the XCom value using
+XCom.get_value. This allows to keep backwards compatibility with earlier versions of Airflow.
+
+Typical code to access XCom Value in providers that want to keep backwards compatibility should look similar to
+this (note the ``if ti_key is not None:`` condition).
+
+  .. code-block:: python
+
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ):
+        if ti_key is not None:
+            job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
+        else:
+            assert dttm is not None
+            job_ids = XCom.get_one(
+                key="job_id",
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
+        if not job_ids:
+            return None
+        if len(job_ids) < self.index:
+            return None
+        job_id = job_ids[self.index]
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
+
+
 How-to Update a community provider
 ----------------------------------
 

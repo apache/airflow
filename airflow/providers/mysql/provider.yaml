@@ -22,6 +22,7 @@ description: |
     `MySQL <https://www.mysql.com/products/>`__
 
 versions:
+  - 2.2.2
   - 2.2.1
   - 2.2.0
   - 2.1.1

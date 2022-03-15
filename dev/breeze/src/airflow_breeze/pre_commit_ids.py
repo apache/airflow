@@ -53,6 +53,7 @@ PRE_COMMIT_LIST = [
     'flake8',
     'flynt',
     'forbid-tabs',
+    'forbidden-xcom-get-value',
     'helm-lint',
     'identity',
     'incorrect-use-of-LoggingMixin',

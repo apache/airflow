@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-02-15
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `7be87d87e2 <https://github.com/apache/airflow/commit/7be87d87e27c1e64eee9ce866dbd622a551081cf>`_  2022-02-15   ``Type TaskInstance.task to Operator and call unmap() when needed (#21563)``
 `2258e13cc7 <https://github.com/apache/airflow/commit/2258e13cc78faec80054c223eca9378fd33e18fd>`_  2022-02-15   ``Change default log filename template to include map_index (#21495)``
 =================================================================================================  ===========  ============================================================================

@@ -22,6 +22,14 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+2.2.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 2.2.1
 .....
 

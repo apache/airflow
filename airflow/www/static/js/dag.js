@@ -61,7 +61,12 @@ const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-ur
 }, {});
 
 function updateButtonUrl(elm, params) {
-  elm.setAttribute('href', `${elm.dataset.baseUrl}?${$.param(params)}`);
+  let url = elm.dataset.baseUrl;
+  if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
+    url = url.replace(dagId, params.dag_id);
+    delete params.dag_id;
+  }
+  elm.setAttribute('href', `${url}?${$.param(params)}`);
 }
 
 function updateModalUrls() {

@@ -59,7 +59,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------

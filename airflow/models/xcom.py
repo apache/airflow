@@ -61,6 +61,7 @@ class BaseXCom(Base, LoggingMixin):
 
     dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default="-1")
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
@@ -87,7 +88,7 @@ class BaseXCom(Base, LoggingMixin):
         # but it goes over MySQL's index length limit. So we instead create indexes
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
-        Index("idx_xcom_ti_id", dag_id, task_id, run_id),
+        Index("idx_xcom_ti_id", dag_id, task_id, run_id, map_index),
     )
 
     @reconstructor
@@ -111,6 +112,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         run_id: str,
+        map_index: int = -1,
         session: Session = NEW_SESSION,
     ) -> None:
         """Store an XCom value.
@@ -123,6 +125,8 @@ class BaseXCom(Base, LoggingMixin):
         :param dag_id: DAG ID.
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
+        :param map_index: Optional map index to assign XCom for a mapped task.
+            The default is ``-1`` (set for a non-mapped task).
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -152,6 +156,7 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
+        map_index: int = -1,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
@@ -183,6 +188,7 @@ class BaseXCom(Base, LoggingMixin):
             task_id=task_id,
             dag_id=dag_id,
             run_id=run_id,
+            map_index=map_index,
         )
 
         # Remove duplicate XComs and insert a new one.
@@ -203,13 +209,49 @@ class BaseXCom(Base, LoggingMixin):
         session.add(new)
         session.flush()
 
+    @classmethod
+    @provide_session
+    def get_value(
+        cls,
+        *,
+        ti_key: "TaskInstanceKey",
+        key: Optional[str] = None,
+        session: Session = NEW_SESSION,
+    ) -> Any:
+        """Retrieve an XCom value for a task instance.
+
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
+
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
+
+        :param ti_key: The TaskInstanceKey to look up the XCom for.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+        return cls.get_one(
+            key=key,
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+            session=session,
+        )
+
     @overload
     @classmethod
     def get_one(
         cls,
         *,
         key: Optional[str] = None,
-        ti_key: "TaskInstanceKey",
+        dag_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        map_index: Optional[int] = None,
         session: Session = NEW_SESSION,
     ) -> Optional[Any]:
         """Retrieve an XCom value, optionally meeting certain criteria.
@@ -218,12 +260,22 @@ class BaseXCom(Base, LoggingMixin):
         from the XCom backend). Use :meth:`get_many` if you want the "shortened"
         value via ``orm_deserialize_value``.
 
-        If there are no results, *None* is returned.
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
 
         A deprecated form of this function accepts ``execution_date`` instead of
         ``run_id``. The two arguments are mutually exclusive.
 
-        :param ti_key: The TaskInstanceKey to look up the XCom for
+        .. seealso:: ``get_value()`` is a convenience function if you already
+            have a structured TaskInstance or TaskInstanceKey object available.
+
+        :param run_id: DAG run ID for the task.
+        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+            remove the filter.
+        :param task_id: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param map_index: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XCom from the
@@ -232,19 +284,6 @@ class BaseXCom(Base, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-
-    @overload
-    @classmethod
-    def get_one(
-        cls,
-        *,
-        key: Optional[str] = None,
-        task_id: str,
-        dag_id: str,
-        run_id: str,
-        session: Session = NEW_SESSION,
-    ) -> Optional[Any]:
-        ...
 
     @overload
     @classmethod
@@ -271,27 +310,19 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        map_index: Optional[int] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
-        if not exactly_one(execution_date is not None, ti_key is not None, run_id is not None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
 
-        if ti_key is not None:
-            query = session.query(cls).filter_by(
-                dag_id=ti_key.dag_id,
-                run_id=ti_key.run_id,
-                task_id=ti_key.task_id,
-            )
-            if key:
-                query = query.filter_by(key=key)
-            query = query.limit(1)
-        elif run_id:
+        if run_id:
             query = cls.get_many(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
                 dag_ids=dag_id,
+                map_indexes=map_index,
                 include_prior_dates=include_prior_dates,
                 limit=1,
                 session=session,
@@ -307,6 +338,7 @@ class BaseXCom(Base, LoggingMixin):
                     key=key,
                     task_ids=task_id,
                     dag_ids=dag_id,
+                    map_indexes=map_index,
                     include_prior_dates=include_prior_dates,
                     limit=1,
                     session=session,
@@ -328,6 +360,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Union[str, Iterable[str], None] = None,
         dag_ids: Union[str, Iterable[str], None] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -347,6 +380,8 @@ class BaseXCom(Base, LoggingMixin):
             Pass *None* (default) to remove the filter.
         :param dag_id: Only pulls XComs from this DAG. If *None* (default), the
             DAG of the calling task is used.
+        :param map_index: Only XComs from matching map indexes will be pulled.
+            Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XComs from the
             specified DAG run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
@@ -362,6 +397,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Union[str, Iterable[str], None] = None,
         dag_ids: Union[str, Iterable[str], None] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -376,6 +412,7 @@ class BaseXCom(Base, LoggingMixin):
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
+        map_indexes: Union[int, Iterable[int], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
         session: Session = NEW_SESSION,
@@ -405,6 +442,11 @@ class BaseXCom(Base, LoggingMixin):
             query = query.filter(cls.dag_id.in_(dag_ids))
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
+
+        if is_container(map_indexes):
+            query = query.filter(cls.map_index.in_(map_indexes))
+        elif map_indexes is not None:
+            query = query.filter(cls.map_index == map_indexes)
 
         if include_prior_dates:
             if execution_date is not None:
@@ -438,7 +480,15 @@ class BaseXCom(Base, LoggingMixin):
 
     @overload
     @classmethod
-    def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
+    def clear(
+        cls,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: Optional[int] = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Clear all XCom data from the database for the given task instance.
 
         A deprecated form of this function accepts ``execution_date`` instead of
@@ -447,6 +497,8 @@ class BaseXCom(Base, LoggingMixin):
         :param dag_id: ID of DAG to clear the XCom for.
         :param task_id: ID of task to clear the XCom for.
         :param run_id: ID of DAG run to clear the XCom for.
+        :param map_index: If given, only clear XCom from this particular mapped
+            task. The default ``None`` clears *all* XComs from the task.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -472,6 +524,7 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
+        map_index: Optional[int] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models import DagRun
@@ -495,17 +548,20 @@ class BaseXCom(Base, LoggingMixin):
                 .scalar()
             )
 
-        return session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id).delete()
+        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        if map_index is not None:
+            query = query.filter_by(map_index=map_index)
+        query.delete()
 
     @staticmethod
     def serialize_value(
         value: Any,
         *,
-        key=None,
-        task_id=None,
-        dag_id=None,
-        run_id=None,
-        mapping_index: int = -1,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        map_index: Optional[int] = None,
     ):
         """Serialize XCom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):
@@ -549,13 +605,14 @@ class BaseXCom(Base, LoggingMixin):
         return BaseXCom.deserialize_value(self)
 
 
-def _patch_outdated_serializer(clazz, params):
-    """
-    Previously XCom.serialize_value only accepted one argument ``value``.  In order to give
-    custom XCom backends more flexibility with how they store values we now forward to
-    ``XCom.serialize_value`` all params passed to ``XCom.set``.  In order to maintain
-    compatibility with XCom backends written with the old signature we check the signature
-    and if necessary we patch with a method that ignores kwargs the backend does not accept.
+def _patch_outdated_serializer(clazz: Type[BaseXCom], params: Iterable[str]) -> None:
+    """Patch a custom ``serialize_value`` to accept the modern signature.
+
+    To give custom XCom backends more flexibility with how they store values, we
+    now forward all params passed to ``XCom.set`` to ``XCom.serialize_value``.
+    In order to maintain compatibility with custom XCom backends written with
+    the old signature, we check the signature and, if necessary, patch with a
+    method that ignores kwargs the backend does not accept.
     """
     old_serializer = clazz.serialize_value
 
@@ -570,7 +627,7 @@ def _patch_outdated_serializer(clazz, params):
         )
         return old_serializer(**kwargs)
 
-    clazz.serialize_value = _shim
+    clazz.serialize_value = _shim  # type: ignore[assignment]
 
 
 def _get_function_params(function) -> List[str]:
