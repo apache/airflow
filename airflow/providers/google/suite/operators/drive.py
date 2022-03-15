@@ -98,8 +98,8 @@ class GoogleDriveUploadOperator(BaseOperator):
         for local_path in self.local_paths:
             self.log.info(f'Uploading file to Google Drive: {local_path}')
 
-            local_path_normalized = Path(local_path) if type(local_path) is str else local_path
-            drive_folder_normalized = (
+            local_path_normalized: Path = Path(local_path) if type(local_path) is str else local_path
+            drive_folder_normalized: Path = (
                 Path(self.drive_folder) if type(self.drive_folder) is str else self.drive_folder
             )
 
