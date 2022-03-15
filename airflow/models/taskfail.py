@@ -34,10 +34,10 @@ class TaskFail(Base):
     __tablename__ = "task_fail"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(StringID(), primary_key=True)
-    dag_id = Column(StringID(), primary_key=True)
-    run_id = Column(StringID(), primary_key=True)
-    map_index = Column(Integer, primary_key=True, server_default='-1')
+    task_id = Column(StringID())
+    dag_id = Column(StringID())
+    run_id = Column(StringID())
+    map_index = Column(Integer, server_default='-1')
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)

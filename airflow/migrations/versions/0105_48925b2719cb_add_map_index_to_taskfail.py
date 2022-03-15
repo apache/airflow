@@ -130,7 +130,7 @@ def upgrade():
             batch_op.drop_constraint('task_fail_pkey', type_='primary')
         batch_op.alter_column('run_id', existing_type=StringID(), existing_nullable=True, nullable=False)
         batch_op.drop_column('execution_date')
-        batch_op.create_primary_key('task_fail_pkey', ['dag_id', 'task_id', 'run_id', 'map_index'])
+        batch_op.create_primary_key('task_fail_pkey', ['id'])
         batch_op.create_foreign_key(
             'task_fail_ti_fkey',
             'task_instance',
