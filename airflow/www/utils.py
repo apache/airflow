@@ -349,7 +349,13 @@ def task_instance_link(attr):
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
     execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
-    url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
+    url = url_for(
+        'Airflow.task',
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date.isoformat(),
+        map_index=attr.get('map_index', -1),
+    )
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
