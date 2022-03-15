@@ -104,7 +104,7 @@ class S3Hook(AwsBaseHook):
     """
 
     conn_type = 's3'
-    hook_name = 'S3'
+    hook_name = 'Amazon S3'
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs['client_type'] = 's3'

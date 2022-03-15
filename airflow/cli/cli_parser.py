@@ -932,6 +932,12 @@ DAGS_COMMANDS = (
         args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name='list-import-errors',
+        help="List all the DAGs that have import errors",
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_import_errors'),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name='report',
         help='Show DagBag loading report',
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_report'),

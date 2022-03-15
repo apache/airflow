@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 3.1.0
   - 3.0.0
   - 2.6.0
   - 2.5.0
@@ -106,6 +107,8 @@ integrations:
   - integration-name: Amazon RDS
     external-doc-url: https://aws.amazon.com/rds/
     logo: /integration-logos/aws/Amazon-RDS_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/rds.rst
     tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
@@ -161,6 +164,8 @@ integrations:
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
     logo: /integration-logos/aws/AWS-Batch_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/batch.rst
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
@@ -272,6 +277,9 @@ operators:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.operators.rds
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
@@ -318,6 +326,9 @@ sensors:
       - airflow.providers.amazon.aws.sensors.glue
       - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.rds
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.sensors.redshift
@@ -434,6 +445,7 @@ hooks:
 transfers:
   - source-integration-name: Amazon DynamoDB
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/dynamodb_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.dynamodb_to_s3
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Amazon Simple Storage Service (S3)
@@ -461,10 +473,11 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.mysql_to_s3
   - source-integration-name: Amazon Redshift
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/redshift_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.redshift_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Amazon Redshift
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/s3_to_redshift.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_redshift.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)

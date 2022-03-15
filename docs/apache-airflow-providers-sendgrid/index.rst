@@ -51,7 +51,7 @@ Package apache-airflow-providers-sendgrid
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------
@@ -71,7 +71,7 @@ PIP requirements
 =============  ==================
 PIP package    Version required
 =============  ==================
-``sendgrid``   ``>=6.0.0,<7``
+``sendgrid``   ``>=6.0.0``
 =============  ==================
 
 .. include:: ../../airflow/providers/sendgrid/CHANGELOG.rst

@@ -166,31 +166,16 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
-    if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-        print("Attempting to reset the db using airflow command")
-        os.system("airflow resetdb -y")
-    else:
-        from airflow.utils import db
+    from airflow.utils import db
 
-        db.resetdb()
+    db.resetdb()
 
 
 @pytest.fixture(autouse=True, scope="session")
-def breeze_test_helper(request):
+def initialize_airflow_tests(request):
     """
-    Helper that setups Airflow testing environment. It does the same thing
-    as the old 'run-tests' script.
+    Helper that setups Airflow testing environment.
     """
-
-    # fixme: this should use some other env variable ex. RUNNING_ON_K8S
-    if os.environ.get("SKIP_INIT_DB"):
-        print("Skipping db initialization. Tests do not require database")
-        return
-
-    from airflow import __version__
-
-    if __version__.startswith("1.10"):
-        os.environ['RUN_AIRFLOW_1_10'] = "true"
 
     print(" AIRFLOW ".center(60, "="))
 

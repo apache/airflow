@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.5.0
   - 6.4.0
   - 6.3.0
   - 6.2.0
@@ -234,6 +235,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/datafusion.rst
     logo: /integration-logos/gcp/Google-Data-Fusion.png
     tags: [gcp]
+  - integration-name: Google Dataplex
+    external-doc-url: https://cloud.google.com/dataplex/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataplex.rst
+    tags: [gcp]
   - integration-name: Google Dataprep
     external-doc-url: https://cloud.google.com/dataprep/
     how-to-guide:
@@ -348,6 +354,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/vertex_ai.rst
     tags: [gcp]
+  - integration-name: Google Looker
+    external-doc-url: https://cloud.google.com/looker
+    logo: /integration-logos/gcp/Cloud-Looker.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/looker.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -392,6 +404,9 @@ operators:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataplex
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.operators.dataprep
@@ -483,6 +498,9 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.dataset
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.operators.looker
 
 sensors:
   - integration-name: Google BigQuery
@@ -503,6 +521,9 @@ sensors:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.sensors.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
@@ -527,6 +548,9 @@ sensors:
   - integration-name: Google Search Ads 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.search_ads
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.sensors.looker
 
 hooks:
   - integration-name: Google Ads
@@ -572,6 +596,9 @@ hooks:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.hooks.dataplex
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.hooks.dataprep
@@ -685,6 +712,9 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.dataset
       - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
       - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
+  - integration-name: Google Looker
+    python-modules:
+      - airflow.providers.google.cloud.hooks.looker
 
 transfers:
   - source-integration-name: Presto
@@ -837,6 +867,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink

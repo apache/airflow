@@ -29,6 +29,7 @@ from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
@@ -435,7 +436,8 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='''{
                 "auth_type": "AK",
                 "access_key_id": "<ACCESS_KEY_ID>",
-                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                "access_key_secret": "<ACCESS_KEY_SECRET>",
+                "region": "<YOUR_OSS_REGION>"}
                 ''',
         ),
         session,
@@ -946,8 +948,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -1266,7 +1270,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if version.exists(connection):
+    if has_table(connection, version):
         version.drop(connection)
 
 

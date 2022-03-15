@@ -84,8 +84,8 @@ class TaskGroupDecorator(Generic[R]):
     def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
         return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
 
-    def apply(self, **kwargs) -> Union[R, TaskGroup]:
-        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).apply(**kwargs)
+    def expand(self, **kwargs) -> Union[R, TaskGroup]:
+        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).expand(**kwargs)
 
 
 @attr.define
@@ -116,7 +116,7 @@ class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
         self.partial_kwargs.update(kwargs)
         return self
 
-    def apply(self, **kwargs) -> Union[R, TaskGroup]:
+    def expand(self, **kwargs) -> Union[R, TaskGroup]:
         if self.mapped_kwargs:
             raise RuntimeError("Already a mapped task group")
         self.mapped_kwargs = kwargs
@@ -150,7 +150,7 @@ class Group(Generic[F]):
     function: F
 
     # Return value should match F's return type, but that's impossible to declare.
-    def apply(self, **kwargs: "Mappable") -> Any:
+    def expand(self, **kwargs: "Mappable") -> Any:
         ...
 
     def partial(self, **kwargs: Any) -> "Group[F]":

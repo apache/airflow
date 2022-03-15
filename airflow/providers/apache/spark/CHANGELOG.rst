@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix param rendering in docs of SparkSubmitHook (#21788)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.0
 .....
 

@@ -15,18 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from os import getenv
 
-from airflow.decorators import dag, task
+from airflow import DAG
+from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 
-# [START howto_operator_redshift_data_env_variables]
-REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "test-cluster")
-REDSHIFT_DATABASE = getenv("REDSHIFT_DATABASE", "test-database")
+REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "redshift_cluster_identifier")
+REDSHIFT_DATABASE = getenv("REDSHIFT_DATABASE", "redshift_database")
 REDSHIFT_DATABASE_USER = getenv("REDSHIFT_DATABASE_USER", "awsuser")
-# [END howto_operator_redshift_data_env_variables]
 
 REDSHIFT_QUERY = """
 SELECT table_schema,
@@ -40,29 +39,26 @@ ORDER BY table_schema,
 POLL_INTERVAL = 10
 
 
-# [START howto_redshift_data]
-@dag(
-    dag_id='example_redshift_data',
-    schedule_interval=None,
+@task(task_id="output_results")
+def output_query_results(statement_id):
+    hook = RedshiftDataHook()
+    resp = hook.conn.get_statement_result(
+        Id=statement_id,
+    )
+
+    print(resp)
+    return resp
+
+
+with DAG(
+    dag_id="example_redshift_data_execute_sql",
     start_date=datetime(2021, 1, 1),
-    dagrun_timeout=timedelta(minutes=60),
-    tags=['example'],
+    schedule_interval=None,
     catchup=False,
-)
-def example_redshift_data():
-    @task(task_id="output_results")
-    def output_results_fn(id):
-        """This is a python decorator task that returns a Redshift query"""
-        hook = RedshiftDataHook()
-
-        resp = hook.get_statement_result(
-            id=id,
-        )
-        print(resp)
-        return resp
-
-    # Run a SQL statement and wait for completion
-    redshift_query = RedshiftDataOperator(
+    tags=['example'],
+) as dag:
+    # [START howto_redshift_data]
+    task_query = RedshiftDataOperator(
         task_id='redshift_query',
         cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
         database=REDSHIFT_DATABASE,
@@ -71,10 +67,6 @@ def example_redshift_data():
         poll_interval=POLL_INTERVAL,
         await_result=True,
     )
+    # [END howto_redshift_data]
 
-    # Using a task-decorated function to output the list of tables in a Redshift cluster
-    output_results_fn(redshift_query.output)
-
-
-example_redshift_data_dag = example_redshift_data()
-# [END howto_redshift_data]
+    task_output = output_query_results(task_query.output)

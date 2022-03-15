@@ -22,6 +22,7 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 versions:
+  - 2.3.0
   - 2.2.0
   - 2.1.0
   - 2.0.2
@@ -32,6 +33,9 @@ versions:
 
 additional-dependencies:
   - apache-airflow>=2.1.0
+
+excluded-python-versions:
+  - "3.10"
 
 integrations:
   - integration-name: Databricks

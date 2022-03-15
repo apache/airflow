@@ -34,13 +34,14 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
+from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagModel, errors
+from airflow.models import DagModel, DbCallbackRequest, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -49,7 +50,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
 if TYPE_CHECKING:
     import pathlib
@@ -479,6 +481,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
+        maxCallbacksPerLoop = conf.getint("scheduler", "max_callbacks_per_loop")
 
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
@@ -486,9 +489,11 @@ class DagFileProcessorManager(LoggingMixin):
             self.start_new_processes()
         while True:
             loop_start_time = time.monotonic()
-
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._signal_conn in ready:
+                if conf.getboolean("scheduler", "standalone_dag_processor"):
+                    # Nothing to do if callbacks are not stored in the database
+                    self._fetch_callbacks(maxCallbacksPerLoop)
                 agent_signal = self._signal_conn.recv()
 
                 self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
@@ -590,6 +595,27 @@ class DagFileProcessorManager(LoggingMixin):
                     poll_time = 1 - loop_duration
                 else:
                     poll_time = 0.0
+
+    @provide_session
+    def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
+        """Fetches callbacks from database and add them to the internal pipe for execution."""
+        self.log.debug("Fetching callbacks from the database.")
+        with prohibit_commit(session) as guard:
+            query = (
+                session.query(DbCallbackRequest)
+                .order_by(DbCallbackRequest.priority_weight.asc())
+                .limit(max_callbacks)
+            )
+            callbacks = with_row_locks(
+                query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
+            ).all()
+            for callback in callbacks:
+                try:
+                    self._signal_conn.send(callback.get_callback_request())
+                    session.delete(callback)
+                except Exception as e:
+                    self.log.warning("Error adding callback for execution: %s, %s", callback, e)
+            guard.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):
         self._callback_to_execute[request.full_filepath].append(request)

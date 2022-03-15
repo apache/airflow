@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for BeamGoPipelineOperator (#20386)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix mypy apache beam operators (#20610)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix MyPy Errors for Apache Beam (and Dataflow) provider. (#20301)``
+   * ``Fix broken anchors markdown files (#19847)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Dataflow Assets (#21639)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+
 3.1.0
 .....
 

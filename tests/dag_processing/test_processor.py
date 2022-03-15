@@ -384,7 +384,9 @@ class TestDagFileProcessor:
             session.add(ti)
 
         requests = [
-            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+            TaskCallbackRequest(
+                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+            )
         ]
         dag_file_processor.execute_callbacks(dagbag, requests)
         mock_ti_handle_failure.assert_called_once_with(
@@ -411,7 +413,9 @@ class TestDagFileProcessor:
             session.add(ti)
 
         requests = [
-            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+            TaskCallbackRequest(
+                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+            )
         ]
         dag_file_processor.execute_callbacks(dagbag, requests)
 
@@ -444,7 +448,7 @@ class TestDagFileProcessor:
             requests = [
                 TaskCallbackRequest(
                     full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
+                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
                     msg="Message",
                 )
             ]

@@ -563,6 +563,7 @@ scheduler:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command: ~
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -821,6 +822,14 @@ webserver:
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
 
+  # Webserver pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      maxUnavailable: 1
+
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
@@ -943,6 +952,7 @@ triggerer:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command: ~
 
   # Create ServiceAccount
   serviceAccount:

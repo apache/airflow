@@ -32,6 +32,7 @@ Prerequisite Tasks
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
+.. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
 Create a Cluster
 ----------------
@@ -211,6 +212,15 @@ Once a workflow is created users can trigger it using
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
+
+The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
 Create a Batch
 --------------
