@@ -15,36 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-from pathlib import Path
-
 import pytest
 
-PROVIDER = Path(__file__).parent.name
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 
 
-def is_env_not_ready():
-    """Check if all required environments are present. If  return error message to be used in skip marker"""
-    for env in REQUIRED_ENV_VARS:
-        if env not in os.environ:
-            return f"Missing required environment variable {env}"
-    return ""
-
-
-def is_system_mark_present(item):
-    """Don't mark with missing env variables if system mark is missing"""
-    selected_systems = item.config.getoption("--system")
-    return selected_systems and (PROVIDER in selected_systems or "all" in selected_systems)
-
-
-def pytest_collection_modifyitems(config, items):
-    """Skip tests if environment is not configured"""
-    not_ready = is_env_not_ready()
-    if not not_ready:
-        return
-    skip = pytest.mark.skip(reason=not_ready)
-    for item in items:
-        system_mark_present = is_system_mark_present(item)
-        if system_mark_present and not_ready:
-            item.add_marker(skip)
+@pytest.fixture()
+def provider_env_vars():
+    return REQUIRED_ENV_VARS
