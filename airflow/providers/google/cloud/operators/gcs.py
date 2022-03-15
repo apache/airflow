@@ -534,8 +534,8 @@ class GCSFileTransformOperator(BaseOperator):
     data from source, transform it and write the output to the local
     destination file.
 
-    :param source_bucket: The key to be retrieved from S3. (templated)
-    :param destination_bucket: The key to be written from S3. (templated)
+    :param source_bucket: The key to be retrieved from GCS. (templated)
+    :param destination_bucket: The key to be written from GCS. (templated)
     :param transform_script: location of the executable transformation script or list of arguments
         passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
