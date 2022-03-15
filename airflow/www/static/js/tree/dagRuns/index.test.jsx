@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect, jest */
+/* global describe, test, expect */
 
 import React from 'react';
 import { render } from '@testing-library/react';
@@ -26,9 +26,9 @@ import moment from 'moment';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import DagRuns from './index';
+import { ContainerRefProvider } from '../providers/containerRef';
+import { SelectionProvider } from '../providers/selection';
 
-// Mock modal open function we take from dag.js
-jest.mock('../../dag', () => ({ callModalDag: () => {} }));
 global.moment = moment;
 
 const Wrapper = ({ children }) => {
@@ -37,11 +37,15 @@ const Wrapper = ({ children }) => {
     <React.StrictMode>
       <ChakraProvider>
         <QueryClientProvider client={queryClient}>
-          <Table>
-            <Tbody>
-              {children}
-            </Tbody>
-          </Table>
+          <ContainerRefProvider value={{}}>
+            <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+              <Table>
+                <Tbody>
+                  {children}
+                </Tbody>
+              </Table>
+            </SelectionProvider>
+          </ContainerRefProvider>
         </QueryClientProvider>
       </ChakraProvider>
     </React.StrictMode>
@@ -72,7 +76,6 @@ describe('Test DagRuns', () => {
       endDate: '2021-11-09T00:22:18.607167+00:00',
     },
   ];
-  const mockRef = {};
 
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
     global.treeData = JSON.stringify({
@@ -80,11 +83,7 @@ describe('Test DagRuns', () => {
       dagRuns,
     });
     const { queryAllByTestId, getByText, queryByText } = render(
-      <DagRuns
-        containerRef={mockRef}
-        selected={{}}
-        onSelect={() => {}}
-      />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: Wrapper },
     );
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
@@ -122,11 +121,7 @@ describe('Test DagRuns', () => {
       ],
     });
     const { getByText } = render(
-      <DagRuns
-        containerRef={mockRef}
-        selected={{}}
-        onSelect={() => {}}
-      />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: Wrapper },
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
   });
@@ -137,11 +132,7 @@ describe('Test DagRuns', () => {
       dagRuns: [],
     };
     const { queryByTestId } = render(
-      <DagRuns
-        containerRef={mockRef}
-        selected={{}}
-        onSelect={() => {}}
-      />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });
@@ -149,11 +140,7 @@ describe('Test DagRuns', () => {
   test('Handles no data correctly', () => {
     global.treeData = {};
     const { queryByTestId } = render(
-      <DagRuns
-        containerRef={mockRef}
-        selected={{}}
-        onSelect={() => {}}
-      />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: Wrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });
