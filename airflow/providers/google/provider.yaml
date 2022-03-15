@@ -420,9 +420,6 @@ operators:
   - integration-name: Google Datastore
     python-modules:
       - airflow.providers.google.cloud.operators.datastore
-  - integration-name: Google Drive
-    python-modules:
-      - airflow.providers.google.suite.operators.drive
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     python-modules:
       - airflow.providers.google.cloud.operators.dlp
@@ -827,6 +824,10 @@ transfers:
     target-integration-name: Local
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_local.rst
     python-module: airflow.providers.google.cloud.transfers.gdrive_to_local
+  - source-integration-name: Local
+    target-integration-name: Google Drive
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_drive.rst
+    python-module: airflow.providers.google.suite.transfers.local_to_drive
   - source-integration-name: Salesforce
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/salesforce_to_gcs.rst
