@@ -28,11 +28,13 @@ import {
   Link,
   Divider,
 } from '@chakra-ui/react';
-import { MdPlayArrow } from 'react-icons/md';
+import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../StatusBox';
 import { formatDateTime, formatDuration } from '../../../datetime_utils';
-import { useClearRun, useMarkFailedRun, useMarkSuccessRun } from '../../api';
+import {
+  useClearRun, useMarkFailedRun, useMarkSuccessRun, useQueueRun,
+} from '../../api';
 
 const DagRun = ({
   dagRun: {
@@ -46,9 +48,11 @@ const DagRun = ({
     endDate,
     runType,
     lastSchedulingDecision,
+    executionDate,
   },
 }) => {
   const { mutate: onClear, isLoading: isClearLoading } = useClearRun(dagId, runId);
+  const { mutate: onQueue, isLoading: isQueueLoading } = useQueueRun(dagId, runId);
   const { mutate: markFailed, isLoading: isFailedLoading } = useMarkFailedRun(dagId, runId);
   const { mutate: markSuccess, isLoading: isSuccessLoading } = useMarkSuccessRun(dagId, runId);
 
@@ -57,14 +61,35 @@ const DagRun = ({
     run_id: runId,
   }).toString();
   const detailsLink = `/dagrun_details?${params}`;
+  const graphParams = new URLSearchParams({
+    execution_date: executionDate,
+  }).toString();
+  const graphLink = `/dags/${dagId}/graph?${graphParams}`;
 
   return (
     <Box fontSize="12px" py="4px">
-      <Flex justifyContent="space-between">
+      <Flex justifyContent="space-between" alignItems="center">
         <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>More Details</Button>
-        <Button onClick={onClear} isLoading={isClearLoading}>Clear</Button>
+        <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
+          Graph
+        </Button>
         <Button onClick={markFailed} colorScheme="red" isLoading={isFailedLoading}>Mark Failed</Button>
         <Button onClick={markSuccess} colorScheme="green" isLoading={isSuccessLoading}>Mark Success</Button>
+      </Flex>
+      <Divider my={3} />
+      <Flex justifyContent="space-between" alignItems="center">
+        <Text fontWeight="bold" ml="10px">Re-run:</Text>
+        <Flex>
+          <Button onClick={onClear} isLoading={isClearLoading}>Clear existing tasks</Button>
+          <Button
+            onClick={onQueue}
+            isLoading={isQueueLoading}
+            ml="5px"
+            title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
+          >
+            Queue up new tasks
+          </Button>
+        </Flex>
       </Flex>
       <Divider my={3} />
       <Flex alignItems="center">

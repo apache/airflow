@@ -25,6 +25,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
+import ActionButton from './ActionButton';
 import { useClearTask } from '../../../api';
 
 const Run = ({
@@ -62,14 +63,19 @@ const Run = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
-        <Button bg={past && 'gray.100'} onClick={onTogglePast}>Past</Button>
-        <Button bg={future && 'gray.100'} onClick={onToggleFuture}>Future</Button>
-        <Button bg={upstream && 'gray.100'} onClick={onToggleUpstream}>Upstream</Button>
-        <Button bg={downstream && 'gray.100'} onClick={onToggleDownstream}>Downstream</Button>
-        <Button bg={recursive && 'gray.100'} onClick={onToggleRecursive}>Recursive</Button>
-        <Button bg={failed && 'gray.100'} onClick={onToggleFailed}>Failed</Button>
+        <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
+        <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
+        <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
+        <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
+        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onClear} isLoading={isLoading}>
+      <Button
+        colorScheme="blue"
+        onClick={onClear}
+        isLoading={isLoading}
+        title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
+      >
         Clear
       </Button>
     </Flex>

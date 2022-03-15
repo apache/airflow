@@ -17,33 +17,20 @@
  * under the License.
  */
 
-import axios from 'axios';
-import camelcaseKeys from 'camelcase-keys';
+import React from 'react';
+import { Button } from '@chakra-ui/react';
 
-import useDag from './useDag';
-import useTasks from './useTasks';
-import useClearRun from './useClearRun';
-import useQueueRun from './useQueueRun';
-import useMarkFailedRun from './useMarkFailedRun';
-import useMarkSuccessRun from './useMarkSuccessRun';
-import useRunTask from './useRunTask';
-import useClearTask from './useClearTask';
-import useMarkFailedTask from './useMarkFailedTask';
-import useMarkSuccessTask from './useMarkSuccessTask';
+const titleMap = {
+  past: 'Also include past task instances when clearing this one',
+  future: 'Also include future task instances when clearing this one',
+  upstream: 'Also include upstream dependencies',
+  downstream: 'Also include downstream dependencies',
+  recursive: '',
+  failed: 'Only consider failed task instances when clearing this one',
+};
 
-axios.interceptors.response.use(
-  (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
+const ActionButton = ({ name, ...rest }) => (
+  <Button title={titleMap[name.toLowerCase()]} {...rest}>{name}</Button>
 );
 
-export {
-  useDag,
-  useTasks,
-  useClearRun,
-  useQueueRun,
-  useMarkFailedRun,
-  useMarkSuccessRun,
-  useRunTask,
-  useClearTask,
-  useMarkFailedTask,
-  useMarkSuccessTask,
-};
+export default ActionButton;

@@ -25,6 +25,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
+import ActionButton from './ActionButton';
 import { useMarkSuccessTask } from '../../../api';
 
 const Run = ({
@@ -53,10 +54,10 @@ const Run = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
-        <Button bg={past && 'gray.100'} onClick={onTogglePast}>Past</Button>
-        <Button bg={future && 'gray.100'} onClick={onToggleFuture}>Future</Button>
-        <Button bg={upstream && 'gray.100'} onClick={onToggleUpstream}>Upstream</Button>
-        <Button bg={downstream && 'gray.100'} onClick={onToggleDownstream}>Downstream</Button>
+        <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
+        <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
+        <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
+        <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
       <Button colorScheme="green" onClick={markSuccess} isLoading={isLoading}>
         Mark Success

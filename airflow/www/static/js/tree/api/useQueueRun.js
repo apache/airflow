@@ -18,32 +18,32 @@
  */
 
 import axios from 'axios';
-import camelcaseKeys from 'camelcase-keys';
+import { useMutation, useQueryClient } from 'react-query';
+import { getMetaValue } from '../../utils';
 
-import useDag from './useDag';
-import useTasks from './useTasks';
-import useClearRun from './useClearRun';
-import useQueueRun from './useQueueRun';
-import useMarkFailedRun from './useMarkFailedRun';
-import useMarkSuccessRun from './useMarkSuccessRun';
-import useRunTask from './useRunTask';
-import useClearTask from './useClearTask';
-import useMarkFailedTask from './useMarkFailedTask';
-import useMarkSuccessTask from './useMarkSuccessTask';
+export default function useQueueRun(dagId, runId) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    ['dagRunQueue', dagId, runId],
+    () => {
+      const csrfToken = getMetaValue('csrf_token');
+      const params = new URLSearchParams({
+        csrf_token: csrfToken,
+        confirmed: true,
+        dag_id: dagId,
+        dag_run_id: runId,
+      }).toString();
 
-axios.interceptors.response.use(
-  (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
-);
-
-export {
-  useDag,
-  useTasks,
-  useClearRun,
-  useQueueRun,
-  useMarkFailedRun,
-  useMarkSuccessRun,
-  useRunTask,
-  useClearTask,
-  useMarkFailedTask,
-  useMarkSuccessTask,
-};
+      return axios.post('/dagrun_queued', params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    },
+    {
+      onSettled: () => {
+        queryClient.invalidateQueries('treeData');
+      },
+    },
+  );
+}

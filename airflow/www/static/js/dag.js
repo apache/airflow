@@ -313,22 +313,6 @@ $(document).on('click', '#btn_back', () => {
   });
 });
 
-export function callModalDag(dag) {
-  $('#dagModal').modal({});
-  $('#dagModal').css('margin-top', '0');
-  $('#run_id').text(dag.run_id);
-  executionDate = dag.execution_date;
-  dagRunId = dag.run_id;
-  updateButtonUrl(buttons.dag_graph_view, {
-    dag_id: dag && dag.dag_id,
-    execution_date: dag && dag.execution_date,
-  });
-  updateButtonUrl(buttons.dagrun_details, {
-    dag_id: dag && dag.dag_id,
-    run_id: dag && dag.run_id,
-  });
-}
-
 // Task Instance Modal actions
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
