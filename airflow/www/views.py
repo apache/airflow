@@ -1716,7 +1716,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def run(self):
+    @provide_session
+    def run(self, session=None):
         """Runs Task Instance."""
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
@@ -1771,6 +1772,8 @@ class Airflow(AirflowBaseView):
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
+        ti.queued_dttm = timezone.utcnow()
+        session.merge(ti)
         flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
