@@ -19,13 +19,26 @@
 Changelog
 ---------
 
-2.5.1
+2.5.2
 .....
 
 Features
 ~~~~~~~~
 
 * ``Add support for device_requests. Used to expose host resources such as GPUs to the container (#21974)``
+
+2.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid trying to kill container when it did not succeed for Docker (#22145)``
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 
 2.5.0
 .....
