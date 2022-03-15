@@ -86,7 +86,7 @@ class GoogleDriveUploadOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context") -> Sequence[str]:
+    def execute(self, context: "Context") -> List[str]:
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
