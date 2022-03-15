@@ -70,7 +70,7 @@ class SnowflakeHook(DbApiHook):
         <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__
 
     .. note::
-        get_sqlalchemy_engine() depends on ``snowflake-sqlalchemy``
+        ``get_sqlalchemy_engine()`` depends on ``snowflake-sqlalchemy``
 
     .. seealso::
         For more information on how to use this Snowflake connection, take a look at the guide:
