@@ -2470,7 +2470,7 @@ def get_prs_for_package(package_id: str) -> List[int]:
                 skip_line = True
                 continue
             if extract_prs:
-                if all(c == '.' for c in line):
+                if len(line) > 1 and all(c == '.' for c in line.strip()):
                     # Header for next version reached
                     break
                 if line.startswith('.. Below changes are excluded from the changelog'):
