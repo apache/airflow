@@ -285,7 +285,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         yield from glob.glob(
             f"{ROOT_FOLDER}/airflow/providers/google/*/example_dags/example_{service_name}*.py"
         )
-        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/google/{service_name}/test_*.py")
+        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/google/{service_name}/example_*.py")
 
 
 class TestOperatorsHooks(unittest.TestCase):

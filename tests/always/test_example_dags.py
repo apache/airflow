@@ -31,7 +31,7 @@ NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
 
 def example_dags():
-    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/test_*.py"]
+    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
     for example_dir in example_dirs:
         yield from glob(f"{ROOT_FOLDER}/{example_dir}", recursive=True)
 
@@ -55,27 +55,28 @@ def relative_path(path):
     return os.path.relpath(path, ROOT_FOLDER)
 
 
-class TestExampleDags:
-    @pytest.fixture(autouse=True, scope="session")
-    def required_env_vars(self):
-        # Common
-        set_env_vars("SYSTEM_TESTS_ENV_ID")
-        # Google
-        set_env_vars("SYSTEM_TESTS_GCP_PROJECT", "SYSTEM_TESTS_GCP_SERVICE_ACCOUNT")
+@pytest.fixture(autouse=True, scope="session")
+def required_env_vars():
+    # Common
+    set_env_vars("SYSTEM_TESTS_ENV_ID")
+    # Google
+    set_env_vars("SYSTEM_TESTS_GCP_PROJECT", "SYSTEM_TESTS_GCP_SERVICE_ACCOUNT")
 
-    @pytest.mark.parametrize("example", list(example_dags()), ids=relative_path)
-    def test_should_be_importable(self, example):
-        dagbag = DagBag(
+
+@pytest.mark.parametrize("example", list(example_dags()), ids=relative_path)
+def test_should_be_importable(example):
+    dagbag = DagBag(
+        dag_folder=example,
+        include_examples=False,
+    )
+    assert 0 == len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}"
+    assert len(dagbag.dag_ids) >= 1
+
+
+@pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
+def test_should_not_do_database_queries(example):
+    with assert_queries_count(0):
+        DagBag(
             dag_folder=example,
             include_examples=False,
         )
-        assert 0 == len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}"
-        assert len(dagbag.dag_ids) >= 1
-
-    @pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
-    def test_should_not_do_database_queries(self, example):
-        with assert_queries_count(0):
-            DagBag(
-                dag_folder=example,
-                include_examples=False,
-            )
