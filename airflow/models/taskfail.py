@@ -19,13 +19,12 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer
-from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
+    pass
 
 
 class TaskFail(Base):
@@ -54,11 +53,6 @@ class TaskFail(Base):
             name='task_fail_ti_fkey',
             ondelete="CASCADE",
         ),
-    )
-
-    task_instance: "TaskInstance" = relationship(
-        "TaskInstance",
-        lazy='joined',
     )
 
     def __init__(self, task, run_id, start_date, end_date, map_index=None):

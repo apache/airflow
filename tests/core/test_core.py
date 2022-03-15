@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from contextlib import suppress
 from datetime import timedelta
 from time import sleep
 
@@ -89,29 +89,24 @@ class TestCore:
             )
         dag_maker.create_dagrun()
         session = settings.Session()
-        try:
-            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
-            pass
-        try:
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        with suppress(AirflowTaskTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
-            pass
         op1_fails = (
             session.query(TaskFail)
             .filter(
                 TaskFail.task_id == 'pass_sleepy',
                 TaskFail.dag_id == dag.dag_id,
-                TaskFail.task_instance.execution_date == DEFAULT_DATE,
+                TaskInstance.execution_date == DEFAULT_DATE,
             )
             .all()
         )
         op2_fails = (
             session.query(TaskFail)
             .filter(
-                TaskFail.task_id == 'pass_sleepy',
+                TaskFail.task_id == 'fail_sleepy',
                 TaskFail.dag_id == dag.dag_id,
-                TaskFail.task_instance.execution_date == DEFAULT_DATE,
+                TaskInstance.execution_date == DEFAULT_DATE,
             )
             .all()
         )
