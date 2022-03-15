@@ -41,6 +41,14 @@ import { formatDateTime, getDuration, formatDuration } from '../../../datetime_u
 import { SimpleStatus } from '../../StatusBox';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
+const numRuns = getMetaValue('num_runs');
+const baseDate = getMetaValue('base_date');
+const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
+const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
+const externalLogUrl = getMetaValue('external_log_url');
+const externalLogName = getMetaValue('external_log_name');
+
+const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
 const TaskInstance = ({
   instance: {
@@ -54,6 +62,7 @@ const TaskInstance = ({
     runId,
     mappedStates,
     executionDate,
+    tryNumber,
   },
   task,
 }) => {
@@ -121,20 +130,109 @@ const TaskInstance = ({
     _oc_TaskInstanceModelView: executionDate,
   });
   const allInstancesLink = `/taskinstance/list?${listParams}`;
+  // TODO: base subdag zooming as its own attribute instead of via operator name
+
+  const subDagParams = new URLSearchParams({
+    execution_date: executionDate,
+  }).toString();
+
+  const filterParams = new URLSearchParams({
+    base_date: baseDate,
+    num_runs: numRuns,
+    root: taskId,
+  }).toString();
+
+  const subDagLink = `/dags/${dagId}.${taskId}/grid?${subDagParams}`;
+  const isSubDag = operator === 'SubDagOperator';
+
+  const externalLogs = [];
+
+  const logAttempts = [...Array(tryNumber + 1)].map((_, index) => {
+    if (index === 0 && tryNumber < 2) return null;
+
+    const isExternal = index !== 0 && showExternalLogRedirect;
+
+    if (isExternal) {
+      const fullExternalUrl = `${externalLogUrl}
+      ?dag_id=${encodeURIComponent(dagId)}
+      &task_id=${encodeURIComponent(taskId)}
+      &execution_date=${encodeURIComponent(executionDate)}
+      &try_number=${index}`;
+      externalLogs.push(
+        <LinkButton
+          // eslint-disable-next-line react/no-array-index-key
+          key={index}
+          href={fullExternalUrl}
+          target="_blank"
+        >
+          {index}
+        </LinkButton>,
+      );
+    }
+
+    const fullMetadataUrl = `${logsWithMetadataUrl}
+    ?dag_id=${encodeURIComponent(dagId)}
+    &task_id=${encodeURIComponent(taskId)}
+    &execution_date=${encodeURIComponent(executionDate)}
+    ${index > 0 && `&try_number=${index}`}
+    &metadata=null&format=file`;
+
+    return (
+      <LinkButton
+        // eslint-disable-next-line react/no-array-index-key
+        key={index}
+        href={fullMetadataUrl}
+      >
+        {index === 0 ? 'All' : index}
+      </LinkButton>
+    );
+  });
 
   return (
     <Box fontSize="12px" py="4px">
       {!isGroup && !task.isMapped && (
         <>
-          <Flex justifyContent="space-between">
-            <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>More Details</Button>
-            <Button as={Link} variant="ghost" colorScheme="blue" href={renderedLink}>Rendered Template</Button>
+          <Flex justifyContent="space-between" flexWrap="wrap">
+            <LinkButton href={detailsLink}>More Details</LinkButton>
+            <LinkButton href={renderedLink}>Rendered Template</LinkButton>
             {isK8sExecutor && (
-            <Button as={Link} variant="ghost" colorScheme="blue" href={k8sLink}>K8s Pod Spec</Button>
+            <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
             )}
-            <Button as={Link} variant="ghost" colorScheme="blue" href={logLink}>Log</Button>
-            <Button as={Link} variant="ghost" colorScheme="blue" href={allInstancesLink}>All Instances</Button>
+            {isSubDag && (
+              <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
+            )}
+            <LinkButton href={logLink}>Log</LinkButton>
+            <LinkButton href={allInstancesLink}>All Instances</LinkButton>
+            <LinkButton href={`?${filterParams}`}>Filter Upstream</LinkButton>
           </Flex>
+          <Divider mt={3} />
+        </>
+      )}
+      {tryNumber > 0 && (
+        <>
+          <Box>
+            <Text>Download Log (by attempts):</Text>
+            <Flex flexWrap="wrap">
+              {logAttempts}
+            </Flex>
+          </Box>
+          <Divider mt={3} />
+        </>
+      )}
+      {externalLogName && externalLogs.length > 0 && (
+        <>
+          <Box>
+            <Text>
+              View Logs in
+              {' '}
+              {externalLogName}
+              {' '}
+              (by attempts):
+            </Text>
+            <Flex flexWrap="wrap">
+              {externalLogs}
+            </Flex>
+          </Box>
           <Divider mt={3} />
         </>
       )}

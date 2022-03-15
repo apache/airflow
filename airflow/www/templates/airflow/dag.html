@@ -49,6 +49,9 @@
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}
+  {% if external_log_name is defined %}
+  <meta name="external_log_name" content="{{ external_log_name }}">
+{% endif %}
 {% endblock %}
 
 {% block content %}
