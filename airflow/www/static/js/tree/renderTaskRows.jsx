@@ -34,6 +34,7 @@ import StatusBox, { boxSize, boxSizePx } from './StatusBox';
 import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
+import { useSelection } from './providers/selection';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
@@ -55,7 +56,7 @@ const renderTaskRows = ({
 ));
 
 const TaskInstances = ({
-  task, containerRef, dagRunIds, onSelect, selected,
+  task, dagRunIds, selectedRunId,
 }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
@@ -68,17 +69,14 @@ const TaskInstances = ({
           className={`js-${runId}`}
           transition="background-color 0.2s"
           key={`${runId}-${task.id}`}
-          bg={selected.runId === runId && 'blue.200'}
+          bg={selectedRunId === runId && 'blue.100'}
         >
           {instance
             ? (
               <StatusBox
                 instance={instance}
-                containerRef={containerRef}
                 extraLinks={task.extraLinks}
                 group={task}
-                onSelect={onSelect}
-                selected={selected}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -91,16 +89,15 @@ const TaskInstances = ({
 const Row = (props) => {
   const {
     task,
-    containerRef,
     level,
     prevTaskId,
     isParentOpen = true,
-    onSelect,
-    selected,
     dagRunIds,
     tableWidth,
   } = props;
   const { colors } = useTheme();
+  const { selected } = useSelection();
+
   const hoverBlue = `${colors.blue[100]}50`;
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
@@ -132,7 +129,7 @@ const Row = (props) => {
   return (
     <>
       <Tr
-        bg={isSelected ? 'blue.100' : undefined}
+        bg={isSelected && 'blue.100'}
         borderBottomWidth={isFullyOpen ? 1 : 0}
         borderBottomColor="gray.200"
         role="group"
@@ -173,9 +170,7 @@ const Row = (props) => {
             <TaskInstances
               dagRunIds={dagRunIds}
               task={task}
-              containerRef={containerRef}
-              onSelect={onSelect}
-              selected={selected}
+              selectedRunId={selected.runId}
             />
           </Collapse>
         </Td>

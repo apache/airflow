@@ -28,6 +28,8 @@ import {
 } from '@chakra-ui/react';
 
 import InstanceTooltip from './InstanceTooltip';
+import { useContainerRef } from './providers/containerRef';
+import { useSelection } from './providers/selection';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -44,8 +46,10 @@ export const SimpleStatus = ({ state, ...rest }) => (
 );
 
 const StatusBox = ({
-  group, instance, containerRef, onSelect, selected,
+  group, instance,
 }) => {
+  const { containerRef } = useContainerRef();
+  const { selected, onSelect } = useSelection();
   const { runId, taskId } = instance;
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
@@ -103,9 +107,7 @@ const compareProps = (
 ) => (
   isEqual(prevProps.group, nextProps.group)
   && isEqual(prevProps.instance, nextProps.instance)
-  && isEqual(prevProps.selected, nextProps.selected)
   && prevProps.extraLinks === nextProps.extraLinks
-  && prevProps.containerRef === nextProps.containerRef
 );
 
 export default React.memo(StatusBox, compareProps);

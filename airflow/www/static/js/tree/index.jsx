@@ -25,7 +25,10 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
+
 import Tree from './Tree';
+import { SelectionProvider } from './providers/selection';
+import { ContainerRefProvider } from './providers/containerRef';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -50,9 +53,13 @@ function App() {
     <React.StrictMode>
       <CacheProvider value={myCache}>
         <ChakraProvider>
-          <QueryClientProvider client={queryClient}>
-            <Tree />
-          </QueryClientProvider>
+          <ContainerRefProvider>
+            <QueryClientProvider client={queryClient}>
+              <SelectionProvider>
+                <Tree />
+              </SelectionProvider>
+            </QueryClientProvider>
+          </ContainerRefProvider>
         </ChakraProvider>
       </CacheProvider>
     </React.StrictMode>

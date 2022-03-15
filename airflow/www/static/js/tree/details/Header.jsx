@@ -29,6 +29,7 @@ import { MdPlayArrow } from 'react-icons/md';
 
 import { formatDateTime } from '../../datetime_utils';
 import { getMetaValue } from '../../utils';
+import { useSelection } from '../providers/selection';
 
 const dagId = getMetaValue('dag_id');
 
@@ -39,11 +40,8 @@ const LabelValue = ({ label, value }) => (
   </Box>
 );
 
-const Header = ({
-  selected: { taskId, runId, task },
-  onSelect,
-  dagRuns,
-}) => {
+const Header = ({ dagRuns }) => {
+  const { selected: { taskId, runId, task }, onSelect } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
   let runLabel = dagRun ? formatDateTime(dagRun.dataIntervalEnd) : '';
   if (dagRun && dagRun.runType === 'manual') {
@@ -66,14 +64,14 @@ const Header = ({
       </BreadcrumbItem>
       {runId && (
         <BreadcrumbItem isCurrentPage={runId && !taskId} mt="15px">
-          <BreadcrumbLink onClick={() => onSelect({ runId, dagRun })}   color="black">
+          <BreadcrumbLink onClick={() => onSelect({ runId, dagRun })} color="black">
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
         <BreadcrumbItem isCurrentPage mt="15px">
-          <BreadcrumbLink   color="black">
+          <BreadcrumbLink color="black">
             <LabelValue label="Task" value={isMapped ? `${taskId} []` : taskId} />
           </BreadcrumbLink>
         </BreadcrumbItem>

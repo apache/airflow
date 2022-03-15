@@ -29,15 +29,14 @@ import TaskInstanceContent from './content/TaskInstance';
 import DagRunContent from './content/DagRun';
 import DagContent from './content/Dag';
 import useTreeData from '../useTreeData';
+import { useSelection } from '../providers/selection';
 
-const Details = ({
-  selected,
-  onSelect,
-}) => {
+const Details = () => {
   const { data: { dagRuns = [] } } = useTreeData();
+  const { selected } = useSelection();
   return (
     <Flex borderLeftWidth="1px" flexDirection="column" p={3} flexGrow={1} maxWidth="600px">
-      <Header selected={selected} onSelect={onSelect} dagRuns={dagRuns} />
+      <Header dagRuns={dagRuns} />
       <Divider my={2} />
       <Box minWidth="500px">
         {/* TODO: get full instance data from the API */}

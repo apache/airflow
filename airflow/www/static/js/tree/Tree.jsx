@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Table,
   Tbody,
@@ -39,23 +39,23 @@ import useTreeData from './useTreeData';
 import renderTaskRows from './renderTaskRows';
 import DagRuns from './dagRuns';
 import Details from './details';
+import { useSelection } from './providers/selection';
 
 const sidePanelKey = 'showSidePanel';
 
 const Tree = () => {
-  const containerRef = useRef();
   const scrollRef = useRef();
   const tableRef = useRef();
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
-  const [selected, setSelected] = useState({}); // selected task instance or dag run
   const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
 
+  const { clearSelection } = useSelection();
   const toggleSidePanel = () => {
     if (!isOpen) {
       localStorage.setItem(sidePanelKey, true);
     } else {
-      setSelected({});
+      clearSelection();
       localStorage.setItem(sidePanelKey, false);
     }
     onToggle();
@@ -66,25 +66,16 @@ const Tree = () => {
   const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
 
   useEffect(() => {
-    // Set initial scroll to far right if it is scrollable
+    // Set initial scroll to top right if it is scrollable
     const runsContainer = scrollRef.current;
     if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(runsContainer.clientWidth, 250);
+      runsContainer.scrollBy(runsContainer.clientWidth, 0);
     }
     // run when tableWidth or sidePanel changes
   }, [tableWidth, isOpen]);
 
-  const { runId, taskId } = selected;
-
-  // show task/run info in the side panel, or just call the regular action modal
-  const onSelect = (newSelected) => {
-    const isSame = newSelected.runId === runId && newSelected.taskId === taskId;
-    setSelected(isSame ? {} : newSelected);
-    if (!isOpen) toggleSidePanel();
-  };
-
   return (
-    <Box position="relative" ref={containerRef}>
+    <Box>
       <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
         <FormControl display="flex" width="auto" mr={2}>
           {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
@@ -112,23 +103,18 @@ const Tree = () => {
         >
           <Table>
             <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-              <DagRuns
-                containerRef={containerRef}
-                tableWidth={tableWidth}
-                selected={selected}
-                onSelect={onSelect}
-              />
+              <DagRuns tableWidth={tableWidth} />
             </Thead>
             {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
             <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
               {renderTaskRows({
-                task: groups, containerRef, dagRunIds, tableWidth, onSelect, selected,
+                task: groups, dagRunIds, tableWidth,
               })}
             </Tbody>
           </Table>
         </Box>
         {isOpen && (
-          <Details selected={selected} onSelect={onSelect} />
+          <Details />
         )}
       </Flex>
     </Box>

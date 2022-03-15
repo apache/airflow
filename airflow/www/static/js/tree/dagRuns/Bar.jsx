@@ -32,20 +32,26 @@ import {
 import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
+import { useContainerRef } from '../providers/containerRef';
+import { useSelection } from '../providers/selection';
 
 const BAR_HEIGHT = 100;
 
 const DagRunBar = ({
-  run, max, index, totalRuns, containerRef, selected, onSelect,
+  run, max, index, totalRuns,
 }) => {
+  const { containerRef } = useContainerRef();
+  const { selected, onSelect } = useSelection();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
   const isSelected = run.runId === selected.runId;
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
-      .forEach((e) => { e.style.backgroundColor = hoverBlue; });
+    if (selected.runId !== run.runId) {
+      [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
+        .forEach((e) => { e.style.backgroundColor = hoverBlue; });
+    }
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
@@ -121,7 +127,6 @@ const compareProps = (
   && prevProps.max === nextProps.max
   && prevProps.index === nextProps.index
   && prevProps.totalRuns === nextProps.totalRuns
-  && prevProps.containerRef === nextProps.containerRef
 );
 
 export default React.memo(DagRunBar, compareProps);
