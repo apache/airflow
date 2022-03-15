@@ -16,15 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Taskfail tracks the failed run durations of each task instance"""
-from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    pass
 
 
 class TaskFail(Base):
