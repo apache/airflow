@@ -15,9 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-
-.. _howto/operator:S3ToRedshiftOperator:
-
 Amazon S3 to Redshift Transfer Operator
 =======================================
 
@@ -28,6 +25,8 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: ../_partials/prerequisite_tasks.rst
+
+.. _howto/operator:S3ToRedshiftOperator:
 
 Amazon S3 To Amazon Redshift
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

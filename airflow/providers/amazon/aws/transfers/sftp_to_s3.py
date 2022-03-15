@@ -40,8 +40,10 @@ class SFTPToS3Operator(BaseOperator):
         establishing a connection to the SFTP server.
     :param sftp_path: The sftp remote path. This is the specified file path
         for downloading the file from the SFTP server.
-    :param s3_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
+    :param aws_conn_id: reference to a specific S3 connection
+        If the AWS connection contains 'aws_iam_role' in ``extras``
+        the operator will use AWS STS credentials with a token
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket to where
         the file is uploaded.
     :param s3_key: The targeted s3 key. This is the specified path for
@@ -59,7 +61,7 @@ class SFTPToS3Operator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
-        s3_conn_id: str = 'aws_default',
+        aws_conn_id: str = 'aws_default',
         use_temp_file: bool = True,
         **kwargs,
     ) -> None:
@@ -68,7 +70,7 @@ class SFTPToS3Operator(BaseOperator):
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
         self.use_temp_file = use_temp_file
 
     @staticmethod
@@ -80,7 +82,7 @@ class SFTPToS3Operator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
-        s3_hook = S3Hook(self.s3_conn_id)
+        s3_hook = S3Hook(self.aws_conn_id)
 
         sftp_client = ssh_hook.get_conn().open_sftp()
 
