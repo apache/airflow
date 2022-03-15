@@ -18,7 +18,7 @@
 from pathlib import Path
 from unittest import mock
 
-from airflow.providers.google.suite.operators.drive import GoogleDriveUploadOperator
+from airflow.providers.google.suite.transfers.local_to_drive import GoogleDriveUploadOperator
 
 GCP_CONN_ID = "test"
 DRIVE_FOLDER = Path("test_folder")
