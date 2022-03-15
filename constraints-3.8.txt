@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-15T10:35:37Z
+# This constraints file was automatically generated on 2022-03-15T15:01:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -129,7 +129,7 @@ appdirs==1.4.4
 argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.3
-asn1crypto==1.5.0
+asn1crypto==1.5.1
 astroid==2.11.0
 asttokens==2.0.5
 async-timeout==4.0.2
@@ -241,7 +241,7 @@ gitdb==4.0.9
 github3.py==3.0.0
 google-ads==14.0.0
 google-api-core==1.31.5
-google-api-python-client==1.12.10
+google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.0
 google-auth==1.35.0
@@ -359,7 +359,7 @@ mysql-connector-python==8.0.28
 mysqlclient==2.1.0
 nbclient==0.5.13
 nbformat==5.2.0
-neo4j==4.4.1
+neo4j==4.4.2
 nest-asyncio==1.5.4
 nodeenv==1.6.0
 nox==2020.12.31
