@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-14T23:13:15Z
+# This constraints file was automatically generated on 2022-03-15T10:35:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -10,7 +10,7 @@
 #
 # Editable install with no version control (apache-airflow==2.3.0.dev0)
 APScheduler==3.6.3
-Authlib==0.15.5
+Authlib==1.0.0
 Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.4
@@ -375,7 +375,7 @@ pandas-gbq==0.17.4
 pandas==1.3.5
 papermill==2.3.4
 parameterized==0.8.1
-paramiko==2.10.1
+paramiko==2.10.2
 parso==0.8.3
 partd==1.2.0
 pathspec==0.9.0
@@ -575,7 +575,7 @@ websocket-client==1.3.1
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.147.0
+yandexcloud==0.148.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
