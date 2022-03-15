@@ -56,4 +56,4 @@ class TestGoogleDriveUpload:
         xcom_calls = [
             mock.call(context, "remote_file_ids", REMOTE_FILE_IDS),
         ]
-        mock_xcom.has_calls(xcom_calls)
+        mock_xcom.assert_has_calls(xcom_calls)
