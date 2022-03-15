@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GoogleDriveUploadOperator(BaseOperator):
+class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     """
     Upload a list of files to a Google Drive folder.
     This operator uploads a list of local files to a Google Drive folder.
