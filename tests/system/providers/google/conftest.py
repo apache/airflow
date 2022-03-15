@@ -21,12 +21,12 @@ from pathlib import Path
 import pytest
 
 PROVIDER = Path(__file__).parent.name
-REQUIRED_ENV = ("SYSTEM_TESTS_GCP_PROJECT",)
+REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 
 
 def is_env_not_ready():
     """Check if all required environments are present. If  return error message to be used in skip marker"""
-    for env in REQUIRED_ENV:
+    for env in REQUIRED_ENV_VARS:
         if env not in os.environ:
             return f"Missing required environment variable {env}"
     return ""
@@ -39,9 +39,7 @@ def is_system_mark_present(item):
 
 
 def pytest_collection_modifyitems(config, items):
-    """
-    Skip tests if environment is not configured
-    """
+    """Skip tests if environment is not configured"""
     not_ready = is_env_not_ready()
     if not not_ready:
         return

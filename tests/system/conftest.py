@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 OLD_EXECUTOR = os.environ.get("AIRFLOW__CORE__EXECUTOR", default=None)
-REQUIRED_ENV = ("SYSTEM_TESTS_ENV_ID",)
+REQUIRED_ENV_VARS = ("SYSTEM_TESTS_ENV_ID",)
 
 
 def pytest_configure(config):
@@ -36,7 +36,7 @@ def pytest_unconfigure(config):
 
 def is_env_not_ready():
     """Check if all required environments are present. If  return error message to be used in skip marker"""
-    for env in REQUIRED_ENV:
+    for env in REQUIRED_ENV_VARS:
         if env not in os.environ:
             return f"Missing required environment variable {env}"
     return ""
