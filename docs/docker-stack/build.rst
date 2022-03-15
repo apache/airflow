@@ -115,7 +115,9 @@ for more complex cases which might involve either extending or customizing the i
 Adding new ``apt`` package
 ..........................
 
-The following example adds ``vim`` to the airflow image.
+The following example adds ``vim`` to the airflow image. When adding packages via ``apt`` you should
+switch to ``root`` user for the time of installation, but do not forget to switch back to the
+``airflow`` user after installation is complete.
 
 .. exampleinclude:: docker-examples/extending/add-apt-packages/Dockerfile
     :language: Dockerfile
@@ -126,7 +128,9 @@ The following example adds ``vim`` to the airflow image.
 Adding a new ``PyPI`` package
 .............................
 
-The following example adds ``lxml`` python package from PyPI to the image.
+The following example adds ``lxml`` python package from PyPI to the image. When adding packages via
+``pip`` you need to use ``airflow`` user rather than ``root``. Attempts to install ``pip`` packages
+with root, when you using typical ``pip install`` command will fail with appropriate error message.
 
 .. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
     :language: Dockerfile
