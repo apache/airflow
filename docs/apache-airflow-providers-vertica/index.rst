@@ -51,7 +51,7 @@ Package apache-airflow-providers-vertica
 `Vertica <https://www.vertica.com/>`__
 
 
-Release: 2.1.1
+Release: 2.1.2
 
 Provider package
 ----------------

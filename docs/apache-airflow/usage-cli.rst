@@ -254,8 +254,8 @@ Downgrading Airflow
 
 You can downgrade to a particular Airflow version with the ``db downgrade`` command.  Alternatively you may provide an Alembic revision id to downgrade to.
 
-If you want to preview the commands but not execute them, use option ``--sql-only``.
+If you want to preview the commands but not execute them, use option ``--show-sql-only``.
 
-Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
+Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--show-sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
 
 For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref`.

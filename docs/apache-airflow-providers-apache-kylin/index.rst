@@ -52,7 +52,7 @@ Package apache-airflow-providers-apache-kylin
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 2.0.2
+Release: 2.0.3
 
 Provider package
 ----------------

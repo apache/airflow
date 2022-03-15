@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2022-02-27
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `942f8fd657 <https://github.com/apache/airflow/commit/942f8fd65799f07a01f64c855c0587ae044e55ec>`_  2022-02-27   ``Add GCSToTrinoOperator (#21704)``
 `2807193594 <https://github.com/apache/airflow/commit/2807193594ed4e1f3acbe8da7dd372fe1c2fff94>`_  2022-02-22   ``Replaced hql references to sql in TrinoHook and PrestoHook (#21630)``
 `1884f2227d <https://github.com/apache/airflow/commit/1884f2227d1e41d7bb37246ece4da5d871036c1f>`_  2022-02-15   ``Pass Trino hook params to DbApiHook (#21479)``

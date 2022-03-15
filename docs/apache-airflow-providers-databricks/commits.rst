@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.4.0
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`12e9e2c695 <https://github.com/apache/airflow/commit/12e9e2c695f9ebb9d3dde9c0f7dfaa112654f0d6>`_  2022-03-14   ``Databricks hook - retry on HTTP Status 429 as well (#21852)``
+`af9d85ccd8 <https://github.com/apache/airflow/commit/af9d85ccd8abdc3c252c19764d3ea16970ae0f20>`_  2022-03-13   ``Skip some tests for Databricks from running on Python 3.10 (#22221)``
+`4014194320 <https://github.com/apache/airflow/commit/401419432082d222b823e4f2a66f21e5cc3ab28d>`_  2022-03-08   ``Add new options to DatabricksCopyIntoOperator (#22076)``
+=================================================================================================  ===========  =======================================================================
+
 2.3.0
 .....
 
-Latest change: 2022-03-01
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `62bf1276f6 <https://github.com/apache/airflow/commit/62bf1276f6b6de00779e13749ab92a67890d23f4>`_  2022-03-01   ``Add-showing-runtime-error-feature-to-DatabricksSubmitRunOperator (#21709)``
 `27d19e7626 <https://github.com/apache/airflow/commit/27d19e7626ef80687997a6799762fa00162c1328>`_  2022-02-27   ``Databricks SQL operators (#21363)``
 `a1845c68f9 <https://github.com/apache/airflow/commit/a1845c68f9a04e61dd99ccc0a23d17a277babf57>`_  2022-02-26   ``Databricks: add support for triggering jobs by name (#21663)``

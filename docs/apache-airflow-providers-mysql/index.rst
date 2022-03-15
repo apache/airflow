@@ -59,7 +59,7 @@ Package apache-airflow-providers-mysql
 `MySQL <https://www.mysql.com/products/>`__
 
 
-Release: 2.2.1
+Release: 2.2.2
 
 Provider package
 ----------------
@@ -76,13 +76,13 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-==========================  ==================
+==========================  ===========================================
 PIP package                 Version required
-==========================  ==================
+==========================  ===========================================
 ``apache-airflow``          ``>=2.1.0``
-``mysql-connector-python``  ``>=8.0.11``
-``mysqlclient``             ``>=1.3.6``
-==========================  ==================
+``mysql-connector-python``  ``>=8.0.11; platform_machine != "aarch64"``
+``mysqlclient``             ``>=1.3.6; platform_machine != "aarch64"``
+==========================  ===========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -112,7 +112,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 2.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 2.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 2.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.2.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 2.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.2.2-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/mysql/CHANGELOG.rst

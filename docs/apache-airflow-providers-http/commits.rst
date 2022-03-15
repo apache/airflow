@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2022-02-28
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ===========================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `13b2c400b9 <https://github.com/apache/airflow/commit/13b2c400b9edccbf53f93c8403a97acc2b68084a>`_  2022-02-28   ``Add 'method' to attributes in HttpSensor. (#21831)``
 `0a3ff43d41 <https://github.com/apache/airflow/commit/0a3ff43d41d33d05fb3996e61785919effa9a2fa>`_  2022-02-08   ``Add pre-commit check for docstring param types (#21398)``
 =================================================================================================  ===========  ===========================================================

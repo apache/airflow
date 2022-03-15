@@ -19,9 +19,8 @@
 Changelog
 ---------
 
-3.1.0
+3.1.1
 .....
-
 
 Features
 ~~~~~~~~
@@ -43,29 +42,48 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``AWS RDS integration fixes (#22125)``
 * ``Fix the Type Hints in ''RedshiftSQLOperator'' (#21885)``
 * ``Bug Fix - S3DeleteObjectsOperator will try and delete all keys (#21458)``
 * ``Fix Amazon SES emailer signature (#21681)``
 * ``Fix EcsOperatorError, so it can be loaded from a picklefile (#21441)``
+* ``Fix RedshiftDataOperator and update doc (#22157)``
+* ``Bugfix for retrying on provision failuers(#22137)``
+* ``If uploading task logs to S3 fails, retry once (#21981)``
+* ``Bug-fix GCSToS3Operator (#22071)``
+* ``fixes query status polling logic (#21423)``
+* ``use different logger to avoid duplicate log entry (#22256)``
 
 Misc
 ~~~~
 
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 * ``Support for Python 3.10``
 * ``[doc] Improve s3 operator example by adding task upload_keys (#21422)``
-* ``Add docs and sample dags for AWS Batch (#22010)``
-* ``Cleanup RedshiftSQLOperator documentation (#21976)``
-* ``Move S3ToRedshiftOperator documentation to transfer dir (#21975)``
 * ``Rename 'S3' hook name to 'Amazon S3' (#21988)``
-* ``Update ECS sample DAG and Docs to new standards (#21828)``
-* ``Update EKS sample DAGs and docs (#21523)``
+* ``Add template fields to DynamoDBToS3Operator (#22080)``
 
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``additional information in the ECSOperator around support of launch_type=EXTERNAL (#22093)``
+   * ``Add map_index to XCom model and interface (#22112)``
+   * ``Add sample dags and update doc for RedshiftClusterSensor, RedshiftPauseClusterOperator and RedshiftResumeClusterOperator (#22128)``
+   * ``Add sample dag and doc for RedshiftToS3Operator (#22060)``
+   * ``Add docs and sample dags for AWS Batch (#22010)``
+   * ``Add documentation for Feb Providers release (#22056)``
    * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
    * ``Add pre-commit check for docstring param types (#21398)``
    * ``Resolve mypy issue in athena example dag (#22020)``
+   * ``refactors polling logic for athena queries (#21488)``
+   * ``EMR on EKS Sample DAG and Docs Update (#22095)``
+   * ``Dynamo to S3 Sample DAG and Docs (#21920)``
+   * ``Cleanup RedshiftSQLOperator documentation (#21976)``
+   * ``Move S3ToRedshiftOperator documentation to transfer dir (#21975)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+   * ``Update ECS sample DAG and Docs to new standards (#21828)``
+   * ``Update EKS sample DAGs and docs (#21523)``
+   * ``EMR Sample DAG and Docs Update (#22189)``
 
 3.0.0
 .....

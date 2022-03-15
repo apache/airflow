@@ -29,16 +29,20 @@ import {
   Collapse,
 } from '@chakra-ui/react';
 
-import StatusBox from './StatusBox';
+import StatusBox, { boxSize, boxSizePx } from './StatusBox';
 import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
+
+const boxPadding = 3;
+const boxPaddingPx = `${boxPadding}px`;
+const columnWidth = boxSize + 2 * boxPadding;
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
-  task, containerRef, level = 0, isParentOpen, dagRunIds,
+  task, containerRef, level = 0, isParentOpen, dagRunIds, tableWidth,
 }) => task.children.map((t) => (
   <Row
     key={t.id}
@@ -48,6 +52,7 @@ const renderTaskRows = ({
     prevTaskId={task.id}
     isParentOpen={isParentOpen}
     dagRunIds={dagRunIds}
+    tableWidth={tableWidth}
   />
 ));
 
@@ -56,24 +61,33 @@ const TaskInstances = ({ task, containerRef, dagRunIds }) => (
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((gi) => gi.runId === runId);
-      return instance
-        ? (
-          <StatusBox
-            key={`${runId}-${task.id}`}
-            instance={instance}
-            containerRef={containerRef}
-            extraLinks={task.extraLinks}
-            group={task}
-          />
-        )
-        : <Box key={`${runId}-${task.id}`} width="18px" data-testid="blank-task" />;
+      return (
+        <Box
+          py="4px"
+          px={boxPaddingPx}
+          className={`js-${runId}`}
+          transition="background-color 0.2s"
+          key={`${runId}-${task.id}`}
+        >
+          {instance
+            ? (
+              <StatusBox
+                instance={instance}
+                containerRef={containerRef}
+                extraLinks={task.extraLinks}
+                group={task}
+              />
+            )
+            : <Box width={boxSizePx} data-testid="blank-task" />}
+        </Box>
+      );
     })}
   </Flex>
 );
 
 const Row = (props) => {
   const {
-    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds,
+    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds, tableWidth,
   } = props;
   const isGroup = !!task.children;
 
@@ -119,6 +133,8 @@ const Row = (props) => {
           left={0}
           backgroundColor="white"
           borderBottom={0}
+          width={`${tableWidth - (dagRunIds.length * columnWidth)}px`}
+          zIndex={1}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
@@ -132,7 +148,14 @@ const Row = (props) => {
           </Collapse>
         </Td>
         <Td width={0} p={0} borderBottom={0} />
-        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
+        <Td
+          p={0}
+          align="right"
+          _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
+          transition="background-color 0.2s"
+          borderBottom={0}
+          width={`${dagRunIds.length * columnWidth}px`}
+        >
           <Collapse in={isFullyOpen} unmountOnExit>
             <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
           </Collapse>
