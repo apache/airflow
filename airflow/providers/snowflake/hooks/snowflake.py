@@ -98,7 +98,7 @@ class SnowflakeHook(DbApiHook):
             "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
             "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
             "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__private_key_path": StringField(
+            "extra__snowflake__private_key_file": StringField(
                 lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
             ),
             "extra__snowflake__private_key_content": StringField(
@@ -134,7 +134,7 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__database': 'snowflake db name',
                 'extra__snowflake__region': 'snowflake hosted region',
                 'extra__snowflake__role': 'snowflake role',
-                'extra__snowflake__private_key_path': 'Path of snowflake private key (PEM Format)',
+                'extra__snowflake__private_key_file': 'Path of snowflake private key (PEM Format)',
                 'extra__snowflake__private_key_content': 'Content to snowflake private key (PEM format)',
                 'extra__snowflake__insecure_mode': 'insecure mode',
             },
