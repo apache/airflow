@@ -69,11 +69,11 @@ class TestSqlAlchemySettings(unittest.TestCase):
     ):
         config = {
             (
-                'core',
+                'database',
                 'sql_alchemy_connect_args',
             ): 'tests.core.test_sqlalchemy_config.SQL_ALCHEMY_CONNECT_ARGS',
-            ('core', 'sql_alchemy_engine_args'): '{"arg": 1}',
-            ('core', 'sql_alchemy_pool_enabled'): 'False',
+            ('database', 'sql_alchemy_engine_args'): '{"arg": 1}',
+            ('database', 'sql_alchemy_pool_enabled'): 'False',
         }
         with conf_vars(config):
             settings.configure_orm()
@@ -96,8 +96,8 @@ class TestSqlAlchemySettings(unittest.TestCase):
         self, mock_create_engine, mock_sessionmaker, mock_scoped_session, mock_setup_event_handlers
     ):
         config = {
-            ('core', 'sql_alchemy_connect_args'): 'does.not.exist',
-            ('core', 'sql_alchemy_pool_enabled'): 'False',
+            ('database', 'sql_alchemy_connect_args'): 'does.not.exist',
+            ('database', 'sql_alchemy_pool_enabled'): 'False',
         }
         with pytest.raises(AirflowConfigException):
             with conf_vars(config):
