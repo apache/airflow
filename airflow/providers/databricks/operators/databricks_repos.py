@@ -18,8 +18,7 @@
 #
 """This module contains Databricks operators."""
 
-import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -36,10 +35,10 @@ class DatabricksReposUpdateOperator(BaseOperator):
     <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/update-repo>`_
     API endpoint.
 
-    :param branch: optional name of branch to update to. Should be specified if tag is omitted
-    :param tag: optional name of tag to update to. Should be specified if branch is omitted
-    :param repo_id: optional ID of existing repository. Should be specified if repo_path is omitted
-    :param repo_path: optional path of existing repository. Should be specified if repo_id is omitted
+    :param branch: optional name of branch to update to. Should be specified if ``tag`` is omitted
+    :param tag: optional name of tag to update to. Should be specified if ``branch`` is omitted
+    :param repo_id: optional ID of existing repository. Should be specified if ``repo_path`` is omitted
+    :param repo_path: optional path of existing repository. Should be specified if ``repo_id`` is omitted
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
@@ -75,8 +74,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
         if branch is None and tag is None:
             raise AirflowException("One of branch or tag should be provided")
         if repo_id is not None and repo_path is not None:
-            raise AirflowException(
-                "Only one of repo_id or repo_path should be provided, but not both")
+            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
         if repo_id is None and repo_path is None:
             raise AirflowException("One of repo_id repo_path tag should be provided")
         self.repo_path = repo_path
@@ -98,9 +96,9 @@ class DatabricksReposUpdateOperator(BaseOperator):
             if self.repo_id is None:
                 raise AirflowException(f"Can't find Repo ID for path '{self.repo_path}'")
         if self.branch is not None:
-            payload = {'branch': self.branch}
+            payload = {'branch': str(self.branch)}
         else:
-            payload = {'tag': self.tag}
+            payload = {'tag': str(self.tag)}
 
-        result = hook.update_repo(self.repo_id, payload)
+        result = hook.update_repo(str(self.repo_id), payload)
         return result['head_commit_id']

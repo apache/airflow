@@ -331,7 +331,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
-    def update_repo(self, repo_id: str, json: dict) -> dict:
+    def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
         """
 
         :param repo_id:
