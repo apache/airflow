@@ -18,6 +18,7 @@
 import os
 from contextlib import closing
 from io import StringIO
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from cryptography.hazmat.backends import default_backend
@@ -28,6 +29,7 @@ from snowflake.connector.util_text import split_statements
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
+from airflow import AirflowException
 from airflow.hooks.dbapi import DbApiHook
 from airflow.utils.strings import to_boolean
 
@@ -44,8 +46,7 @@ class SnowflakeHook(DbApiHook):
 
     This hook requires the snowflake_conn_id connection. The snowflake host, login,
     and, password field must be setup in the connection. Other inputs can be defined
-    in the connection or hook instantiation. If used with the S3ToSnowflakeOperator
-    add 'aws_access_key_id' and 'aws_secret_access_key' to extra field in the connection.
+    in the connection or hook instantiation.
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -55,7 +56,7 @@ class SnowflakeHook(DbApiHook):
         'externalbrowser' to authenticate using your web browser and
         Okta, ADFS or any other SAML 2.0-compliant identify provider
         (IdP) that has been defined for your account
-        'https://<your_okta_account_name>.okta.com' to authenticate
+        ``https://<your_okta_account_name>.okta.com`` to authenticate
         through native Okta.
     :param warehouse: name of snowflake warehouse
     :param database: name of snowflake database
@@ -69,7 +70,7 @@ class SnowflakeHook(DbApiHook):
         <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__
 
     .. note::
-        get_sqlalchemy_engine() depends on snowflake-sqlalchemy
+        ``get_sqlalchemy_engine()`` depends on ``snowflake-sqlalchemy``
 
     .. seealso::
         For more information on how to use this Snowflake connection, take a look at the guide:
@@ -85,7 +86,7 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
 
@@ -97,6 +98,12 @@ class SnowflakeHook(DbApiHook):
             "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
             "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
             "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
+            "extra__snowflake__private_key_file": StringField(
+                lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__snowflake__private_key_content": StringField(
+                lazy_gettext('Private key (Text)'), widget=BS3PasswordFieldWidget()
+            ),
             "extra__snowflake__insecure_mode": BooleanField(
                 label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
             ),
@@ -127,6 +134,8 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__database': 'snowflake db name',
                 'extra__snowflake__region': 'snowflake hosted region',
                 'extra__snowflake__role': 'snowflake role',
+                'extra__snowflake__private_key_file': 'Path of snowflake private key (PEM Format)',
+                'extra__snowflake__private_key_content': 'Content to snowflake private key (PEM format)',
                 'extra__snowflake__insecure_mode': 'insecure mode',
             },
         }
@@ -186,21 +195,38 @@ class SnowflakeHook(DbApiHook):
         if insecure_mode:
             conn_config['insecure_mode'] = insecure_mode
 
-        # If private_key_file is specified in the extra json, load the contents of the file as a private
-        # key and specify that in the connection configuration. The connection password then becomes the
-        # passphrase for the private key. If your private key file is not encrypted (not recommended), then
-        # leave the password empty.
+        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
+        # If private_key_content is specified in the extra json, use it as a private key.
+        # As a next step, specify this private key in the connection configuration.
+        # The connection password then becomes the passphrase for the private key.
+        # If your private key is not encrypted (not recommended), then leave the password empty.
 
-        private_key_file = conn.extra_dejson.get('private_key_file')
-        if private_key_file:
-            with open(private_key_file, "rb") as key:
-                passphrase = None
-                if conn.password:
-                    passphrase = conn.password.strip().encode()
+        private_key_file = conn.extra_dejson.get(
+            'extra__snowflake__private_key_file'
+        ) or conn.extra_dejson.get('private_key_file')
+        private_key_content = conn.extra_dejson.get(
+            'extra__snowflake__private_key_content'
+        ) or conn.extra_dejson.get('private_key_content')
 
-                p_key = serialization.load_pem_private_key(
-                    key.read(), password=passphrase, backend=default_backend()
-                )
+        private_key_pem = None
+        if private_key_content and private_key_file:
+            raise AirflowException(
+                "The private_key_file and private_key_content extra fields are mutually exclusive. "
+                "Please remove one."
+            )
+        elif private_key_file:
+            private_key_pem = Path(private_key_file).read_bytes()
+        elif private_key_content:
+            private_key_pem = private_key_content.encode()
+
+        if private_key_pem:
+            passphrase = None
+            if conn.password:
+                passphrase = conn.password.strip().encode()
+
+            p_key = serialization.load_pem_private_key(
+                private_key_pem, password=passphrase, backend=default_backend()
+            )
 
             pkb = p_key.private_bytes(
                 encoding=serialization.Encoding.DER,
