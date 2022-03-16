@@ -35,6 +35,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         :ref:`howto/operator:ImapAttachmentToS3Operator`
 
     :param imap_attachment_name: The file name of the mail attachment that you want to transfer.
+    :param s3_bucket: The targeted s3 bucket. This is the S3 bucket where the file will be downloaded.
     :param s3_key: The destination file name in the s3 bucket for the attachment.
     :param imap_check_regex: If set checks the `imap_attachment_name` for a regular expression.
     :param imap_mail_folder: The folder on the mail server to look for the attachment.
@@ -42,7 +43,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         See :py:meth:`imaplib.IMAP4.search` for details.
     :param s3_overwrite: If set overwrites the s3 key if already exists.
     :param imap_conn_id: The reference to the connection details of the mail server.
-    :param s3_conn_id: The reference to the s3 connection details.
+    :param aws_conn_id: AWS connection to use.
     """
 
     template_fields: Sequence[str] = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
@@ -51,24 +52,26 @@ class ImapAttachmentToS3Operator(BaseOperator):
         self,
         *,
         imap_attachment_name: str,
+        s3_bucket: str,
         s3_key: str,
         imap_check_regex: bool = False,
         imap_mail_folder: str = 'INBOX',
         imap_mail_filter: str = 'All',
         s3_overwrite: bool = False,
         imap_conn_id: str = 'imap_default',
-        s3_conn_id: str = 'aws_default',
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.imap_attachment_name = imap_attachment_name
+        self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.imap_check_regex = imap_check_regex
         self.imap_mail_folder = imap_mail_folder
         self.imap_mail_filter = imap_mail_filter
         self.s3_overwrite = s3_overwrite
         self.imap_conn_id = imap_conn_id
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context') -> None:
         """
@@ -91,5 +94,10 @@ class ImapAttachmentToS3Operator(BaseOperator):
                 mail_filter=self.imap_mail_filter,
             )
 
-        s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
-        s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1], key=self.s3_key, replace=self.s3_overwrite)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        s3_hook.load_bytes(
+            bytes_data=imap_mail_attachments[0][1],
+            bucket_name=self.s3_bucket,
+            key=self.s3_key,
+            replace=self.s3_overwrite,
+        )
