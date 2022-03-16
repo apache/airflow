@@ -71,6 +71,8 @@ const TaskInstance = ({
   const groupSummary = [];
   const mapSummary = [];
 
+  const localTZ = moment.defaultZone.name.toUpperCase();
+
   if (isGroup) {
     const numMap = finalStatesMap();
     task.children.forEach((child) => {
@@ -210,18 +212,22 @@ const TaskInstance = ({
 
   return (
     <Box fontSize="12px" py="4px">
-      {!isGroup && !task.isMapped && (
+      {!isGroup && (
         <>
-          <Flex justifyContent="space-between" flexWrap="wrap">
-            <LinkButton href={detailsLink}>More Details</LinkButton>
-            <LinkButton href={renderedLink}>Rendered Template</LinkButton>
-            {isK8sExecutor && (
-            <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
+          <Flex flexWrap="wrap">
+            {!task.isMapped && (
+              <>
+                <LinkButton href={detailsLink}>More Details</LinkButton>
+                <LinkButton href={renderedLink}>Rendered Template</LinkButton>
+                {isK8sExecutor && (
+                <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
+                )}
+                {isSubDag && (
+                <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
+                )}
+                <LinkButton href={logLink}>Log</LinkButton>
+              </>
             )}
-            {isSubDag && (
-              <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
-            )}
-            <LinkButton href={logLink}>Log</LinkButton>
             <LinkButton href={allInstancesLink}>All Instances</LinkButton>
             <LinkButton href={`?${filterParams}`}>Filter Upstream</LinkButton>
           </Flex>
@@ -244,7 +250,7 @@ const TaskInstance = ({
           <Divider my={2} />
         </>
       )}
-      {tryNumber > 0 && (
+      {tryNumber > 0 && !task.isMapped && (
         <>
           <Box>
             <Text>Download Log (by attempts):</Text>
@@ -255,7 +261,7 @@ const TaskInstance = ({
           <Divider my={2} />
         </>
       )}
-      {externalLogName && externalLogs.length > 0 && (
+      {externalLogName && externalLogs.length > 0 && !task.isMapped && (
         <>
           <Box>
             <Text>
@@ -272,83 +278,92 @@ const TaskInstance = ({
           <Divider my={2} />
         </>
       )}
-      {task.tooltip && (
-        <Text>{task.tooltip}</Text>
-      )}
-      <Flex alignItems="center">
-        <Text as="strong">Status:</Text>
-        <SimpleStatus state={state} mx={2} />
-        {state || 'no status'}
-      </Flex>
-      {isGroup && (
-        <>
+      <Flex flexWrap="wrap" justifyContent="space-between">
+        <Box>
+          {task.tooltip && (
+          <Text>{task.tooltip}</Text>
+          )}
+          <Flex alignItems="center">
+            <Text as="strong">Status:</Text>
+            <SimpleStatus state={state} mx={2} />
+            {state || 'no status'}
+          </Flex>
+          {isGroup && (
+          <>
+            <br />
+            <Text as="strong">Task Group Summary</Text>
+            {groupSummary}
+          </>
+          )}
+          {task.isMapped && (
+          <>
+            <br />
+            <Text as="strong">
+              {mappedStates.length}
+              {' '}
+              {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+              Mapped
+            </Text>
+            {mapSummary}
+          </>
+          )}
           <br />
-          <Text as="strong">Task Group Summary</Text>
-          {groupSummary}
-        </>
-      )}
-      {task.isMapped && (
-        <>
-          <br />
-          <Text as="strong">
-            {mappedStates.length}
-            {' '}
-            {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
-            Mapped
+          <Text>
+            {taskIdTitle}
+            {taskId}
           </Text>
-          {mapSummary}
-        </>
-      )}
-      <br />
-      <Text>
-        {taskIdTitle}
-        {taskId}
-      </Text>
-      <Text whiteSpace="nowrap">
-        Run Id:
-        {' '}
-        {runId}
-      </Text>
-      {operator && (
-      <Text>
-        Operator:
-        {' '}
-        {operator}
-      </Text>
-      )}
-      <Text>
-        Duration:
-        {' '}
-        {formatDuration(duration || getDuration(startDate, endDate))}
-      </Text>
-      <br />
-      <Text as="strong">UTC</Text>
-      <Text>
-        Started:
-        {' '}
-        {startDate && formatDateTime(moment.utc(startDate))}
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        {endDate && formatDateTime(moment.utc(endDate))}
-      </Text>
-      <br />
-      <Text as="strong">
-        Local:
-        {' '}
-        {moment().format('Z')}
-      </Text>
-      <Text>
-        Started:
-        {' '}
-        {startDate && formatDateTime(startDate)}
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        {endDate && formatDateTime(endDate)}
-      </Text>
+          <Text whiteSpace="nowrap">
+            Run Id:
+            {' '}
+            {runId}
+          </Text>
+          {operator && (
+          <Text>
+            Operator:
+            {' '}
+            {operator}
+          </Text>
+          )}
+          <Text>
+            Duration:
+            {' '}
+            {formatDuration(duration || getDuration(startDate, endDate))}
+          </Text>
+        </Box>
+        <Box>
+          <Text as="strong">UTC</Text>
+          <Text>
+            Started:
+            {' '}
+            {startDate && formatDateTime(moment.utc(startDate))}
+          </Text>
+          <Text>
+            Ended:
+            {' '}
+            {endDate && formatDateTime(moment.utc(endDate))}
+          </Text>
+          {localTZ !== 'UTC' && (
+            <>
+              <br />
+              <Text as="strong">
+                Local:
+                {' '}
+                {moment().format('Z')}
+              </Text>
+              <Text>
+                Started:
+                {' '}
+                {startDate && formatDateTime(startDate)}
+              </Text>
+              <Text>
+                Ended:
+                {' '}
+                {endDate && formatDateTime(endDate)}
+              </Text>
+            </>
+          )}
+        </Box>
+      </Flex>
       {externalLinks.length > 0 && (<Divider my={2} />)}
       <Flex flexWrap="wrap">
         {externalLinks}

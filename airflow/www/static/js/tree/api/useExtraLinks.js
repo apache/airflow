@@ -30,11 +30,11 @@ export default function useExtraLinks({
     ['extraLinks', dagId, taskId, executionDate],
     async () => {
       const data = await Promise.all(extraLinks.map(async (link) => {
-        const url = `${extraLinksUrl}
-          ?task_id=${encodeURIComponent(taskId)}
-          &dag_id=${encodeURIComponent(dagId)}
-          &execution_date=${encodeURIComponent(executionDate)}
-          &link_name=${encodeURIComponent(link)}`;
+        const url = `${extraLinksUrl
+        }?task_id=${encodeURIComponent(taskId)
+        }&dag_id=${encodeURIComponent(dagId)
+        }&execution_date=${encodeURIComponent(executionDate)
+        }&link_name=${encodeURIComponent(link)}`;
         try {
           const datum = await axios.get(url);
           return {

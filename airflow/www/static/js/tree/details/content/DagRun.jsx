@@ -56,6 +56,8 @@ const DagRun = ({
   const { mutate: markFailed, isLoading: isFailedLoading } = useMarkFailedRun(dagId, runId);
   const { mutate: markSuccess, isLoading: isSuccessLoading } = useMarkSuccessRun(dagId, runId);
 
+  const localTZ = moment.defaultZone.name.toUpperCase();
+
   const params = new URLSearchParams({
     dag_id: dagId,
     run_id: runId,
@@ -145,22 +147,26 @@ const DagRun = ({
         {' '}
         {endDate && formatDateTime(moment.utc(endDate))}
       </Text>
-      <br />
-      <Text as="strong">
-        Local:
-        {' '}
-        {moment().format('Z')}
-      </Text>
-      <Text>
-        Started:
-        {' '}
-        {formatDateTime(startDate)}
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        {endDate && formatDateTime(endDate)}
-      </Text>
+      {localTZ !== 'UTC' && (
+        <>
+          <br />
+          <Text as="strong">
+            Local:
+            {' '}
+            {moment().format('Z')}
+          </Text>
+          <Text>
+            Started:
+            {' '}
+            {formatDateTime(startDate)}
+          </Text>
+          <Text>
+            Ended:
+            {' '}
+            {endDate && formatDateTime(endDate)}
+          </Text>
+        </>
+      )}
     </Box>
   );
 };
