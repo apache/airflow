@@ -452,8 +452,9 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def format_map_index(value: int) -> str:
+def format_map_index(attr: dict) -> str:
     """Format map index for list columns in model view."""
+    value = attr['map_index']
     if value < 0:
         return Markup("&nbsp;")
     return str(value)
