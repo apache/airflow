@@ -311,6 +311,13 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
+      - id: forbidden-xcom-get-value
+        name: Check if XCom.get_value is used in backwards-compatible way
+        language: python
+        files: ^airflow/providers/.*\.py$
+        pass_filenames: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_xcom_get_value.py
+        additional_dependencies: ['rich']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh

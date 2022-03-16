@@ -17,7 +17,7 @@
 # under the License.
 import sys
 from time import sleep
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -109,16 +109,19 @@ class RedshiftDataOperator(BaseOperator):
         return RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     def execute_query(self):
-        resp = self.hook.conn.execute_statement(
-            ClusterIdentifier=self.cluster_identifier,
-            Database=self.database,
-            DbUser=self.db_user,
-            Sql=self.sql,
-            Parameters=self.parameters,
-            SecretArn=self.secret_arn,
-            StatementName=self.statement_name,
-            WithEvent=self.with_event,
-        )
+        kwargs: Dict[str, Any] = {
+            "ClusterIdentifier": self.cluster_identifier,
+            "Database": self.database,
+            "Sql": self.sql,
+            "DbUser": self.db_user,
+            "Parameters": self.parameters,
+            "WithEvent": self.with_event,
+            "SecretArn": self.secret_arn,
+            "StatementName": self.statement_name,
+        }
+
+        filter_values = {key: val for key, val in kwargs.items() if val is not None}
+        resp = self.hook.conn.execute_statement(**filter_values)
         return resp['Id']
 
     def wait_for_results(self, statement_id):

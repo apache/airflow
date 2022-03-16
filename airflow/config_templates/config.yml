@@ -1155,11 +1155,11 @@
       default: "True"
     - name: dag_default_view
       description: |
-        Default DAG view. Valid values are: ``tree``, ``graph``, ``duration``, ``gantt``, ``landing_times``
+        Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
       version_added: ~
       type: string
       example: ~
-      default: "tree"
+      default: "grid"
     - name: dag_orientation
       description: |
         Default DAG orientation. Valid values are:
@@ -1351,7 +1351,7 @@
       default: "False"
     - name: auto_refresh_interval
       description: |
-        How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
+        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
         when auto-refresh is turned on
       version_added: 2.2.0
       type: integer
@@ -1372,7 +1372,7 @@
       version_added: 2.3.0
       type: string
       example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,tree,tree_data"
+      default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
     - name: audit_view_included_events
       description: |
         Comma separated string of view events to include in dag audit view.

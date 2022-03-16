@@ -45,6 +45,8 @@ UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
 
+WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
+
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 
@@ -100,6 +102,7 @@ class DatabricksHook(BaseDatabricksHook):
         service outages.
     :param retry_delay: The number of seconds to wait between retries (it
         might be a floating point number).
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
     hook_name = 'Databricks'
@@ -110,8 +113,9 @@ class DatabricksHook(BaseDatabricksHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
+        retry_args: Optional[Dict[Any, Any]] = None,
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args)
 
     def run_now(self, json: dict) -> int:
         """
@@ -326,3 +330,25 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: json dictionary containing cluster_id and an array of library
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
+
+    def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
+        """
+
+        :param repo_id:
+        :param json:
+        :return:
+        """
+        repos_endpoint = ('PATCH', f'api/2.0/repos/{repo_id}')
+        return self._do_api_call(repos_endpoint, json)
+
+    def get_repo_by_path(self, path: str) -> Optional[str]:
+        """
+
+        :param path:
+        :return:
+        """
+        result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path})
+        if result.get('object_type', '') == 'REPO':
+            return str(result['object_id'])
+
+        return None

@@ -168,9 +168,11 @@ spec:
             periodSeconds: {{ .Values.triggerer.livenessProbe.periodSeconds }}
             exec:
               command:
-{{- with .Values.triggerer.livenessProbe.command }}
-{{ toYaml . | indent 16 }}
-{{- end }}
+                  {{- if .Values.triggerer.livenessProbe.command }}
+                  {{ toYaml .Values.triggerer.livenessProbe.command | nindent 16 }}
+                  {{- else }}
+                  {{- include "triggerer_liveness_check_command" . | nindent 16 }}
+                  {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}

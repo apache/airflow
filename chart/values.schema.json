@@ -1507,9 +1507,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": "array",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": "string"
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }
@@ -1821,9 +1827,15 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
-                            "type": "array",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
                             "items": {
-                                "type": "string"
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         }
                     }

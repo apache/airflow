@@ -486,7 +486,13 @@ ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
-    PIP_USER="true"
+    PIP_USER="true" \
+    PATH="/root/bin:${PATH}"
+
+# Add protection against running pip as root user
+RUN mkdir -pv /root/bin
+COPY scripts/docker/pip /root/bin/pip
+RUN chmod u+x /root/bin/pip
 
 WORKDIR ${AIRFLOW_HOME}
 

@@ -51,7 +51,7 @@ Package apache-airflow-providers-pagerduty
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 2.1.1
+Release: 2.1.2
 
 Provider package
 ----------------

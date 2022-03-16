@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.1.0
 .....
 
-Latest change: 2022-03-03
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `8d8d072289 <https://github.com/apache/airflow/commit/8d8d07228907d32403056af7acb3b2da003a7542>`_  2022-03-03   ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
 `6c37e47cf6 <https://github.com/apache/airflow/commit/6c37e47cf69083326c0ee535e5fb950c5dfa4c4a>`_  2022-03-02   ``Add map_index label to mapped KubernetesPodOperator (#21916)``
 `351fa53432 <https://github.com/apache/airflow/commit/351fa53432d8f5fa9b26f7161ea4c8b468c7167e>`_  2022-03-01   ``Fix Kubernetes example with wrong operator casing (#21898)``

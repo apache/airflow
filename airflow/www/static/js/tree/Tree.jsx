@@ -26,7 +26,6 @@ import {
   FormControl,
   FormLabel,
   Spinner,
-  Text,
   Thead,
 } from '@chakra-ui/react';
 
@@ -37,8 +36,11 @@ import DagRuns from './dagRuns';
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
+  const tableRef = useRef();
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
+
+  const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
 
   useEffect(() => {
     // Set initial scroll to far right if it is scrollable
@@ -46,7 +48,8 @@ const Tree = () => {
     if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
       runsContainer.scrollBy(runsContainer.clientWidth, 0);
     }
-  }, []);
+    // only run when the tableWidth changes
+  }, [tableWidth]);
 
   return (
     <Box position="relative" ref={containerRef}>
@@ -57,19 +60,18 @@ const Tree = () => {
         </FormLabel>
         <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
       </FormControl>
-      <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="130px">Runs</Text>
-      <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="190px">Tasks</Text>
-      <Box px="24px">
-        <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
-          <Table>
-            <Thead>
-              <DagRuns containerRef={containerRef} />
-            </Thead>
-            <Tbody>
-              {renderTaskRows({ task: groups, containerRef, dagRunIds })}
-            </Tbody>
-          </Table>
-        </Box>
+      <Box position="relative" width="100%" overflow="auto" ref={scrollRef} px="24px">
+        <Table>
+          <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+            <DagRuns containerRef={containerRef} tableWidth={tableWidth} />
+          </Thead>
+          {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+          <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
+            {renderTaskRows({
+              task: groups, containerRef, dagRunIds, tableWidth,
+            })}
+          </Tbody>
+        </Table>
       </Box>
     </Box>
   );

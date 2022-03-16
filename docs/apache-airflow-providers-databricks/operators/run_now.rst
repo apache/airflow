@@ -18,7 +18,7 @@
 
 
 DatabricksRunNowOperator
-===========================
+========================
 
 Use the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` to trigger a run of an existing Databricks job
 via `api/2.1/jobs/run-now <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_ API endpoint.
@@ -61,5 +61,7 @@ Note that there is exactly one named parameter for each top level parameter in t
      - amount of times retry if the Databricks backend is unreachable
    * - databricks_retry_delay: decimal
      - number of seconds to wait between retries
+   * - databricks_retry_args: dict
+     - An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
    * - do_xcom_push: boolean
      - whether we should push run_id and run_page_url to xcom

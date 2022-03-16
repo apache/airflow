@@ -41,7 +41,6 @@ class TestOSSHook(unittest.TestCase):
 
     def test_parse_oss_url(self):
         parsed = self.hook.parse_oss_url(f"oss://{MOCK_BUCKET_NAME}/this/is/not/a-real-key.txt")
-        print(parsed)
         assert parsed == (MOCK_BUCKET_NAME, "this/is/not/a-real-key.txt"), "Incorrect parsing of the oss url"
 
     def test_parse_oss_object_directory(self):
@@ -96,19 +95,19 @@ class TestOSSHook(unittest.TestCase):
     def test_download_file(self, mock_service):
         self.hook.download_file(MOCK_KEY, MOCK_FILE_PATH, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.get_object_to_file(MOCK_KEY, MOCK_FILE_PATH)
+        mock_service.return_value.get_object_to_file.assert_called_once_with(MOCK_KEY, MOCK_FILE_PATH)
 
     @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
     def test_delete_object(self, mock_service):
         self.hook.delete_object(MOCK_KEY, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.delete_object(MOCK_KEY)
+        mock_service.return_value.delete_object.assert_called_once_with(MOCK_KEY)
 
     @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
     def test_delete_objects(self, mock_service):
         self.hook.delete_objects(MOCK_KEYS, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.batch_delete_objects(MOCK_KEYS)
+        mock_service.return_value.batch_delete_objects.assert_called_once_with(MOCK_KEYS)
 
     @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
     def test_delete_bucket(self, mock_service):
@@ -121,3 +120,48 @@ class TestOSSHook(unittest.TestCase):
         self.hook.create_bucket(MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
         mock_service.return_value.create_bucket.assert_called_once_with()
+
+    @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
+    def test_append_string(self, mock_service):
+        self.hook.append_string(MOCK_BUCKET_NAME, MOCK_CONTENT, MOCK_KEY, 0)
+        mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
+        mock_service.return_value.append_object.assert_called_once_with(MOCK_KEY, 0, MOCK_CONTENT)
+
+    @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
+    def test_read_key(self, mock_service):
+        # Given
+        mock_service.return_value.get_object.return_value.read.return_value.decode.return_value = MOCK_CONTENT
+
+        # When
+        res = self.hook.read_key(MOCK_BUCKET_NAME, MOCK_KEY)
+
+        # Then
+        assert res == MOCK_CONTENT
+        mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
+        mock_service.return_value.get_object.assert_called_once_with(MOCK_KEY)
+        mock_service.return_value.get_object.return_value.read.assert_called_once_with()
+        mock_service.return_value.get_object.return_value.read.return_value.decode.assert_called_once_with(
+            'utf-8'
+        )
+
+    @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
+    def test_head_key(self, mock_service):
+        self.hook.head_key(MOCK_BUCKET_NAME, MOCK_KEY)
+        mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
+        mock_service.return_value.head_object.assert_called_once_with(MOCK_KEY)
+
+    @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))
+    def test_key_exists(self, mock_service):
+        # When
+        mock_service.return_value.object_exists.return_value = True
+
+        # Given
+        res = self.hook.key_exist(MOCK_BUCKET_NAME, MOCK_KEY)
+
+        # Then
+        assert res is True
+        mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
+        mock_service.return_value.object_exists.assert_called_once_with(MOCK_KEY)
+
+    def test_get_default_region(self):
+        assert self.hook.get_default_region() == 'mock_region'

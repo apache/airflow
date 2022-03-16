@@ -91,7 +91,11 @@ from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
@@ -1163,7 +1167,7 @@ class Airflow(AirflowBaseView):
     def dag_details(self, dag_id, session=None):
         """Get Dag details."""
         dag = current_app.dag_bag.get_dag(dag_id)
-        dag_model = DagModel.get_dagmodel(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
         title = "DAG Details"
         root = request.args.get('root', '')
@@ -1181,6 +1185,31 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
+        attrs_to_avoid = [
+            "NUM_DAGS_PER_DAGRUN_QUERY",
+            "serialized_dag",
+            "tags",
+            "default_view",
+            "relative_fileloc",
+            "dag_id",
+            "description",
+            "max_active_runs",
+            "max_active_tasks",
+            "schedule_interval",
+            "owners",
+            "is_paused",
+        ]
+        attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
+        dag_model_attrs: List[Tuple[str, Any]] = [
+            (attr_name, attr)
+            for attr_name, attr in (
+                (attr_name, getattr(dag_model, attr_name))
+                for attr_name in dir(dag_model)
+                if not attr_name.startswith("_") and attr_name not in attrs_to_avoid
+            )
+            if not callable(attr)
+        ]
+
         return self.render_template(
             'airflow/dag_details.html',
             dag=dag,
@@ -1190,7 +1219,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
-            dag_model=dag_model,
+            dag_model_attrs=dag_model_attrs,
         )
 
     @expose('/rendered-templates')
@@ -1687,7 +1716,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def run(self):
+    @provide_session
+    def run(self, session=None):
         """Runs Task Instance."""
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
@@ -1742,6 +1772,8 @@ class Airflow(AirflowBaseView):
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
+        ti.queued_dttm = timezone.utcnow()
+        session.merge(ti)
         flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
@@ -2117,6 +2149,34 @@ class Airflow(AirflowBaseView):
 
             return response
 
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, origin: str):
+        if not dag_run_id:
+            flash('Invalid dag_run_id', 'error')
+            return redirect(origin)
+
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if not dag:
+            flash(f'Cannot find DAG: {dag_id}', 'error')
+            return redirect(origin)
+
+        new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
+
+        if confirmed:
+            flash('Marked the DagRun as queued.')
+            return redirect(origin)
+
+        else:
+            details = '\n'.join(str(t) for t in new_dag_state)
+
+            response = self.render_template(
+                'airflow/confirm.html',
+                message="Here's the list of task instances you are about to change",
+                details=details,
+            )
+
+            return response
+
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access(
         [
@@ -2148,6 +2208,22 @@ class Airflow(AirflowBaseView):
         confirmed = request.form.get('confirmed') == 'true'
         origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed, origin)
+
+    @expose('/dagrun_queued', methods=['POST'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    @action_logging
+    def dagrun_queued(self):
+        """Queue DagRun so tasks that haven't run yet can be started."""
+        dag_id = request.form.get('dag_id')
+        dag_run_id = request.form.get('dag_run_id')
+        confirmed = request.form.get('confirmed') == 'true'
+        origin = get_safe_url(request.form.get('origin'))
+        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed, origin)
 
     @expose("/dagrun_details")
     @auth.has_access(
@@ -3622,6 +3698,7 @@ class XComModelView(AirflowModelView):
             task_id=item.task_id,
             dag_id=item.dag_id,
             run_id=item.run_id,
+            map_index=item.map_index,
         )
 
     def pre_update(self, item):
@@ -3633,6 +3710,7 @@ class XComModelView(AirflowModelView):
             task_id=item.task_id,
             dag_id=item.dag_id,
             run_id=item.run_id,
+            map_index=item.map_index,
         )
 
 

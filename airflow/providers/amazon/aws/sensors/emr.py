@@ -122,6 +122,10 @@ class EmrContainerSensor(BaseSensorOperator):
     Asks for the state of the job run until it reaches a failure state or success state.
     If the job run fails, the task will fail.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrContainerSensor`
+
     :param job_id: job_id to check the state of
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
@@ -188,6 +192,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
     With the default target states, sensor waits cluster to be terminated.
     When target_states is set to ['RUNNING', 'WAITING'] sensor waits
     until job flow to be ready (after 'STARTING' and 'BOOTSTRAPPING' states)
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrJobFlowSensor`
 
     :param job_flow_id: job_flow_id to check the state of
     :param target_states: the target states, sensor waits until
@@ -262,6 +270,10 @@ class EmrStepSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits step to be completed.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrStepSensor`
 
     :param job_flow_id: job_flow_id which contains the step check the state of
     :param step_id: step to check the state of

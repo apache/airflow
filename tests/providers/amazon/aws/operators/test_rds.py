@@ -35,9 +35,9 @@ from airflow.providers.amazon.aws.operators.rds import (
 from airflow.utils import timezone
 
 try:
-    from moto import mock_rds2
+    from moto import mock_rds
 except ImportError:
-    mock_rds2 = None
+    mock_rds = None
 
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
@@ -165,7 +165,7 @@ class TestBaseRdsOperator:
         )
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsCreateDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -177,7 +177,7 @@ class TestRdsCreateDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_create_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         instance_snapshot_operator = RdsCreateDbSnapshotOperator(
@@ -196,7 +196,7 @@ class TestRdsCreateDbSnapshotOperator:
         assert instance_snapshots
         assert len(instance_snapshots) == 1
 
-    @mock_rds2
+    @mock_rds
     def test_create_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         cluster_snapshot_operator = RdsCreateDbSnapshotOperator(
@@ -216,7 +216,7 @@ class TestRdsCreateDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsCopyDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -228,7 +228,7 @@ class TestRdsCopyDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_copy_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -248,7 +248,7 @@ class TestRdsCopyDbSnapshotOperator:
         assert instance_snapshots
         assert len(instance_snapshots) == 1
 
-    @mock_rds2
+    @mock_rds
     def test_copy_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
@@ -271,7 +271,7 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsDeleteDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
@@ -283,7 +283,7 @@ class TestRdsDeleteDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_delete_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -300,7 +300,7 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
-    @mock_rds2
+    @mock_rds
     def test_delete_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
@@ -318,7 +318,7 @@ class TestRdsDeleteDbSnapshotOperator:
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsStartExportTaskOperator:
     @classmethod
     def setup_class(cls):
@@ -330,7 +330,7 @@ class TestRdsStartExportTaskOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_start_export_task(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -352,10 +352,10 @@ class TestRdsStartExportTaskOperator:
 
         assert export_tasks
         assert len(export_tasks) == 1
-        assert export_tasks[0]['Status'] == 'available'
+        assert export_tasks[0]['Status'] == 'complete'
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsCancelExportTaskOperator:
     @classmethod
     def setup_class(cls):
@@ -367,7 +367,7 @@ class TestRdsCancelExportTaskOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_cancel_export_task(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -389,7 +389,7 @@ class TestRdsCancelExportTaskOperator:
         assert export_tasks[0]['Status'] == 'canceled'
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsCreateEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
@@ -401,7 +401,7 @@ class TestRdsCreateEventSubscriptionOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_create_event_subscription(self):
         _create_db_instance(self.hook)
 
@@ -421,10 +421,10 @@ class TestRdsCreateEventSubscriptionOperator:
 
         assert subscriptions
         assert len(subscriptions) == 1
-        assert subscriptions[0]['Status'] == 'available'
+        assert subscriptions[0]['Status'] == 'active'
 
 
-@pytest.mark.skipif(mock_rds2 is None, reason='mock_rds2 package not present')
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsDeleteEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
@@ -436,7 +436,7 @@ class TestRdsDeleteEventSubscriptionOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds2
+    @mock_rds
     def test_delete_event_subscription(self):
         _create_event_subscription(self.hook)
 

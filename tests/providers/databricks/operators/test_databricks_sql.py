@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 from databricks.sql.types import Row
 
-from airflow import AirflowException
+from airflow import PY310, AirflowException
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksCopyIntoOperator,
     DatabricksSqlOperator,
@@ -83,6 +83,12 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
 
+@pytest.mark.skipif(
+    PY310,
+    reason="Databricks SQL tests not run on Python 3.10 because there is direct Iterable import from"
+    " collections in the databricks SQL library, where it should be imported from collections.abc."
+    " This could be removed when https://github.com/apache/airflow/issues/22220 is solved",
+)
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
     def test_copy_with_files(self):
         op = DatabricksCopyIntoOperator(
