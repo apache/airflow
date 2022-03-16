@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 from typing import List, NamedTuple
 
 from marshmallow import Schema, fields
@@ -44,7 +45,24 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)
-    extra = auto_field()
+    extra = fields.Method('serialize_extra', deserialize='deserialize_extra')
+
+    @staticmethod
+    def serialize_extra(obj: Connection):
+        if obj.extra is None:
+            return
+        from airflow.utils.log.secrets_masker import redact
+
+        try:
+            extra = json.loads(obj.extra)
+            return json.dumps(redact(extra))
+        except json.JSONDecodeError:
+            # we can't redact fields in an unstructured `extra`
+            return obj.extra
+
+    @staticmethod
+    def deserialize_extra(value):  # an explicit deserialize method is required for field.Method
+        return value
 
 
 class ConnectionCollection(NamedTuple):

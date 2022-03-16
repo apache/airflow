@@ -83,7 +83,7 @@ def delete_pool(name, session=None):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
     if name == Pool.DEFAULT_POOL_NAME:
-        raise AirflowBadRequest("default_pool cannot be deleted")
+        raise AirflowBadRequest(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:

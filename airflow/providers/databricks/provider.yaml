@@ -53,6 +53,12 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/copy_into.rst
     logo: /integration-logos/databricks/Databricks.png
     tags: [service]
+  - integration-name: Databricks Repos
+    external-doc-url: https://docs.databricks.com/repos/index.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/repos_update.rst
+    logo: /integration-logos/databricks/Databricks.png
+    tags: [service]
 
 operators:
   - integration-name: Databricks
@@ -61,6 +67,9 @@ operators:
   - integration-name: Databricks SQL
     python-modules:
       - airflow.providers.databricks.operators.databricks_sql
+  - integration-name: Databricks Repos
+    python-modules:
+      - airflow.providers.databricks.operators.databricks_repos
 
 hooks:
   - integration-name: Databricks
