@@ -266,7 +266,7 @@ class SSHHook(BaseHook):
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 
-        if not self.allow_host_key_change:
+        if self.allow_host_key_change:
             self.log.warning(
                 "Remote Identification Change is not verified. "
                 "This won't protect against Man-In-The-Middle attacks"
