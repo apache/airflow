@@ -410,33 +410,33 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-                is_running = False
-                if self.check_if_running != CheckJobRunning.IgnoreJob:
+            is_running = False
+            if self.check_if_running != CheckJobRunning.IgnoreJob:
+                is_running = self.dataflow_hook.is_job_dataflow_running(
+                    name=self.job_name,
+                    variables=pipeline_options,
+                )
+                while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
+
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
                     )
-                    while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
-                        is_running = self.dataflow_hook.is_job_dataflow_running(
-                            name=self.job_name,
-                            variables=pipeline_options,
-                        )
-                if not is_running:
-                    pipeline_options["jobName"] = job_name
-                    with self.dataflow_hook.provide_authorized_gcloud():
-                        self.beam_hook.start_java_pipeline(
-                            variables=pipeline_options,
-                            jar=self.jar,
-                            job_class=self.job_class,
-                            process_line_callback=process_line_callback,
-                        )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=job_name,
-                        location=self.location,
-                        job_id=self.job_id,
-                        multiple_jobs=self.multiple_jobs,
+            if not is_running:
+                pipeline_options["jobName"] = job_name
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    self.beam_hook.start_java_pipeline(
+                        variables=pipeline_options,
+                        jar=self.jar,
+                        job_class=self.job_class,
+                        process_line_callback=process_line_callback,
                     )
+                self.dataflow_hook.wait_for_done(
+                    job_name=job_name,
+                    location=self.location,
+                    job_id=self.job_id,
+                    multiple_jobs=self.multiple_jobs,
+                )
 
         return {"job_id": self.job_id}
 
