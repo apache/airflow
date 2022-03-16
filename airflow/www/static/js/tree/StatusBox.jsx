@@ -38,7 +38,7 @@ const StatusBox = ({
   const {
     executionDate, taskId, tryNumber = 0, operator, runId, mapIndex,
   } = instance;
-  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId, mapIndex);
+  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator', runId, mapIndex);
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
