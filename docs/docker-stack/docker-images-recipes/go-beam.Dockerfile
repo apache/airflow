@@ -19,14 +19,16 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 USER 0
 
+ARG GO_VERSION=1.16.4
 ENV GO_INSTALL_DIR=/usr/local/go
 
 # Install Go
-RUN DOWNLOAD_URL="https://dl.google.com/go/go1.16.4.linux-amd64.tar.gz" \
+RUN if [[ "$(uname -a)" = *"x86_64"* ]] ; then export ARCH=amd64 ; else export ARCH=arm64 ; fi \
+    && DOWNLOAD_URL="https://dl.google.com/go/go${GO_VERSION}.linux-${ARCH}.tar.gz" \
     && TMP_DIR="$(mktemp -d)" \
-    && curl -fL "${DOWNLOAD_URL}" --output "${TMP_DIR}/go.linux-amd64.tar.gz" \
+    && curl -fL "${DOWNLOAD_URL}" --output "${TMP_DIR}/go.linux-${ARCH}.tar.gz" \
     && mkdir -p "${GO_INSTALL_DIR}" \
-    && tar xzf "${TMP_DIR}/go.linux-amd64.tar.gz" -C "${GO_INSTALL_DIR}" --strip-components=1 \
+    && tar xzf "${TMP_DIR}/go.linux-${ARCH}.tar.gz" -C "${GO_INSTALL_DIR}" --strip-components=1 \
     && rm -rf "${TMP_DIR}"
 
 ENV GOROOT=/usr/local/go

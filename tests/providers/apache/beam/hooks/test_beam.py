@@ -260,6 +260,23 @@ class TestBeamHook(unittest.TestCase):
         )
         wait_for_done.assert_called_once_with()
 
+    @mock.patch(BEAM_STRING.format('shutil.which'))
+    def test_start_go_pipeline_without_go_installed_raises(self, mock_which):
+        mock_which.return_value = None
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+
+        with self.assertRaises(AirflowException) as ex_ctx:
+            hook.start_go_pipeline(
+                go_file=GO_FILE,
+                variables=copy.deepcopy(BEAM_VARIABLES_GO),
+            )
+
+        assert (
+            "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
+            "installation guide. If you are running airflow in Docker see more info at "
+            "'https://airflow.apache.org/docs/docker-stack/recipes.html'." == str(ex_ctx.exception)
+        )
+
 
 class TestBeamRunner(unittest.TestCase):
     @mock.patch('airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log')
