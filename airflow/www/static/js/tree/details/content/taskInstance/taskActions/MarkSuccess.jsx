@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Button,
   Flex,
@@ -25,39 +25,53 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
+import ConfirmDialog from './ConfirmDialog';
 import ActionButton from './ActionButton';
-import { useClearTask } from '../../../api';
+import { useMarkSuccessTask, useConfirmTaskChange } from '../../../../api';
 
 const Run = ({
   dagId,
   runId,
   taskId,
-  executionDate,
 }) => {
   const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
   const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
   const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
-  const {
-    isOpen: downstream, onToggle: onToggleDownstream,
-  } = useDisclosure({ defaultIsOpen: true });
-  const {
-    isOpen: recursive, onToggle: onToggleRecursive,
-  } = useDisclosure({ defaultIsOpen: true });
-  const { isOpen: failed, onToggle: onToggleFailed } = useDisclosure();
+  const { isOpen: downstream, onToggle: onToggleDownstream } = useDisclosure();
 
-  const { mutate: clearTaskMutation, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
+  const { mutate: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
+    dagId, runId, taskId,
   });
 
-  const onClear = () => {
-    clearTaskMutation({
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const {
+    data, mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
+  } = useConfirmTaskChange({
+    dagId, runId, taskId, state: 'success',
+  });
+
+  const onClick = async () => {
+    confirmChangeMutation({
       past,
       future,
       upstream,
       downstream,
-      recursive,
-      failed,
     });
+  };
+
+  useEffect(() => {
+    if (!isConfirmLoading && !!data) onOpen();
+  }, [isConfirmLoading, data, onOpen]);
+
+  const onConfirm = () => {
+    markSuccessMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+    });
+    onClose();
   };
 
   return (
@@ -67,17 +81,17 @@ const Run = ({
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
-        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
-        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
       </ButtonGroup>
-      <Button
-        colorScheme="blue"
-        onClick={onClear}
-        isLoading={isLoading}
-        title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
-      >
-        Clear
+      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
+        Mark Success
       </Button>
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        title="Mark Tasks as Success"
+        body={data}
+      />
     </Flex>
   );
 };

@@ -2383,6 +2383,70 @@ class Airflow(AirflowBaseView):
 
         return response
 
+    @expose('/object/confirm_json', methods=['GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def confirm_json(self):
+        """Show confirmation page for marking tasks as success or failed."""
+        args = request.args
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        dag_run_id = args.get('dag_run_id')
+        state = args.get('state')
+        origin = args.get('origin')
+
+        upstream = to_boolean(args.get('upstream'))
+        downstream = to_boolean(args.get('downstream'))
+        future = to_boolean(args.get('future'))
+        past = to_boolean(args.get('past'))
+
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG {dag_id} not found', "error")
+            return redirect(origin or url_for('Airflow.index'))
+
+        try:
+            task = dag.get_task(task_id)
+        except airflow.exceptions.TaskNotFound:
+            flash(f"Task {task_id} not found", "error")
+            return redirect(origin or url_for('Airflow.index'))
+
+        task.dag = dag
+
+        if state not in (
+            'success',
+            'failed',
+        ):
+            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
+            return redirect(origin or url_for('Airflow.index'))
+
+        latest_execution_date = dag.get_latest_execution_date()
+        if not latest_execution_date:
+            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
+            return redirect(origin or url_for('Airflow.index'))
+
+        from airflow.api.common.mark_tasks import set_state
+
+        to_be_altered = set_state(
+            tasks=[task],
+            run_id=dag_run_id,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
+            state=state,
+            commit=False,
+        )
+
+        details = [str(t) for t in to_be_altered]
+
+        return htmlsafe_json_dumps(details, separators=(',', ':'))
+
     @expose('/failed', methods=['POST'])
     @auth.has_access(
         [

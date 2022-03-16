@@ -26,28 +26,37 @@ import {
 } from '@chakra-ui/react';
 
 import ActionButton from './ActionButton';
-import { useMarkSuccessTask } from '../../../api';
+import { useClearTask } from '../../../../api';
 
 const Run = ({
   dagId,
   runId,
   taskId,
+  executionDate,
 }) => {
   const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
   const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
   const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
-  const { isOpen: downstream, onToggle: onToggleDownstream } = useDisclosure();
+  const {
+    isOpen: downstream, onToggle: onToggleDownstream,
+  } = useDisclosure({ defaultIsOpen: true });
+  const {
+    isOpen: recursive, onToggle: onToggleRecursive,
+  } = useDisclosure({ defaultIsOpen: true });
+  const { isOpen: failed, onToggle: onToggleFailed } = useDisclosure();
 
-  const { mutate: markSuccessMutation, isLoading } = useMarkSuccessTask({
-    dagId, runId, taskId,
+  const { mutate: clearTaskMutation, isLoading } = useClearTask({
+    dagId, runId, taskId, executionDate,
   });
 
-  const markSuccess = () => {
-    markSuccessMutation({
+  const onClear = () => {
+    clearTaskMutation({
       past,
       future,
       upstream,
       downstream,
+      recursive,
+      failed,
     });
   };
 
@@ -58,9 +67,16 @@ const Run = ({
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
+        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={markSuccess} isLoading={isLoading}>
-        Mark Success
+      <Button
+        colorScheme="blue"
+        onClick={onClear}
+        isLoading={isLoading}
+        title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
+      >
+        Clear
       </Button>
     </Flex>
   );

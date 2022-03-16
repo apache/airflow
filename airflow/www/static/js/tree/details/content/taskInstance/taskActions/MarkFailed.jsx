@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Button,
   Flex,
@@ -26,7 +26,8 @@ import {
 } from '@chakra-ui/react';
 
 import ActionButton from './ActionButton';
-import { useMarkFailedTask } from '../../../api';
+import { useConfirmTaskChange, useMarkFailedTask } from '../../../../api';
+import ConfirmDialog from './ConfirmDialog';
 
 const Run = ({
   dagId,
@@ -38,17 +39,38 @@ const Run = ({
   const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
   const { isOpen: downstream, onToggle: onToggleDownstream } = useDisclosure();
 
-  const { mutate: markFailedMutation, isLoading } = useMarkFailedTask({
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const { mutate: markFailedMutation, isLoading: isMarkLoading } = useMarkFailedTask({
     dagId, runId, taskId,
   });
+  const {
+    data, mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
+  } = useConfirmTaskChange({
+    dagId, runId, taskId, state: 'failed',
+  });
 
-  const markFailed = () => {
+  const onClick = async () => {
+    confirmChangeMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+    });
+  };
+
+  useEffect(() => {
+    if (!isConfirmLoading && !!data) onOpen();
+  }, [isConfirmLoading, data, onOpen]);
+
+  const onConfirm = () => {
     markFailedMutation({
       past,
       future,
       upstream,
       downstream,
     });
+    onClose();
   };
 
   return (
@@ -59,9 +81,16 @@ const Run = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={markFailed} isLoading={isLoading}>
+      <Button colorScheme="red" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
         Mark Failed
       </Button>
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        title="Mark Tasks as Failed"
+        body={data}
+      />
     </Flex>
   );
 };

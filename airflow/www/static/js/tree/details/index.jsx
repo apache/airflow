@@ -25,7 +25,7 @@ import {
 } from '@chakra-ui/react';
 
 import Header from './Header';
-import TaskInstanceContent from './content/TaskInstance';
+import TaskInstanceContent from './content/taskInstance';
 import DagRunContent from './content/DagRun';
 import DagContent from './content/Dag';
 import useTreeData from '../useTreeData';

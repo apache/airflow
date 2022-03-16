@@ -35,19 +35,16 @@ import RunAction from './taskActions/Run';
 import ClearAction from './taskActions/Clear';
 import MarkFailedAction from './taskActions/MarkFailed';
 import MarkSuccessAction from './taskActions/MarkSuccess';
+import ExtraLinks from './ExtraLinks';
+import Logs from './Logs';
 
-import { finalStatesMap, getMetaValue } from '../../../utils';
-import { formatDateTime, getDuration, formatDuration } from '../../../datetime_utils';
-import { SimpleStatus } from '../../StatusBox';
-import { useExtraLinks } from '../../api';
+import { finalStatesMap, getMetaValue } from '../../../../utils';
+import { formatDateTime, getDuration, formatDuration } from '../../../../datetime_utils';
+import { SimpleStatus } from '../../../StatusBox';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
-const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
-const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
-const externalLogUrl = getMetaValue('external_log_url');
-const externalLogName = getMetaValue('external_log_name');
 
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
@@ -148,68 +145,6 @@ const TaskInstance = ({
   const subDagLink = `/dags/${dagId}.${taskId}/grid?${subDagParams}`;
   const isSubDag = operator === 'SubDagOperator';
 
-  const externalLogs = [];
-
-  const logAttempts = [...Array(tryNumber + 1 || 0)].map((_, index) => {
-    if (index === 0 && tryNumber < 2) return null;
-
-    const isExternal = index !== 0 && showExternalLogRedirect;
-
-    if (isExternal) {
-      const fullExternalUrl = `${externalLogUrl
-      }?dag_id=${encodeURIComponent(dagId)
-      }&task_id=${encodeURIComponent(taskId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&try_number=${index}`;
-      externalLogs.push(
-        <LinkButton
-          // eslint-disable-next-line react/no-array-index-key
-          key={index}
-          href={fullExternalUrl}
-          target="_blank"
-        >
-          {index}
-        </LinkButton>,
-      );
-    }
-
-    const fullMetadataUrl = `${logsWithMetadataUrl
-    }?dag_id=${encodeURIComponent(dagId)
-    }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
-    }&metadata=null&format=file${index > 0 && `&try_number=${index}`}`;
-
-    return (
-      <LinkButton
-        // eslint-disable-next-line react/no-array-index-key
-        key={index}
-        href={fullMetadataUrl}
-      >
-        {index === 0 ? 'All' : index}
-      </LinkButton>
-    );
-  });
-
-  const { extraLinks = [] } = task;
-  const { data: links = [] } = useExtraLinks({
-    dagId, taskId, executionDate, extraLinks,
-  });
-  const externalLinks = links.map(({ name, url }) => {
-    const isExternal = /^(?:[a-z]+:)?\/\//.test(url);
-    return (
-      <Button
-        key={name}
-        as={Link}
-        colorScheme="blue"
-        href={url}
-        isDisabled={!url}
-        target={isExternal ? '_blank' : undefined}
-      >
-        {name}
-      </Button>
-    );
-  });
-
   return (
     <Box fontSize="12px" py="4px">
       {!isGroup && (
@@ -250,33 +185,13 @@ const TaskInstance = ({
           <Divider my={2} />
         </>
       )}
-      {tryNumber > 0 && !task.isMapped && (
-        <>
-          <Box>
-            <Text>Download Log (by attempts):</Text>
-            <Flex flexWrap="wrap">
-              {logAttempts}
-            </Flex>
-          </Box>
-          <Divider my={2} />
-        </>
-      )}
-      {externalLogName && externalLogs.length > 0 && !task.isMapped && (
-        <>
-          <Box>
-            <Text>
-              View Logs in
-              {' '}
-              {externalLogName}
-              {' '}
-              (by attempts):
-            </Text>
-            <Flex flexWrap="wrap">
-              {externalLogs}
-            </Flex>
-          </Box>
-          <Divider my={2} />
-        </>
+      {!task.isMapped && (
+        <Logs
+          dagId={dagId}
+          taskId={taskId}
+          executionDate={executionDate}
+          tryNumber={tryNumber}
+        />
       )}
       <Flex flexWrap="wrap" justifyContent="space-between">
         <Box>
@@ -364,10 +279,12 @@ const TaskInstance = ({
           )}
         </Box>
       </Flex>
-      {externalLinks.length > 0 && (<Divider my={2} />)}
-      <Flex flexWrap="wrap">
-        {externalLinks}
-      </Flex>
+      <ExtraLinks
+        taskId={taskId}
+        dagId={dagId}
+        executionDate={executionDate}
+        extraLinks={task.extraLinks}
+      />
     </Box>
   );
 };
