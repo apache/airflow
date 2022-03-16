@@ -29,7 +29,7 @@ Prerequisite Tasks
 .. _howto/operator:LocalFilesystemToGoogleDriveOperator:
 
 LocalFilesystemToGoogleDriveOperator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.providers.google.suite.transfers.local_to_drive.LocalFilesystemToGoogleDriveOperator` allows you to upload
 data from local filesystem to GoogleDrive.
