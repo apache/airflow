@@ -1900,7 +1900,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def run_extract(
         self,
         source_project_dataset_table: str,
-        destination_cloud_storage_uris: str,
+        destination_cloud_storage_uris: List[str],
         compression: str = 'NONE',
         export_format: str = 'CSV',
         field_delimiter: str = ',',
