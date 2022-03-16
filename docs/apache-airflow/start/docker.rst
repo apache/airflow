@@ -32,7 +32,7 @@ then please use other ways of running Airflow - for example :doc:`/start/local` 
 and :doc:`Official Airflow Community Helm Chart<helm-chart:index>` for production purposes.
 
 Even if many users think of Docker Compose as "ready to use", it is really a developer tool, that requires
-the user to know very well how docker images, containers docker compose networking, volumes, naming, image
+the user to know very well how docker images, containers, docker compose networking, volumes, naming, image
 building works. It is extremely easy to make mistakes that lead to difficult to diagnose problems and if
 you are not ready to spend your own time on learning and diagnosing and resolving those problems on your own
 do not follow this path. You have been warned.
