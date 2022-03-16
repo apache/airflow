@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-15T15:03:08Z
+# This constraints file was automatically generated on 2022-03-16T09:20:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -64,7 +64,7 @@ appdirs==1.4.4
 argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.3
-asn1crypto==1.5.0
+asn1crypto==1.5.1
 astroid==2.11.0
 asttokens==2.0.5
 async-timeout==4.0.2
@@ -101,9 +101,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.19
+boto3==1.21.20
 boto==2.49.0
-botocore==1.24.19
+botocore==1.24.20
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -131,7 +131,7 @@ coverage==6.3.2
 crcmod==1.7
 cron-descriptor==1.2.24
 croniter==1.3.4
-cryptography==36.0.1
+cryptography==36.0.2
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2022.2.1
@@ -177,7 +177,7 @@ google-ads==14.0.0
 google-api-core==1.31.5
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
-google-auth-oauthlib==0.5.0
+google-auth-oauthlib==0.5.1
 google-auth==1.35.0
 google-cloud-aiplatform==1.11.0
 google-cloud-appengine-logging==1.1.1
@@ -203,7 +203,7 @@ google-cloud-monitoring==2.9.1
 google-cloud-orchestration-airflow==1.3.1
 google-cloud-os-login==2.6.1
 google-cloud-pubsub==2.11.0
-google-cloud-redis==2.7.1
+google-cloud-redis==2.8.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
@@ -284,7 +284,7 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.21.10
+mypy-boto3-rds==1.21.20
 mypy-boto3-redshift-data==1.21.0
 mypy-extensions==0.4.3
 mypy==0.910
