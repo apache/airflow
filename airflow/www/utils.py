@@ -135,6 +135,7 @@ def encode_ti(
         'task_id': task_instance.task_id,
         'dag_id': task_instance.dag_id,
         'run_id': task_instance.run_id,
+        'map_index': task_instance.map_index,
         'state': task_instance.state,
         'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),

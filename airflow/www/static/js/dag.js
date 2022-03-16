@@ -53,6 +53,7 @@ let taskId = '';
 let executionDate = '';
 let subdagId = '';
 let dagRunId = '';
+let mapIndex = undefined;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -79,12 +80,14 @@ function updateModalUrls() {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
   });
 
   updateButtonUrl(buttons.rendered, {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
   });
 
   if (buttons.rendered_k8s) {
@@ -92,12 +95,14 @@ function updateModalUrls() {
       dag_id: dagId,
       task_id: taskId,
       execution_date: executionDate,
+      map_index: mapIndex,
     });
   }
 
   updateButtonUrl(buttons.ti, {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
+    _flt_3_map_index: mapIndex,
     _oc_TaskInstanceModelView: executionDate,
   });
 
@@ -105,6 +110,7 @@ function updateModalUrls() {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
   });
 }
 
@@ -115,7 +121,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
+export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
@@ -124,8 +130,10 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
   subdagId = sd;
   executionDate = d;
   dagRunId = drID;
+  mapIndex = mi;
   $('#dag_run_id').text(drID);
   $('#task_id').text(t);
+  $('#map_index').text(mapIndex);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
   $('#taskInstanceModal').css('margin-top', '0');
@@ -156,6 +164,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
     }?dag_id=${encodeURIComponent(dagId)
     }&task_id=${encodeURIComponent(taskId)
     }&execution_date=${encodeURIComponent(executionDate)
+    }&map_index=${mapIndex
     }&metadata=null`
       + '&format=file';
 
@@ -175,6 +184,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
       }?dag_id=${encodeURIComponent(dagId)
       }&task_id=${encodeURIComponent(taskId)
       }&execution_date=${encodeURIComponent(executionDate)
+      }&map_index=${mapIndex
       }&try_number=${index}`;
       $('#redir_log_try_index').append(`<li role="presentation" style="display:inline">
       <a href="${redirLogUrl}"> ${showLabel} </a>
@@ -190,6 +200,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
       }?task_id=${encodeURIComponent(taskId)
       }&dag_id=${encodeURIComponent(dagId)
       }&execution_date=${encodeURIComponent(executionDate)
+      }&map_index=${mapIndex
       }&link_name=${encodeURIComponent(link)}`;
       const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '

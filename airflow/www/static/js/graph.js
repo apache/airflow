@@ -172,8 +172,8 @@ function draw() {
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
+      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId, task.map_index);
+      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId, task.map_index);
     }
   });
 
