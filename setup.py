@@ -596,7 +596,7 @@ EXTRAS_REQUIREMENTS = {
 INSTALL_REQUIREMENTS = [
     'alembic>=1.0, <2.0',
     'argcomplete~=1.10',
-    'attrs>=20.0, <21.0',
+    'attrs>=20.0',
     'cached_property~=1.5',
     # cattrs >= 1.1.0 dropped support for Python 3.6
     'cattrs>=1.0, <1.1.0;python_version<="3.6"',
