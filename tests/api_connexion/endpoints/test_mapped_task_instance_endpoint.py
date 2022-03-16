@@ -120,9 +120,9 @@ class TestMappedTaskInstanceEndpoint:
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
             session,
-            dags = {
-                'mapped_tis': 3, 
-            }
+            dags={
+                'mapped_tis': 3,
+            },
         )
 
     @pytest.fixture
@@ -130,9 +130,9 @@ class TestMappedTaskInstanceEndpoint:
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
             session,
-            dags = {
+            dags={
                 'mapped_tis': 1,
-            }
+            },
         )
 
     @pytest.fixture
@@ -140,11 +140,11 @@ class TestMappedTaskInstanceEndpoint:
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
             session,
-            dags = {
+            dags={
                 'mapped_tis': 3,
                 'more_mapped_tis': 2,
                 'guess_what': 4,
-            }
+            },
         )
 
 
@@ -152,7 +152,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
     @provide_session
     def test_mapped_task_instances(self, one_task_with_mapped_tis, session):
         response = self.client.get(
-            f"/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/0",
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/0",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -271,58 +271,62 @@ class TestGetMappedTaskInstancesBatch(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200, response.json
         assert response.json["total_entries"] == 1
         assert response.json == {
-            'task_instances': [{'dag_id': 'mapped_tis',
-                                'dag_run_id': 'run_mapped_tis',
-                                'duration': None,
-                                'end_date': None,
-                                'execution_date': '2020-01-01T00:00:00+00:00',
-                                'executor_config': '{}',
-                                'hostname': '',
-                                'map_index': -1,
-                                'mapped_tasks': [
-                                    {
-                                        'dag_run_id': 'run_mapped_tis',
-                                        'duration': None,
-                                        'end_date': None,
-                                        'execution_date': '2020-01-01T00:00:00+00:00',
-                                        'map_index': 0,
-                                        'start_date': None,
-                                        'state': 'success',
-                                    },
-                                    {
-                                        'dag_run_id': 'run_mapped_tis',
-                                        'duration': None,
-                                        'end_date': None,
-                                        'execution_date': '2020-01-01T00:00:00+00:00',
-                                        'map_index': 1,
-                                        'start_date': None,
-                                        'state': 'success',
-                                    },
-                                    {
-                                        'dag_run_id': 'run_mapped_tis',
-                                        'duration': None,
-                                        'end_date': None,
-                                        'execution_date': '2020-01-01T00:00:00+00:00',
-                                        'map_index': 2,
-                                        'start_date': None,
-                                        'state': 'success',
-                                    },
-                                ],
-                                'max_tries': 0,
-                                'operator': 'BaseOperator',
-                                'pid': None,
-                                'pool': 'default_pool',
-                                'pool_slots': 1,
-                                'priority_weight': 2,
-                                'queue': 'default',
-                                'queued_when': None,
-                                'rendered_fields': {},
-                                'sla_miss': None,
-                                'start_date': None,
-                                'state': None,
-                                'task_id': 'op1',
-                                'try_number': 0,
-                                'unixname': 'root'}],
+            'task_instances': [
+                {
+                    'dag_id': 'mapped_tis',
+                    'dag_run_id': 'run_mapped_tis',
+                    'duration': None,
+                    'end_date': None,
+                    'execution_date': '2020-01-01T00:00:00+00:00',
+                    'executor_config': '{}',
+                    'hostname': '',
+                    'map_index': -1,
+                    'mapped_tasks': [
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 0,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 1,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 2,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                    ],
+                    'max_tries': 0,
+                    'operator': 'BaseOperator',
+                    'pid': None,
+                    'pool': 'default_pool',
+                    'pool_slots': 1,
+                    'priority_weight': 2,
+                    'queue': 'default',
+                    'queued_when': None,
+                    'rendered_fields': {},
+                    'sla_miss': None,
+                    'start_date': None,
+                    'state': None,
+                    'task_id': 'op1',
+                    'try_number': 0,
+                    'unixname': 'root',
+                }
+            ],
             'total_entries': 1,
         }
 
@@ -401,7 +405,7 @@ class TestGetMappedTaskInstancesBatch(TestMappedTaskInstanceEndpoint):
                     'state': None,
                     'task_id': 'op1',
                     'try_number': 0,
-                    'unixname': 'root'
+                    'unixname': 'root',
                 },
                 {
                     'dag_id': 'mapped_tis',
@@ -455,7 +459,7 @@ class TestGetMappedTaskInstancesBatch(TestMappedTaskInstanceEndpoint):
                     'state': None,
                     'task_id': 'op1',
                     'try_number': 0,
-                    'unixname': 'root'
+                    'unixname': 'root',
                 },
             ],
             'total_entries': 2,

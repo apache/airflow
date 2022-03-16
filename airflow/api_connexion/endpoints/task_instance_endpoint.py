@@ -34,9 +34,9 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
-    task_instance_summary_collection_schema,
     task_instance_reference_collection_schema,
     task_instance_schema,
+    task_instance_summary_collection_schema,
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
@@ -303,7 +303,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
     if "summarize_mapped" in body and body["summarize_mapped"]:
-        dag_run_ids = [ ti["dag_run_id"] for ti in results["task_instances"] ]
+        dag_run_ids = [ti["dag_run_id"] for ti in results["task_instances"]]
         mapped_ti_query = session.query(TI).join(TI.dag_run)
         mapped_ti_query = _apply_array_filter(mapped_ti_query, key=TI.run_id, values=dag_run_ids)
         mapped_ti_query = mapped_ti_query.filter(TI.map_index != -1)
@@ -321,8 +321,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         mapped_ti_query = mapped_ti_query.options(joinedload(TI.rendered_task_instance_fields))
         mapped_task_instances = mapped_ti_query.all()
         mapped_summaries = task_instance_summary_collection_schema.dump(
-                TaskInstanceCollection(task_instances=mapped_task_instances, total_entries=1)
-            )
+            TaskInstanceCollection(task_instances=mapped_task_instances, total_entries=1)
+        )
 
         by_dag_run_id = {}
         for mapped_ti in mapped_summaries["task_instances"]:
@@ -330,7 +330,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             try:
                 by_dag_run_id[dag_run_id].append(mapped_ti)
             except:
-                by_dag_run_id[dag_run_id] = [ mapped_ti, ]
+                by_dag_run_id[dag_run_id] = [
+                    mapped_ti,
+                ]
 
         for ti in results["task_instances"]:
             dag_run_id = ti["dag_run_id"]

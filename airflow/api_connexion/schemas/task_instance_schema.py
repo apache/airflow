@@ -75,7 +75,11 @@ class TaskInstanceSchema(SQLAlchemySchema):
 
 
 class TaskInstanceSummarySchema(SQLAlchemySchema):
+    """Summarized task instance schema"""
+
     class Meta:
+        """Meta"""
+
         model = TaskInstance
 
     map_index = auto_field()
@@ -105,6 +109,7 @@ class TaskInstanceCollectionSchema(Schema):
 
 
 class TaskInstanceSummaryCollectionSchema(Schema):
+    """List of summarized task instances"""
     task_instances = fields.List(fields.Nested(TaskInstanceSummarySchema))
     total_entries = fields.Int()
 
