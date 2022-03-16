@@ -613,7 +613,7 @@ INSTALL_REQUIREMENTS = [
     'flask>=1.1.0, <2.0',
     'flask-admin==1.5.4',
     'flask-appbuilder>=1.12.2, <2.0.0;python_version<"3.6"',
-    'flask-appbuilder~=2.2;python_version>="3.6"',
+    'flask-appbuilder>2.3.4;python_version>="3.6"',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger>=0.2.13, <0.3',
