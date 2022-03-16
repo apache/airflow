@@ -136,6 +136,22 @@ class TestGetConnection(TestConnectionEndpoint):
             'extra': "{'param': 'value'}",
         }
 
+    def test_should_mask_sensitive_values_in_extra(self, session):
+        connection_model = Connection(
+            conn_id='test-connection-id',
+            conn_type='mysql',
+            description='test description',
+            extra={"nonsensitive": "just_a_value", "api_token": "secretvalue"},
+        )
+        session.add(connection_model)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test"}
+        )
+
+        assert response.json['extra'] == '{"nonsensitive": "just_a_value", "api_token": "***"}'
+
     def test_should_respond_404(self):
         response = self.client.get(
             "/api/v1/connections/invalid-connection", environ_overrides={'REMOTE_USER': "test"}

@@ -19,6 +19,8 @@ import os
 import textwrap
 from tempfile import NamedTemporaryFile
 
+from packaging.version import parse as parse_version
+
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
@@ -47,8 +49,40 @@ def resetdb(args):
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    db.upgradedb(version_range=args.range, revision_range=args.revision_range)
-    print("Upgrades done")
+    if args.revision and args.version:
+        raise SystemExit("Cannot supply both `--revision` and `--version`.")
+    if args.from_version and args.from_revision:
+        raise SystemExit("Cannot supply both `--from-revision` and `--from-version`")
+    if (args.from_revision or args.from_version) and not args.show_sql_only:
+        raise SystemExit(
+            "Args `--from-revision` and `--from-version` may only be used with `--show-sql-only`"
+        )
+    revision = None
+    from_revision = None
+    if args.from_revision:
+        from_revision = args.from_revision
+    elif args.from_version:
+        if parse_version(args.from_version) < parse_version('2.0.0'):
+            raise SystemExit("--from-version must be greater or equal to than 2.0.0")
+        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        if not from_revision:
+            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+
+    if args.version:
+        revision = REVISION_HEADS_MAP.get(args.version)
+        if not revision:
+            raise SystemExit(f"Upgrading to version {args.version} is not supported.")
+    elif args.revision:
+        revision = args.revision
+
+    if not args.show_sql_only:
+        print("Performing upgrade with database " + repr(settings.engine.url))
+    else:
+        print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
+
+    db.upgradedb(to_revision=revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+    if not args.show_sql_only:
+        print("Upgrades done")
 
 
 @cli_utils.action_cli(check_db=False)
@@ -58,8 +92,10 @@ def downgrade(args):
         raise SystemExit("Cannot supply both `revision` and `version`.")
     if args.from_version and args.from_revision:
         raise SystemExit("`--from-revision` may not be combined with `--from-version`")
-    if (args.from_revision or args.from_version) and not args.sql_only:
-        raise SystemExit("Args `--from-revision` and `--from-version` may only be used with `--sql-only`")
+    if (args.from_revision or args.from_version) and not args.show_sql_only:
+        raise SystemExit(
+            "Args `--from-revision` and `--from-version` may only be used with `--show-sql-only`"
+        )
     if not (args.version or args.revision):
         raise SystemExit("Must provide either revision or version.")
     from_revision = None
@@ -75,12 +111,12 @@ def downgrade(args):
             raise SystemExit(f"Downgrading to version {args.version} is not supported.")
     elif args.revision:
         revision = args.revision
-    if not args.sql_only:
+    if not args.show_sql_only:
         print("Performing downgrade with database " + repr(settings.engine.url))
     else:
         print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
-    if args.sql_only or (
+    if args.show_sql_only or (
         args.yes
         or input(
             "\nWarning: About to reverse schema migrations for the airflow metastore. "
@@ -89,8 +125,8 @@ def downgrade(args):
         ).upper()
         == "Y"
     ):
-        db.downgrade(to_revision=revision, from_revision=from_revision, sql=args.sql_only)
-        if not args.sql_only:
+        db.downgrade(to_revision=revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+        if not args.show_sql_only:
             print("Downgrade complete")
     else:
         raise SystemExit("Cancelled")

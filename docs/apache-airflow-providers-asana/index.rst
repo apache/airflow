@@ -64,7 +64,7 @@ Package apache-airflow-providers-asana
 `Asana <https://app.asana.com/>`__
 
 
-Release: 1.1.1
+Release: 1.1.2
 
 Provider package
 ----------------

@@ -1716,7 +1716,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def run(self):
+    @provide_session
+    def run(self, session=None):
         """Runs Task Instance."""
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
@@ -1771,6 +1772,8 @@ class Airflow(AirflowBaseView):
             ignore_ti_state=ignore_ti_state,
         )
         executor.heartbeat()
+        ti.queued_dttm = timezone.utcnow()
+        session.merge(ti)
         flash(f"Sent {ti} to the message queue, it should start any moment now.")
         return redirect(origin)
 
@@ -1821,6 +1824,7 @@ class Airflow(AirflowBaseView):
     def trigger(self, session=None):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
+        run_id = request.values.get('run_id')
         origin = get_safe_url(request.values.get('origin'))
         unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
@@ -1875,10 +1879,10 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
+        # if run_id is not None, filter dag runs based on run id and ignore execution date
+        dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
         if dr:
-            flash(f"This run_id {dr.run_id} already exists")
+            flash(f"The run_id {dr.run_id} already exists", "error")
             return redirect(origin)
 
         run_conf = {}
@@ -1920,6 +1924,7 @@ class Airflow(AirflowBaseView):
                 conf=run_conf,
                 external_trigger=True,
                 dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+                run_id=run_id,
             )
         except ValueError as ve:
             flash(f"{ve}", "error")
@@ -4130,12 +4135,23 @@ class PoolModelView(AirflowModelView):
     def action_muldelete(self, items):
         """Multiple delete."""
         if any(item.pool == models.Pool.DEFAULT_POOL_NAME for item in items):
-            flash("default_pool cannot be deleted", 'error')
+            flash(f"{models.Pool.DEFAULT_POOL_NAME} cannot be deleted", 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
         self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
+
+    @expose("/delete/<pk>", methods=["GET", "POST"])
+    @has_access
+    def delete(self, pk):
+        """Single delete."""
+        if models.Pool.is_default_pool(pk):
+            flash(f"{models.Pool.DEFAULT_POOL_NAME} cannot be deleted", 'error')
+            self.update_redirect()
+            return redirect(self.get_redirect())
+
+        return super().delete(pk)
 
     def pool_link(self):
         """Pool link rendering."""

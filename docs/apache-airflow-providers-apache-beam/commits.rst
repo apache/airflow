@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.2.0
 .....
 
-Latest change: 2022-02-17
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `295efd36ea <https://github.com/apache/airflow/commit/295efd36eac074578e4b54a69d71c2924984326d>`_  2022-02-17   ``Dataflow Assets (#21639)``
 `da485da29a <https://github.com/apache/airflow/commit/da485da29a06ecdda720a7ba75f04a2680aac0a2>`_  2022-02-13   ``Add support for BeamGoPipelineOperator (#20386)``
 `d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``

@@ -166,3 +166,53 @@ function testing::setup_docker_compose_backend() {
         export BACKEND_DOCKER_COMPOSE=("${backend_docker_compose[@]}")
     fi
 }
+
+function testing::run_command_in_docker(){
+    set +u
+    set +e
+    local exit_code
+    local docker_test_name
+    local docker_test_name="${1}"
+    local docker_cmd
+    local docker_cmd="${2}"
+    echo
+    echo "Semaphore grabbed. Running ${docker_test_name} tests for ${BACKEND}"
+    echo
+    echo "Making sure docker-compose is down and remnants removed"
+    echo
+    docker-compose -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${docker_test_name}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
+    docker-compose --log-level INFO \
+      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+      "${BACKEND_DOCKER_COMPOSE[@]}" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+      --project-name "airflow-${docker_test_name}-${BACKEND}" \
+         run airflow -c "${docker_cmd}"
+    exit_code=$?
+    docker ps
+    if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
+        docker ps --all
+        local container
+        for container in $(docker ps --all --format '{{.Names}}')
+        do
+            testing::dump_container_logs "${container}"
+        done
+    fi
+
+    docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${docker_test_name}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
+    set -u
+    set -e
+    if [[ ${exit_code} == 0 ]]; then
+        echo
+        echo "${COLOR_GREEN}Test ${docker_test_name} succeeded.${COLOR_RESET}"
+    else
+        echo
+        echo "${COLOR_RED}Test ${docker_test_name} failed.${COLOR_RESET}"
+    fi
+    return "${exit_code}"
+}

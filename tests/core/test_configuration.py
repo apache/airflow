@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import io
 import os
 import re
@@ -791,3 +792,48 @@ notacommand = OK
             "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
         )
         assert message == exception
+
+    def test_as_dict_works_without_sensitive_cmds(self):
+        conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+
+        assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
+        assert 'sql_alchemy_conn_cmd' not in conf_maintain_cmds['core']
+
+        assert (
+            conf_materialize_cmds['core']['sql_alchemy_conn']
+            == conf_maintain_cmds['core']['sql_alchemy_conn']
+        )
+
+    def test_as_dict_respects_sensitive_cmds(self):
+        conf_conn = conf['core']['sql_alchemy_conn']
+        test_conf = copy.deepcopy(conf)
+        test_conf.read_string(
+            textwrap.dedent(
+                """
+                [core]
+                sql_alchemy_conn_cmd = echo -n my-super-secret-conn
+                """
+            )
+        )
+
+        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+
+        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
+            assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'my-super-secret-conn'
+
+        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['core']
+        assert conf_maintain_cmds['core']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
+
+        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
+            assert 'sql_alchemy_conn' not in conf_maintain_cmds['core']
+        else:
+            assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
+            assert conf_maintain_cmds['core']['sql_alchemy_conn'] == conf_conn

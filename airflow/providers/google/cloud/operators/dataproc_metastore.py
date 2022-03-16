@@ -85,7 +85,7 @@ class DataprocMetastoreLink(BaseOperatorLink):
         dttm: Optional[datetime] = None,
         ti_key: Optional["TaskInstanceKey"] = None,
     ) -> str:
-        if ti_key:
+        if ti_key is not None:
             conf = XCom.get_value(key=self.key, ti_key=ti_key)
         else:
             assert dttm
@@ -140,7 +140,7 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
         dttm: Optional[datetime] = None,
         ti_key: Optional["TaskInstanceKey"] = None,
     ) -> str:
-        if ti_key:
+        if ti_key is not None:
             conf = XCom.get_value(key=self.key, ti_key=ti_key)
         else:
             assert dttm

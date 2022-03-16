@@ -44,15 +44,26 @@ def test_trigger_dag_button_normal_exist(admin_client):
     assert "return confirmDeleteDag(this, 'example_bash_operator')" in resp.data.decode('utf-8')
 
 
-@pytest.mark.quarantined
-def test_trigger_dag_button(admin_client):
-    test_dag_id = "example_bash_operator"
-    admin_client.post(f'trigger?dag_id={test_dag_id}')
+# test trigger button with and without run_id
+@pytest.mark.parametrize(
+    "req , expected_run_id", [('', DagRunType.MANUAL), ('&run_id=test_run_id', 'test_run_id')]
+)
+def test_trigger_dag_button(admin_client, req, expected_run_id):
+    test_dag_id = 'example_bash_operator'
+    admin_client.post(f'trigger?dag_id={test_dag_id}{req}')
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
-    assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
+    assert expected_run_id in run.run_id
+
+
+def test_duplicate_run_id(admin_client):
+    test_dag_id = 'example_bash_operator'
+    run_id = 'test_run'
+    admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    response = admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    check_content_in_response(f'The run_id {run_id} already exists', response)
 
 
 def test_trigger_dag_conf(admin_client):

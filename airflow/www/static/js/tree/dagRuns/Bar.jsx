@@ -38,29 +38,39 @@ const BAR_HEIGHT = 100;
 const DagRunBar = ({
   run, max, index, totalRuns, containerRef,
 }) => {
-  let highlightHeight = '100%';
-  if (containerRef && containerRef.current) {
-    const table = containerRef.current.getElementsByTagName('tbody')[0];
-    highlightHeight = table.offsetHeight + BAR_HEIGHT;
-  }
+  // Fetch the corresponding column element and set its background color when hovering
+  const onMouseEnter = () => {
+    [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
+      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+  };
+  const onMouseLeave = () => {
+    [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
+      .forEach((e) => { e.style.backgroundColor = null; });
+  };
+
   return (
-    <Box position="relative">
+    <Box
+      className={`js-${run.runId}`}
+      transition="background-color 0.2s"
+      px="1px"
+      pb="2px"
+      position="relative"
+    >
       <Flex
         height={BAR_HEIGHT}
         alignItems="flex-end"
         justifyContent="center"
-        mb="2px"
-        // py="2px"
         px="2px"
-        mx="1px"
         cursor="pointer"
         width="14px"
         zIndex={1}
         onClick={() => {
-          callModalDag({ execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId });
+          callModalDag({
+            execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId,
+          });
         }}
-        position="relative"
-        data-peer
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         <Tooltip
           label={<DagRunTooltip dagRun={run} />}
@@ -88,16 +98,6 @@ const DagRunBar = ({
           </Flex>
         </Tooltip>
       </Flex>
-      <Box
-        position="absolute"
-        width="100%"
-        top="1px"
-        height={highlightHeight}
-        className={`js-${run.runId}`}
-        _peerHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
-        zIndex={0}
-        transition="background-color 0.2s"
-      />
       {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">

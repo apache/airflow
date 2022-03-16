@@ -28,6 +28,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.1
+.....
+
+Latest change: 2022-03-11
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`03cdfe701b <https://github.com/apache/airflow/commit/03cdfe701bd52dc85572fe1ec5fd68d742775c8c>`_  2022-03-11   ``Avoid trying to kill container when it did not succeed for Docker (#22145)``
+=================================================================================================  ===========  ==============================================================================
+
 2.5.0
 .....
 
@@ -36,6 +47,7 @@ Latest change: 2022-03-07
 =================================================================================================  ===========  =========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `188ac51996 <https://github.com/apache/airflow/commit/188ac519964c6b6acf9d6ab144e7ff7e5538547c>`_  2022-03-07   ``Change default python executable to python3 for docker decorator (#21973)``
 `7acc190a23 <https://github.com/apache/airflow/commit/7acc190a23fa8549db1de46c509f1e5959e87b3b>`_  2022-03-06   ``added docker network_mode options (#21986)``
 `3035d3ab16 <https://github.com/apache/airflow/commit/3035d3ab1629d56f3c1084283bed5a9c43258e90>`_  2022-03-01   ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378) (#21875)``

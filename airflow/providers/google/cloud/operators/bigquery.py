@@ -98,7 +98,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         dttm: Optional[datetime] = None,
         ti_key: Optional["TaskInstanceKey"] = None,
     ):
-        if ti_key:
+        if ti_key is not None:
             job_ids = XCom.get_value(key='job_id', ti_key=ti_key)
         else:
             assert dttm is not None

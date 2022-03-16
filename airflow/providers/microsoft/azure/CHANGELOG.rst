@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * `` Add map_index to XCom model and interface (#22112)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+
 3.7.0
 .....
 

@@ -22,6 +22,7 @@ import unittest.mock
 import urllib.parse
 
 import pytest
+from freezegun import freeze_time
 
 from airflow import settings
 from airflow.executors.celery_executor import CeleryExecutor
@@ -547,6 +548,36 @@ def test_run_with_runnable_states(_, admin_client, session, state):
 
     msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
+
+
+@unittest.mock.patch(
+    'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
+    return_value=_ForceHeartbeatCeleryExecutor(),
+)
+@freeze_time("2020-07-07 09:00:00")
+def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
+    task_id = 'runme_0'
+    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
+        {'state': State.SCHEDULED, 'queued_dttm': None}
+    )
+    session.commit()
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [(None,)]
+
+    form = dict(
+        task_id=task_id,
+        dag_id="example_bash_operator",
+        ignore_all_deps="true",
+        dag_run_id=DEFAULT_DAGRUN,
+        origin='/home',
+    )
+    resp = admin_client.post('run', data=form, follow_redirects=True)
+
+    assert resp.status_code == 200
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [
+        (timezone.utcnow(),)
+    ]
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
