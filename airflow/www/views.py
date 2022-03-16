@@ -4135,12 +4135,23 @@ class PoolModelView(AirflowModelView):
     def action_muldelete(self, items):
         """Multiple delete."""
         if any(item.pool == models.Pool.DEFAULT_POOL_NAME for item in items):
-            flash("default_pool cannot be deleted", 'error')
+            flash(f"{models.Pool.DEFAULT_POOL_NAME} cannot be deleted", 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
         self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
+
+    @expose("/delete/<pk>", methods=["GET", "POST"])
+    @has_access
+    def delete(self, pk):
+        """Single delete."""
+        if models.Pool.is_default_pool(pk):
+            flash(f"{models.Pool.DEFAULT_POOL_NAME} cannot be deleted", 'error')
+            self.update_redirect()
+            return redirect(self.get_redirect())
+
+        return super().delete(pk)
 
     def pool_link(self):
         """Pool link rendering."""

@@ -86,6 +86,23 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
+    def is_default_pool(id: int, session: Session = NEW_SESSION) -> bool:
+        """
+        Check id if is the default_pool.
+
+        :param id: pool id
+        :param session: SQLAlchemy ORM Session
+        :return: True if id is default_pool, otherwise False
+        """
+        return (
+            session.query(func.count(Pool.id))
+            .filter(Pool.id == id, Pool.pool == Pool.DEFAULT_POOL_NAME)
+            .scalar()
+            > 0
+        )
+
+    @staticmethod
+    @provide_session
     def create_or_update_pool(name: str, slots: int, description: str, session: Session = NEW_SESSION):
         """Create a pool with given parameters or update it if it already exists."""
         if not name:
@@ -107,7 +124,7 @@ class Pool(Base):
     def delete_pool(name: str, session: Session = NEW_SESSION):
         """Delete pool by a given name."""
         if name == Pool.DEFAULT_POOL_NAME:
-            raise AirflowException("default_pool cannot be deleted")
+            raise AirflowException(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
 
         pool = session.query(Pool).filter_by(pool=name).first()
         if pool is None:
