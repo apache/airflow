@@ -53,7 +53,7 @@ let taskId = '';
 let executionDate = '';
 let subdagId = '';
 let dagRunId = '';
-let mapIndex = undefined;
+let mapIndex;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -66,6 +66,9 @@ function updateButtonUrl(elm, params) {
   if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
     url = url.replace(dagId, params.dag_id);
     delete params.dag_id;
+  }
+  if (Object.prototype.hasOwnProperty.call(params, 'map_index') && params.map_index === undefined) {
+    delete params.map_index;
   }
   elm.setAttribute('href', `${url}?${$.param(params)}`);
 }
@@ -127,7 +130,6 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   $('#btn_filter').on('click', () => {
     window.location = updateQueryStringParameter(location, 'root', taskId);
   });
-  subdagId = sd;
   executionDate = d;
   dagRunId = drID;
   mapIndex = mi;
@@ -139,10 +141,12 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   $('#taskInstanceModal').css('margin-top', '0');
   $('#extra_links').prev('hr').hide();
   $('#extra_links').empty().hide();
-  if (subdagId === undefined) $('#div_btn_subdag').hide();
-  else {
+  if (sd) {
     $('#div_btn_subdag').show();
     subdagId = `${dagId}.${t}`;
+  } else {
+    $('#div_btn_subdag').hide();
+    subdagId = undefined;
   }
 
   $('#dag_dl_logs').hide();
@@ -159,49 +163,41 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   $('#try_index > li').remove();
   $('#redir_log_try_index > li').remove();
   const startIndex = (tryNumbers > 2 ? 0 : 1);
-  for (let index = startIndex; index < tryNumbers; index += 1) {
-    let url = `${logsWithMetadataUrl
-    }?dag_id=${encodeURIComponent(dagId)
-    }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
-    }&map_index=${mapIndex
-    }&metadata=null`
-      + '&format=file';
 
+  const query = new URLSearchParams({
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    metadata: 'null',
+  });
+  if (mi !== undefined) {
+    query.set('map_index', mi);
+  }
+  for (let index = startIndex; index < tryNumbers; index += 1) {
     let showLabel = index;
     if (index !== 0) {
-      url += `&try_number=${index}`;
+      query.set('try_number', index);
     } else {
       showLabel = 'All';
     }
 
     $('#try_index').append(`<li role="presentation" style="display:inline">
-      <a href="${url}"> ${showLabel} </a>
+      <a href="${logsWithMetadataUrl}?${query}"> ${showLabel} </a>
       </li>`);
 
     if (index !== 0 || showExternalLogRedirect) {
-      const redirLogUrl = `${externalLogUrl
-      }?dag_id=${encodeURIComponent(dagId)
-      }&task_id=${encodeURIComponent(taskId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&map_index=${mapIndex
-      }&try_number=${index}`;
       $('#redir_log_try_index').append(`<li role="presentation" style="display:inline">
-      <a href="${redirLogUrl}"> ${showLabel} </a>
+      <a href="${externalLogUrl}?${query}"> ${showLabel} </a>
       </li>`);
     }
   }
+  query.delete('try_number');
 
   if (extraLinks && extraLinks.length > 0) {
     const markupArr = [];
     extraLinks.sort();
     $.each(extraLinks, (i, link) => {
-      const url = `${extraLinksUrl
-      }?task_id=${encodeURIComponent(taskId)
-      }&dag_id=${encodeURIComponent(dagId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&map_index=${mapIndex
-      }&link_name=${encodeURIComponent(link)}`;
+      query.set('link_name', link);
       const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '
         + 'title="link not yet available"></span>');
@@ -210,7 +206,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
 
       $.ajax(
         {
-          url,
+          url: `${extraLinksUrl}?${query}`,
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
