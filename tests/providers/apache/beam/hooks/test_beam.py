@@ -233,8 +233,10 @@ class TestBeamHook(unittest.TestCase):
         )
         wait_for_done.assert_called_once_with()
 
+    @mock.patch(BEAM_STRING.format('shutil.which'))
     @mock.patch(BEAM_STRING.format('BeamCommandRunner'))
-    def test_start_go_pipeline(self, mock_runner):
+    def test_start_go_pipeline(self, mock_runner, mock_which):
+        mock_which.return_value = "/some_path/to/go"
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
