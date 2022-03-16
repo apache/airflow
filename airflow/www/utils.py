@@ -110,6 +110,7 @@ def get_mapped_summary(parent_instance, task_instances):
     )
 
     return {
+        'dag_id': parent_instance.dag_id,
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
         'state': group_state,

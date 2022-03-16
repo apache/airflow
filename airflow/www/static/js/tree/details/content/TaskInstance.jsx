@@ -148,7 +148,7 @@ const TaskInstance = ({
 
   const externalLogs = [];
 
-  const logAttempts = [...Array(tryNumber + 1)].map((_, index) => {
+  const logAttempts = [...Array(tryNumber + 1 || 0)].map((_, index) => {
     if (index === 0 && tryNumber < 2) return null;
 
     const isExternal = index !== 0 && showExternalLogRedirect;
