@@ -55,6 +55,7 @@ concurrency:
 jobs:
 
   build-info:
+    timeout-minutes: 30
     name: "Build info"
     # The runs-on cannot refer to env. or secrets. context, so we have no
     # option but to specify a hard-coded list here. This is "safe", as the list
@@ -121,6 +122,8 @@ jobs:
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     outputs:
       defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
@@ -198,6 +201,18 @@ jobs:
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
           fi
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: python -m pip install --user ./dev/breeze/
+      - name: Selective Checks Python
+        id: selective-checks-python
+        env:
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
+        run: airflow-selective-checks build-image
       # Avoid having to specify the runs-on logic every time. We use the custom
       # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
       # on the public runners
