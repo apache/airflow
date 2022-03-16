@@ -23,5 +23,7 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed_with_group
 testing::get_docker_compose_local
-testing::setup_docker_compose_backend "downgrade"
-testing::run_command_in_docker "downgrade" "airflow db downgrade -r e959f08ac86c -y"
+testing::setup_docker_compose_backend "offline-sql-test"
+# We test from 2.0.0 upwards
+testing::run_command_in_docker "offline-sql-test" "airflow db upgrade --from-version 2.0.0 -r heads --show-sql-only \
+    && airflow db downgrade --version 2.0.0 --show-sql-only -y"

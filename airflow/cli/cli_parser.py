@@ -169,6 +169,13 @@ def string_list_type(val):
     return [x.strip() for x in val.split(',')]
 
 
+def string_lower_type(val):
+    """Lowers arg"""
+    if not val:
+        return
+    return val.strip().lower()
+
+
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
@@ -706,6 +713,9 @@ ARG_CONN_ID_FILTER = Arg(
 ARG_CONN_URI = Arg(
     ('--conn-uri',), help='Connection URI, required to add a connection without conn_type', type=str
 )
+ARG_CONN_JSON = Arg(
+    ('--conn-json',), help='Connection JSON, required to add a connection using JSON representation', type=str
+)
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
@@ -730,7 +740,19 @@ ARG_CONN_EXPORT = Arg(
     type=argparse.FileType('w', encoding='UTF-8'),
 )
 ARG_CONN_EXPORT_FORMAT = Arg(
-    ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
+    ('--format',),
+    help='Deprecated -- use `--file-format` instead. File format to use for the export.',
+    type=str,
+    choices=['json', 'yaml', 'env'],
+)
+ARG_CONN_EXPORT_FILE_FORMAT = Arg(
+    ('--file-format',), help='File format for the export', type=str, choices=['json', 'yaml', 'env']
+)
+ARG_CONN_SERIALIZATION_FORMAT = Arg(
+    ('--serialization-format',),
+    help='When exporting as `.env` format, defines how connections should be serialized. Default is `uri`.',
+    type=string_lower_type,
+    choices=['json', 'uri'],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
 
@@ -1442,7 +1464,7 @@ CONNECTIONS_COMMANDS = (
         name='add',
         help='Add a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name='delete',
@@ -1456,19 +1478,24 @@ CONNECTIONS_COMMANDS = (
         description=(
             "All connections can be exported in STDOUT using the following command:\n"
             "airflow connections export -\n"
-            "The file format can be determined by the provided file extension. eg, The following "
+            "The file format can be determined by the provided file extension. E.g., The following "
             "command will export the connections in JSON format:\n"
             "airflow connections export /tmp/connections.json\n"
-            "The --format parameter can be used to mention the connections format. eg, "
+            "The --file-format parameter can be used to control the file format. E.g., "
             "the default format is JSON in STDOUT mode, which can be overridden using: \n"
-            "airflow connections export - --format yaml\n"
-            "The --format parameter can also be used for the files, for example:\n"
-            "airflow connections export /tmp/connections --format json\n"
+            "airflow connections export - --file-format yaml\n"
+            "The --file-format parameter can also be used for the files, for example:\n"
+            "airflow connections export /tmp/connections --file-format json.\n"
+            "When exporting in `env` file format, you control whether URI format or JSON format "
+            "is used to serialize the connection by passing `uri` or `json` with option "
+            "`--serialization-format`.\n"
         ),
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
         args=(
             ARG_CONN_EXPORT,
             ARG_CONN_EXPORT_FORMAT,
+            ARG_CONN_EXPORT_FILE_FORMAT,
+            ARG_CONN_SERIALIZATION_FORMAT,
         ),
     ),
     ActionCommand(

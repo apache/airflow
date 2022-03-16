@@ -43,6 +43,8 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         'private_key',
         'secret',
         'token',
+        'keyfile_dict',
+        'service_account',
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""

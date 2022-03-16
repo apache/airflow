@@ -768,6 +768,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test Offline SQL generation"
+        run: ./scripts/ci/testing/run_offline_sql_test.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
@@ -833,6 +835,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
+      - name: "Test Offline SQL generation"
+        run: ./scripts/ci/testing/run_offline_sql_test.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
