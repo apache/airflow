@@ -22,6 +22,26 @@ Running Airflow in Docker
 
 This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
 
+Customizing the quick-start Docker Compose
+==========================================
+
+DO NOT attempt to customize images and the Docker Compose if you do not know exactly what you are doing,
+know Docker Compose or do not will to debug and resolve problems on your own. If you do not
+know Docker Compose and expect Airflow to **just work** beyond following precisely the quick-start,
+then please use other ways of running Airflow - for example :doc:`/start/local` for testing and trying
+and :doc:`Official Airflow Community Helm Chart<helm-chart:index>` for production purposes.
+
+Even if many users think of Docker Compose as "ready to use", it is really a developer tool, that requires
+the user to know very well how docker images, containers docker compose networking, volumes, naming, image
+building works. It is extremely easy to make mistakes that lead to difficult to diagnose problems and if
+you are not ready to spend your own time on learning and diagnosing and resolving those problems on your own
+do not follow this path. You have been warned.
+
+If you customize, or modify images, the compose file and see problem do not expect you will get a lot of
+help with solving those problems in the Airflow support channels. Most of the problems you will experience
+are Docker Compose related problems and if you need help in solving them, there are dedicated channels in
+`Docker Compose <https://github.com/docker/compose>`_ that you can use.
+
 Production readiness
 ====================
 
