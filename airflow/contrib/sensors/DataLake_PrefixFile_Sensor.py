@@ -49,5 +49,6 @@ class DataLakePrefixSensor(BaseSensorOperator):
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
         return len(hook.list(self.DataLake_path + "/" + self.prefix)) > 0
 
+
         # return TRUE => 1 ou more file detected
         # return FALSE => No file detected
