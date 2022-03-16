@@ -607,7 +607,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.1-standalone/service-v1.json
+          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
         files: ^scripts/ci/kubernetes/nodeport\.yaml$
