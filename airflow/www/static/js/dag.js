@@ -182,7 +182,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
     }
 
     $('#try_index').append(`<li role="presentation" style="display:inline">
-      <a href="${logsWithMetadataUrl}?${query}"> ${showLabel} </a>
+      <a href="${logsWithMetadataUrl}?${query}&format=file"> ${showLabel} </a>
       </li>`);
 
     if (index !== 0 || showExternalLogRedirect) {
