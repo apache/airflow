@@ -527,6 +527,7 @@ class TestCeleryExecutor:
                 executor.tasks = {ti.key: AsyncResult("231")}
                 executor.stuck_tasks_last_check_time = last_check_time
                 executor.sync()
+                assert executor.stuck_tasks_last_check_time != last_check_time  # should be updated
                 session.flush()
                 ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
                 assert ti.state == state

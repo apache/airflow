@@ -237,7 +237,7 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
-        self.stuck_tasks_last_check_time: int = time.time()
+        self.stuck_tasks_last_check_time: float = time.time()
         self.stuck_queued_task_check_interval = conf.getint(
             'celery', 'stuck_queued_task_check_interval', fallback=300
         )
@@ -345,8 +345,10 @@ class CeleryExecutor(BaseExecutor):
 
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
+
         if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
             self._clear_stuck_queued_tasks()
+            self.stuck_tasks_last_check_time = time.time()
 
     def _check_for_stalled_adopted_tasks(self):
         """
