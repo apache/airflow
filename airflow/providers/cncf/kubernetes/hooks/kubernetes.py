@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-try:
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
+
 from kubernetes import client, config, watch
 
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
-    import yaml
+    import yaml  # type: ignore[no-redef]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -59,7 +61,6 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type conn_id: str
     """
 
     conn_name_attr = 'kubernetes_conn_id'
@@ -85,10 +86,13 @@ class KubernetesHook(BaseHook):
             "extra__kubernetes__namespace": StringField(
                 lazy_gettext('Namespace'), widget=BS3TextFieldWidget()
             ),
+            "extra__kubernetes__cluster_context": StringField(
+                lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -96,25 +100,49 @@ class KubernetesHook(BaseHook):
         }
 
     def __init__(
-        self, conn_id: str = default_conn_name, client_configuration: Optional[client.Configuration] = None
+        self,
+        conn_id: Optional[str] = default_conn_name,
+        client_configuration: Optional[client.Configuration] = None,
+        cluster_context: Optional[str] = None,
+        config_file: Optional[str] = None,
+        in_cluster: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.client_configuration = client_configuration
+        self.cluster_context = cluster_context
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+
+    @staticmethod
+    def _coalesce_param(*params):
+        for param in params:
+            if param is not None:
+                return param
 
     def get_conn(self) -> Any:
         """Returns kubernetes api session for use with requests"""
-        connection = self.get_connection(self.conn_id)
-        extras = connection.extra_dejson
-        in_cluster = extras.get("extra__kubernetes__in_cluster")
-        kubeconfig_path = extras.get("extra__kubernetes__kube_config_path")
-        kubeconfig = extras.get("extra__kubernetes__kube_config")
+        if self.conn_id:
+            connection = self.get_connection(self.conn_id)
+            extras = connection.extra_dejson
+        else:
+            extras = {}
+        in_cluster = self._coalesce_param(
+            self.in_cluster, extras.get("extra__kubernetes__in_cluster") or None
+        )
+        cluster_context = self._coalesce_param(
+            self.cluster_context, extras.get("extra__kubernetes__cluster_context") or None
+        )
+        kubeconfig_path = self._coalesce_param(
+            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+        )
+        kubeconfig = extras.get("extra__kubernetes__kube_config") or None
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options extra__kubernetes__kube_config_path, "
-                "extra__kubernetes__kube_config, extra__kubernetes__in_cluster are mutually exclusive. "
+                "Invalid connection configuration. Options kube_config_path, "
+                "kube_config, in_cluster are mutually exclusive. "
                 "You can only use one option at a time."
             )
         if in_cluster:
@@ -125,7 +153,9 @@ class KubernetesHook(BaseHook):
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             config.load_kube_config(
-                config_file=kubeconfig_path, client_configuration=self.client_configuration
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
             )
             return client.ApiClient()
 
@@ -135,18 +165,27 @@ class KubernetesHook(BaseHook):
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 config.load_kube_config(
-                    config_file=temp_config.name, client_configuration=self.client_configuration
+                    config_file=temp_config.name,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
                 )
             return client.ApiClient()
 
         self.log.debug("loading kube_config from: default file")
-        config.load_kube_config(client_configuration=self.client_configuration)
+        config.load_kube_config(
+            client_configuration=self.client_configuration,
+            context=cluster_context,
+        )
         return client.ApiClient()
 
     @cached_property
     def api_client(self) -> Any:
         """Cached Kubernetes API client"""
         return self.get_conn()
+
+    @cached_property
+    def core_v1_client(self):
+        return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
@@ -155,15 +194,10 @@ class KubernetesHook(BaseHook):
         Creates custom resource definition object in Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param body: crd object definition
-        :type body: Union[str, dict]
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -186,15 +220,10 @@ class KubernetesHook(BaseHook):
         Get custom resource definition object from Kubernetes
 
         :param group: api group
-        :type group: str
         :param version: api version
-        :type version: str
         :param plural: api plural
-        :type plural: str
         :param name: crd object name
-        :type name: str
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
@@ -207,12 +236,14 @@ class KubernetesHook(BaseHook):
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
-    def get_namespace(self) -> str:
+    def get_namespace(self) -> Optional[str]:
         """Returns the namespace that defined in the connection"""
-        connection = self.get_connection(self.conn_id)
-        extras = connection.extra_dejson
-        namespace = extras.get("extra__kubernetes__namespace", "default")
-        return namespace
+        if self.conn_id:
+            connection = self.get_connection(self.conn_id)
+            extras = connection.extra_dejson
+            namespace = extras.get("extra__kubernetes__namespace", "default")
+            return namespace
+        return None
 
     def get_pod_log_stream(
         self,
@@ -224,10 +255,8 @@ class KubernetesHook(BaseHook):
         Retrieves a log stream for a container in a kubernetes pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
@@ -251,10 +280,8 @@ class KubernetesHook(BaseHook):
         Retrieves a container's log from the specified pod.
 
         :param pod_name: pod name
-        :type pod_name: str
         :param container: container name
         :param namespace: kubernetes namespace
-        :type namespace: str
         """
         api = client.CoreV1Api(self.api_client)
         return api.read_namespaced_pod_log(
