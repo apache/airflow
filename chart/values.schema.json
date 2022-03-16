@@ -4142,6 +4142,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "subPath": {
+                            "description": "Subpath within the PVC where dags are located.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
