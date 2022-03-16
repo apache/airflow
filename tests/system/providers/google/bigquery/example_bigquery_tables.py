@@ -172,6 +172,7 @@ with models.DAG(
     get_dataset_tables = BigQueryGetDatasetTablesOperator(
         task_id="get_dataset_tables", dataset_id=DATASET_NAME
     )
+    # [END howto_operator_bigquery_get_dataset_tables]
 
     update_dataset = BigQueryUpdateDatasetOperator(
         task_id="update_dataset",
