@@ -135,6 +135,17 @@ class TestMappedTaskInstanceEndpoint:
             }
         )
 
+    @pytest.fixture
+    def three_tasks_with_mapped_tis(self, dag_maker, session):
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags = {
+                'mapped_tis': 3,
+                'more_mapped_tis': 2,
+                'guess_what': 4,
+            }
+        )
 
 
 class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
@@ -220,4 +231,232 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             'title': 'Task instance not found',
             'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
             'apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound',
+        }
+
+
+class TestGetMappedTaskInstancesBatch(TestMappedTaskInstanceEndpoint):
+    @provide_session
+    def test_should_respond_default_without_mapped_tis(self, one_task_with_mapped_tis, session):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": 'test'},
+            json={
+                "dag_ids": ["mapped_tis"],
+            },
+        )
+        assert response.status_code == 200, response.json
+        assert response.json["total_entries"] == 1
+
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": 'test'},
+            json={
+                "dag_ids": ["mapped_tis"],
+                "summarize_mapped": False,
+            },
+        )
+        assert response.status_code == 200, response.json
+        assert response.json["total_entries"] == 1
+
+    @provide_session
+    def test_should_include_only_matching_mapped_tis(self, three_tasks_with_mapped_tis, session):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": 'test'},
+            json={
+                "dag_ids": ["mapped_tis"],
+                "summarize_mapped": True,
+            },
+        )
+        assert response.status_code == 200, response.json
+        assert response.json["total_entries"] == 1
+        assert response.json == {
+            'task_instances': [{'dag_id': 'mapped_tis',
+                                'dag_run_id': 'run_mapped_tis',
+                                'duration': None,
+                                'end_date': None,
+                                'execution_date': '2020-01-01T00:00:00+00:00',
+                                'executor_config': '{}',
+                                'hostname': '',
+                                'map_index': -1,
+                                'mapped_tasks': [
+                                    {
+                                        'dag_run_id': 'run_mapped_tis',
+                                        'duration': None,
+                                        'end_date': None,
+                                        'execution_date': '2020-01-01T00:00:00+00:00',
+                                        'map_index': 0,
+                                        'start_date': None,
+                                        'state': 'success',
+                                    },
+                                    {
+                                        'dag_run_id': 'run_mapped_tis',
+                                        'duration': None,
+                                        'end_date': None,
+                                        'execution_date': '2020-01-01T00:00:00+00:00',
+                                        'map_index': 1,
+                                        'start_date': None,
+                                        'state': 'success',
+                                    },
+                                    {
+                                        'dag_run_id': 'run_mapped_tis',
+                                        'duration': None,
+                                        'end_date': None,
+                                        'execution_date': '2020-01-01T00:00:00+00:00',
+                                        'map_index': 2,
+                                        'start_date': None,
+                                        'state': 'success',
+                                    },
+                                ],
+                                'max_tries': 0,
+                                'operator': 'BaseOperator',
+                                'pid': None,
+                                'pool': 'default_pool',
+                                'pool_slots': 1,
+                                'priority_weight': 2,
+                                'queue': 'default',
+                                'queued_when': None,
+                                'rendered_fields': {},
+                                'sla_miss': None,
+                                'start_date': None,
+                                'state': None,
+                                'task_id': 'op1',
+                                'try_number': 0,
+                                'unixname': 'root'}],
+            'total_entries': 1,
+        }
+
+    # FIXME include a dagrun without mapped tis
+    @provide_session
+    def test_should_include_all_mapped_tis(self, three_tasks_with_mapped_tis, session):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": 'test'},
+            json={
+                "dag_ids": ["mapped_tis", "guess_what"],
+                "summarize_mapped": True,
+            },
+        )
+        assert response.status_code == 200, response.json
+        assert response.json == {
+            'task_instances': [
+                {
+                    'dag_id': 'guess_what',
+                    'dag_run_id': 'run_guess_what',
+                    'duration': None,
+                    'end_date': None,
+                    'execution_date': '2020-01-01T00:00:00+00:00',
+                    'executor_config': '{}',
+                    'hostname': '',
+                    'map_index': -1,
+                    'mapped_tasks': [
+                        {
+                            'dag_run_id': 'run_guess_what',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 0,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_guess_what',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 1,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_guess_what',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 2,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_guess_what',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 3,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                    ],
+                    'max_tries': 0,
+                    'operator': 'BaseOperator',
+                    'pid': None,
+                    'pool': 'default_pool',
+                    'pool_slots': 1,
+                    'priority_weight': 2,
+                    'queue': 'default',
+                    'queued_when': None,
+                    'rendered_fields': {},
+                    'sla_miss': None,
+                    'start_date': None,
+                    'state': None,
+                    'task_id': 'op1',
+                    'try_number': 0,
+                    'unixname': 'root'
+                },
+                {
+                    'dag_id': 'mapped_tis',
+                    'dag_run_id': 'run_mapped_tis',
+                    'duration': None,
+                    'end_date': None,
+                    'execution_date': '2020-01-01T00:00:00+00:00',
+                    'executor_config': '{}',
+                    'hostname': '',
+                    'map_index': -1,
+                    'mapped_tasks': [
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 0,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 1,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                        {
+                            'dag_run_id': 'run_mapped_tis',
+                            'duration': None,
+                            'end_date': None,
+                            'execution_date': '2020-01-01T00:00:00+00:00',
+                            'map_index': 2,
+                            'start_date': None,
+                            'state': 'success',
+                        },
+                    ],
+                    'max_tries': 0,
+                    'operator': 'BaseOperator',
+                    'pid': None,
+                    'pool': 'default_pool',
+                    'pool_slots': 1,
+                    'priority_weight': 2,
+                    'queue': 'default',
+                    'queued_when': None,
+                    'rendered_fields': {},
+                    'sla_miss': None,
+                    'start_date': None,
+                    'state': None,
+                    'task_id': 'op1',
+                    'try_number': 0,
+                    'unixname': 'root'
+                },
+            ],
+            'total_entries': 2,
         }

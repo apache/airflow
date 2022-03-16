@@ -3269,6 +3269,10 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        summarize_mapped:
+          type: boolean
+          description:
+            Include mapped tasks summary.
         execution_date_gte:
           type: string
           format: date-time

@@ -74,6 +74,22 @@ class TaskInstanceSchema(SQLAlchemySchema):
         return get_value(obj[0], attr, default)
 
 
+class TaskInstanceSummarySchema(SQLAlchemySchema):
+    class Meta:
+        model = TaskInstance
+
+    map_index = auto_field()
+    run_id = auto_field(data_key="dag_run_id")
+    execution_date = auto_field()
+    start_date = auto_field()
+    end_date = auto_field()
+    duration = auto_field()
+    state = TaskInstanceStateField()
+
+    def get_attribute(self, obj, attr, default):
+        return get_value(obj[0], attr, default)
+
+
 class TaskInstanceCollection(NamedTuple):
     """List of task instances with metadata"""
 
@@ -85,6 +101,11 @@ class TaskInstanceCollectionSchema(Schema):
     """Task instance collection schema"""
 
     task_instances = fields.List(fields.Nested(TaskInstanceSchema))
+    total_entries = fields.Int()
+
+
+class TaskInstanceSummaryCollectionSchema(Schema):
+    task_instances = fields.List(fields.Nested(TaskInstanceSummarySchema))
     total_entries = fields.Int()
 
 
@@ -105,6 +126,7 @@ class TaskInstanceBatchFormSchema(Schema):
     state = fields.List(fields.Str(), load_default=None)
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
+    summarize_mapped = fields.Boolean(load_default=False)
 
 
 class ClearTaskInstanceFormSchema(Schema):
@@ -172,7 +194,9 @@ class TaskInstanceReferenceCollectionSchema(Schema):
 
 
 task_instance_schema = TaskInstanceSchema()
+task_instance_summary_schema = TaskInstanceSummarySchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
+task_instance_summary_collection_schema = TaskInstanceSummaryCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
