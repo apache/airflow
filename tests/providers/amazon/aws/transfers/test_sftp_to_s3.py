@@ -34,7 +34,7 @@ BUCKET = 'test-bucket'
 S3_KEY = 'test/test_1_file.csv'
 SFTP_PATH = '/tmp/remote_path.txt'
 SFTP_CONN_ID = 'ssh_default'
-AWS_CONN_ID = 'aws_default'
+S3_CONN_ID = 'aws_default'
 
 SFTP_MOCK_FILE = 'test_sftp_file.csv'
 S3_MOCK_FILES = 'test_1_file.csv'
@@ -104,7 +104,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
             s3_key=S3_KEY,
             sftp_path=SFTP_PATH,
             sftp_conn_id=SFTP_CONN_ID,
-            aw_conn_id=AWS_CONN_ID,
+            s3_conn_id=S3_CONN_ID,
             use_temp_file=use_temp_file,
             task_id='test_sftp_to_s3',
             dag=self.dag,
