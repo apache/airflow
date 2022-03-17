@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 import warnings
-from typing import Dict, List, Optional, Sequence, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
