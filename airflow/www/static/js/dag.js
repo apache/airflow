@@ -142,10 +142,10 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   $('#extra_links').empty().hide();
   if (mi >= 0) {
     $('#modal_map_index').show();
-    $('#map_index, #modal_map_index .value').text(mi);
+    $('#modal_map_index .value').text(mi);
   } else {
     $('#modal_map_index').hide();
-    $('#map_index, #modal_map_index .value').text('');
+    $('#modal_map_index .value').text('');
   }
   if (sd) {
     $('#div_btn_subdag').show();
@@ -272,6 +272,9 @@ $('form[data-action]').on('submit', function submit(e) {
     if (form.task_id) {
       form.task_id.value = taskId;
     }
+    if (form.map_index) {
+      form.map_index.value = mapIndex === undefined ? '' : mapIndex;
+    }
     form.action = $(this).data('action');
     form.submit();
   }
@@ -291,6 +294,9 @@ $('form button[data-action]').on('click', function onClick() {
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
+    }
+    if (form.map_index) {
+      form.map_index.value = mapIndex === undefined ? '' : mapIndex;
     }
     form.action = $(this).data('action');
     form.submit();
