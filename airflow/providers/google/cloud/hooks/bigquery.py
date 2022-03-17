@@ -1940,7 +1940,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             var_name='source_project_dataset_table',
         )
 
-        configuration = {
+        configuration: Dict[str, Any] = {
             'extract': {
                 'sourceTable': {
                     'projectId': source_project,
@@ -1951,7 +1951,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 'destinationUris': destination_cloud_storage_uris,
                 'destinationFormat': export_format,
             }
-        }  # type: Dict[str, Any]
+        }
 
         if labels:
             configuration['labels'] = labels
