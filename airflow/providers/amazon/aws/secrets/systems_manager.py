@@ -21,6 +21,9 @@ import warnings
 from typing import Optional
 
 import boto3
+from semver import parse as parse_version
+
+from airflow.version import version as airflow_version
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -105,10 +108,18 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        warnings.warn(
+        message = (
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            f"in a future release.",
-            PendingDeprecationWarning,
+            "in a future release."
+        )
+        if parse_version(airflow_version) < parse_version('2.3.0'):
+            message += (
+                "\nIf you are not calling this method directly, you can make it go away by upgrading "
+                "to Airflow 2.3.0, which no longer calls this method."
+            )
+        warnings.warn(
+            message,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.get_conn_value(conn_id)

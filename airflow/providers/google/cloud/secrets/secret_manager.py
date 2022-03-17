@@ -21,12 +21,14 @@ import warnings
 from typing import Optional
 
 from google.auth.exceptions import DefaultCredentialsError
+from semver import parse as parse_version
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
 
@@ -140,10 +142,18 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        warnings.warn(
+        message = (
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            f"in a future release.",
-            PendingDeprecationWarning,
+            "in a future release."
+        )
+        if parse_version(airflow_version) < parse_version('2.3.0'):
+            message += (
+                "\nIf you are not calling this method directly, you can make it go away by upgrading "
+                "to Airflow 2.3.0, which no longer calls this method."
+            )
+        warnings.warn(
+            message,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.get_conn_value(conn_id)
