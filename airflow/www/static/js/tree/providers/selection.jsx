@@ -21,26 +21,30 @@ import React, { useContext, useReducer } from 'react';
 
 const SelectionContext = React.createContext(null);
 
+const SELECT = 'SELECT';
+const DESELECT = 'DESELECT';
+
 const selectionReducer = (state, { type, payload }) => {
   switch (type) {
-    case 'SELECT':
+    case SELECT:
       // Deselect if it is the same selection
       if (payload.taskId === state.taskId && payload.runId === state.runId) {
         return {};
       }
       return payload;
-    case 'DESELECT':
+    case DESELECT:
       return {};
     default:
       return state;
   }
 };
 
+// Expose the grid selection to any react component instead of passing around lots of props
 export const SelectionProvider = ({ children }) => {
   const [selected, dispatch] = useReducer(selectionReducer, {});
 
-  const clearSelection = () => dispatch({ type: 'DESELECT' });
-  const onSelect = (payload) => dispatch({ type: 'SELECT', payload });
+  const clearSelection = () => dispatch({ type: DESELECT });
+  const onSelect = (payload) => dispatch({ type: SELECT, payload });
 
   return (
     <SelectionContext.Provider value={{ selected, clearSelection, onSelect }}>

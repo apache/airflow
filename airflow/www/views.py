@@ -1973,6 +1973,49 @@ class Airflow(AirflowBaseView):
 
         if not tis:
             flash("No task instances to clear", 'error')
+            response = redirect(origin)
+        else:
+            details = "\n".join(str(t) for t in tis)
+
+            response = self.render_template(
+                'airflow/confirm.html',
+                endpoint=None,
+                message="Here's the list of task instances you are about to clear:",
+                details=details,
+            )
+
+        return response
+
+    def _clear_dag_run(
+        self, dag, start_date, end_date, origin, recursive=False, confirmed=False, only_failed=False
+    ):
+        if confirmed:
+            count = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                include_parentdag=recursive,
+                only_failed=only_failed,
+            )
+
+            flash(f"{count} task instances have been cleared")
+            return redirect(origin)
+
+        try:
+            tis = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                include_parentdag=recursive,
+                only_failed=only_failed,
+                dry_run=True,
+            )
+        except AirflowException as ex:
+            flash(str(ex), 'error')
+            return redirect(origin)
+
+        if not tis:
+            flash("No task instances to clear", 'error')
             return redirect(origin)
         else:
             details = [str(t) for t in tis]
@@ -2042,7 +2085,7 @@ class Airflow(AirflowBaseView):
         start_date = dr.logical_date
         end_date = dr.logical_date
 
-        return self._clear_dag_tis(dag, start_date, end_date, origin, recursive=True, confirmed=confirmed)
+        return self._clear_dag_run(dag, start_date, end_date, origin, recursive=True, confirmed=confirmed)
 
     @expose('/blocked', methods=['POST'])
     @auth.has_access(
@@ -2367,7 +2410,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def confirm_state_change(self):
-        """Show confirmation page for marking tasks as success or failed."""
+        """Return list of tasks that will be affected by changing a task state."""
         args = request.args
         dag_id = args.get('dag_id')
         task_id = args.get('task_id')
@@ -2431,7 +2474,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def confirm_clear(self):
-        """Show confirmation page for clearing a task."""
+        """Return list of tasks that will be affected by clearing a task."""
         args = request.args
         dag_id = args.get('dag_id')
         task_id = args.get('task_id')

@@ -33,7 +33,7 @@ import {
 import { useContainerRef } from '../../providers/containerRef';
 
 const ConfirmDialog = ({
-  isOpen, onClose, title, description, body = '', onConfirm,
+  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,
 }) => {
   const cancelRef = useRef();
   const { containerRef } = useContainerRef();
@@ -53,8 +53,8 @@ const ConfirmDialog = ({
           </AlertDialogHeader>
 
           <AlertDialogBody>
-            <Text>{description}</Text>
-            {body.length ? body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>)) : body}
+            <Text mb={2}>{description}</Text>
+            {body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
           </AlertDialogBody>
 
           <AlertDialogFooter>

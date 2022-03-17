@@ -99,7 +99,7 @@ const MarkFailed = ({
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        title="Mark Tasks as Failed"
+        description="Here's the list of task instances you are about to mark as failed:"
         body={affectedTasks}
       />
     </Flex>

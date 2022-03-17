@@ -41,7 +41,7 @@ export default function useMarkSuccessRun(dagId, runId) {
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
         queryClient.invalidateQueries('treeData');
       },
     },

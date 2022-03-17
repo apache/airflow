@@ -41,7 +41,8 @@ export default function useClearRun(dagId, runId) {
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
+        // Invalidating the query will force a new API request
         queryClient.invalidateQueries('treeData');
       },
     },

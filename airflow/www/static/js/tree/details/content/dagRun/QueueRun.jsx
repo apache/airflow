@@ -28,6 +28,7 @@ const QueueRun = ({ dagId, runId }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { mutateAsync: onQueue, isLoading } = useQueueRun(dagId, runId);
 
+  // Get what the changes will be and show it in a modal
   const onClick = async () => {
     try {
       const data = await onQueue({ confirmed: false });
@@ -38,6 +39,7 @@ const QueueRun = ({ dagId, runId }) => {
     }
   };
 
+  // Confirm changes
   const onConfirm = async () => {
     try {
       await onQueue({ confirmed: true });
@@ -62,7 +64,7 @@ const QueueRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        title="Tasks affected by Queueing a new Run"
+        description="Here's the list of task instances you are about to queue:"
         body={affectedTasks}
       />
     </>

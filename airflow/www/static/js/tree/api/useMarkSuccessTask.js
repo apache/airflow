@@ -50,7 +50,7 @@ export default function useMarkSuccessTask({
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
         queryClient.invalidateQueries('treeData');
       },
     },

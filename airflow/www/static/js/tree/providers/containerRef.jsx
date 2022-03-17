@@ -22,6 +22,8 @@ import { Box } from '@chakra-ui/react';
 
 const ContainerRefContext = React.createContext(null);
 
+// containerRef is necessary to render for tooltips, modals, and dialogs
+// This provider allows the containerRef to be accessed by any react component
 export const ContainerRefProvider = ({ children }) => {
   const containerRef = useRef();
 

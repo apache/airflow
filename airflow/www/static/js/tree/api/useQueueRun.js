@@ -41,7 +41,7 @@ export default function useQueueRun(dagId, runId) {
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
         queryClient.invalidateQueries('treeData');
       },
     },

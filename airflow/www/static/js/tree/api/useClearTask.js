@@ -53,7 +53,7 @@ export default function useClearTask({
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
         queryClient.invalidateQueries('treeData');
       },
     },

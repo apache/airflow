@@ -117,7 +117,7 @@ const Run = ({
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        title="Clear and Re-Trigger Tasks"
+        description="Here's the list of task instances you are about to clear:"
         body={affectedTasks}
       />
     </Flex>

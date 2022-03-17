@@ -55,7 +55,7 @@ const ClearRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        title="Tasks affected by clearing"
+        description="Here's the list of task instances you are about to clear:"
         body={affectedTasks}
       />
     </>

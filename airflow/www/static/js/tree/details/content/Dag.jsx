@@ -48,6 +48,7 @@ const Dag = () => {
     description, tags, fileloc, owners, catchup, startDate, timezone, dagRunTimeout,
   } = dag;
 
+  // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};
   tasks.forEach((t) => {
     if (!operators[t.classRef.className]) {

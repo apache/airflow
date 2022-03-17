@@ -41,7 +41,7 @@ export default function useClearRun(dagId, runId, taskId) {
       });
     },
     {
-      onSettled: () => {
+      onSuccess: () => {
         queryClient.invalidateQueries('treeData');
       },
     },
