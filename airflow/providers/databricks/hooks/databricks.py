@@ -356,13 +356,13 @@ class DatabricksHook(BaseDatabricksHook):
 
         return None
 
-    def import_notebook(self, notebook_name: str, raw_code: str, language: str, overwrite: bool = True, format: str = 'SOURCE'):
+    def import_notebook(self, dbfs_path: str, raw_code: str, language: str, overwrite: bool = True, format: str = 'SOURCE'):
         """
         Import a local notebook from Airflow into Databricks FS. Notebooks saved to /Shared/airflow dbfs
 
         Utility function to call the ``2.0/workspace/import`` endpoint.
 
-        :param notebook_name: String name of notebook on Databricks FS
+        :param dbfs_path: String path on Databricks FS
         :param raw_code: String of non-encoded code
         :param language: Use one of the following strings 'SCALA', 'PYTHON', 'SQL', OR 'R'
         :param overwrite: Boolean flag specifying whether to overwrite existing object. It is true by default
@@ -383,11 +383,18 @@ class DatabricksHook(BaseDatabricksHook):
         encoded_str = str(encoded_bytes, "utf-8")
 
         # create parent directory if not exists
-        self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {'path': "/Shared/airflow"})
+        path_parts = dbfs_path.split('/')
+        path_parts.pop(0)
+        path_parts = path_parts[:-1]
+
+        path = ''
+        for part in path_parts:
+            path += f'/{part}'
+        self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {'path': path})
 
         # upload notebook
         json = {
-            'path': f'/Shared/airflow/{notebook_name}',
+            'path': dbfs_path,
             'content': encoded_str,
             'language': language,
             'overwrite': str(overwrite).lower(),
@@ -395,4 +402,4 @@ class DatabricksHook(BaseDatabricksHook):
         }
         self._do_api_call(WORKSPACE_IMPORT_ENDPOINT, json)
 
-        return f'/Shared/airflow/{notebook_name}'
+        return dbfs_path
