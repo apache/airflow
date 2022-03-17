@@ -314,7 +314,7 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
 
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``BranchPythonOperator`` but expects you to provide an implementation of the method ``choose_branch``.
 
-As with the callable for ``BranchPythonOperator``, this method should return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped::
+As with the callable for ``BranchPythonOperator``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
     class MyBranchOperator(BaseBranchOperator):
         def choose_branch(self, context):
@@ -323,8 +323,10 @@ As with the callable for ``BranchPythonOperator``, this method should return the
             """
             if context['data_interval_start'].day == 1:
                 return ['daily_task_id', 'monthly_task_id']
-            else:
+            elif context['data_interval_start'].day == 2:
                 return 'daily_task_id'
+            else:
+                return None
 
 
 .. _concepts:latest-only:
