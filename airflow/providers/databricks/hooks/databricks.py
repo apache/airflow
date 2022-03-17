@@ -379,8 +379,8 @@ class DatabricksHook(BaseDatabricksHook):
             raise ValueError(f"results: format must be one of the following: {str(format_options)}")
 
         # encode notebook
-        encodedBytes = base64.b64encode(raw_code.encode("utf-8"))
-        encodedStr = str(encodedBytes, "utf-8")
+        encoded_bytes = base64.b64encode(raw_code.encode("utf-8"))
+        encoded_str = str(encoded_bytes, "utf-8")
 
         # create parent directory if not exists
         self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {'path': "/Shared/airflow"})
@@ -388,7 +388,7 @@ class DatabricksHook(BaseDatabricksHook):
         # upload notebook
         json = {
             'path': f'/Shared/airflow/{notebook_name}',
-            'content': encodedStr,
+            'content': encoded_str,
             'language': language,
             'overwrite': str(overwrite).lower(),
             'format': format
