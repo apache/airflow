@@ -16,7 +16,6 @@
 # under the License.
 import warnings
 from abc import ABC
-from contextlib import suppress
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
@@ -86,17 +85,26 @@ class BaseSecretsBackend(ABC):
         """
         value = None
 
+        not_implemented_get_conn_value = False
         # TODO: after removal of ``get_conn_uri`` we should not catch NotImplementedError here
-        with suppress(NotImplementedError):
+        try:
             value = self.get_conn_value(conn_id=conn_id)
+        except NotImplementedError:
+            not_implemented_get_conn_value = True
+            warnings.warn(
+                "Method `get_conn_uri` is deprecated. Please use `get_conn_value`.",
+                PendingDeprecationWarning,
+                stacklevel=2,
+            )
 
-        if not value:
-            with suppress(NotImplementedError):
+        if not_implemented_get_conn_value:
+            try:
                 value = self.get_conn_uri(conn_id=conn_id)
-                warnings.warn(
-                    "Method `get_conn_uri` is deprecated. Please use `get_conn_value`.",
-                    PendingDeprecationWarning,
-                    stacklevel=2,
+            except NotImplementedError:
+                raise NotImplementedError(
+                    f"Secrets backend {self.__class__.__name__} neither implements "
+                    "`get_conn_value` nor `get_conn_uri`.  Method `get_conn_uri` is "
+                    "deprecated and will be removed in a future release. Please implement `get_conn_value`."
                 )
 
         if value:
