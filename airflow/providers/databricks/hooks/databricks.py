@@ -356,7 +356,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return None
 
-    def import_notebook(self, dbfs_path: str, raw_code: str, language: str, overwrite: bool = True, format: str = 'SOURCE'):
+    def import_notebook(self, dbfs_path: str, raw_code: str, language: str, overwrite: bool = True):
         """
         Import a local notebook from Airflow into Databricks FS. Notebooks saved to /Shared/airflow dbfs
 
@@ -368,16 +368,6 @@ class DatabricksHook(BaseDatabricksHook):
         :param overwrite: Boolean flag specifying whether to overwrite existing object. It is true by default
         :return: full dbfs notebook path
         """
-        #enforce language options
-        language_options = ['SCALA', 'PYTHON', 'SQL', 'R']
-        if language.upper() not in language_options:
-            raise ValueError(f"results: language must be one of the following: {str(language_options)}")
-
-        # enforce format options
-        format_options = ['SOURCE', 'HTML', 'JUPYTER', 'DBC']
-        if format.upper() not in format_options:
-            raise ValueError(f"results: format must be one of the following: {str(format_options)}")
-
         # encode notebook
         encoded_bytes = base64.b64encode(raw_code.encode("utf-8"))
         encoded_str = str(encoded_bytes, "utf-8")
@@ -390,6 +380,7 @@ class DatabricksHook(BaseDatabricksHook):
         path = ''
         for part in path_parts:
             path += f'/{part}'
+        #TODO: Add warning if already exists
         self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {'path': path})
 
         # upload notebook
@@ -398,8 +389,16 @@ class DatabricksHook(BaseDatabricksHook):
             'content': encoded_str,
             'language': language,
             'overwrite': str(overwrite).lower(),
-            'format': format
+            'format': 'SOURCE'  # when language is specified. Leave this as SOURCE
         }
-        self._do_api_call(WORKSPACE_IMPORT_ENDPOINT, json)
 
-        return dbfs_path
+        try:
+            self._do_api_call(WORKSPACE_IMPORT_ENDPOINT, json)
+        except AirflowException as e:
+            if "RESOURCE_ALREADY_EXISTS" in e.__str__():
+                raise ValueError(f"{dbfs_path} already exists. Set overwrite to True.")
+            elif "INVALID_PARAMETER_VALUE" in e.__str__():
+                raise ValueError(f"Invalid value passed to language. See valid parameters here: https://docs.databricks.com/dev-tools/api/latest/workspace.html#notebooklanguage")
+            else:
+                raise ValueError(e.__str__())
+
