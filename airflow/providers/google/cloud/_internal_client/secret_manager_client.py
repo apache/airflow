@@ -16,21 +16,14 @@
 # under the License.
 
 import re
-import sys
 from typing import Optional
 
 import google
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
+from airflow.compat.functools import cached_property
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"

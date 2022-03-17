@@ -19,17 +19,12 @@
 
 import ast
 import json
-import sys
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 

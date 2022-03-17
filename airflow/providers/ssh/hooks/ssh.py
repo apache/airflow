@@ -17,7 +17,6 @@
 # under the License.
 """Hook for SSH connections."""
 import os
-import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
@@ -29,11 +28,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 

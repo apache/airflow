@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import sys
 import time
 from enum import Enum
 from functools import wraps
@@ -27,15 +26,11 @@ from requests import PreparedRequest, Session
 from requests.auth import AuthBase
 from requests.models import Response
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.typing_compat import TypedDict
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 def fallback_to_default_account(func: Callable) -> Callable:

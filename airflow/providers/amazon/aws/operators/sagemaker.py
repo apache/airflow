@@ -16,20 +16,15 @@
 # under the License.
 
 import json
-import sys
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence
 
 from botocore.exceptions import ClientError
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -23,7 +23,6 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
 import copy
-import sys
 import time
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -34,14 +33,10 @@ from requests.auth import AuthBase, HTTPBasicAuth
 from tenacity import RetryError, Retrying, retry_if_exception, stop_after_attempt, wait_exponential
 
 from airflow import __version__
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 

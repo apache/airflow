@@ -27,7 +27,6 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
-import sys
 import warnings
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
@@ -39,15 +38,10 @@ import requests
 import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from dateutil.tz import tzlocal
 from slugify import slugify
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from dateutil.tz import tzlocal
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

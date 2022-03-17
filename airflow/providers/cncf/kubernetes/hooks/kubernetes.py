@@ -14,14 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from kubernetes import client, config, watch
 
@@ -30,6 +24,7 @@ try:
 except ImportError:
     import yaml  # type: ignore[no-redef]
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
