@@ -20,6 +20,7 @@
 import ast
 import json
 import sys
+import warnings
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -173,9 +174,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return connection
 
-    def get_conn_uri(self, conn_id: str):
+    def get_conn_value(self, conn_id: str):
         """
-        Get Connection Value
+        Get serialized representation of Connection
 
         :param conn_id: connection id
         """
@@ -198,6 +199,21 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 connection = self.get_uri_from_secret(secret)
 
             return connection
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
+            f"in a future release.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """

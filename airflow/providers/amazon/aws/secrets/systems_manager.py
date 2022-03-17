@@ -17,6 +17,7 @@
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
 import sys
+import warnings
 from typing import Optional
 
 import boto3
@@ -86,7 +87,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         session = boto3.Session(profile_name=self.profile_name)
         return session.client("ssm", **self.kwargs)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
         Get param value
 
@@ -96,6 +97,21 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
+            f"in a future release.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """

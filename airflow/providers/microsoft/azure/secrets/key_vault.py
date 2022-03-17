@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import warnings
 from typing import Optional
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -100,9 +101,9 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
-        Get an Airflow Connection URI from an Azure Key Vault secret
+        Get a serialized representation of Airflow Connection from an Azure Key Vault secret
 
         :param conn_id: The Airflow connection id to retrieve
         """
@@ -110,6 +111,21 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
+            f"in a future release.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """

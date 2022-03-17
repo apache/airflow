@@ -17,6 +17,7 @@
 
 """Objects relating to sourcing connections from Google Cloud Secrets Manager"""
 import logging
+import warnings
 from typing import Optional
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -121,9 +122,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         prefix = self.connections_prefix + self.sep
         return _SecretManagerClient.is_valid_secret_name(prefix)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
-        Get secret value from the SecretManager.
+        Get serialized representation of Connection
 
         :param conn_id: connection id
         """
@@ -131,6 +132,21 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
+            f"in a future release.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
