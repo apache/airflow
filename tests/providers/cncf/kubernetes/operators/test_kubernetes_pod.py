@@ -73,7 +73,7 @@ class TestKubernetesPodOperator:
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
 
-    def run_pod(self, operator, map_index: int = -1) -> k8s.V1Pod:
+    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
             operator.dag = dag
 
@@ -82,6 +82,7 @@ class TestKubernetesPodOperator:
         ti.map_index = map_index
         self.dag_run = dr
         context = ti.get_template_context(session=self.dag_maker.session)
+        self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
