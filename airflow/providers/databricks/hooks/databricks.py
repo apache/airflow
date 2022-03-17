@@ -25,6 +25,7 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+import base64
 from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
@@ -46,6 +47,8 @@ UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
 
 WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
+WORKSPACE_MKDIR_ENDPOINT = ('POST', 'api/2.0/workspace/mkdirs')
+WORKSPACE_IMPORT_ENDPOINT = ('POST', 'api/2.0/workspace/import')
 
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
@@ -352,3 +355,44 @@ class DatabricksHook(BaseDatabricksHook):
             return str(result['object_id'])
 
         return None
+
+    def import_notebook(self, notebook_name: str, raw_code: str, language: str, overwrite: bool = True, format: str = 'SOURCE'):
+        """
+        Import a local notebook from Airflow into Databricks FS. Notebooks saved to /Shared/airflow dbfs
+
+        Utility function to call the ``2.0/workspace/import`` endpoint.
+
+        :param notebook_name: String name of notebook on Databricks FS
+        :param raw_code: String of non-encoded code
+        :param language: Use one of the following strings 'SCALA', 'PYTHON', 'SQL', OR 'R'
+        :param overwrite: Boolean flag specifying whether to overwrite existing object. It is true by default
+        :return: full dbfs notebook path
+        """
+        #enforce language options
+        language_options = ['SCALA', 'PYTHON', 'SQL', 'R']
+        if language.upper() not in language_options:
+            raise ValueError(f"results: language must be one of the following: {str(language_options)}")
+
+        # enforce format options
+        format_options = ['SOURCE', 'HTML', 'JUPYTER', 'DBC']
+        if format.upper() not in format_options:
+            raise ValueError(f"results: format must be one of the following: {str(format_options)}")
+
+        # encode notebook
+        encodedBytes = base64.b64encode(raw_code.encode("utf-8"))
+        encodedStr = str(encodedBytes, "utf-8")
+
+        # create parent directory if not exists
+        self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {'path': "/Shared/airflow"})
+
+        # upload notebook
+        json = {
+            'path': f'/Shared/airflow/{notebook_name}',
+            'content': encodedStr,
+            'language': language,
+            'overwrite': str(overwrite).lower(),
+            'format': format
+        }
+        self._do_api_call(WORKSPACE_IMPORT_ENDPOINT, json)
+
+        return f'/Shared/airflow/{notebook_name}'
