@@ -137,6 +137,63 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def get_mapped_task_instances(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get list of task instances."""
+    base_query = (
+        session.query(TI)
+        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .join(TI.dag_run)
+    )
+
+    # Zero results without restricting map_index means no task
+    if base_query.with_entities(func.count('*')).scalar() == 0:
+        error_message = f"Task id {task_id} not found"
+        raise NotFound(error_message)
+
+    # Restrict on map_index to filter out task that created mapped TIs
+    query = base_query.filter(TI.map_index >= 0)
+
+    # Count elements before joining extra columns
+    total_entries = query.with_entities(func.count('*')).scalar()
+
+    # Add SLA miss
+    query = (
+        query.order_by(TI.map_index)
+        .join(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.task_id == TI.task_id,
+                SlaMiss.execution_date == DR.execution_date,
+            ),
+            isouter=True,
+        )
+        .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
+    )
+
+    task_instances = query.offset(offset).limit(limit).all()
+    return task_instance_collection_schema.dump(
+        TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
+    )
+
+
 def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
     if not states:
         return None
