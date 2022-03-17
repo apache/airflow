@@ -14,3 +14,13 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
+Package apache-airflow-providers-flyte
+--------------------------------------
+
+`Flyte <https://flyte.org/>`__
+
+
+This is detailed commit list of changes for versions provider package: ``flyte``.
+For high-level changelog, see :doc:`package information including changelog <index>`.

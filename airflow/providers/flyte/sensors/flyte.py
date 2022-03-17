@@ -30,9 +30,10 @@ class AirflowFlyteSensor(BaseSensorOperator):
     Check for the status of a Flyte execution.
 
     :param execution_name: Required. The name of the execution to check.
-    :param project: Required. The project to connect to.
-    :param domain: Required. The domain to connect to.
-    :param flyte_conn_id: Optional. The connection to Flyte setup, containing metadata.
+    :param project: Optional. The project to connect to.
+    :param domain: Optional. The domain to connect to.
+    :param flyte_conn_id: Required. The name of the Flyte connection to
+                          get the connection information for Flyte.
     """
 
     template_fields: Sequence[str] = ("execution_name",)  # mypy fix

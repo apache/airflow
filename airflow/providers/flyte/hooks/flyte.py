@@ -34,7 +34,10 @@ class AirflowFlyteHook(BaseHook):
     """
     Interact with the FlyteRemote API.
 
-    :param flyte_conn_id: The connection to Flyte setup, containing metadata.
+    :param flyte_conn_id: Required. The name of the Flyte connection to get
+                          the connection information for Flyte.
+    :param project: Optional. The project under consideration.
+    :param domain: Optional. The domain under consideration.
     """
 
     SUCCEEDED = core_execution_models.WorkflowExecutionPhase.SUCCEEDED
@@ -94,16 +97,14 @@ class AirflowFlyteHook(BaseHook):
         """
         Trigger an execution.
 
-        :param project: The project to connect to.
-        :param domain: The domain to connect to.
-        :param launchplan_name: The name of the launchplan to trigger.
-        :param task_name: The name of the task to trigger.
-        :param max_parallelism: The maximum number of parallel executions to allow.
-        :param raw_data_prefix: The prefix to use for raw data.
-        :param assumable_iam_role: The assumable IAM role to use.
-        :param kubernetes_service_account: The kubernetes service account to use.
-        :param version: The version of the launchplan to trigger.
-        :param inputs: The inputs to the launchplan.
+        :param launchplan_name: Optional. The name of the launchplan to trigger.
+        :param task_name: Optional. The name of the task to trigger.
+        :param max_parallelism: Optional. The maximum number of parallel executions to allow.
+        :param raw_data_prefix: Optional. The prefix to use for raw data.
+        :param assumable_iam_role: Optional. The assumable IAM role to use.
+        :param kubernetes_service_account: Optional. The kubernetes service account to use.
+        :param version: Optional. The version of the launchplan to trigger.
+        :param inputs: Optional. The inputs to the launchplan.
         """
         if (not (task_name or launchplan_name)) or (task_name and launchplan_name):
             raise AirflowException("Either task_name or launchplan_name is required.")
@@ -150,10 +151,9 @@ class AirflowFlyteHook(BaseHook):
         """
         Helper method which polls an execution to check the status.
 
-        :param project: The project to connect to.
-        :param domain: The domain to connect to.
-        :param execution: The execution to check.
-        :param timeout: The timeout to wait for the execution to finish.
+        :param execution: Required. The execution to check.
+        :param timeout: Optional. The timeout to wait for the execution to finish.
+        :param poll_interval: Optional. The interval between checks to poll the execution.
         """
         remote = self.create_flyte_remote()
         execution_id = self.execution_id(execution_name)
@@ -186,9 +186,8 @@ class AirflowFlyteHook(BaseHook):
         """
         Terminate an execution.
 
-        :param project: The project to connect to.
-        :param domain: The domain to connect to.
-        :param execution: The execution to terminate.
+        :param execution: Required. The execution to terminate.
+        :param cause: Required. The cause of the termination.
         """
         remote = self.create_flyte_remote()
         execution_id = self.execution_id(execution_name)

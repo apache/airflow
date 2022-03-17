@@ -28,9 +28,9 @@ Using the Operator
 
 The AirflowFlyteOperator requires a ``flyte_conn_id`` to fetch all the connection-related
 parameters that may be useful to instantiate ``FlyteRemote``. Also, you must give a
-``launchplan_name`` — to trigger a workflow, or ``task_name`` — to trigger a task, and you can give a
+``launchplan_name`` — to trigger a workflow, or ``task_name`` — to trigger a task; you can give a
 handful of other values that are optional, such as ``project``, ``domain``, ``max_parallelism``,
-``raw_data_prefix``, ``assumable_iam_role``, ``kubernetes_service_account``, ``version``, ``inputs``, and ``timeout``.
+``raw_data_prefix``, ``assumable_iam_role``, ``kubernetes_service_account``, ``version``, ``inputs``, ``timeout``, and ``poll_interval``.
 
 The executions will be triggered synchronously by default on Flyte. You can set the ``asynchronous`` parameter to
 ``True`` to trigger the executions asynchronously.

@@ -46,6 +46,7 @@ class AirflowFlyteOperator(BaseOperator):
     :param version: Optional. The version of the launchplan/task to trigger.
     :param inputs: Optional. The inputs to the launchplan/task.
     :param timeout: Optional. The timeout to wait for the execution to finish.
+    :param poll_interval: Optional. The interval between checks to poll the execution.
     :param asynchronous: Optional. Whether to wait for the execution to finish or not.
     """
 
