@@ -78,6 +78,9 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
+      {{- if .Values.migrateDatabaseJob.shareProcessNamespace }}
+      shareProcessNamespace: {{ .Values.migrateDatabaseJob.shareProcessNamespace }}
+      {{- end }}
       containers:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
