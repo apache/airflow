@@ -35,12 +35,13 @@ import { useContainerRef } from '../../providers/containerRef';
 const ConfirmDialog = ({
   isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,
 }) => {
-  const cancelRef = useRef();
+  const initialFocusRef = useRef();
   const { containerRef } = useContainerRef();
   return (
     <AlertDialog
       isOpen={isOpen}
-      leastDestructiveRef={cancelRef}
+      // Since we are not deleting, we can focus on the confirm button
+      leastDestructiveRef={initialFocusRef}
       onClose={onClose}
       portalProps={{ containerRef }}
       size="6xl"
@@ -58,10 +59,10 @@ const ConfirmDialog = ({
           </AlertDialogBody>
 
           <AlertDialogFooter>
-            <Button ref={cancelRef} onClick={onClose}>
+            <Button onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={onConfirm} ml={3}>
+            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef}>
               Confirm
             </Button>
           </AlertDialogFooter>

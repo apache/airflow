@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Table,
   Tbody,
@@ -31,9 +31,8 @@ import {
   Thead,
   Flex,
   useDisclosure,
-  IconButton,
+  Button,
 } from '@chakra-ui/react';
-import { MdArrowForward, MdArrowBack } from 'react-icons/md';
 
 import useTreeData from './useTreeData';
 import renderTaskRows from './renderTaskRows';
@@ -46,6 +45,7 @@ const sidePanelKey = 'showSidePanel';
 const Tree = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
+  const [tableWidth, setTableWidth] = useState('100%');
   const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
   const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
@@ -63,16 +63,16 @@ const Tree = () => {
 
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
-  const tableWidth = tableRef && tableRef.current ? tableRef.current.offsetWidth : '100%';
-
   useEffect(() => {
-    // Set initial scroll to top right if it is scrollable
-    const runsContainer = scrollRef.current;
-    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(runsContainer.clientWidth, 0);
+    if (tableRef && tableRef.current) {
+      setTableWidth(tableRef.current.offsetWidth);
+      const runsContainer = scrollRef.current;
+      // Set initial scroll to top right if it is scrollable
+      if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+        runsContainer.scrollBy(runsContainer.clientWidth, 0);
+      }
     }
-    // run when tableWidth or sidePanel changes
-  }, [tableWidth, isOpen]);
+  }, [tableRef, isOpen]);
 
   return (
     <Box>
@@ -84,18 +84,21 @@ const Tree = () => {
           </FormLabel>
           <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
         </FormControl>
-        <IconButton onClick={toggleSidePanel}>
-          {isOpen
-            ? <MdArrowForward size="18px" aria-label="Collapse Details" title="Collapse Details" />
-            : <MdArrowBack size="18px" title="Expand Details" aria-label="Expand Details" />}
-        </IconButton>
+        <Button
+          onClick={toggleSidePanel}
+          title={isOpen ? 'Show' : 'Hide'}
+          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
+          variant={isOpen ? 'solid' : 'outline'}
+        >
+          {isOpen ? 'Hide ' : 'Show '}
+          Details Panel
+        </Button>
       </Flex>
       <Flex flexDirection="row" justifyContent="space-between">
         <Box
           position="relative"
-          mr="12px"
-          mt="-8px"
-          pb="12px"
+          mt={2}
+          p="12px"
           overflow="auto"
           ref={scrollRef}
           flexGrow={1}

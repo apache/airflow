@@ -31,6 +31,7 @@ import {
   Link,
   Box,
   Button,
+  Flex,
 } from '@chakra-ui/react';
 
 import { formatDateTime, formatDuration } from '../../../datetime_utils';
@@ -92,11 +93,13 @@ const Dag = () => {
           <Tr>
             <Td>Tags</Td>
             <Td>
-              {tags.map((tag) => (
-                <Link key={tag.name} href={`/home?tags=${tag.name}`} mr={1}>
-                  <Tag colorScheme="blue" size="lg">{tag.name}</Tag>
-                </Link>
-              ))}
+              <Flex flexWrap="wrap">
+                {tags.map((tag) => (
+                  <Link key={tag.name} href={`/home?tags=${tag.name}`} mr={1}>
+                    <Tag colorScheme="blue" size="lg">{tag.name}</Tag>
+                  </Link>
+                ))}
+              </Flex>
             </Td>
           </Tr>
           )}
@@ -110,7 +113,7 @@ const Dag = () => {
           </Tr>
           <Tr>
             <Td>Relative File Location</Td>
-            <Td><Code colorScheme="blackAlpha">{fileloc}</Code></Td>
+            <Td><Code colorScheme="blackAlpha" maxWidth="250px">{fileloc}</Code></Td>
           </Tr>
           {dagRunTimeout && (
           <Tr>
