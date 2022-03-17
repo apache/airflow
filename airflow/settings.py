@@ -23,7 +23,6 @@ import os
 import sys
 import warnings
 from typing import TYPE_CHECKING, Callable, List, Optional, Union
-from urllib.parse import urlparse
 
 import pendulum
 import sqlalchemy
@@ -229,18 +228,6 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
-
-    # as of sqlalchemy 1.4, scheme `postgres+psycopg2` must be replaced with `postgresql`
-    parsed = urlparse(SQL_ALCHEMY_CONN)
-    bad_scheme = 'postgres+psycopg2'
-    if parsed.scheme == bad_scheme:
-        warnings.warn(
-            f"Scheme for metadata sql alchemy connection is `{bad_scheme}`."
-            "As of sqlalchemy 1.4 this is no longer supported.  You must change "
-            "to `postgresql`",
-            PendingDeprecationWarning,
-        )
-        SQL_ALCHEMY_CONN = SQL_ALCHEMY_CONN.replace(bad_scheme, 'postgresql')
 
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
