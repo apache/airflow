@@ -401,9 +401,7 @@ class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    def test_check_job_not_running_exec(
-        self,  dataflow_hook_mock, beam_hook_mock
-    ):
+    def test_check_job_not_running_exec(self, dataflow_hook_mock, beam_hook_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check if job is running
         """
