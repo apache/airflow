@@ -27,8 +27,8 @@ from airflow.timetables.simple import NullTimetable
 
 class EventsTimetable(NullTimetable):
     """
-    Timetable that schedules DAG runs at specific listed datetimes. Suitable for truly
-    irregular scheduling such as sporting events.
+    Timetable that schedules DAG runs at specific listed datetimes. Suitable for
+    predictable but truly irregular scheduling such as sporting events.
 
     :param event_dates: List of datetimes for the DAG to run at
     :type event_dates: Iterable of pendulum DateTimes
@@ -39,7 +39,7 @@ class EventsTimetable(NullTimetable):
 
     def __init__(self, event_dates: Iterable[DateTime], restrict_to_events: bool = False):
 
-        self.event_dates: np.array[pendulum.DateTime] = np.array(event_dates)
+        self.event_dates = np.array(event_dates)
         self.restrict_to_events = restrict_to_events
 
     def next_dagrun_info(
