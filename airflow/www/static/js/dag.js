@@ -135,12 +135,18 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   mapIndex = mi;
   $('#dag_run_id').text(drID);
   $('#task_id').text(t);
-  $('#map_index').text(mapIndex);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
   $('#taskInstanceModal').css('margin-top', '0');
   $('#extra_links').prev('hr').hide();
   $('#extra_links').empty().hide();
+  if (mi >= 0) {
+    $('#modal_map_index').show();
+    $('#map_index, #modal_map_index .value').text(mi);
+  } else {
+    $('#modal_map_index').hide();
+    $('#map_index, #modal_map_index .value').text('');
+  }
   if (sd) {
     $('#div_btn_subdag').show();
     subdagId = `${dagId}.${t}`;
