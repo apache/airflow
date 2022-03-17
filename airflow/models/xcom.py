@@ -204,6 +204,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.run_id == run_id,
             cls.task_id == task_id,
             cls.dag_id == dag_id,
+            cls.map_index == map_index,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
@@ -212,6 +213,7 @@ class BaseXCom(Base, LoggingMixin):
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
+            map_index=map_index,
         )
         session.add(new)
         session.flush()
