@@ -300,7 +300,7 @@ facebook = [
 flask_appbuilder_authlib = [
     'authlib',
 ]
-flyte = ["flytekit>=0.32.0b0", "awscli>=1.22.75", "gsutil>=5.8"]
+flyte = ["flytekit>=0.32.0b0"]
 github = [
     'pygithub',
 ]
