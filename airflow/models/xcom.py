@@ -26,7 +26,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, Index, Integer, LargeBinary, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, LargeBinary, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -71,25 +71,32 @@ class BaseXCom(Base, LoggingMixin):
     value = Column(LargeBinary)
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
+    __table_args__ = (
+        # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
+        # but it goes over MySQL's index length limit. So we instead index 'key'
+        # separately, and enforce uniqueness with DagRun.id instead.
+        Index("idx_xcom_key", key),
+        ForeignKeyConstraint(
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="xcom_task_instance_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+
     dag_run = relationship(
         "DagRun",
-        primaryjoin="""and_(
-            BaseXCom.dag_id == foreign(DagRun.dag_id),
-            BaseXCom.run_id == foreign(DagRun.run_id),
-        )""",
+        primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
         uselist=False,
         lazy="joined",
         passive_deletes="all",
     )
     execution_date = association_proxy("dag_run", "execution_date")
-
-    __table_args__ = (
-        # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
-        # but it goes over MySQL's index length limit. So we instead create indexes
-        # separately, and enforce uniqueness with DagRun.id instead.
-        Index("idx_xcom_key", key),
-        Index("idx_xcom_ti_id", dag_id, task_id, run_id, map_index),
-    )
 
     @reconstructor
     def init_on_load(self):
