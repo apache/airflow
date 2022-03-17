@@ -300,6 +300,7 @@ facebook = [
 flask_appbuilder_authlib = [
     'authlib',
 ]
+flyte = ["flytekit>=0.32.0b0", "awscli>=1.22.75", "gsutil>=5.8"]
 github = [
     'pygithub',
 ]
@@ -683,6 +684,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'elasticsearch': elasticsearch,
     'exasol': exasol,
     'facebook': facebook,
+    'flyte': flyte,
     'ftp': [],
     'github': github,
     'google': google,

@@ -157,6 +157,7 @@ Firehose
 Firestore
 Flink
 FluentD
+Flyte
 Formaturas
 Fundera
 GCS
@@ -810,6 +811,7 @@ filetype
 findall
 firstname
 fluentd
+flyte
 fmt
 fn
 fo
