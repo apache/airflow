@@ -20,7 +20,7 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
+This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.  For running airflow in production, we recommend running on kubernetes with the official helm chart.
 
 Customizing the quick-start Docker Compose
 ==========================================
