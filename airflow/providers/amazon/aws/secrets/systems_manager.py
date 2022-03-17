@@ -106,7 +106,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :return: deserialized Connection
         """
         warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
             f"in a future release.",
             PendingDeprecationWarning,
             stacklevel=2,

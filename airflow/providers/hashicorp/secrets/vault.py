@@ -167,7 +167,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         secret_path = self.build_path(self.connections_path, conn_id)
         return self.vault_client.get_secret(secret_path=secret_path)
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get serialized representation of connection
 
@@ -175,6 +175,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+            "in a future release.  Since VaultBackend implements `get_connection`, `get_conn_uri` "
+            "is not used.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
         response = self.get_response(conn_id)
 
         return response.get("conn_uri") if response else None
@@ -183,21 +190,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     # the backend it will get a circular dependency and fail
     if TYPE_CHECKING:
         from airflow.models.connection import Connection
-
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
-        """
-        Return URI representation of Connection conn_id
-
-        :param conn_id: the connection id
-        :return: deserialized Connection
-        """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_value` is deprecated and will be removed "
-            f"in a future release.",
-            PendingDeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get_conn_value(conn_id)
 
     def get_connection(self, conn_id: str) -> 'Optional[Connection]':
         """
