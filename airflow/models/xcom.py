@@ -46,10 +46,6 @@ log = logging.getLogger(__name__)
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
-# Stand-in value for 'airflow task test' generating a temporary in-memory DAG
-# run without storing it in the database.
-IN_MEMORY_RUN_ID = "__airflow_in_memory_dagrun__"
-
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
@@ -182,8 +178,6 @@ class BaseXCom(Base, LoggingMixin):
                 )
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
-        elif run_id == IN_MEMORY_RUN_ID:
-            dag_run_id = -1
         else:
             dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
             if dag_run_id is None:
@@ -461,8 +455,6 @@ class BaseXCom(Base, LoggingMixin):
             if execution_date is not None:
                 query = query.filter(DagRun.execution_date <= execution_date)
             else:
-                # This returns an empty query result for IN_MEMORY_RUN_ID,
-                # but that is impossible to implement. Sorry?
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
                 query = query.filter(cls.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
