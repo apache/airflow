@@ -25,11 +25,11 @@ export default function useClearRun(dagId, runId) {
   const queryClient = useQueryClient();
   return useMutation(
     ['dagRunClear', dagId, runId],
-    () => {
+    ({ confirmed = false }) => {
       const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
-        confirmed: true,
+        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();

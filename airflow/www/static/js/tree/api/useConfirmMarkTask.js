@@ -20,11 +20,11 @@
 import axios from 'axios';
 import { useMutation } from 'react-query';
 
-export default function useConfirmTaskChange({
+export default function useConfirmMarkTask({
   dagId, runId, taskId, state,
 }) {
   return useMutation(
-    ['confirmChange', dagId, runId, taskId, state],
+    ['confirmStateChange', dagId, runId, taskId, state],
     ({
       past, future, upstream, downstream,
     }) => {
@@ -39,7 +39,7 @@ export default function useConfirmTaskChange({
         state,
       }).toString();
 
-      return axios.get(`/object/confirm_json?${params}`);
+      return axios.get(`/object/confirm_state_change?${params}`);
     },
   );
 }

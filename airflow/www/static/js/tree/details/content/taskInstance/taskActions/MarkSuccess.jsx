@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Flex,
@@ -25,53 +25,57 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
-import { useMarkSuccessTask, useConfirmTaskChange } from '../../../../api';
+import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
-const Run = ({
-  dagId,
-  runId,
-  taskId,
-}) => {
+const Run = ({ dagId, runId, taskId }) => {
+  const [affectedTasks, setAffectedTasks] = useState([]);
+
+  // Options check/unchecked
   const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
   const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
   const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
   const { isOpen: downstream, onToggle: onToggleDownstream } = useDisclosure();
 
-  const { mutate: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
-    dagId, runId, taskId,
-  });
-
+  // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const {
-    data, mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
-  } = useConfirmTaskChange({
+  const { mutateAsync: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
+    dagId, runId, taskId,
+  });
+  const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } = useConfirmMarkTask({
     dagId, runId, taskId, state: 'success',
   });
 
   const onClick = async () => {
-    confirmChangeMutation({
-      past,
-      future,
-      upstream,
-      downstream,
-    });
+    try {
+      const data = await confirmChangeMutation({
+        past,
+        future,
+        upstream,
+        downstream,
+      });
+      setAffectedTasks(data);
+      onOpen();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  useEffect(() => {
-    if (!isConfirmLoading && !!data) onOpen();
-  }, [isConfirmLoading, data, onOpen]);
-
-  const onConfirm = () => {
-    markSuccessMutation({
-      past,
-      future,
-      upstream,
-      downstream,
-    });
-    onClose();
+  const onConfirm = async () => {
+    try {
+      await markSuccessMutation({
+        past,
+        future,
+        upstream,
+        downstream,
+      });
+      setAffectedTasks([]);
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -90,7 +94,7 @@ const Run = ({
         onClose={onClose}
         onConfirm={onConfirm}
         title="Mark Tasks as Success"
-        body={data}
+        body={affectedTasks}
       />
     </Flex>
   );

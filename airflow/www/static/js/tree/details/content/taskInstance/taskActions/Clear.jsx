@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Flex,
@@ -26,7 +26,8 @@ import {
 } from '@chakra-ui/react';
 
 import ActionButton from './ActionButton';
-import { useClearTask } from '../../../../api';
+import ConfirmDialog from '../../ConfirmDialog';
+import { useClearTask, useConfirmClearTask } from '../../../../api';
 
 const Run = ({
   dagId,
@@ -34,6 +35,9 @@ const Run = ({
   taskId,
   executionDate,
 }) => {
+  const [affectedTasks, setAffectedTasks] = useState([]);
+
+  // Options check/unchecked
   const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
   const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
   const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
@@ -45,19 +49,50 @@ const Run = ({
   } = useDisclosure({ defaultIsOpen: true });
   const { isOpen: failed, onToggle: onToggleFailed } = useDisclosure();
 
-  const { mutate: clearTaskMutation, isLoading } = useClearTask({
+  // Confirm dialog open/close
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const { mutateAsync: clearTaskMutation, isLoading: isClearLoading } = useClearTask({
+    dagId, runId, taskId, executionDate,
+  });
+  const {
+    mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
+  } = useConfirmClearTask({
     dagId, runId, taskId, executionDate,
   });
 
-  const onClear = () => {
-    clearTaskMutation({
-      past,
-      future,
-      upstream,
-      downstream,
-      recursive,
-      failed,
-    });
+  const onClick = async () => {
+    try {
+      const data = await confirmChangeMutation({
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        failed,
+      });
+      setAffectedTasks(data);
+      onOpen();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const onConfirm = async () => {
+    try {
+      await clearTaskMutation({
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        failed,
+      });
+      setAffectedTasks([]);
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -72,12 +107,19 @@ const Run = ({
       </ButtonGroup>
       <Button
         colorScheme="blue"
-        onClick={onClear}
-        isLoading={isLoading}
+        onClick={onClick}
+        isLoading={isClearLoading || isConfirmLoading}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear
       </Button>
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        title="Clear and Re-Trigger Tasks"
+        body={affectedTasks}
+      />
     </Flex>
   );
 };

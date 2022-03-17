@@ -31,7 +31,8 @@ import useClearTask from './useClearTask';
 import useMarkFailedTask from './useMarkFailedTask';
 import useMarkSuccessTask from './useMarkSuccessTask';
 import useExtraLinks from './useExtraLinks';
-import useConfirmTaskChange from './useConfirmTaskChange';
+import useConfirmMarkTask from './useConfirmMarkTask';
+import useConfirmClearTask from './useConfirmClearTask';
 
 axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -49,5 +50,6 @@ export {
   useMarkFailedTask,
   useMarkSuccessTask,
   useExtraLinks,
-  useConfirmTaskChange,
+  useConfirmMarkTask,
+  useConfirmClearTask,
 };

@@ -26,7 +26,7 @@ import {
 
 import Header from './Header';
 import TaskInstanceContent from './content/taskInstance';
-import DagRunContent from './content/DagRun';
+import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
 import useTreeData from '../useTreeData';
 import { useSelection } from '../providers/selection';

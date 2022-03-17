@@ -1973,18 +1973,11 @@ class Airflow(AirflowBaseView):
 
         if not tis:
             flash("No task instances to clear", 'error')
-            response = redirect(origin)
+            return redirect(origin)
         else:
-            details = "\n".join(str(t) for t in tis)
+            details = [str(t) for t in tis]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                endpoint=None,
-                message="Here's the list of task instances you are about to clear:",
-                details=details,
-            )
-
-        return response
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     @expose('/clear', methods=['POST'])
     @auth.has_access(
@@ -2115,15 +2108,9 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to mark as failed or skipped",
-                details=details,
-            )
-
-            return response
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     def _mark_dagrun_state_as_success(self, dag_id, dag_run_id, confirmed, origin):
         if not dag_run_id:
@@ -2143,15 +2130,9 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to mark as success",
-                details=details,
-            )
-
-            return response
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, origin: str):
         if not dag_run_id:
@@ -2171,15 +2152,9 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to change",
-                details=details,
-            )
-
-            return response
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access(
@@ -2383,7 +2358,7 @@ class Airflow(AirflowBaseView):
 
         return response
 
-    @expose('/object/confirm_json', methods=['GET'])
+    @expose('/object/confirm_state_change', methods=['GET'])
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
@@ -2391,7 +2366,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def confirm_json(self):
+    def confirm_state_change(self):
         """Show confirmation page for marking tasks as success or failed."""
         args = request.args
         dag_id = args.get('dag_id')
@@ -2444,6 +2419,60 @@ class Airflow(AirflowBaseView):
         )
 
         details = [str(t) for t in to_be_altered]
+
+        return htmlsafe_json_dumps(details, separators=(',', ':'))
+
+    @expose('/object/confirm_clear', methods=['GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def confirm_clear(self):
+        """Show confirmation page for clearing a task."""
+        args = request.args
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        origin = args.get('origin')
+
+        execution_date = args.get('execution_date')
+        execution_date = timezone.parse(execution_date)
+        upstream = args.get('upstream') == "true"
+        downstream = args.get('downstream') == "true"
+        future = args.get('future') == "true"
+        past = args.get('past') == "true"
+        recursive = args.get('recursive') == "true"
+        only_failed = args.get('only_failed') == "true"
+
+        dag = dag.partial_subset(
+            task_ids_or_regex=fr"^{task_id}$",
+            include_downstream=downstream,
+            include_upstream=upstream,
+        )
+        end_date = execution_date if not future else None
+        start_date = execution_date if not past else None
+
+        try:
+            tis = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                include_parentdag=recursive,
+                only_failed=only_failed,
+                dry_run=True,
+            )
+        except AirflowException as ex:
+            flash(str(ex), 'error')
+            return redirect(origin)
+
+        if not tis:
+            flash("No task instances to clear", 'error')
+            return redirect(origin)
+        else:
+            details = [str(t) for t in tis]
 
         return htmlsafe_json_dumps(details, separators=(',', ':'))
 

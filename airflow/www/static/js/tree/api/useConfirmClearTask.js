@@ -18,32 +18,30 @@
  */
 
 import axios from 'axios';
-import { useMutation, useQueryClient } from 'react-query';
-import { getMetaValue } from '../../utils';
+import { useMutation } from 'react-query';
 
-export default function useMarkFailedRun(dagId, runId) {
-  const queryClient = useQueryClient();
+export default function useConfirmClearTask({
+  dagId, runId, taskId, executionDate,
+}) {
   return useMutation(
-    ['dagRunFailed', dagId, runId],
-    ({ confirmed = false }) => {
-      const csrfToken = getMetaValue('csrf_token');
+    ['confirmClearTask', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, recursive, failed,
+    }) => {
       const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
+        task_id: taskId,
+        execution_date: executionDate,
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        only_failed: failed,
       }).toString();
 
-      return axios.post('/dagrun_failed', params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
-    {
-      onSettled: () => {
-        queryClient.invalidateQueries('treeData');
-      },
+      return axios.get(`/object/confirm_clear?${params}`);
     },
   );
 }
