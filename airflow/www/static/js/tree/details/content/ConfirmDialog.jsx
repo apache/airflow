@@ -44,6 +44,7 @@ const ConfirmDialog = ({
       onClose={onClose}
       portalProps={{ containerRef }}
       size="6xl"
+      blockScrollOnMount={false}
     >
       <AlertDialogOverlay>
         <AlertDialogContent>
