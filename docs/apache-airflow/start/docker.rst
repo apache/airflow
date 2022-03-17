@@ -26,7 +26,7 @@ Customizing the quick-start Docker Compose
 ==========================================
 
 DO NOT attempt to customize images and the Docker Compose if you do not know exactly what you are doing,
-know Docker Compose or do not will to debug and resolve problems on your own. If you do not
+do not know Docker Compose, or are not prepared to debug and resolve problems on your own. If you do not
 know Docker Compose and expect Airflow to **just work** beyond following precisely the quick-start,
 then please use other ways of running Airflow - for example :doc:`/start/local` for testing and trying
 and :doc:`Official Airflow Community Helm Chart<helm-chart:index>` for production purposes.
