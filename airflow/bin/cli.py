@@ -3017,7 +3017,7 @@ ARG_ROLE = Arg(
     required=True,
     type=str,
 )
-ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type=str)
+ARG_EMAIL = Arg(('--email',), help='Email of the user', required=True, type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
     help='Password of the user, required to create a user without --use-random-password',
@@ -4154,7 +4154,7 @@ class CLIFactory(object):
             help='Last name of the user',
             type=str),
         'email': Arg(
-            ('-e', '--email',),
+            ('--email',),
             help='Email of the user',
             type=str),
         'password': Arg(
