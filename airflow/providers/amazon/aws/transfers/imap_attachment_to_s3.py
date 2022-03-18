@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer mail attachments from a mail server into s3 bucket."""
-from typing import TYPE_CHECKING, Sequence
+import warnings
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -24,6 +25,10 @@ from airflow.providers.imap.hooks.imap import ImapHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+_DEPRECATION_MSG = (
+    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
+)
 
 
 class ImapAttachmentToS3Operator(BaseOperator):
@@ -59,10 +64,15 @@ class ImapAttachmentToS3Operator(BaseOperator):
         imap_mail_filter: str = 'All',
         s3_overwrite: bool = False,
         imap_conn_id: str = 'imap_default',
+        s3_conn_id: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if s3_conn_id:
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
+            aws_conn_id = s3_conn_id
+
         self.imap_attachment_name = imap_attachment_name
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
