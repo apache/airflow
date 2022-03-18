@@ -125,8 +125,8 @@ def upgrade():
         batch_op.create_foreign_key(
             "xcom_task_instance_fkey",
             "task_instance",
-            ["dag_id", "run_id", "task_id", "map_index"],
-            ["dag_id", "run_id", "task_id", "map_index"],
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ["dag_id", "task_id", "run_id", "map_index"],
             ondelete="CASCADE",
         )
 
