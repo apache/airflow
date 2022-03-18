@@ -604,7 +604,7 @@ intersphinx_mapping = {
     pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
     for pkg_name in [
         'boto3',
-        # 'celery', # Temporarily remove celery as it disappeared from Internet
+        'celery',
         'docker',
         'hdfs',
         'jinja2',
