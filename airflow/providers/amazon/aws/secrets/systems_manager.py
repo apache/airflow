@@ -36,7 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return val.split('.')
+    return tuple(val.split('.'))
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
