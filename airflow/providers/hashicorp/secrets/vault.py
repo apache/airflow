@@ -16,12 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault"""
+import re
 import warnings
 from typing import TYPE_CHECKING, Optional
+
+from semver import parse as semver_parse
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return semver_parse(val)
 
 
 class VaultBackend(BaseSecretsBackend, LoggingMixin):

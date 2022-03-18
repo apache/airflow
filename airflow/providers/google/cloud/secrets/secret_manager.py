@@ -17,11 +17,12 @@
 
 """Objects relating to sourcing connections from Google Cloud Secrets Manager"""
 import logging
+import re
 import warnings
 from typing import Optional
 
 from google.auth.exceptions import DefaultCredentialsError
-from semver import parse as parse_version
+from semver import parse as semver_parse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
@@ -33,6 +34,11 @@ from airflow.version import version as airflow_version
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return semver_parse(val)
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -146,7 +152,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
             "in a future release."
         )
-        if parse_version(airflow_version) < parse_version('2.3.0'):
+        if _parse_version(airflow_version) < _parse_version('2.3.0'):
             message += (
                 "\nIf you are not calling this method directly, you can make it go away by upgrading "
                 "to Airflow 2.3.0, which no longer calls this method."

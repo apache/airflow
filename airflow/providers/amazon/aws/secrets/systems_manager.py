@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
+import re
 import sys
 import warnings
 from typing import Optional
 
 import boto3
-from semver import parse as parse_version
+from semver import parse as semver_parse
 
 from airflow.version import version as airflow_version
 
@@ -32,6 +33,11 @@ else:
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return semver_parse(val)
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
@@ -112,7 +118,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
             "in a future release."
         )
-        if parse_version(airflow_version) < parse_version('2.3.0'):
+        if _parse_version(airflow_version) < _parse_version('2.3.0'):
             message += (
                 "\nIf you are not calling this method directly, you can make it go away by upgrading "
                 "to Airflow 2.3.0, which no longer calls this method."
