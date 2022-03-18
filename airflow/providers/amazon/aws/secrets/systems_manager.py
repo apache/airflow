@@ -116,7 +116,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= _parse_version('2.3.0'):
+        if _parse_version(airflow_version) >= (2, 3):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.",
