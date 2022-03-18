@@ -19,6 +19,8 @@
 
 __all__ = ['version']
 
+from semver import VersionInfo
+
 try:
     import importlib_metadata as metadata
 except ImportError:
@@ -33,4 +35,5 @@ except metadata.PackageNotFoundError:
     log.warning("Package metadata could not be found. Overriding it with version found in setup.py")
     from setup import version
 
+version_info = VersionInfo.parse(version)
 del metadata
