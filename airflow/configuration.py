@@ -324,17 +324,18 @@ class AirflowConfigParser(ConfigParser):
         """As of sqlalchemy 1.4, scheme `postgres+psycopg2` must be replaced with `postgresql`"""
         section, key = 'core', 'sql_alchemy_conn'
         old_value = self.get(section, key)
-        parsed = urlparse(old_value)
         bad_scheme = 'postgres+psycopg2'
+        good_scheme = 'postgresql'
+        parsed = urlparse(old_value)
         if parsed.scheme == bad_scheme:
             warnings.warn(
                 f"Scheme for metadata sql alchemy connection is `{bad_scheme}`."
                 "As of sqlalchemy 1.4 this is no longer supported.  You must change "
-                "to `postgresql`",
+                f"to `{good_scheme}`",
                 FutureWarning,
             )
-            self.upgraded_values[('core', 'sql_alchemy_conn')] = old_value
-            new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), 'postgresql://', old_value)
+            self.upgraded_values[(section, key)] = old_value
+            new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
             self.set(section=section, option=key, value=new_value)
 
