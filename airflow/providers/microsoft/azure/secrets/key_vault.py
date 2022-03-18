@@ -22,7 +22,7 @@ from typing import Optional
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from semver import parse as semver_parse
+from semver import VersionInfo
 
 from airflow.version import version as airflow_version
 
@@ -37,7 +37,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return semver_parse(val)
+    return VersionInfo.parse(val)
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):

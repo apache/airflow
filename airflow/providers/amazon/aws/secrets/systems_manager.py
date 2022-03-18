@@ -22,7 +22,7 @@ import warnings
 from typing import Optional
 
 import boto3
-from semver import parse as semver_parse
+from semver import VersionInfo
 
 from airflow.version import version as airflow_version
 
@@ -37,7 +37,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return semver_parse(val)
+    return VersionInfo.parse(val)
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
