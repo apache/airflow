@@ -19,8 +19,11 @@
 """Add map_index to TaskFail
 
 Drop index idx_task_fail_dag_task_date
+Add run_id and map_index
+Drop execution_date
 Add FK `task_fail_ti_fkey`: TF -> TI ([dag_id, task_id, run_id, map_index])
-
+Change primary key from [id, dag_id, task_id, execution_date] to [id]
+    * since we are changing the PK have to handle mysql autoincrement column `id` separately
 
 
 Revision ID: 48925b2719cb
@@ -32,6 +35,7 @@ from typing import List
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import Integer
 from sqlalchemy.sql import ColumnElement, Update, and_, select
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
@@ -126,11 +130,17 @@ def upgrade():
             constraints = get_mssql_table_constraints(op.get_bind(), 'task_fail')
             pk, _ = constraints['PRIMARY KEY'].popitem()
             batch_op.drop_constraint(pk, type_='primary')
+        elif dialect_name == 'mysql':  # have to handle mysql autoincrement column separately
+            batch_op.alter_column('id', type_=Integer, autoincrement=False, nullable=False)
+            batch_op.drop_constraint('task_fail_pkey', type_='primary')
         elif dialect_name != 'sqlite':  # sqlite PK is managed by SQLA
             batch_op.drop_constraint('task_fail_pkey', type_='primary')
+        batch_op.alter_column('id', existing_type=StringID(), existing_nullable=True, nullable=False)
         batch_op.alter_column('run_id', existing_type=StringID(), existing_nullable=True, nullable=False)
         batch_op.drop_column('execution_date')
         batch_op.create_primary_key('task_fail_pkey', ['id'])
+        if dialect_name == 'mysql':  # have to handle mysql autoincrement column separately
+            batch_op.alter_column('id', type_=Integer, autoincrement=True, nullable=False)
         batch_op.create_foreign_key(
             'task_fail_ti_fkey',
             'task_instance',
