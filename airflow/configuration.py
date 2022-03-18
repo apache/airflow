@@ -329,9 +329,9 @@ class AirflowConfigParser(ConfigParser):
         parsed = urlparse(old_value)
         if parsed.scheme == bad_scheme:
             warnings.warn(
-                f"Scheme for metadata sql alchemy connection is `{bad_scheme}`."
-                "As of sqlalchemy 1.4 this is no longer supported.  You must change "
-                f"to `{good_scheme}`",
+                f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{bad_scheme}`. "
+                "As of SqlAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
+                f"change to `{good_scheme}` before the next Airflow release.",
                 FutureWarning,
             )
             self.upgraded_values[(section, key)] = old_value
