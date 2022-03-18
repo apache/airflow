@@ -43,7 +43,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         See :py:meth:`imaplib.IMAP4.search` for details.
     :param s3_overwrite: If set overwrites the s3 key if already exists.
     :param imap_conn_id: The reference to the connection details of the mail server.
-    :param s3_conn_id: The reference to the s3 connection details.
+    :param aws_conn_id: AWS connection to use.
     """
 
     template_fields: Sequence[str] = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
@@ -59,7 +59,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         imap_mail_filter: str = 'All',
         s3_overwrite: bool = False,
         imap_conn_id: str = 'imap_default',
-        s3_conn_id: str = 'aws_default',
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -71,7 +71,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         self.imap_mail_filter = imap_mail_filter
         self.s3_overwrite = s3_overwrite
         self.imap_conn_id = imap_conn_id
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context') -> None:
         """
@@ -94,7 +94,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
                 mail_filter=self.imap_mail_filter,
             )
 
-        s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         s3_hook.load_bytes(
             bytes_data=imap_mail_attachments[0][1],
             bucket_name=self.s3_bucket,
