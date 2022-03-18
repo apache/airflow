@@ -62,7 +62,7 @@ To confirm that it is set up correctly, run `echo $NAME_OF_ENV_VAR` which will d
 - `SYSTEM_TESTS_GCP_PROJECT` - GCP project name that will be used to run system tests (this can be checked on the UI
   dashboard of the GCP or by running `gcloud config list`).
 
-- `SYSTEM_TESTS_ENV_ID` - environment ID that is unique across between different executions of system tests (if they
+- `SYSTEM_TESTS_ENV_ID` - environment ID that is unique across different executions of system tests (if they
   are run in parallel). The need for this variable comes from the possibility, that the tests may be run on various
   versions of Airflow at the same time using CI environment. If this is the case, the value of this variable ensures
   that all resources that are created during the tests, will not interfere with other resources in the same project,
