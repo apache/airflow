@@ -334,7 +334,7 @@ class AirflowConfigParser(ConfigParser):
                 FutureWarning,
             )
             self.upgraded_values[('core', 'sql_alchemy_conn')] = old_value
-            new_value = re.sub(r"^postgres\+psycopg2://", 'postgresql://', old_value)
+            new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), 'postgresql://', old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
             self.set(section=section, option=key, value=new_value)
 
