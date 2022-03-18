@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/* global $, moment, Airflow, window, localStorage, document, hostName, csrfToken */
+/* global $, moment, Airflow, window, localStorage, document, hostName, csrfToken, Event */
 
 import {
   dateTimeAttrFormat,
@@ -41,8 +41,17 @@ function displayTime() {
     .html(`${now.format('HH:mm')} <strong>${formatTimezone(now)}</strong>`);
 }
 
+export const TimezoneEvent = 'timezone';
+
 function changeDisplayedTimezone(tz) {
   localStorage.setItem('selected-timezone', tz);
+
+  // dispatch an event that React can listen for
+  const event = new Event(TimezoneEvent);
+  event.value = tz;
+  event.key = 'selected-timezone';
+  document.dispatchEvent(event);
+
   setDisplayedTimezone(tz);
   displayTime();
   $('body').trigger({

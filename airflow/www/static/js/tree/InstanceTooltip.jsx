@@ -21,7 +21,8 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
 import { finalStatesMap } from '../utils';
-import { formatDateTime, formatDuration, getDuration } from '../datetime_utils';
+import { formatDuration, getDuration } from '../datetime_utils';
+import Time from './Time';
 
 const InstanceTooltip = ({
   group,
@@ -91,7 +92,7 @@ const InstanceTooltip = ({
       <Text>
         Started:
         {' '}
-        {startDate && formatDateTime(startDate)}
+        <Time dateTime={startDate} />
       </Text>
       <Text>
         Duration:

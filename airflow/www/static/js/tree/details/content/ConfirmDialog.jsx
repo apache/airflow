@@ -36,7 +36,7 @@ const ConfirmDialog = ({
   isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,
 }) => {
   const initialFocusRef = useRef();
-  const { containerRef } = useContainerRef();
+  const containerRef = useContainerRef();
   return (
     <AlertDialog
       isOpen={isOpen}

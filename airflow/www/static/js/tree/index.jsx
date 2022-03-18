@@ -29,6 +29,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import Tree from './Tree';
 import { SelectionProvider } from './providers/selection';
 import { ContainerRefProvider } from './providers/containerRef';
+import { TimezoneProvider } from './providers/timezone';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -56,9 +57,11 @@ function App() {
         <ChakraProvider>
           <ContainerRefProvider>
             <QueryClientProvider client={queryClient}>
-              <SelectionProvider>
-                <Tree />
-              </SelectionProvider>
+              <TimezoneProvider>
+                <SelectionProvider>
+                  <Tree />
+                </SelectionProvider>
+              </TimezoneProvider>
             </QueryClientProvider>
           </ContainerRefProvider>
         </ChakraProvider>

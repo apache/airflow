@@ -27,9 +27,9 @@ import {
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
-import { formatDateTime } from '../../datetime_utils';
 import { getMetaValue } from '../../utils';
 import { useSelection } from '../providers/selection';
+import Time from '../Time';
 
 const dagId = getMetaValue('dag_id');
 
@@ -43,14 +43,21 @@ const LabelValue = ({ label, value }) => (
 const Header = ({ dagRuns }) => {
   const { selected: { taskId, runId, task }, onSelect } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
-  let runLabel = dagRun ? formatDateTime(dagRun.dataIntervalEnd) : '';
-  if (dagRun && dagRun.runType === 'manual') {
-    runLabel = (
-      <>
-        <MdPlayArrow style={{ display: 'inline' }} />
-        {runLabel}
-      </>
-    );
+  let runLabel;
+  if (dagRun) {
+    if (runId.includes('manual__') || runId.includes('scheduled__') || runId.includes('backfill__')) {
+      runLabel = (<Time dateTime={dagRun.dataIntervalEnd} />);
+    } else {
+      runLabel = runId;
+    }
+    if (dagRun.runType === 'manual') {
+      runLabel = (
+        <>
+          <MdPlayArrow style={{ display: 'inline' }} />
+          {runLabel}
+        </>
+      );
+    }
   }
 
   const isMapped = task && task.isMapped;

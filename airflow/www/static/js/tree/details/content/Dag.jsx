@@ -34,9 +34,10 @@ import {
   Flex,
 } from '@chakra-ui/react';
 
-import { formatDateTime, formatDuration } from '../../../datetime_utils';
+import { formatDuration } from '../../../datetime_utils';
 import { getMetaValue } from '../../../utils';
 import { useDag, useTasks } from '../../api';
+import Time from '../../Time';
 
 const dagId = getMetaValue('dag_id');
 
@@ -74,7 +75,9 @@ const Dag = () => {
           )}
           <Tr>
             <Td>Start Date</Td>
-            <Td>{formatDateTime(startDate)}</Td>
+            <Td>
+              <Time dateTime={startDate} />
+            </Td>
           </Tr>
           <Tr>
             <Td>Total Tasks</Td>

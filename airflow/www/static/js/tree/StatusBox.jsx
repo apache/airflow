@@ -48,7 +48,7 @@ export const SimpleStatus = ({ state, ...rest }) => (
 const StatusBox = ({
   group, instance,
 }) => {
-  const { containerRef } = useContainerRef();
+  const containerRef = useContainerRef();
   const { selected, onSelect } = useSelection();
   const { runId, taskId } = instance;
   const { colors } = useTheme();

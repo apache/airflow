@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global stateColors, moment */
+/* global stateColors */
 
 import React from 'react';
 import { isEqual } from 'lodash';
@@ -34,13 +34,14 @@ import { MdPlayArrow } from 'react-icons/md';
 import DagRunTooltip from './Tooltip';
 import { useContainerRef } from '../providers/containerRef';
 import { useSelection } from '../providers/selection';
+import Time from '../Time';
 
 const BAR_HEIGHT = 100;
 
 const DagRunBar = ({
   run, max, index, totalRuns,
 }) => {
-  const { containerRef } = useContainerRef();
+  const containerRef = useContainerRef();
   const { selected, onSelect } = useSelection();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
@@ -108,7 +109,7 @@ const DagRunBar = ({
       {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
-          {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
+          <Time dateTime={run.executionDate} format="MMM DD, HH:mm" />
         </Text>
         <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
       </VStack>

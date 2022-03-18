@@ -17,34 +17,29 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+/* global moment, document */
 
-import { formatDuration } from '../../datetime_utils';
-import Time from '../Time';
+import React, { useContext, useEffect, useState } from 'react';
+import { TimezoneEvent } from '../../main';
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalEnd,
-  },
-}) => (
-  <Box fontSize="12px" py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      <Time dateTime={dataIntervalEnd} />
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
+const TimezoneContext = React.createContext(null);
 
-export default DagRunTooltip;
+export const TimezoneProvider = ({ children }) => {
+  const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
+
+  useEffect(() => {
+    const handleChange = (e) => setTimezone(e.value);
+    document.addEventListener(TimezoneEvent, handleChange);
+    return () => {
+      document.removeEventListener(TimezoneEvent, handleChange);
+    };
+  });
+
+  return (
+    <TimezoneContext.Provider value={{ timezone }}>
+      {children}
+    </TimezoneContext.Provider>
+  );
+};
+
+export const useTimezone = () => useContext(TimezoneContext);

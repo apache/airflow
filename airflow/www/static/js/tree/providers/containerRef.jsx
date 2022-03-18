@@ -28,7 +28,7 @@ export const ContainerRefProvider = ({ children }) => {
   const containerRef = useRef();
 
   return (
-    <ContainerRefContext.Provider value={{ containerRef }}>
+    <ContainerRefContext.Provider value={containerRef}>
       <Box position="relative" ref={containerRef}>
         {children}
       </Box>

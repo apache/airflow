@@ -16,9 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* global moment */
-
 import React from 'react';
 import {
   Flex,
@@ -31,7 +28,8 @@ import {
 import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../../StatusBox';
-import { formatDateTime, formatDuration } from '../../../../datetime_utils';
+import { formatDuration } from '../../../../datetime_utils';
+import Time from '../../../Time';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -52,8 +50,6 @@ const DagRun = ({
     executionDate,
   },
 }) => {
-  const localTZ = moment.defaultZone.name.toUpperCase();
-
   const params = new URLSearchParams({
     dag_id: dagId,
     run_id: runId,
@@ -109,7 +105,7 @@ const DagRun = ({
       <Text>
         Last Scheduling Decision:
         {' '}
-        {formatDateTime(lastSchedulingDecision)}
+        <Time dateTime={lastSchedulingDecision} />
       </Text>
       )}
       <br />
@@ -117,45 +113,24 @@ const DagRun = ({
       <Text>
         Start:
         {' '}
-        {formatDateTime(dataIntervalStart)}
+        <Time dateTime={dataIntervalStart} />
       </Text>
       <Text>
         End:
         {' '}
-        {formatDateTime(dataIntervalEnd)}
+        <Time dateTime={dataIntervalEnd} />
       </Text>
       <br />
-      <Text as="strong">UTC</Text>
       <Text>
         Started:
         {' '}
-        {formatDateTime(moment.utc(startDate))}
+        <Time dateTime={startDate} />
       </Text>
       <Text>
         Ended:
         {' '}
-        {endDate && formatDateTime(moment.utc(endDate))}
+        <Time dateTime={endDate} />
       </Text>
-      {localTZ !== 'UTC' && (
-        <>
-          <br />
-          <Text as="strong">
-            Local:
-            {' '}
-            {moment().format('Z')}
-          </Text>
-          <Text>
-            Started:
-            {' '}
-            {formatDateTime(startDate)}
-          </Text>
-          <Text>
-            Ended:
-            {' '}
-            {endDate && formatDateTime(endDate)}
-          </Text>
-        </>
-      )}
     </Box>
   );
 };

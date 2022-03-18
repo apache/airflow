@@ -17,8 +17,6 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
 import {
   Text,
@@ -39,8 +37,9 @@ import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 
 import { finalStatesMap, getMetaValue } from '../../../../utils';
-import { formatDateTime, getDuration, formatDuration } from '../../../../datetime_utils';
+import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
+import Time from '../../../Time';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
@@ -67,8 +66,6 @@ const TaskInstance = ({
   const isGroup = !!task.children;
   const groupSummary = [];
   const mapSummary = [];
-
-  const localTZ = moment.defaultZone.name.toUpperCase();
 
   if (isGroup) {
     const numMap = finalStatesMap();
@@ -246,37 +243,16 @@ const TaskInstance = ({
           </Text>
         </Box>
         <Box>
-          <Text as="strong">UTC</Text>
           <Text>
             Started:
             {' '}
-            {startDate && formatDateTime(moment.utc(startDate))}
+            <Time dateTime={startDate} />
           </Text>
           <Text>
             Ended:
             {' '}
-            {endDate && formatDateTime(moment.utc(endDate))}
+            <Time dateTime={endDate} />
           </Text>
-          {localTZ !== 'UTC' && (
-            <>
-              <br />
-              <Text as="strong">
-                Local:
-                {' '}
-                {moment().format('Z')}
-              </Text>
-              <Text>
-                Started:
-                {' '}
-                {startDate && formatDateTime(startDate)}
-              </Text>
-              <Text>
-                Ended:
-                {' '}
-                {endDate && formatDateTime(endDate)}
-              </Text>
-            </>
-          )}
         </Box>
       </Flex>
       <ExtraLinks

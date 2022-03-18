@@ -17,34 +17,30 @@
  * under the License.
  */
 
+/* global moment */
+
 import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import { useTimezone } from './providers/timezone';
+import { defaultFormatWithTZ } from '../datetime_utils';
 
-import { formatDuration } from '../../datetime_utils';
-import Time from '../Time';
+const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
+  const { timezone } = useTimezone();
+  const time = moment(dateTime);
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalEnd,
-  },
-}) => (
-  <Box fontSize="12px" py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      <Time dateTime={dataIntervalEnd} />
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
+  // eslint-disable-next-line no-underscore-dangle
+  if (!dateTime || !time._isValid) return null;
 
-export default DagRunTooltip;
+  const formattedTime = time.tz(timezone).format(format);
+  const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
+  return (
+    <time
+      dateTime={dateTime}
+      // show title if date is not UTC
+      title={timezone.toUpperCase() !== 'UTC' ? utcTime : undefined}
+    >
+      {formattedTime}
+    </time>
+  );
+};
+
+export default Time;

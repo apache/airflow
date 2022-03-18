@@ -22,12 +22,13 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import DagRuns from './index';
 import { ContainerRefProvider } from '../providers/containerRef';
 import { SelectionProvider } from '../providers/selection';
+import { TimezoneProvider } from '../providers/timezone';
 
 global.moment = moment;
 
@@ -38,13 +39,15 @@ const Wrapper = ({ children }) => {
       <ChakraProvider>
         <QueryClientProvider client={queryClient}>
           <ContainerRefProvider value={{}}>
-            <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
-              <Table>
-                <Tbody>
-                  {children}
-                </Tbody>
-              </Table>
-            </SelectionProvider>
+            <TimezoneProvider value={{ timezone: 'UTC' }}>
+              <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+                <Table>
+                  <Tbody>
+                    {children}
+                  </Tbody>
+                </Table>
+              </SelectionProvider>
+            </TimezoneProvider>
           </ContainerRefProvider>
         </QueryClientProvider>
       </ChakraProvider>
