@@ -238,7 +238,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                 all_operators.update(operators_paths)
 
         for service in services:
-            example_dags = list(self.examples_for_service(service))
+            example_dags = self.examples_for_service(service)
             example_paths = {
                 path for example_dag in example_dags for path in get_imports_from_file(example_dag)
             }

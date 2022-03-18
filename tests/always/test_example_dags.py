@@ -48,13 +48,13 @@ def relative_path(path):
     return os.path.relpath(path, ROOT_FOLDER)
 
 
-@pytest.mark.parametrize("example", list(example_dags()), ids=relative_path)
+@pytest.mark.parametrize("example", example_dags(), ids=relative_path)
 def test_should_be_importable(example):
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,
     )
-    assert 0 == len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}"
+    assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
     assert len(dagbag.dag_ids) >= 1
 
 
