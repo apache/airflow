@@ -405,6 +405,7 @@
             "default": "CeleryExecutor",
             "enum": [
                 "LocalExecutor",
+                "LocalKubernetesExecutor",
                 "CeleryExecutor",
                 "KubernetesExecutor",
                 "CeleryKubernetesExecutor"
