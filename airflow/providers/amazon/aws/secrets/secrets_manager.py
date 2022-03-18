@@ -26,7 +26,6 @@ from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
-from semver import VersionInfo
 
 from airflow.version import version as airflow_version
 
@@ -41,7 +40,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return VersionInfo.parse(val)
+    return val.split('.')
 
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):

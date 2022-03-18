@@ -22,7 +22,6 @@ import warnings
 from typing import Optional
 
 from google.auth.exceptions import DefaultCredentialsError
-from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
@@ -38,7 +37,7 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return VersionInfo.parse(val)
+    return val.split('.')
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
