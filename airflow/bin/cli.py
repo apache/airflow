@@ -3010,7 +3010,7 @@ ARG_CONN_EXTRA = Arg(
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
 ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', required=True, type=str)
-ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
+ARG_LASTNAME = Arg(('--lastname',), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
     ('-r', '--role'),
     help='Role of the user. Existing roles include Admin, User, Op, Viewer, and Public',
@@ -4150,7 +4150,7 @@ class CLIFactory(object):
             help='First name of the user',
             type=str),
         'lastname': Arg(
-            ('-l', '--lastname',),
+            ('--lastname',),
             help='Last name of the user',
             type=str),
         'email': Arg(
