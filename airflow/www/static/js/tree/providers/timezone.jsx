@@ -20,7 +20,7 @@
 /* global moment, document */
 
 import React, { useContext, useEffect, useState } from 'react';
-import { TimezoneEvent } from '../../main';
+import { TimezoneEvent } from '../../datetime_utils';
 
 const TimezoneContext = React.createContext(null);
 

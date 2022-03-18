@@ -23,6 +23,7 @@ import {
   formatTimezone,
   isoDateToTimeEl,
   setDisplayedTimezone,
+  TimezoneEvent,
 } from './datetime_utils';
 
 window.isoDateToTimeEl = isoDateToTimeEl;
@@ -40,8 +41,6 @@ function displayTime() {
     .attr('datetime', now.format(dateTimeAttrFormat))
     .html(`${now.format('HH:mm')} <strong>${formatTimezone(now)}</strong>`);
 }
-
-export const TimezoneEvent = 'timezone';
 
 function changeDisplayedTimezone(tz) {
   localStorage.setItem('selected-timezone', tz);
