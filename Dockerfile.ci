@@ -15,6 +15,9 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
+# Use the same builder frontend version for everyone
+# syntax=docker/dockerfile:1.4
+
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 FROM ${PYTHON_BASE_IMAGE} as main
 
