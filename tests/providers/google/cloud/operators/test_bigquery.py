@@ -196,6 +196,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
             source_format=TEST_SOURCE_FORMAT,
+            autodetect = False,
         )
 
         operator.execute(None)
@@ -214,6 +215,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             src_fmt_configs={},
             labels=None,
             encryption_configuration=None,
+            autodetect = False,
         )
 
 
