@@ -23,7 +23,11 @@ from paramiko.sftp import SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.sensors.base import BaseSensorOperator
+<<<<<<< HEAD
 from airflow.utils.timezone import convert_to_utc
+=======
+from airflow.utils.timezone import is_naive, make_naive
+>>>>>>> 2079b7f3ae1cd53d6aa2b07d8b4eb431e32acce3
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -44,7 +48,11 @@ class SFTPSensor(BaseSensorOperator):
     )
 
     def __init__(
+<<<<<<< HEAD
         self, *, path: str, newer_than: datetime = None, sftp_conn_id: str = 'sftp_default', **kwargs
+=======
+        self, *, path: str, newer_than: datetime, sftp_conn_id: str = 'sftp_default', **kwargs
+>>>>>>> 2079b7f3ae1cd53d6aa2b07d8b4eb431e32acce3
     ) -> None:
         super().__init__(**kwargs)
         self.path = path
@@ -64,8 +72,13 @@ class SFTPSensor(BaseSensorOperator):
             return False
         self.hook.close_conn()
         if self.newer_than:
+<<<<<<< HEAD
             _mod_time = convert_to_utc(datetime.strptime(mod_time, '%Y%m%d%H%M%S'))
             _newer_than = convert_to_utc(self.newer_than)
+=======
+            _mod_time = datetime.strptime(mod_time, '%Y%m%d%H%M%S')
+            _newer_than = make_naive(self.newer_than) if not is_naive(self.newer_than) else self.newer_than
+>>>>>>> 2079b7f3ae1cd53d6aa2b07d8b4eb431e32acce3
             return _newer_than <= _mod_time
         else:
             return True
