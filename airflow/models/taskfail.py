@@ -32,7 +32,7 @@ class TaskFail(Base):
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, server_default='-1', nullable=False)
+    map_index = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
@@ -51,7 +51,7 @@ class TaskFail(Base):
         ),
     )
 
-    def __init__(self, task, run_id, start_date, end_date, map_index=None):
+    def __init__(self, task, run_id, start_date, end_date, map_index):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.run_id = run_id
