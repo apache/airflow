@@ -289,13 +289,13 @@ repos:
         language: python
         additional_dependencies: ['openapi-spec-validator']
         files: ^airflow/api_connexion/openapi/
-      - id: lint-dockerfile
-        name: Lint dockerfile
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh
-        files: Dockerfile.*$
-        pass_filenames: true
-        require_serial: true
+#      - id: lint-dockerfile
+#        name: Lint dockerfile
+#        language: system
+#        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh
+#        files: Dockerfile.*$
+#        pass_filenames: true
+#        require_serial: true
       - id: setup-order
         name: Check order of dependencies in setup.cfg and setup.py
         language: python
@@ -558,12 +558,12 @@ repos:
           - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
           - 'rich==10.9.0'
-      - id: pre-commit-descriptions
-        name: Check if pre-commits are described
-        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
-        language: system
-        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst|^breeze-complete$
-        require_serial: true
+#      - id: pre-commit-descriptions
+#        name: Check if pre-commits are described
+#        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+#        language: system
+#        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst|^breeze-complete$
+#        require_serial: true
       - id: pre-commit-hook-names
         name: Ensure hook ids are not overly long
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names.py

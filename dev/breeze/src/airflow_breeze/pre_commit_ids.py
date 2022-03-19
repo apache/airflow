@@ -61,7 +61,6 @@ PRE_COMMIT_LIST = [
     'isort',
     'json-schema',
     'language-matters',
-    'lint-dockerfile',
     'lint-openapi',
     'markdownlint',
     'migration-reference',
