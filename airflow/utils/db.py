@@ -963,13 +963,20 @@ def _move_dangling_data_to_new_table(
 
 
 def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
+    """
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id`
+    in many tables.
+    Here we go through each table and look for records that can't be mapped to a dag run.
+    When we find such "dangling" rows we back them up in a special table and delete them
+    from the main table.
+    """
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
+    models_to_dagrun: List[Any] = [RenderedTaskInstanceFields, TaskInstance, TaskFail, TaskReschedule, XCom]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -1002,6 +1009,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         if "run_id" in source_table.columns:
             continue
 
+        # find rows in source table which don't have a matching dag run
         source_to_dag_run_join_cond = and_(
             source_table.c.dag_id == dagrun_table.c.dag_id,
             source_table.c.execution_date == dagrun_table.c.execution_date,
