@@ -23,7 +23,7 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.models import TaskFail, TaskInstance
+from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
@@ -97,7 +97,7 @@ class TestCore:
             .filter(
                 TaskFail.task_id == 'pass_sleepy',
                 TaskFail.dag_id == dag.dag_id,
-                TaskInstance.execution_date == DEFAULT_DATE,
+                DagRun.execution_date == DEFAULT_DATE,
             )
             .all()
         )
@@ -106,7 +106,7 @@ class TestCore:
             .filter(
                 TaskFail.task_id == 'fail_sleepy',
                 TaskFail.dag_id == dag.dag_id,
-                TaskInstance.execution_date == DEFAULT_DATE,
+                DagRun.execution_date == DEFAULT_DATE,
             )
             .all()
         )
