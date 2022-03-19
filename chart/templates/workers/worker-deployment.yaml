@@ -213,6 +213,24 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
           {{- end }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.workers.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.workers.livenessProbe.command }}
+                {{ toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                {{- else}}
+                - celery
+                - --app
+                - airflow.executors.celery_executor.app
+                - inspect
+                - ping
+                - -d
+                - celery@${HOSTNAME}
+                {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
