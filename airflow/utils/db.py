@@ -828,6 +828,13 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
 
 
 def reflect_tables(models, session):
+    """
+    When running checks prior to upgrades, we use reflection to determine current state of the
+    database.
+    This function gets the current state of each table in the set of models provided and returns
+    a SqlAlchemy metadata object containing them.
+    """
+
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
