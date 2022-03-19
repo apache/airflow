@@ -36,7 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(val.split('.'))
+    return tuple(int(x) for x in val.split('.'))
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):

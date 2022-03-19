@@ -37,7 +37,7 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 def _parse_version(val):
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(val.split('.'))
+    return tuple(int(x) for x in val.split('.'))
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
