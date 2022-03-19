@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-# syntax=docker/dockerfile:1.3
+# syntax=docker/dockerfile:1.4
 ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -117,7 +117,7 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
-COPY scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --link=true scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
 
 # Install basic and additional apt dependencies
 RUN apt-get update \
@@ -196,14 +196,14 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
-COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh scripts/docker/install_postgres.sh /scripts/docker/
+COPY --link=true  scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh scripts/docker/install_postgres.sh /scripts/docker/
 
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh && \
     bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
-COPY docker-context-files /docker-context-files
+COPY --link=true docker-context-files /docker-context-files
 
 RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
@@ -248,7 +248,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
-COPY --chown=airflow:0 scripts/docker/common.sh scripts/docker/install_pip_version.sh \
+COPY --link=true --chown=airflow:0 scripts/docker/common.sh scripts/docker/install_pip_version.sh \
     /scripts/docker/install_airflow_dependencies_from_branch_tip.sh \
     /scripts/docker/
 
@@ -265,8 +265,8 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY --chown=airflow:0 scripts/docker/compile_www_assets.sh scripts/docker/prepare_node_modules.sh /scripts/docker/
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
+COPY --link=true --chown=airflow:0 scripts/docker/compile_www_assets.sh scripts/docker/prepare_node_modules.sh /scripts/docker/
+COPY --link=true --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
 
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
@@ -279,7 +279,7 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
     fi;
 
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
+COPY --link=true --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
 # Copy back the generated dist folder
 RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
@@ -309,7 +309,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR /opt/airflow
 
-COPY --chown=airflow:0 scripts/docker/install_from_docker_context_files.sh scripts/docker/install_airflow.sh \
+COPY --link=true --chown=airflow:0 scripts/docker/install_from_docker_context_files.sh scripts/docker/install_airflow.sh \
      scripts/docker/install_additional_dependencies.sh \
      /scripts/docker/
 
@@ -403,7 +403,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-COPY scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --link=true scripts/docker/determine_debian_version_specific_variables.sh /scripts/docker/
 
 # Install basic and additional apt dependencies
 RUN apt-get update \
@@ -439,7 +439,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/install_postgres.sh /scripts/docker/
+COPY --link=true scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/install_postgres.sh /scripts/docker/
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
@@ -459,10 +459,10 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x \
     && find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
 
-COPY --chown=airflow:0 --from=airflow-build-image \
+COPY --link=true --chown=airflow:0 --from=airflow-build-image \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
-COPY --chown=airflow:0 scripts/in_container/prod/entrypoint_prod.sh /entrypoint
-COPY --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
+COPY --link=true --chown=airflow:0 scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY --link=true --chown=airflow:0 scripts/in_container/prod/clean-logs.sh /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
@@ -491,7 +491,7 @@ ENV DUMB_INIT_SETSID="1" \
 
 # Add protection against running pip as root user
 RUN mkdir -pv /root/bin
-COPY scripts/docker/pip /root/bin/pip
+COPY --link=true scripts/docker/pip /root/bin/pip
 RUN chmod u+x /root/bin/pip
 
 WORKDIR ${AIRFLOW_HOME}
