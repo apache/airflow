@@ -28,11 +28,7 @@ REMOTE_FILE_IDS = ["rtest1", "rtest2"]
 
 class TestLocalFilesystemToGoogleDriveOperator:
     @mock.patch("airflow.providers.google.suite.transfers.local_to_drive.GoogleDriveHook")
-    @mock.patch(
-        "airflow.providers.google.suite.transfers.local_to_drive."
-        "LocalFilesystemToGoogleDriveOperator.xcom_push"
-    )
-    def test_execute(self, mock_xcom, mock_hook):
+    def test_execute(self, mock_hook):
         context = {}
         mock_hook.return_value.upload_file.return_value = REMOTE_FILE_IDS
         op = LocalFilesystemToGoogleDriveOperator(
@@ -55,8 +51,3 @@ class TestLocalFilesystemToGoogleDriveOperator:
             ),
         ]
         mock_hook.return_value.upload_file.assert_has_calls(calls)
-
-        xcom_calls = [
-            mock.call(context, "remote_file_ids", REMOTE_FILE_IDS),
-        ]
-        mock_xcom.assert_has_calls(xcom_calls)
