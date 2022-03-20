@@ -225,6 +225,7 @@ spec:
                 {{- else}}
                 - sh
                 - -c
+                - exec /entrypoint
                 - celery --app airflow.executors.celery_executor.app inspect ping -d celery@${HOSTNAME}
                 {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
