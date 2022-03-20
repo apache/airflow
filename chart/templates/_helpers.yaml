@@ -128,7 +128,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-  {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
     {{- range $i, $config := .Values.secret }}
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
