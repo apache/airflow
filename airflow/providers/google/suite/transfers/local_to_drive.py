@@ -96,7 +96,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         remote_file_ids = []
 
         for local_path in self.local_paths:
-            self.log.info(f'Uploading file to Google Drive: {local_path}')
+            self.log.info("Uploading file to Google Drive: %s", local_path)
 
             try:
                 remote_file_id = hook.upload_file(
@@ -110,8 +110,8 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
 
                 if self.delete:
                     os.remove(local_path)
-                    self.log.info(f'Deleted local file: {local_path}')
+                    self.log.info("Deleted local file: %s", local_path)
             except FileNotFoundError:
-                self.log.warning(f"File {local_path} can't be found")
+                self.log.warning("File %s can't be found", local_path)
 
         return remote_file_ids
