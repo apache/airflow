@@ -123,7 +123,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
             except FileNotFoundError:
                 self.log.warning("File can't be found: %s", local_path)
             except OSError:
-                self.log.warning("An OSError occured for file: %s", local_path)
+                self.log.warning("An OSError occurred for file: %s", local_path)
 
         if not self.ignore_if_missing and len(remote_file_ids) < len(self.local_paths):
             raise AirflowFailException("Some files couldn't be uploaded")
