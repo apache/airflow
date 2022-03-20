@@ -296,12 +296,9 @@ class TaskDecoratorCollection:
         Also accepts any argument that KubernetesPodOperator will via ``kwargs``.
 
         :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
         :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+            unrolled to multiple XCom values. Dict will unroll to XCom values with keys as XCom keys.
             Defaults to False.
-        :type multiple_outputs: bool
         :param namespace: the namespace to run within kubernetes.
         :param image: Docker image you wish to launch. Defaults to hub.docker.com,
             but fully qualified URLS will point to custom repositories. (templated)
