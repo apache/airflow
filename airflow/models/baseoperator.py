@@ -59,6 +59,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
+    DEFAULT_EXECUTION_TIMEOUT,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
@@ -201,7 +202,7 @@ def partial(
     queue: str = DEFAULT_QUEUE,
     pool: Optional[str] = None,
     pool_slots: int = DEFAULT_POOL_SLOTS,
-    execution_timeout: Optional[timedelta] = None,
+    execution_timeout: Optional[timedelta] = DEFAULT_EXECUTION_TIMEOUT,
     retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
     retry_exponential_backoff: bool = False,
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
@@ -706,7 +707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool: Optional[str] = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: Optional[timedelta] = None,
-        execution_timeout: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = DEFAULT_EXECUTION_TIMEOUT,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
