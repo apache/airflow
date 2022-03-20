@@ -475,7 +475,7 @@ workers:
     # of local-path provisioner.
     fixPermissions: false
 
-  # If the celery stops heartbeating for 1.5 minutes (3*30s) kill the
+  # If the celery stops heartbeating for 5 minutes (5*60s) kill the
   # celery and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 60
