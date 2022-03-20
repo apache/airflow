@@ -250,7 +250,7 @@ class TaskDecoratorCollection:
         namespace: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
-        random_name_suffix: Optional[bool] = True,
+        random_name_suffix: bool = True,
         cmds: Optional[List[str]] = None,
         arguments: Optional[List[str]] = None,
         ports: Optional[List[k8s.V1ContainerPort]] = None,
