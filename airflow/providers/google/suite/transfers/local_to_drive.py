@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
+from airflow.exceptions import AirflowFailException
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 
@@ -37,6 +38,8 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     :param drive_folder: path of the Drive folder
     :param gcp_conn_id: Airflow Connection ID for GCP
     :param delete: should the local files be deleted after upload?
+    :param ignore_if_missing: if True, then don't fail even if all files
+        can't be uploaded.
     :param chunk_size: File will be uploaded in chunks of this many bytes. Only
         used if resumable=True. Pass in a value of -1 if the file is to be
         uploaded as a single chunk. Note that Google App Engine has a 5MB limit
@@ -70,6 +73,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         drive_folder: Union[Path, str],
         gcp_conn_id: str = "google_cloud_default",
         delete: bool = False,
+        ignore_if_missing: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
         delegate_to: Optional[str] = None,
@@ -81,6 +85,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.drive_folder = drive_folder
         self.gcp_conn_id = gcp_conn_id
         self.delete = delete
+        self.ignore_if_missing = ignore_if_missing
         self.chunk_size = chunk_size
         self.resumable = resumable
         self.delegate_to = delegate_to
@@ -114,4 +119,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
             except FileNotFoundError:
                 self.log.warning("File %s can't be found", local_path)
 
+        if not self.ignore_if_missing and len(remote_file_ids) < len(self.local_paths):
+            raise AirflowFailException("Some files couldn't be uploaded")
         return remote_file_ids
