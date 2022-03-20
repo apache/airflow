@@ -223,13 +223,9 @@ spec:
                 {{- if .Values.workers.livenessProbe.command }}
                 {{ toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
                 {{- else}}
-                - celery
-                - --app
-                - airflow.executors.celery_executor.app
-                - inspect
-                - ping
-                - -d
-                - celery@${HOSTNAME}
+                - sh
+                - -c
+                - celery --app airflow.executors.celery_executor.app inspect ping -d celery@${HOSTNAME}
                 {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
