@@ -19,7 +19,8 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
-from airflow.providers.databricks.operators.databricks_repos import DatabricksReposUpdateOperator
+from airflow.providers.databricks.operators.databricks_repos import DatabricksReposUpdateOperator, \
+    DatabricksReposCreateOperator, DatabricksReposDeleteOperator
 
 default_args = {
     'owner': 'airflow',
@@ -33,6 +34,13 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+    # [START howto_operator_databricks_repo_create]
+    # Example of creating a Databricks Repo
+    repo_path = "/Repos/user@domain.com/demo-repo"
+    git_url = "https://github.com/test/test"
+    create_repo = DatabricksReposCreateOperator(task_id='create_repo', repo_path=repo_path, git_url=git_url)
+    # [END howto_operator_databricks_repo_create]
+
     # [START howto_operator_databricks_repo_update]
     # Example of updating a Databricks Repo to the latest code
     repo_path = "/Repos/user@domain.com/demo-repo"
@@ -53,4 +61,10 @@ with DAG(
 
     notebook_task = DatabricksSubmitRunOperator(task_id='notebook_task', json=notebook_task_params)
 
-    (update_repo >> notebook_task)
+    # [START howto_operator_databricks_repo_delete]
+    # Example of deleting a Databricks Repo
+    repo_path = "/Repos/user@domain.com/demo-repo"
+    delete_repo = DatabricksReposDeleteOperator(task_id='update_repo', repo_path=repo_path)
+    # [END howto_operator_databricks_repo_delete]
+
+    (create_repo >> update_repo >> notebook_task >> delete_repo)
