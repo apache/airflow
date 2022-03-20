@@ -19,6 +19,7 @@
 import datetime
 import operator
 import os
+import pathlib
 import signal
 import sys
 import urllib
@@ -71,6 +72,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -2515,3 +2517,41 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
+        out = tmp_path.joinpath("out")
+        out.touch()
+
+        with dag_maker(dag_id="in_group", session=session) as dag:
+
+            @dag.task
+            def envs():
+                return [{"VAR1": "FOO"}, {"VAR1": "BAR"}]
+
+            @dag.task
+            def cmds():
+                return [f'echo "hello $VAR1" >> {out}', f'echo "goodbye $VAR1" >> {out}']
+
+            with TaskGroup(group_id="dynamic"):
+                BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
+                    env=envs(),
+                    bash_command=cmds(),
+                )
+
+        dag_run: DagRun = dag_maker.create_dagrun()
+        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+
+        for task_id in ["dynamic.envs", "dynamic.cmds"]:
+            ti = original_tis[task_id]
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        bash_task = dag.get_task("dynamic.bash")
+        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(bash_task)
+            ti.run()
+
+        with out.open() as f:
+            out_lines = [line.strip() for line in f]
+        assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
