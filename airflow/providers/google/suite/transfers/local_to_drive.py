@@ -34,6 +34,10 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     This operator uploads a list of local files to a Google Drive folder.
     The local files can be deleted after upload (optional)
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LocalFilesystemToGoogleDriveOperator`
+
     :param local_paths: Python list of local file paths
     :param drive_folder: path of the Drive folder
     :param gcp_conn_id: Airflow Connection ID for GCP
