@@ -413,7 +413,7 @@ class CeleryExecutor(BaseExecutor):
             .filter(TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time)
             .all()
         )
-
+        celery_task_ids: List[str] = []
         if queued_too_log:
             # We use this instead of using bulk_state_fetcher because we
             # may not have the stuck task in self.tasks and we don't want
