@@ -1124,6 +1124,19 @@
                         "periodSeconds": {
                             "description": "Webserver Liveness probe period seconds.",
                             "type": "integer"
+                        },
+                        "command": {
+                            "description": "Webserver command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
                         }
                     }
                 },

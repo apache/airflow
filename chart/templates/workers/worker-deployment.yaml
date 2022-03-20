@@ -221,7 +221,7 @@ spec:
             exec:
               command:
                 {{- if .Values.workers.livenessProbe.command }}
-                {{ toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                {{ toYaml .Values.workers.livenessProbe.command | nindent 16 }}
                 {{- else}}
                 - sh
                 - -c
