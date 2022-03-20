@@ -137,8 +137,7 @@ def kubernetes_task(
 
     :param python_callable: Function to decorate
     :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as XCom keys.
+        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as XCom keys.
         Defaults to False.
     """
     return task_decorator_factory(
