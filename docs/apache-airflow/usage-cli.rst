@@ -259,3 +259,91 @@ If you want to preview the commands but not execute them, use option ``--show-sq
 Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--show-sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
 
 For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref`.
+
+
+.. _cli-export-connections:
+
+Exporting Connections
+---------------------
+
+You may export connections from the database using the CLI. The supported file formats are ``json``, ``yaml`` and ``env``.
+
+You may specify the target file as the parameter:
+
+.. code-block:: bash
+
+    airflow connections export connections.json
+
+Alternatively you may specify ``file-format`` parameter for overriding the file format:
+
+.. code-block:: bash
+
+    airflow connections export /tmp/connections --file-format yaml
+
+You may also specify ``-`` for STDOUT:
+
+.. code-block:: bash
+
+    airflow connections export -
+
+The JSON format contains an object where the key contains the connection ID and the value contains the definition of the connection. In this format, the connection is defined as a JSON object. The following is a sample JSON file.
+
+.. code-block:: json
+
+    {
+      "airflow_db": {
+        "conn_type": "mysql",
+        "host": "mysql",
+        "login": "root",
+        "password": "plainpassword",
+        "schema": "airflow",
+        "port": null,
+        "extra": null
+      },
+      "druid_broker_default": {
+        "conn_type": "druid",
+        "host": "druid-broker",
+        "login": null,
+        "password": null,
+        "schema": null,
+        "port": 8082,
+        "extra": "{\"endpoint\": \"druid/v2/sql\"}"
+      }
+    }
+
+The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections. In this format, the connection is defined as a YAML object. The following is a sample YAML file.
+
+.. code-block:: yaml
+
+    airflow_db:
+      conn_type: mysql
+      extra: null
+      host: mysql
+      login: root
+      password: plainpassword
+      port: null
+      schema: airflow
+    druid_broker_default:
+      conn_type: druid
+      extra: '{"endpoint": "druid/v2/sql"}'
+      host: druid-broker
+      login: null
+      password: null
+      port: 8082
+      schema: null
+
+You may also export connections in ``.env`` format. The key is the connection ID, and the value is the serialized representation of the connection, using either Airflow's Connection URI format or JSON. To use JSON provide option ``--serialization-format=json`` otherwise the Airflow Connection URI format will be used. The following are sample ``.env`` files using the two formats.
+
+URI example:
+
+.. code-block:: text
+
+    airflow_db=mysql://root:plainpassword@mysql/airflow
+    druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql
+
+JSON example output:
+
+.. code-block:: text
+
+    airflow_db={"conn_type": "mysql", "login": "root", "password": "plainpassword", "host": "mysql", "schema": "airflow"}
+    druid_broker_default={"conn_type": "druid", "host": "druid-broker", "port": 8082, "extra": "{\"endpoint\": \"druid/v2/sql\"}"}

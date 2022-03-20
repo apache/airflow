@@ -587,6 +587,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
+        "dataflow_default_options",
     )
     ui_color = "#0273d4"
     operator_extra_links = (DataflowJobLink(),)

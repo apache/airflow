@@ -184,32 +184,29 @@ class TestCliExportConnections:
         output_filepath = tmp_path / 'connections.json'
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         connection_command.connections_export(args)
-        expected_connections = json.dumps(
-            {
-                "airflow_db": {
-                    "conn_type": "mysql",
-                    "description": "mysql conn description",
-                    "host": "mysql",
-                    "login": "root",
-                    "password": "plainpassword",
-                    "schema": "airflow",
-                    "port": None,
-                    "extra": None,
-                },
-                "druid_broker_default": {
-                    "conn_type": "druid",
-                    "description": "druid-broker conn description",
-                    "host": "druid-broker",
-                    "login": None,
-                    "password": None,
-                    "schema": None,
-                    "port": 8082,
-                    "extra": "{\"endpoint\": \"druid/v2/sql\"}",
-                },
+        expected_connections = {
+            "airflow_db": {
+                "conn_type": "mysql",
+                "description": "mysql conn description",
+                "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
+                "port": None,
+                "extra": None,
             },
-            indent=2,
-        )
-        assert output_filepath.read_text() == expected_connections
+            "druid_broker_default": {
+                "conn_type": "druid",
+                "description": "druid-broker conn description",
+                "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
+                "port": 8082,
+                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+            },
+        }
+        assert json.loads(output_filepath.read_text()) == expected_connections
 
     def test_cli_connections_export_should_export_as_yaml(self, tmp_path):
         output_filepath = tmp_path / 'connections.yaml'
@@ -237,21 +234,51 @@ class TestCliExportConnections:
         )
         assert output_filepath.read_text() == expected_connections
 
-    def test_cli_connections_export_should_export_as_env(self, tmp_path):
+    @pytest.mark.parametrize(
+        'serialization_format, expected',
+        [
+            (
+                'uri',
+                [
+                    "airflow_db=mysql://root:plainpassword@mysql/airflow",
+                    "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+                ],
+            ),
+            (
+                None,  # tests that default is URI
+                [
+                    "airflow_db=mysql://root:plainpassword@mysql/airflow",
+                    "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+                ],
+            ),
+            (
+                'json',
+                [
+                    'airflow_db={"conn_type": "mysql", "description": "mysql conn description", '
+                    '"login": "root", "password": "plainpassword", "host": "mysql", "port": null, '
+                    '"schema": "airflow", "extra": null}',
+                    'druid_broker_default={"conn_type": "druid", "description": "druid-broker conn '
+                    'description", "login": null, "password": null, "host": "druid-broker", "port": 8082, '
+                    '"schema": null, "extra": "{\\"endpoint\\": \\"druid/v2/sql\\"}"}',
+                ],
+            ),
+        ],
+    )
+    def test_cli_connections_export_should_export_as_env(self, serialization_format, expected, tmp_path):
+        """
+        When exporting with env file format, we should
+        """
         output_filepath = tmp_path / 'connections.env'
-        args = self.parser.parse_args(
-            [
-                "connections",
-                "export",
-                output_filepath.as_posix(),
-            ]
-        )
-        connection_command.connections_export(args)
-        expected_connections = [
-            "airflow_db=mysql://root:plainpassword@mysql/airflow",
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+        args_input = [
+            "connections",
+            "export",
+            output_filepath.as_posix(),
         ]
-        assert output_filepath.read_text().splitlines() == expected_connections
+        if serialization_format:
+            args_input = [*args_input, '--serialization-format', serialization_format]
+        args = self.parser.parse_args(args_input)
+        connection_command.connections_export(args)
+        assert output_filepath.read_text().splitlines() == expected
 
     def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, tmp_path):
         output_filepath = tmp_path / 'connections.ENV'
@@ -276,35 +303,43 @@ class TestCliExportConnections:
             ]
         )
         connection_command.connections_export(args)
-        expected_connections = json.dumps(
-            {
-                "airflow_db": {
-                    "conn_type": "mysql",
-                    "description": "mysql conn description",
-                    "host": "mysql",
-                    "login": "root",
-                    "password": "plainpassword",
-                    "schema": "airflow",
-                    "port": None,
-                    "extra": None,
-                },
-                "druid_broker_default": {
-                    "conn_type": "druid",
-                    "description": "druid-broker conn description",
-                    "host": "druid-broker",
-                    "login": None,
-                    "password": None,
-                    "schema": None,
-                    "port": 8082,
-                    "extra": "{\"endpoint\": \"druid/v2/sql\"}",
-                },
+        expected_connections = {
+            "airflow_db": {
+                "conn_type": "mysql",
+                "description": "mysql conn description",
+                "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
+                "port": None,
+                "extra": None,
             },
-            indent=2,
-        )
-        assert output_filepath.read_text() == expected_connections
+            "druid_broker_default": {
+                "conn_type": "druid",
+                "description": "druid-broker conn description",
+                "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
+                "port": 8082,
+                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+            },
+        }
+        assert json.loads(output_filepath.read_text()) == expected_connections
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
+TEST_JSON = json.dumps(
+    {
+        "conn_type": "postgres",
+        "login": "airflow",
+        "password": "airflow",
+        "host": "host",
+        "port": 5432,
+        "schema": "airflow",
+        "description": "new0-json description",
+    }
+)
 
 
 class TestCliAddConnections:
@@ -316,6 +351,25 @@ class TestCliAddConnections:
     @pytest.mark.parametrize(
         'cmd, expected_output, expected_conn',
         [
+            (
+                [
+                    "connections",
+                    "add",
+                    "new0-json",
+                    f"--conn-json={TEST_JSON}",
+                ],
+                "Successfully added `conn_id`=new0-json : postgres://airflow:******@host:5432/airflow",
+                {
+                    "conn_type": "postgres",
+                    "description": "new0-json description",
+                    "host": "host",
+                    "is_encrypted": True,
+                    "is_extra_encrypted": False,
+                    "login": "airflow",
+                    "port": 5432,
+                    "schema": "airflow",
+                },
+            ),
             (
                 [
                     "connections",
@@ -488,9 +542,33 @@ class TestCliAddConnections:
         # Attempt to add without providing conn_uri
         with pytest.raises(
             SystemExit,
-            match=r"The following args are required to add a connection: \['conn-uri or conn-type'\]",
+            match="Must supply either conn-uri or conn-json if not supplying conn-type",
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
+
+    def test_cli_connections_add_json_invalid_args(self):
+        """can't supply extra and json"""
+        with pytest.raises(
+            SystemExit,
+            match=r"The following args are not compatible with the --conn-json flag: \['--conn-extra'\]",
+        ):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    ["connections", "add", "new1", f"--conn-json={TEST_JSON}", "--conn-extra='hi'"]
+                )
+            )
+
+    def test_cli_connections_add_json_and_uri(self):
+        """can't supply both uri and json"""
+        with pytest.raises(
+            SystemExit,
+            match="Cannot supply both conn-uri and conn-json",
+        ):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    ["connections", "add", "new1", f"--conn-uri={TEST_URL}", f"--conn-json={TEST_JSON}"]
+                )
+            )
 
     def test_cli_connections_add_invalid_uri(self):
         # Attempt to add with invalid uri
