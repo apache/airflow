@@ -29,6 +29,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     @task.kubernetes(image='python:3.8-slim-buster', name='k8s_test', namespace='default')
