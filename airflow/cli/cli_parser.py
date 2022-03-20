@@ -169,11 +169,18 @@ def string_list_type(val):
     return [x.strip() for x in val.split(',')]
 
 
+def string_lower_type(val):
+    """Lowers arg"""
+    if not val:
+        return
+    return val.strip().lower()
+
+
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
 ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
-ARG_EXECUTION_DATE_OR_DAGRUN_ID = Arg(
+ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
 )
 ARG_TASK_REGEX = Arg(
@@ -244,13 +251,8 @@ ARG_REVISION_RANGE = Arg(
     ('--revision-range',),
     help=(
         "Migration revision range(start:end) to use for offline sql generation. "
-        "Example: 'a13f7613ad25:7b2661a43ba3'"
+        "Example: ``a13f7613ad25:7b2661a43ba3``"
     ),
-    default=None,
-)
-ARG_REVISION_RANGE = Arg(
-    ('--revision-range',),
-    help='Revision range(start:end) to use for offline sql generation',
     default=None,
 )
 
@@ -521,31 +523,37 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
-ARG_DB_VERSION = Arg(
-    (
-        "-n",
-        "--version",
+ARG_DB_VERSION__UPGRADE = Arg(
+    ("-n", "--version"),
+    help=(
+        "(Optional) The airflow version to upgrade to. Note: must provide either "
+        "`--revision` or `--version`."
     ),
-    help="The airflow version to downgrade to",
+)
+ARG_DB_REVISION__UPGRADE = Arg(
+    ("-r", "--revision"),
+    help="(Optional) If provided, only run migrations up to and including this revision.",
+)
+ARG_DB_VERSION__DOWNGRADE = Arg(
+    ("-n", "--version"),
+    help="(Optional) If provided, only run migrations up to this version.",
 )
 ARG_DB_FROM_VERSION = Arg(
     ("--from-version",),
-    help="(Optional) if generating sql, may supply a _from_ version",
+    help="(Optional) If generating sql, may supply a *from* version",
 )
-ARG_DB_REVISION = Arg(
-    (
-        "-r",
-        "--revision",
-    ),
-    help="The airflow revision to downgrade to",
+ARG_DB_REVISION__DOWNGRADE = Arg(
+    ("-r", "--revision"),
+    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) if generating sql, may supply a _from_ revision",
+    help="(Optional) If generating sql, may supply a *from* revision",
 )
-ARG_DB_SQL = Arg(
-    ("-s", "--sql-only"),
-    help="Don't actually run migrations; just print out sql scripts for offline migration.",
+ARG_DB_SQL_ONLY = Arg(
+    ("-s", "--show-sql-only"),
+    help="Don't actually run migrations; just print out sql scripts for offline migration. "
+    "Required if using either `--from-version` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -705,6 +713,9 @@ ARG_CONN_ID_FILTER = Arg(
 ARG_CONN_URI = Arg(
     ('--conn-uri',), help='Connection URI, required to add a connection without conn_type', type=str
 )
+ARG_CONN_JSON = Arg(
+    ('--conn-json',), help='Connection JSON, required to add a connection using JSON representation', type=str
+)
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
@@ -729,7 +740,19 @@ ARG_CONN_EXPORT = Arg(
     type=argparse.FileType('w', encoding='UTF-8'),
 )
 ARG_CONN_EXPORT_FORMAT = Arg(
-    ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
+    ('--format',),
+    help='Deprecated -- use `--file-format` instead. File format to use for the export.',
+    type=str,
+    choices=['json', 'yaml', 'env'],
+)
+ARG_CONN_EXPORT_FILE_FORMAT = Arg(
+    ('--file-format',), help='File format for the export', type=str, choices=['json', 'yaml', 'env']
+)
+ARG_CONN_SERIALIZATION_FORMAT = Arg(
+    ('--serialization-format',),
+    help='When exporting as `.env` format, defines how connections should be serialized. Default is `uri`.',
+    type=string_lower_type,
+    choices=['json', 'uri'],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
 
@@ -933,6 +956,12 @@ DAGS_COMMANDS = (
         name='list',
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='list-import-errors',
+        help="List all the DAGs that have import errors",
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_import_errors'),
         args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1174,7 +1203,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1189,7 +1218,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX),
     ),
     ActionCommand(
         name='render',
@@ -1198,7 +1227,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1211,7 +1240,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
@@ -1242,7 +1271,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_DAGRUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1255,7 +1284,7 @@ TASKS_COMMANDS = (
         name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_DAGRUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -1357,17 +1386,37 @@ DB_COMMANDS = (
     ActionCommand(
         name='upgrade',
         help="Upgrade the metadata database to latest version",
+        description=(
+            "Upgrade the schema of the metadata database. "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-        args=(ARG_VERSION_RANGE, ARG_REVISION_RANGE),
+        args=(
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+        ),
     ),
     ActionCommand(
         name='downgrade',
-        help="Downgrade the schema of the metadata database",
+        help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--revision` or `--version`. "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* revision."
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
-            ARG_DB_REVISION,
-            ARG_DB_VERSION,
-            ARG_DB_SQL,
+            ARG_DB_REVISION__DOWNGRADE,
+            ARG_DB_VERSION__DOWNGRADE,
+            ARG_DB_SQL_ONLY,
             ARG_YES,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
@@ -1415,7 +1464,7 @@ CONNECTIONS_COMMANDS = (
         name='add',
         help='Add a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name='delete',
@@ -1429,19 +1478,24 @@ CONNECTIONS_COMMANDS = (
         description=(
             "All connections can be exported in STDOUT using the following command:\n"
             "airflow connections export -\n"
-            "The file format can be determined by the provided file extension. eg, The following "
+            "The file format can be determined by the provided file extension. E.g., The following "
             "command will export the connections in JSON format:\n"
             "airflow connections export /tmp/connections.json\n"
-            "The --format parameter can be used to mention the connections format. eg, "
+            "The --file-format parameter can be used to control the file format. E.g., "
             "the default format is JSON in STDOUT mode, which can be overridden using: \n"
-            "airflow connections export - --format yaml\n"
-            "The --format parameter can also be used for the files, for example:\n"
-            "airflow connections export /tmp/connections --format json\n"
+            "airflow connections export - --file-format yaml\n"
+            "The --file-format parameter can also be used for the files, for example:\n"
+            "airflow connections export /tmp/connections --file-format json.\n"
+            "When exporting in `env` file format, you control whether URI format or JSON format "
+            "is used to serialize the connection by passing `uri` or `json` with option "
+            "`--serialization-format`.\n"
         ),
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
         args=(
             ARG_CONN_EXPORT,
             ARG_CONN_EXPORT_FORMAT,
+            ARG_CONN_EXPORT_FILE_FORMAT,
+            ARG_CONN_SERIALIZATION_FORMAT,
         ),
     ),
     ActionCommand(

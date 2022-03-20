@@ -1519,22 +1519,28 @@ class TestBackfillJob:
         job.run()
         assert executor.job_id is not None
 
+    @pytest.mark.long_running
+    @pytest.mark.parametrize("executor_name", ["SequentialExecutor", "DebugExecutor"])
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
-    def test_mapped_dag(self, dag_id):
-        """End-to-end test of a simple mapped dag"""
-        # Use SequentialExecutor for more predictable test behaviour
-        from airflow.executors.sequential_executor import SequentialExecutor
+    def test_mapped_dag(self, dag_id, executor_name):
+        """
+        End-to-end test of a simple mapped dag.
+
+        We test with multiple executors as they have different "execution environments" -- for instance
+        DebugExecutor runs a lot more in the same process than other Executors.
+
+        """
+        # This test needs a real executor to run, so that the `make_list` task can write out the TaskMap
+        from airflow.executors.executor_loader import ExecutorLoader
 
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
         dag = self.dagbag.get_dag(dag_id)
-
-        # This needs a real executor to run, so that the `make_list` task can write out the TaskMap
 
         job = BackfillJob(
             dag=dag,
             start_date=days_ago(1),
             end_date=days_ago(1),
             donot_pickle=True,
-            executor=SequentialExecutor(),
+            executor=ExecutorLoader.load_executor(executor_name),
         )
         job.run()

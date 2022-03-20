@@ -36,10 +36,10 @@ class DataprocJobSensor(BaseSensorOperator):
     """
     Check for the state of a previously submitted Dataproc job.
 
-    :param project_id: The ID of the google cloud project in which
-        to create the cluster. (templated)
     :param dataproc_job_id: The Dataproc job ID to poll. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
+    :param project_id: The ID of the google cloud project in which
+        to create the cluster. (templated)
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :param wait_timeout: How many seconds wait for job to be ready.
@@ -51,9 +51,9 @@ class DataprocJobSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         dataproc_job_id: str,
         region: Optional[str] = None,
+        project_id: Optional[str] = None,
         location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         wait_timeout: Optional[int] = None,

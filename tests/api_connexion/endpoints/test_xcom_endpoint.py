@@ -443,7 +443,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         with create_session() as session:
             for i in range(1, 11):
                 xcom = XCom(
-                    dagrun_id=dagrun.id,
+                    dag_run_id=dagrun.id,
                     key=f"TEST_XCOM_KEY{i}",
                     value=b"null",
                     run_id=self.dag_run_id,

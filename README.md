@@ -55,6 +55,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
+- [Support for providers](#support-for-providers)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -87,11 +88,14 @@ Apache Airflow is tested with:
 |                     | Main version (dev)  | Stable version (2.2.4)   |
 |---------------------|---------------------|--------------------------|
 | Python              | 3.7, 3.8, 3.9       | 3.6, 3.7, 3.8, 3.9       |
+| Platform            | AMD64/ARM64(\*)     | AMD64                    |
 | Kubernetes          | 1.20, 1.21          | 1.18, 1.19, 1.20         |
 | PostgreSQL          | 10, 11, 12, 13      | 9.6, 10, 11, 12, 13      |
 | MySQL               | 5.7, 8              | 5.7, 8                   |
 | SQLite              | 3.15.0+             | 3.15.0+                  |
-| MSSQL(Experimental) | 2017, 2019          |                          |
+| MSSQL               | 2017(\*), 2019 (\*) |                          |
+
+\* Experimental
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -381,6 +385,18 @@ Those `extras` and `providers` dependencies are maintained in `setup.py`.
 
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
 might decide to add additional limits (and justify them with comment)
+
+## Support for providers
+
+Providers released by the community have limitation of a minimum supported version of Airflow. The minimum
+version of Airflow is the `MINOR` version (2.1, 2.2 etc.) indicating that the providers might use features
+that appeared in this release. The default support timespan for the minimum version of Airflow
+(there could be justified exceptions) is that we increase the minimum Airflow version, when 12 months passed
+since the first release for the MINOR version of Airflow.
+
+For example this means that by default we upgrade the minimum version of Airflow supported by providers
+to 2.2.0 in the first Provider's release after 21st of May 2022 (21st of May 2021 is the date when the
+first `PATCHLEVEL` of 2.1 (2.1.0) has been released.
 
 ## Contributing
 

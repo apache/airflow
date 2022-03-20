@@ -17,7 +17,9 @@
 # under the License.
 
 import inspect
+import io
 import re
+from contextlib import redirect_stdout
 from unittest import mock
 
 import pytest
@@ -116,113 +118,68 @@ class TestDb:
     @mock.patch('alembic.command')
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, 'heads')
+        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision='heads')
 
     @pytest.mark.parametrize(
-        'version, revision',
-        [('2.0.0:2.2.3', "e959f08ac86c:be2bfac3da23"), ("2.0.2:2.1.4", "2e42bb497a22:ccde3e26fe78")],
+        'from_revision, to_revision',
+        [('be2bfac3da23', 'e959f08ac86c'), ('ccde3e26fe78', '2e42bb497a22')],
     )
-    def test_offline_upgrade_version(self, version, revision):
+    def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
-            with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb(version_range=version)
-        mock_alembic_upgrade.assert_called_once_with(mock.ANY, revision, sql=True)
+            with mock.patch('alembic.command.upgrade'):
+                with pytest.raises(ValueError, match='to.* revision .* older than .*from'):
+                    upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
-        'version, revision',
-        [('2.2.3:2.0.0', "be2bfac3da23:e959f08ac86c"), ("2.1.4:2.0.2", "ccde3e26fe78:2e42bb497a22")],
-    )
-    def test_offline_upgrade_fails_for_migration_incorrect_versions(self, version, revision):
-        with mock.patch('airflow.utils.db.settings.engine.dialect'):
-            with pytest.raises(AirflowException) as e:
-                upgradedb(version)
-        assert e.exconly() == (
-            f"airflow.exceptions.AirflowException: "
-            f"Error while checking history for revision range {revision}. "
-            f"Check that the supplied airflow version is in the format 'old_version:new_version'."
-        )
-
-    @pytest.mark.parametrize(
-        'version, error',
+        'to_revision, from_revision',
         [
-            ('2.2.3', 'Please provide Airflow version range with the format "old_version:new_version"'),
-            ("2.1.2:2.1.5", "Please provide valid Airflow versions above 2.0.0."),
+            ('e959f08ac86c', 'e959f08ac86c'),
         ],
     )
-    def test_offline_upgrade_fails_for_migration_single_versions_or_not_existing_head(self, version, error):
-        with pytest.raises(AirflowException) as e:
-            upgradedb(version)
-        assert e.exconly() == (f"airflow.exceptions.AirflowException: {error}")
+    def test_offline_upgrade_revision_nothing(self, from_revision, to_revision):
+        with mock.patch('airflow.utils.db.settings.engine.dialect'):
+            with mock.patch('alembic.command.upgrade'):
+                with redirect_stdout(io.StringIO()) as temp_stdout:
+                    upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
+                stdout = temp_stdout.getvalue()
+                assert 'nothing to do' in stdout
 
-    @pytest.mark.parametrize('revision', ['90d1635d7b86:54bebd308c5f', "e959f08ac86c:587bdf053233"])
-    def test_offline_upgrade_revision(self, revision):
+    @pytest.mark.parametrize(
+        'from_revision, to_revision',
+        [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
+    )
+    def test_offline_upgrade_revision(self, from_revision, to_revision):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb(revision_range=revision)
-        mock_alembic_upgrade.assert_called_once_with(mock.ANY, revision, sql=True)
+                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+        mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
-        rev_2_0_0_head = 'e959f08ac86c'
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
-            with pytest.raises(AirflowException) as e:
-                upgradedb(revision_range='e1a11ece99cc:54bebd308c5f')
-        revision = f"{rev_2_0_0_head}:e1a11ece99cc"
-        assert e.exconly() == (
-            f"airflow.exceptions.AirflowException: "
-            f"Error while checking history for revision range {revision}. "
-            f"Check that {revision.split(':')[1]} is a valid revision. "
-            f"Supported revision for offline migration is from {rev_2_0_0_head} "
-            f"which is airflow 2.0.0 head"
-        )
+            with pytest.raises(ValueError, match='Check that e1a11ece99cc is a valid revision'):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     def test_sqlite_offline_upgrade_raises_with_revision(self):
         with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
             dialect.name = 'sqlite'
-            with pytest.raises(AirflowException) as e:
-                upgradedb(revision_range='e1a11ece99cc:54bebd308c5f')
-        assert e.exconly() == (
-            "airflow.exceptions.AirflowException: SQLite is not supported for offline migration."
-        )
-
-    def test_sqlite_offline_upgrade_raises_with_version(self):
-        with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
-            dialect.name = 'sqlite'
-            with pytest.raises(AirflowException) as e:
-                upgradedb(revision_range='2.0.0:2.2.3')
-        assert e.exconly() == (
-            "airflow.exceptions.AirflowException: SQLite is not supported for offline migration."
-        )
+            with pytest.raises(AirflowException, match='Offline migration not supported for SQLite'):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
-        rev_2_2_0_head = '7b2661a43ba3'
         with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
             dialect.name = 'mssql'
-            with pytest.raises(AirflowException) as e:
-                upgradedb(revision_range='e1a11ece99cc:54bebd308c5f')
-        revision = f"{rev_2_2_0_head}:e1a11ece99cc"
-        assert e.exconly() == (
-            f"airflow.exceptions.AirflowException: "
-            f"Error while checking history for revision range {revision}. "
-            f"Check that {revision.split(':')[1]} is a valid revision. "
-            f"Supported revision for offline migration is from {rev_2_2_0_head} "
-            f"which is airflow 2.2.0 head"
-        )
-
-    def test_versions_without_migration_donot_raise(self):
-        with mock.patch('airflow.utils.db.settings.engine.dialect'):
-            with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
-                upgradedb("2.1.1:2.1.2")
-        mock_alembic_upgrade.assert_not_called()
+            with pytest.raises(ValueError, match='Check that .* is a valid .* For dialect \'mssql\''):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
 
     @mock.patch('airflow.utils.db._offline_migration')
     def test_downgrade_sql_no_from(self, mock_om):
-        downgrade(to_revision='abc', sql=True, from_revision=None)
+        downgrade(to_revision='abc', show_sql_only=True, from_revision=None)
         actual = mock_om.call_args[1]['revision']
         assert re.match(r'[a-z0-9]+:abc', actual) is not None
 
     @mock.patch('airflow.utils.db._offline_migration')
     def test_downgrade_sql_with_from(self, mock_om):
-        downgrade(to_revision='abc', sql=True, from_revision='123')
+        downgrade(to_revision='abc', show_sql_only=True, from_revision='123')
         actual = mock_om.call_args[1]['revision']
         assert actual == '123:abc'
 

@@ -35,6 +35,7 @@ const executionDate = getMetaValue('execution_date');
 const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
+const isSchedulerRunning = getMetaValue('is_scheduler_running');
 
 // This maps the actual taskId to the current graph node id that contains the task
 // (because tasks may be grouped into a group node)
@@ -376,6 +377,29 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let refreshInterval;
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 1000);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 let prevTis;
 
 function handleRefresh() {
@@ -413,18 +437,6 @@ function handleRefresh() {
     });
 }
 
-let refreshInterval;
-
-function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 1000);
-  } else {
-    clearInterval(refreshInterval);
-  }
-}
-
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
     // Run an initial refresh before starting interval if manually turned on
@@ -439,7 +451,7 @@ $('#auto_refresh').change(() => {
 function initRefresh() {
   const isDisabled = localStorage.getItem('disableAutoRefresh');
   const isFinal = checkRunState();
-  $('#auto_refresh').prop('checked', !(isDisabled || isFinal));
+  $('#auto_refresh').prop('checked', !(isDisabled || isFinal) && isSchedulerRunning === 'True');
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }

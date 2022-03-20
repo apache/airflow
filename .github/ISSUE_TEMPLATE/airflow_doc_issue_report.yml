@@ -19,7 +19,7 @@ body:
       # yamllint enable rule:line-length
   - type: textarea
     attributes:
-      label: Describe the issue with documentation
+      label: What do you see as an issue?
       description: Please describe the issue with documentation you have.
       placeholder: >
         Please include links to the documentation that has the problem and possibly screenshots showing
@@ -27,7 +27,7 @@ body:
         audience of the documentation. Please explain why you think the docs are wrong.
   - type: textarea
     attributes:
-      label: How to solve the problem
+      label: Solving the problem
       description: How do you think the problem can be solved?
       placeholder: >
         Please explain how you think the documentation could be fixed. Ideally specify where a new or missing

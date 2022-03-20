@@ -216,7 +216,6 @@ class TaskGroup(DAGNode):
 
         self.used_group_ids.remove(key)
         del self.children[key]
-        task.task_group = None
 
     @property
     def group_id(self) -> Optional[str]:
@@ -393,7 +392,7 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
-    def apply(self, arg: Iterable) -> "MappedTaskGroup":
+    def expand(self, arg: Iterable) -> "MappedTaskGroup":
         if self.children:
             raise RuntimeError("Cannot map a TaskGroup that already has children")
         if not self.group_id:

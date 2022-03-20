@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.0.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Update Zendesk example DAG to use TaskFlow API (#21411)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.0
 .....
 

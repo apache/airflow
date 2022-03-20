@@ -20,13 +20,10 @@
 /* global calendarData, statesColors, document, window, $, d3, moment */
 import { getMetaValue } from './utils';
 
-const dagId = getMetaValue('dag_id');
-const treeUrl = getMetaValue('tree_url');
+const gridUrl = getMetaValue('grid_url');
 
-function getTreeViewURL(d) {
-  return `${treeUrl
-  }?dag_id=${encodeURIComponent(dagId)
-  }&base_date=${encodeURIComponent(d.toISOString())}`;
+function getGridViewURL(d) {
+  return `${gridUrl}?base_date=${encodeURIComponent(d.toISOString())}`;
 }
 
 // date helpers
@@ -283,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return d3.interpolateHsl(statesColors.success, statesColors.failed)(ratioFailures);
       })
       .on('click', (data) => {
-        window.location.href = getTreeViewURL(
+        window.location.href = getGridViewURL(
           // add 1 day and subtract 1 ms to not show any run from the next day.
           toMoment(data.year, data.month, data.day).add(1, 'day').subtract(1, 'ms'),
         );

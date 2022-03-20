@@ -168,7 +168,7 @@ body:
         Please provide the context in which the problem occurred and explain what happened
   - type: textarea
     attributes:
-      label: What you expected to happen
+      label: What you think should happen instead
       description: What do you think went wrong?
       placeholder: >
         Please explain why you think the behaviour is erroneous. It is extremely helpful if you copy&paste

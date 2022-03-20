@@ -668,9 +668,21 @@ class DagRun(Base, LoggingMixin):
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
         expanded_tis: List[TI] = []
+        dep_context = DepContext(
+            flag_upstream_failed=True,
+            ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
+            finished_tis=finished_tis,
+        )
 
         # Check dependencies
         for schedulable in itertools.chain(schedulable_tis, expanded_tis):
+
+            old_state = schedulable.state
+            if schedulable.are_dependencies_met(session=session, dep_context=dep_context):
+                ready_tis.append(schedulable)
+            else:
+                old_states[schedulable.key] = old_state
+                continue
 
             # Expansion of last resort! This is ideally handled in the mini-scheduler in LocalTaskJob, but if
             # for any reason it wasn't, we need to expand it now
@@ -687,15 +699,6 @@ class DagRun(Base, LoggingMixin):
                         assert new_tis[0] is schedulable
                         expanded_tis.extend(new_tis[1:])
                         break
-
-            old_state = schedulable.state
-            if schedulable.are_dependencies_met(
-                dep_context=DepContext(flag_upstream_failed=True, finished_tis=finished_tis),
-                session=session,
-            ):
-                ready_tis.append(schedulable)
-            else:
-                old_states[schedulable.key] = old_state
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states.keys())

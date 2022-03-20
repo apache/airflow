@@ -78,7 +78,16 @@ git push
 # Manually refreshing the images
 
 Note that in order to refresh images you have to not only have `buildx` command installed for docker,
-but you should also make sure that you have the buildkit builder configured and set.
+but you should also make sure that you have the buildkit builder configured and set. Since we also build
+multi-platform images (for both AMD and ARM), you need to have support for qemu installed with appropriate
+flags.
+
+According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
+this can be achieved via:
+
+```shell
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
 
 More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
 

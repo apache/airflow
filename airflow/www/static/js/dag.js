@@ -61,7 +61,12 @@ const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-ur
 }, {});
 
 function updateButtonUrl(elm, params) {
-  elm.setAttribute('href', `${elm.dataset.baseUrl}?${$.param(params)}`);
+  let url = elm.dataset.baseUrl;
+  if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
+    url = url.replace(dagId, params.dag_id);
+    delete params.dag_id;
+  }
+  elm.setAttribute('href', `${url}?${$.param(params)}`);
 }
 
 function updateModalUrls() {
@@ -225,6 +230,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID) {
 export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
+  $('#run_id').text(dag.run_id);
   executionDate = dag.execution_date;
   dagRunId = dag.run_id;
   updateButtonUrl(buttons.dag_graph_view, {

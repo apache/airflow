@@ -171,7 +171,7 @@ in the Postgres documentation to learn more.
 
 .. warning::
 
-   When you use SQLAlchemy 1.4.0+, you need ot use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
    In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
    SQLAlchemy 1.4.0+ results in:
 
@@ -232,7 +232,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
-   An example setup for ``keepalives`` that has been observe to fix the problem might be:
+   An example setup for ``keepalives`` that has been observed to fix the problem might be:
 
    .. code-block:: python
 
@@ -242,6 +242,13 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
           "keepalives_interval": 5,
           "keepalives_count": 5,
       }
+
+   Then, if it were placed in ``airflow_local_settings.py``, the config import path would be:
+
+   .. code-block:: text
+
+      sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+
 
 
 .. spelling::
@@ -331,6 +338,16 @@ Other configuration options
 ---------------------------
 
 There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+
+For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+
+Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
+
 
 Initialize the database
 -----------------------

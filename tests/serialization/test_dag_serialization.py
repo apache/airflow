@@ -40,7 +40,7 @@ from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -888,7 +888,7 @@ class TestStringifiedDAGs:
         assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == serialized_links
 
         # Test all the extra_links are set
-        assert set(simple_task.extra_links) == set(links.keys()) | {'airflow', 'github', 'google'}
+        assert set(simple_task.extra_links) == {*links, 'airflow', 'github', 'google'}
 
         dr = dag_maker.create_dagrun(execution_date=test_date)
         (ti,) = dr.task_instances
@@ -897,7 +897,7 @@ class TestStringifiedDAGs:
             value=bash_command,
             task_id=simple_task.task_id,
             dag_id=simple_task.dag_id,
-            execution_date=test_date,
+            run_id=dr.run_id,
         )
 
         # Test Deserialized inbuilt link
@@ -920,7 +920,7 @@ class TestStringifiedDAGs:
 
             name = 'My Link'
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, *, ti_key):
                 return 'https://www.google.com'
 
         class MyOperator(BaseOperator):
@@ -1330,14 +1330,8 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.edge_info == dag.edge_info
 
-    @pytest.mark.parametrize(
-        "mode, expect_custom_deps",
-        [
-            ("poke", False),
-            ("reschedule", True),
-        ],
-    )
-    def test_serialize_sensor(self, mode, expect_custom_deps):
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_serialize_sensor(self, mode):
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
@@ -1347,14 +1341,9 @@ class TestStringifiedDAGs:
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
 
         blob = SerializedBaseOperator.serialize_operator(op)
-
-        if expect_custom_deps:
-            assert "deps" in blob
-        else:
-            assert "deps" not in blob
+        assert "deps" in blob
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
-
         assert op.deps == serialized_op.deps
 
     @pytest.mark.parametrize(
@@ -1567,7 +1556,7 @@ def test_kubernetes_optional():
 
 def test_mapped_operator_serde():
     literal = [1, 2, {'a': 'b'}]
-    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).apply(
+    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).expand(
         bash_command=literal
     )
 
@@ -1600,6 +1589,7 @@ def test_mapped_operator_serde():
         'template_ext': ['.sh', '.bash'],
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'a',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1616,8 +1606,7 @@ def test_mapped_operator_xcomarg_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1626,7 +1615,7 @@ def test_mapped_operator_xcomarg_serde():
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
         'downstream_task_ids': [],
-        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'test_key'}}},
+        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
@@ -1634,6 +1623,7 @@ def test_mapped_operator_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'task_2',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1641,7 +1631,7 @@ def test_mapped_operator_xcomarg_serde():
 
     arg = op.mapped_kwargs['arg2']
     assert arg.task_id == 'op1'
-    assert arg.key == 'test_key'
+    assert arg.key == XCOM_RETURN_KEY
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
@@ -1677,13 +1667,12 @@ def test_mapped_decorator_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         op1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(op1, "my_key")
 
         @task(retry_delay=30)
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=xcomarg)
+        x.partial(arg1=[1, 2, {"a": "b"}]).expand(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
 
@@ -1702,7 +1691,7 @@ def test_mapped_decorator_serde():
         'mapped_kwargs': {},
         'mapped_op_kwargs': {
             'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'my_key'}},
+            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
         },
         'operator_extra_links': [],
         'ui_color': '#ffefeb',
@@ -1710,6 +1699,7 @@ def test_mapped_decorator_serde():
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
+        'user_supplied_task_id': 'x',
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1720,7 +1710,7 @@ def test_mapped_decorator_serde():
 
     assert deserialized.mapped_op_kwargs == {
         "arg2": {"a": 1, "b": 2},
-        "arg3": _XComRef("op1", "my_key"),
+        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
     }
     assert deserialized.partial_kwargs == {
         "op_args": [],
@@ -1734,7 +1724,7 @@ def test_mapped_task_group_serde():
 
     literal = [1, 2, {'a': 'b'}]
     with DAG("test", start_date=execution_date) as dag:
-        with TaskGroup("process_one", dag=dag).apply(literal) as process_one:
+        with TaskGroup("process_one", dag=dag).expand(literal) as process_one:
             BaseOperator(task_id='one')
 
     serialized = SerializedTaskGroup.serialize_task_group(process_one)

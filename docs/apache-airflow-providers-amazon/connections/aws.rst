@@ -280,7 +280,7 @@ Example
             self.log.debug("Refreshing federated AWS credentials")
             credentials = get_federated_aws_credentials(**self.extra_config["federation"])
             access_key_id = credentials["AccessKeyId"]
-            access_key_id = credentials["Expiration"]
+            expiry_time = credentials["Expiration"]
             self.log.info(
                 f"New federated AWS credentials received with aws_access_key_id={access_key_id} and "
                 f"expiry_time={expiry_time} for connection {self.conn.conn_id}"

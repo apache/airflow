@@ -86,7 +86,12 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info('View run status, Spark UI, and logs at %s', run_page_url)
                     return
                 else:
-                    error_message = f'{operator.task_id} failed with terminal state: {run_state}'
+                    run_output = hook.get_run_output(operator.run_id)
+                    notebook_error = run_output['error']
+                    error_message = (
+                        f'{operator.task_id} failed with terminal state: {run_state} '
+                        f'and with the error {notebook_error}'
+                    )
                     raise AirflowException(error_message)
             else:
                 log.info('%s in run state: %s', operator.task_id, run_state)
@@ -240,6 +245,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -269,6 +275,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
+        databricks_retry_args: Optional[Dict[Any, Any]] = None,
         do_xcom_push: bool = False,
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
@@ -282,6 +289,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         if tasks is not None:
             self.json['tasks'] = tasks
@@ -322,6 +330,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
         )
 
     def execute(self, context: 'Context'):
@@ -479,6 +488,7 @@ class DatabricksRunNowOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -503,6 +513,7 @@ class DatabricksRunNowOperator(BaseOperator):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
+        databricks_retry_args: Optional[Dict[Any, Any]] = None,
         do_xcom_push: bool = False,
         wait_for_termination: bool = True,
         **kwargs,
@@ -514,6 +525,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
 
         if job_id is not None:
@@ -541,6 +553,7 @@ class DatabricksRunNowOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
         )
 
     def execute(self, context: 'Context'):

@@ -23,7 +23,6 @@ from unittest import mock
 
 import pytest
 
-from airflow import PY39
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -34,12 +33,6 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 @pytest.mark.backend("mysql")
 class TestTransfer:
     env_vars = {
