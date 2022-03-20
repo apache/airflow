@@ -97,6 +97,7 @@ check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
+check-ti-run-id-in-providers
 check-xml
 daysago-import-check
 debug-statements
