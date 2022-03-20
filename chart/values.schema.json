@@ -1105,28 +1105,32 @@
             "additionalProperties": false,
             "properties": {
                 "livenessProbe": {
-                    "description": "Liveness probe configuration.",
+                    "description": "Liveness probe configuration for workers container.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "initialDelaySeconds": {
-                            "description": "Scheduler Liveness probe initial delay.",
-                            "type": "integer"
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 60
                         },
                         "timeoutSeconds": {
-                            "description": "Scheduler Liveness probe timeout seconds.",
-                            "type": "integer"
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 15
                         },
                         "failureThreshold": {
-                            "description": "Scheduler Liveness probe failure threshold.",
-                            "type": "integer"
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
                         },
                         "periodSeconds": {
-                            "description": "Webserver Liveness probe period seconds.",
-                            "type": "integer"
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
                         },
                         "command": {
-                            "description": "Webserver command for livenessProbe",
+                            "description": "Command for livenessProbe",
                             "type": [
                                 "array",
                                 "null"

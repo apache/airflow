@@ -478,10 +478,10 @@ workers:
   # If the celery stops heartbeating for 1.5 minutes (3*30s) kill the
   # celery and let Kubernetes restart it
   livenessProbe:
-    initialDelaySeconds: 30
-    timeoutSeconds: 5
-    failureThreshold: 3
-    periodSeconds: 30
+    initialDelaySeconds: 60
+    timeoutSeconds: 15
+    failureThreshold: 5
+    periodSeconds: 60
 
   kerberosSidecar:
     # Enable kerberos sidecar
