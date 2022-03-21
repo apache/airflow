@@ -687,6 +687,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 operator_extra_links=BaseOperator.operator_extra_links,
                 template_ext=BaseOperator.template_ext,
                 template_fields=BaseOperator.template_fields,
+                template_fields_renderers=BaseOperator.template_fields_renderers,
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_dummy=False,

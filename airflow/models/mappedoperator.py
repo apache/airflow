@@ -207,6 +207,7 @@ class OperatorPartial:
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_dummy=issubclass(self.operator_class, DummyOperator),
@@ -237,6 +238,7 @@ class MappedOperator(AbstractOperator):
     operator_extra_links: Collection["BaseOperatorLink"]
     template_ext: Collection[str]
     template_fields: Collection[str]
+    template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
     _is_dummy: bool

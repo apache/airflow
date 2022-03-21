@@ -1246,6 +1246,7 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         task = dag.get_task(task_id).prepare_for_execution()
 
+        ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
             # DAG has never been run. Task instance rendering does not really

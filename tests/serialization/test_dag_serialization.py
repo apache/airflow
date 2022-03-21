@@ -1587,6 +1587,7 @@ def test_mapped_operator_serde():
         'operator_extra_links': [],
         'template_fields': ['bash_command', 'env'],
         'template_ext': ['.sh', '.bash'],
+        'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
         'user_supplied_task_id': 'a',
@@ -1620,6 +1621,7 @@ def test_mapped_operator_xcomarg_serde():
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
         'template_ext': [],
+        'template_fields_renderers': {},
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
@@ -1699,6 +1701,7 @@ def test_mapped_decorator_serde():
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
+        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
         'user_supplied_task_id': 'x',
     }
 
