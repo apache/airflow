@@ -19,19 +19,17 @@ import os
 import re
 from itertools import chain
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_ENV_ID",)
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="package", autouse=True)
 def use_debug_executor():
-    prev_executor = os.environ.get("AIRFLOW__CORE__EXECUTOR", default=None)
-    os.environ["AIRFLOW__CORE__EXECUTOR"] = "DebugExecutor"
-    yield
-    if prev_executor is not None:
-        os.environ["AIRFLOW__CORE__EXECUTOR"] = prev_executor
+    with mock.patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="DebugExecutor"):
+        yield
 
 
 @pytest.fixture()
