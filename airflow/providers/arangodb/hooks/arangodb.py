@@ -68,19 +68,21 @@ class ArangoDBHook(BaseHook):
 
         self.client = ArangoDBClient(hosts=self.hosts)
         self.db_conn = self.client.db(name=self.database, username=self.username, password=self.password)
-
+        self.db_conn.collection("x").find
         return self.client
 
-    def query(self, query) -> Result:
+    def query(self, query, **kwargs) -> Result:
         """
         Function to create a arangodb session
         and execute the AQL query in the session.
 
         :param query: AQL query
+        :param count: If set to True, the total document count is included in
+            the result cursor.
         :return: Result
         """
         try:
-            result = self.db_conn.aql.execute(query)
+            result = self.db_conn.aql.execute(query, **kwargs)
             return result
         except AQLQueryExecuteError as error:
             raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
