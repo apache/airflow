@@ -3060,6 +3060,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
                     }
                 },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
                     "type": "object",
