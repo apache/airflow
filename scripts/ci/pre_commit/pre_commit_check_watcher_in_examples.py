@@ -35,11 +35,9 @@ errors: List[str] = []
 WATCHER_APPEND_INSTRUCTION = "list(dag.tasks) >> watcher()"
 
 PYTEST_FUNCTION = """
-def test_run():
-    from airflow.utils.state import State
+from tests.system.utils import get_test_run  # noqa: E402
 
-    dag.clear(dag_run_state=State.NONE)
-    dag.run()
+test_run = get_test_run(dag)
 """
 
 

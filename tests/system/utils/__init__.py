@@ -14,3 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.utils.state import State
+
+
+def get_test_run(dag):
+    def test_run():
+        dag.clear(dag_run_state=State.NONE)
+        dag.run()
+
+    return test_run
