@@ -642,9 +642,10 @@ class AirflowConfigParser(ConfigParser):
 
             try:
                 return datetime.timedelta(seconds=int_val)
-            except OverflowError:
+            except OverflowError as err:
                 raise AirflowConfigException(
                     f'Failed to convert value to timedelta in `seconds`. '
+                    f'{err}. '
                     f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
                 )
 

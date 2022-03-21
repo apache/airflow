@@ -888,6 +888,7 @@ key7 =
             AirflowConfigException,
             match=re.escape(
                 'Failed to convert value to timedelta in `seconds`. '
+                'Python int too large to convert to C int. '
                 'Please check "key3" key in "invalid" section. Current value: "999999999999999".'
             ),
         ):
