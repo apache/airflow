@@ -1503,6 +1503,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         nowait: bool = False,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: Optional[float] = None,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1520,6 +1522,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         :param nowait: specify whether to insert job without waiting for the result
+        :param retry: How to retry the RPC.
+        :param timeout: The number of seconds to wait for the underlying HTTP transport
+            before using ``retry``.
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
@@ -1552,7 +1557,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job._begin()
         else:
             # Start the job and wait for it to complete and get the result.
-            job.result()
+            job.result(timeout=timeout, retry=retry)
         return job
 
     def run_with_configuration(self, configuration: dict) -> str:
