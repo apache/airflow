@@ -239,13 +239,13 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         airflow.settings.initialize()
         del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
         processor_manager = DagFileProcessorManager(
-            dag_directory,
-            max_runs,
-            processor_timeout,
-            signal_conn,
-            dag_ids,
-            pickle_dags,
-            async_mode,
+            dag_directory=dag_directory,
+            max_runs=max_runs,
+            processor_timeout=processor_timeout,
+            signal_conn=signal_conn,
+            dag_ids=dag_ids,
+            pickle_dags=pickle_dags,
+            async_mode=async_mode,
         )
 
         processor_manager.start()
@@ -368,9 +368,9 @@ class DagFileProcessorManager(LoggingMixin):
         dag_directory: Union[str, "pathlib.Path"],
         max_runs: int,
         processor_timeout: timedelta,
-        signal_conn: MultiprocessingConnection,
         dag_ids: Optional[List[str]],
         pickle_dags: bool,
+        signal_conn: Optional[MultiprocessingConnection] = None,
         async_mode: bool = True,
     ):
         super().__init__()
@@ -383,6 +383,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[int] = None
+        self._standalone_mode = conf.getboolean("scheduler", "standalone_dag_processor")
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -390,7 +391,7 @@ class DagFileProcessorManager(LoggingMixin):
         #
         # Don't do this in sync_mode, as we _need_ the DagParsingStat sent to
         # continue the scheduler
-        if self._async_mode:
+        if self._async_mode and not self._standalone_mode and self._signal_conn is not None:
             os.set_blocking(self._signal_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
@@ -434,9 +435,13 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._log = logging.getLogger('airflow.processor_manager')
 
-        self.waitables: Dict[Any, Union[MultiprocessingConnection, DagFileProcessorProcess]] = {
-            self._signal_conn: self._signal_conn,
-        }
+        self.waitables: Dict[Any, Union[MultiprocessingConnection, DagFileProcessorProcess]] = (
+            {
+                self._signal_conn: self._signal_conn,
+            }
+            if self._signal_conn is not None
+            else {}
+        )
 
     def register_exit_signals(self):
         """Register signals that stop child processes"""
@@ -521,7 +526,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
-        maxCallbacksPerLoop = conf.getint("scheduler", "max_callbacks_per_loop")
+        max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
 
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
@@ -530,10 +535,7 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
-            if self._signal_conn in ready:
-                if conf.getboolean("scheduler", "standalone_dag_processor"):
-                    # Nothing to do if callbacks are not stored in the database
-                    self._fetch_callbacks(maxCallbacksPerLoop)
+            if self._signal_conn in ready and not self._standalone_mode:
                 agent_signal = self._signal_conn.recv()
 
                 self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
@@ -576,6 +578,8 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
+            if self._standalone_mode:
+                self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             self._refresh_dag_dir()
 
@@ -609,12 +613,13 @@ class DagFileProcessorManager(LoggingMixin):
             max_runs_reached = self.max_runs_reached()
 
             try:
-                self._signal_conn.send(
-                    DagParsingStat(
-                        max_runs_reached,
-                        all_files_processed,
+                if self._signal_conn:
+                    self._signal_conn.send(
+                        DagParsingStat(
+                            max_runs_reached,
+                            all_files_processed,
+                        )
                     )
-                )
             except BlockingIOError:
                 # Try again next time around the loop!
 
@@ -639,7 +644,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
-        """Fetches callbacks from database and add them to the internal pipe for execution."""
+        """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
             query = (
@@ -652,7 +657,7 @@ class DagFileProcessorManager(LoggingMixin):
             ).all()
             for callback in callbacks:
                 try:
-                    self._signal_conn.send(callback.get_callback_request())
+                    self._add_callback_to_queue(callback.get_callback_request())
                     session.delete(callback)
                 except Exception as e:
                     self.log.warning("Error adding callback for execution: %s, %s", callback, e)
