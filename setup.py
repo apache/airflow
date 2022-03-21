@@ -179,11 +179,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
-# We should remove the limits as soon as Flask App Builder releases version 3.4.4
-# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
-# TODO: remove it when we fix all SQLAlchemy 1.4 problems
-pandas_requirement = 'pandas>=0.17.1, <1.4'
+pandas_requirement = 'pandas>=0.17.1'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
