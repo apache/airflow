@@ -41,7 +41,7 @@ Name                                        Description
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`
 ``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
-``on_execute_callback``                     Invoked right before the task begins executing. 
+``on_execute_callback``                     Invoked right before the task begins executing.
 =========================================== ================================================================
 
 
