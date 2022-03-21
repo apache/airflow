@@ -1244,7 +1244,7 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = dag.get_task(task_id).prepare_for_execution()
+        raw_task = dag.get_task(task_id).prepare_for_execution()
 
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1252,11 +1252,11 @@ class Airflow(AirflowBaseView):
             # make sense in this situation, but "works" prior to AIP-39. This
             # "fakes" a temporary DagRun-TaskInstance association (not saved to
             # database) for presentation only.
-            ti = TaskInstance(task, map_index=map_index)
+            ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
-            ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(task)
+            ti = dag_run.get_task_instance(task_id=raw_task.task_id, map_index=map_index, session=session)
+            ti.refresh_from_task(raw_task)
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1267,9 +1267,8 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
-        else:
-            task = ti.task
 
+        task = ti.task.unmap()
         title = "Rendered Template"
         html_dict = {}
         renderers = wwwutils.get_attr_renderer()

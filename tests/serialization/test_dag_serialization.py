@@ -1618,8 +1618,6 @@ def test_mapped_operator_xcomarg_serde():
         'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
         'partial_kwargs': {},
         'task_id': 'task_2',
-        'template_fields': ['arg1', 'arg2'],
-        'template_ext': [],
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
@@ -1697,8 +1695,6 @@ def test_mapped_decorator_serde():
         'ui_color': '#ffefeb',
         'ui_fgcolor': '#000',
         'task_id': 'x',
-        'template_ext': [],
-        'template_fields': ['op_args', 'op_kwargs'],
         'user_supplied_task_id': 'x',
     }
 
