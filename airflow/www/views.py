@@ -1246,6 +1246,7 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
             # DAG has never been run. Task instance rendering does not really
@@ -1560,12 +1561,12 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get('map_index', -1, type=int)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for('Airflow.index'))
-        task = copy.copy(dag.get_task(task_id))
+        task = copy.copy(dag.get_task(task_id)).unmap()
         task.resolve_template_files()
 
         ti: Optional[TaskInstance] = (

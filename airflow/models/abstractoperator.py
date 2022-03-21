@@ -125,29 +125,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
         template is rendered, it should override this method to do so.
         """
 
-    def resolve_template_files(self) -> None:
-        """Getting the content of files for template_field / template_ext."""
-        if self.template_ext:
-            for field in self.template_fields:
-                content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
-                    env = self.get_template_env()
-                    try:
-                        setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
-                    except Exception:
-                        self.log.exception("Failed to resolve template field %r", field)
-                elif isinstance(content, list):
-                    env = self.get_template_env()
-                    for i, item in enumerate(content):
-                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
-                            try:
-                                content[i] = env.loader.get_source(env, item)[0]  # type: ignore
-                            except Exception as e:
-                                self.log.exception(e)
-        self.prepare_template()
-
     def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
         if upstream:

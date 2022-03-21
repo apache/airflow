@@ -659,11 +659,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
-        if op.template_fields:
-            for template_field in op.template_fields:
-                value = getattr(op, template_field, None)
-                if not cls._is_excluded(value, template_field, op):
-                    serialize_op[template_field] = serialize_template_field(value)
+        for template_field in getattr(op, "template_fields", ()):
+            value = getattr(op, template_field, None)
+            if not cls._is_excluded(value, template_field, op):
+                serialize_op[template_field] = serialize_template_field(value)
 
         if op.params:
             serialize_op['params'] = cls._serialize_params_dict(op.params)
@@ -787,7 +786,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, k, None)
 
         # Set all the template_field to None that were not present in Serialized JSON
-        for field in op.template_fields:
+        for field in getattr(op, "template_fields", ()):
             if not hasattr(op, field):
                 setattr(op, field, None)
 

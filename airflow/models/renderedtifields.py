@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session, relationship
 
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
@@ -84,6 +85,8 @@ class RenderedTaskInstanceFields(Base):
         self.ti = ti
         if render_templates:
             ti.render_templates()
+        if not isinstance(ti.task, BaseOperator):
+            raise ValueError("can only store rendered fields from unmapped task")
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             self.k8s_pod_yaml = ti.render_k8s_pod_yaml()

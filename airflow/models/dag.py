@@ -1258,7 +1258,7 @@ class DAG(LoggingMixin):
 
     def resolve_template_files(self):
         for t in self.tasks:
-            t.resolve_template_files()
+            t.unmap().resolve_template_files()
 
     def get_template_env(self) -> jinja2.Environment:
         """Build a Jinja2 environment."""
