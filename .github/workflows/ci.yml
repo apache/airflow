@@ -1209,7 +1209,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 80
+    timeout-minutes: 100
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
