@@ -63,7 +63,7 @@ const DagRun = ({
   return (
     <Box fontSize="12px" py="4px">
       <Flex justifyContent="space-between" alignItems="center">
-        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>More Details</Button>
+        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
         <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
           Graph
         </Button>

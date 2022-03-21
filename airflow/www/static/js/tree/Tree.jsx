@@ -36,6 +36,7 @@ import {
 
 import useTreeData from './useTreeData';
 import renderTaskRows from './renderTaskRows';
+import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import Details from './details';
 import { useSelection } from './providers/selection';
@@ -77,6 +78,7 @@ const Tree = () => {
   return (
     <Box>
       <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
+        <ResetRoot />
         <FormControl display="flex" width="auto" mr={2}>
           {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
           <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
@@ -86,7 +88,6 @@ const Tree = () => {
         </FormControl>
         <Button
           onClick={toggleSidePanel}
-          title={isOpen ? 'Show' : 'Hide'}
           aria-label={isOpen ? 'Show Details' : 'Hide Details'}
           variant={isOpen ? 'solid' : 'outline'}
         >
@@ -98,7 +99,7 @@ const Tree = () => {
         <Box
           position="relative"
           mt={2}
-          p="12px"
+          m="12px"
           overflow="auto"
           ref={scrollRef}
           flexGrow={1}

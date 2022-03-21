@@ -149,7 +149,7 @@ const TaskInstance = ({
           <Flex flexWrap="wrap">
             {!task.isMapped && (
               <>
-                <LinkButton href={detailsLink}>More Details</LinkButton>
+                <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
                 <LinkButton href={renderedLink}>Rendered Template</LinkButton>
                 {isK8sExecutor && (
                 <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>

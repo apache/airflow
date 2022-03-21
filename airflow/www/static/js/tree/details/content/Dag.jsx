@@ -63,7 +63,7 @@ const Dag = () => {
   return (
     <Box>
       <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={`/dags/${dagId}/details`}>
-        More Details
+        DAG Details
       </Button>
       <Table variant="striped">
         <Tbody>
@@ -125,7 +125,7 @@ const Dag = () => {
           </Tr>
           )}
           <Tr>
-            <Td>Timezone</Td>
+            <Td>DAG Timezone</Td>
             <Td>{timezone}</Td>
           </Tr>
         </Tbody>
