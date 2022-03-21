@@ -121,7 +121,7 @@ function initialization::initialize_base_variables() {
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres

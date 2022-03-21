@@ -3620,7 +3620,7 @@ function breeze::run_breeze_command() {
 # We have different versions of images depending on the python version used. We keep up with the
 # Latest patch-level changes in Python (this is done automatically during CI test runs) so we have
 # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
-# version of python in X.Y format (3.6, 3.7, 3.8, 3.9).
+# version of python in X.Y format (3.7, 3.8, 3.9, 3.10).
 #
 # In Breeze the precedence of setting the version is as follows:
 #      1. --python flag (if set, it will explicitly override it in the next step)
