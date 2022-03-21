@@ -514,8 +514,13 @@ class TestMarkDAGRun:
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = len(self.INITIAL_TASK_STATES.values()) - self._get_num_tasks_with_starting_state(
+            State.SUCCESS, inclusion=True
+        )
+        expected = expected - self._get_num_tasks_with_starting_state(State.FAILED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.SKIPPED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.UPSTREAM_FAILED, inclusion=True)
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
@@ -561,8 +566,13 @@ class TestMarkDAGRun:
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = len(self.INITIAL_TASK_STATES.values()) - self._get_num_tasks_with_starting_state(
+            State.SUCCESS, inclusion=True
+        )
+        expected = expected - self._get_num_tasks_with_starting_state(State.FAILED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.SKIPPED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.UPSTREAM_FAILED, inclusion=True)
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
@@ -609,8 +619,13 @@ class TestMarkDAGRun:
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
 
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = len(self.INITIAL_TASK_STATES.values()) - self._get_num_tasks_with_starting_state(
+            State.SUCCESS, inclusion=True
+        )
+        expected = expected - self._get_num_tasks_with_starting_state(State.FAILED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.SKIPPED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.UPSTREAM_FAILED, inclusion=True)
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
@@ -655,15 +670,20 @@ class TestMarkDAGRun:
 
         will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=False)
 
-        # Only the running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only the non-completed tasks should be altered.
+        expected = len(self.INITIAL_TASK_STATES.values()) - self._get_num_tasks_with_starting_state(
+            State.SUCCESS, inclusion=True
+        )
+        expected = expected - self._get_num_tasks_with_starting_state(State.FAILED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.SKIPPED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.UPSTREAM_FAILED, inclusion=True)
         assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
         will_be_altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=False)
 
-        # All except the SUCCESS task should be altered.
+        # Only the non-completed tasks should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
         assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
