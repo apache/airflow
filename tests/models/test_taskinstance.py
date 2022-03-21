@@ -1019,15 +1019,14 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, create_task_instance):
-        """
-        Test xcom_pull, using different filtering methods.
-        """
-        ti1 = create_task_instance(
-            dag_id='test_xcom',
-            task_id='test_xcom_1',
-            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0),
-        )
+    def test_xcom_pull(self, dag_maker):
+        """Test xcom_pull, using different filtering methods."""
+        with dag_maker(dag_id="test_xcom") as dag:
+            task_1 = DummyOperator(task_id="test_xcom_1")
+            task_2 = DummyOperator(task_id="test_xcom_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key='foo', value='bar')
@@ -1036,9 +1035,9 @@ class TestTaskInstance:
         XCom.set(
             key='foo',
             value='baz',
-            task_id='test_xcom_2',
-            dag_id=ti1.dag_id,
-            execution_date=ti1.execution_date,
+            task_id=task_2.task_id,
+            dag_id=dag.dag_id,
+            execution_date=dagrun.execution_date,
         )
 
         # Pull with no arguments

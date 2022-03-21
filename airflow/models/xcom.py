@@ -26,7 +26,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, Index, Integer, LargeBinary, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, LargeBinary, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -45,10 +45,6 @@ log = logging.getLogger(__name__)
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
-
-# Stand-in value for 'airflow task test' generating a temporary in-memory DAG
-# run without storing it in the database.
-IN_MEMORY_RUN_ID = "__airflow_in_memory_dagrun__"
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -71,25 +67,32 @@ class BaseXCom(Base, LoggingMixin):
     value = Column(LargeBinary)
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
+    __table_args__ = (
+        # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
+        # but it goes over MySQL's index length limit. So we instead index 'key'
+        # separately, and enforce uniqueness with DagRun.id instead.
+        Index("idx_xcom_key", key),
+        ForeignKeyConstraint(
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="xcom_task_instance_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+
     dag_run = relationship(
         "DagRun",
-        primaryjoin="""and_(
-            BaseXCom.dag_id == foreign(DagRun.dag_id),
-            BaseXCom.run_id == foreign(DagRun.run_id),
-        )""",
+        primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
         uselist=False,
         lazy="joined",
         passive_deletes="all",
     )
     execution_date = association_proxy("dag_run", "execution_date")
-
-    __table_args__ = (
-        # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
-        # but it goes over MySQL's index length limit. So we instead create indexes
-        # separately, and enforce uniqueness with DagRun.id instead.
-        Index("idx_xcom_key", key),
-        Index("idx_xcom_ti_id", dag_id, task_id, run_id, map_index),
-    )
 
     @reconstructor
     def init_on_load(self):
@@ -175,8 +178,6 @@ class BaseXCom(Base, LoggingMixin):
                 )
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
-        elif run_id == IN_MEMORY_RUN_ID:
-            dag_run_id = -1
         else:
             dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
             if dag_run_id is None:
@@ -197,6 +198,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.run_id == run_id,
             cls.task_id == task_id,
             cls.dag_id == dag_id,
+            cls.map_index == map_index,
         ).delete()
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
@@ -205,6 +207,7 @@ class BaseXCom(Base, LoggingMixin):
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
+            map_index=map_index,
         )
         session.add(new)
         session.flush()
@@ -452,8 +455,6 @@ class BaseXCom(Base, LoggingMixin):
             if execution_date is not None:
                 query = query.filter(DagRun.execution_date <= execution_date)
             else:
-                # This returns an empty query result for IN_MEMORY_RUN_ID,
-                # but that is impossible to implement. Sorry?
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
                 query = query.filter(cls.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
