@@ -29,7 +29,7 @@ Airflow is tested with:
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.20.2 1.21.1
+* Kubernetes: 1.20.2 1.21.1 1.22.0, 1.23.0
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.

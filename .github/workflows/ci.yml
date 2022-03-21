@@ -1144,7 +1144,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
 
   tests-kubernetes:
-    timeout-minutes: 50
+    timeout-minutes: 70
     name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
@@ -1209,7 +1209,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 80
+    timeout-minutes: 100
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
