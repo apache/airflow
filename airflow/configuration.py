@@ -632,7 +632,7 @@ class AirflowConfigParser(ConfigParser):
                     f'Current value: "{val}".'
                 )
 
-            # the given value must be positive. Otherwise fallback value is returned.
+            # the given value must be positive.
             if int_val <= 0:
                 raise AirflowConfigException(
                     f'Failed to convert value to timedelta in `seconds`. '
