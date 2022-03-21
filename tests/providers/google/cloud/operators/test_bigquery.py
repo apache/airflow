@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
@@ -840,6 +841,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id
@@ -947,7 +950,10 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        job.result.assert_called_once_with()
+        job.result.assert_called_once_with(
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
 
         assert result == real_job_id
 
@@ -988,6 +994,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id
