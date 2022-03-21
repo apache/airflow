@@ -55,10 +55,8 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -102,10 +100,8 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param requirements: Either a list of requirement strings, or a (templated)
             "requirements file" as specified by pip.
         :param python_version: The Python version to run the virtualenv with. Note that
@@ -188,10 +184,8 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
         :param python_command: Python command for executing functions, Default: python3
         :param image: Docker image from which to create the container.
