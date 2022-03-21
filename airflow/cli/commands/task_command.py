@@ -39,6 +39,7 @@ from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import Operator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -131,7 +132,7 @@ def _get_dag_run(
 
 @provide_session
 def _get_ti(
-    task: BaseOperator,
+    task: Operator,
     exec_date_or_run_id: str,
     map_index: int,
     *,
@@ -144,6 +145,8 @@ def _get_ti(
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
         raise RuntimeError("map_index passed to non-mapped task")
+    assert task.dag  # For Mypy.
+
     dag_run, dr_created = _get_dag_run(
         dag=task.dag,
         exec_date_or_run_id=exec_date_or_run_id,
@@ -457,7 +460,7 @@ def _guess_debugger():
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @provide_session
-def task_states_for_dag_run(args, session=None):
+def task_states_for_dag_run(args, session: Session = NEW_SESSION):
     """Get the status of all task instances in a DagRun"""
     dag_run = (
         session.query(DagRun)
@@ -557,16 +560,21 @@ def task_test(args, dag=None):
 def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="memory")
+    ti, _ = _get_ti(
+        dag.get_task(task_id=args.task_id),
+        args.execution_date_or_run_id,
+        args.map_index,
+        create_if_necessary="memory",
+    )
     ti.render_templates()
-    for attr in task.__class__.template_fields:
+    assert isinstance(ti.task, BaseOperator)  # Rendering templates unmaps the operator.
+    for attr in ti.task.template_fields:
         print(
             textwrap.dedent(
                 f"""        # ----------------------------------------------------------
         # property: {attr}
         # ----------------------------------------------------------
-        {getattr(task, attr)}
+        {getattr(ti.task, attr)}
         """
             )
         )
