@@ -612,7 +612,7 @@ class AirflowConfigParser(ConfigParser):
     def gettimedelta(self, section, key, fallback=None, **kwargs) -> Optional[datetime.timedelta]:
         """
         Gets the config value for the given section and key, and converts it into datetime.timedelta object.
-        If the key is missing or set to a non-positive value, then it is considered as `None`.
+        If the key is missing, then it is considered as `None`.
 
         :param section: the section from the config
         :param key: the key defined in the given section
