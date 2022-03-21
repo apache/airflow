@@ -22,17 +22,16 @@ from pathlib import Path
 
 import pytest
 
-OLD_EXECUTOR = os.environ.get("AIRFLOW__CORE__EXECUTOR", default=None)
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_ENV_ID",)
 
 
-def pytest_configure(config):
+@pytest.fixture(scope="package")
+def use_debug_executor():
+    prev_executor = os.environ.get("AIRFLOW__CORE__EXECUTOR", default=None)
     os.environ["AIRFLOW__CORE__EXECUTOR"] = "DebugExecutor"
-
-
-def pytest_unconfigure(config):
-    if OLD_EXECUTOR is not None:
-        os.environ["AIRFLOW__CORE__EXECUTOR"] = OLD_EXECUTOR
+    yield
+    if prev_executor is not None:
+        os.environ["AIRFLOW__CORE__EXECUTOR"] = prev_executor
 
 
 @pytest.fixture()
