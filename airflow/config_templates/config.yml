@@ -364,8 +364,8 @@
     - name: default_task_execution_timeout
       description: |
         The default task execution_timeout value for the operators. Expected positive integer value to
-        be passed into timedelta as seconds. The missing and the non-positive values are considered as None,
-        means that the operators are never timed out.
+        be passed into timedelta as seconds. If not specified, then the value is considered as None,
+        meaning that the operators are never timed out by default.
       version_added: 2.3.0
       type: integer
       example: ~
