@@ -42,15 +42,6 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
-from airflow.www.fab_security.sqla.models import (
-    Action,
-    Permission,
-    RegisterUser,
-    Resource,
-    Role,
-    User,
-    assoc_permission_role,
-)
 
 __all__ = [
     "DAG",
