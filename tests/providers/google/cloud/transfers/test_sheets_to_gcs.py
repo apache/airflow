@@ -120,5 +120,5 @@ class TestGoogleSheetsToGCSOperator:
         mock_upload_data.assert_called()
         actual_call_count = mock_upload_data.call_count
         assert len(RANGES) == actual_call_count
-            
+
         mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])

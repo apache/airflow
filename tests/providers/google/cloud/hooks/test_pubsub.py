@@ -372,7 +372,7 @@ class TestPubSubHook(unittest.TestCase):
             for message in TEST_MESSAGES
         ]
         mock_calls_result = publish_method.mock_calls
-        result_refined = [mock_calls_result[0],mock_calls_result[2],mock_calls_result[4]]
+        result_refined = [mock_calls_result[0], mock_calls_result[2], mock_calls_result[4]]
         assert result_refined == calls
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
