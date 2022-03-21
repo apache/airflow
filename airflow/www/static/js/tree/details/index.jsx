@@ -42,8 +42,8 @@ const Details = () => {
         {selected.runId && !selected.taskId && <DagRunContent runId={selected.runId} />}
         {selected.taskId && (
         <TaskInstanceContent
-          instance={selected.instance}
-          task={selected.task}
+          runId={selected.runId}
+          taskId={selected.taskId}
         />
         )}
       </Box>

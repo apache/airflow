@@ -40,6 +40,7 @@ import { finalStatesMap, getMetaValue } from '../../../../utils';
 import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
 import Time from '../../../Time';
+import useTreeData from '../../../useTreeData';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
@@ -47,25 +48,41 @@ const baseDate = getMetaValue('base_date');
 
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
-const TaskInstance = ({
-  instance: {
+const getTask = ({ taskId, runId, task }) => {
+  if (task.id === taskId) return task;
+  if (task.children) {
+    let foundTask;
+    task.children.forEach((c) => {
+      const childTask = getTask({ taskId, runId, task: c });
+      if (childTask) foundTask = childTask;
+    });
+    return foundTask;
+  }
+  return null;
+};
+
+const TaskInstance = ({ taskId, runId }) => {
+  const { data: { groups = {} } } = useTreeData();
+  const task = getTask({ taskId, runId, task: groups });
+  if (!task) return null;
+
+  const isGroup = !!task.children;
+  const groupSummary = [];
+  const mapSummary = [];
+
+  const instance = task.instances.find((ti) => ti.runId === runId);
+
+  const {
     dagId,
     duration,
     operator,
     startDate,
     endDate,
     state,
-    taskId,
-    runId,
     mappedStates,
     executionDate,
     tryNumber,
-  },
-  task,
-}) => {
-  const isGroup = !!task.children;
-  const groupSummary = [];
-  const mapSummary = [];
+  } = instance;
 
   if (isGroup) {
     const numMap = finalStatesMap();

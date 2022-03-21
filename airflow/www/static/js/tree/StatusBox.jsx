@@ -68,9 +68,7 @@ const StatusBox = ({
 
   const onClick = () => {
     onMouseLeave();
-    onSelect({
-      taskId, runId, instance, task: group,
-    });
+    onSelect({ taskId, runId });
   };
 
   return (

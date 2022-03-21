@@ -64,6 +64,8 @@ const Header = () => {
   }
 
   const isMapped = task && task.isMapped;
+  const lastIndex = taskId ? taskId.lastIndexOf('.') : null;
+  const taskName = lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
   return (
     <Breadcrumb color="gray.300">
@@ -82,7 +84,7 @@ const Header = () => {
       {taskId && (
         <BreadcrumbItem isCurrentPage mt="15px">
           <BreadcrumbLink color="black">
-            <LabelValue label="Task" value={isMapped ? `${taskId} []` : taskId} />
+            <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
