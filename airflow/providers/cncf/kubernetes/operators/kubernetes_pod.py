@@ -373,9 +373,10 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.pod_manager.follow_container_logs(
+                self.pod_manager.fetch_container_logs(
                     pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
+                    follow=True,
                 )
             else:
                 self.pod_manager.await_container_completion(
