@@ -253,6 +253,7 @@ class TaskDecoratorCollection:
         # [END decorator_signature]
     def kubernetes(
         self,
+        *,
         python_callable: Optional[Callable] = None,
         multiple_outputs: Optional[bool] = None,
         namespace: Optional[str] = None,
