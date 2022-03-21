@@ -22,6 +22,7 @@ import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
+import sqlparse
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -133,3 +134,13 @@ class RedshiftSQLHook(DbApiHook):
         conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
 
         return conn
+
+    def run_sql(self, sql, autocommit=False) -> None:
+        """Execute one or multiple statements against Redshift"""
+        sql_stmts = sqlparse.split(sql)
+        with self.get_conn() as con:
+            con.autocommit = autocommit
+            with con.cursor() as cursor:
+                for stmt in sql_stmts:
+                    cursor.execute(stmt)
+                    if autocommit is False: con.commit()

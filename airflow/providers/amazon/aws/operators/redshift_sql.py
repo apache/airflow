@@ -16,7 +16,6 @@
 # under the License.
 
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
-import sqlparse
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -75,12 +74,5 @@ class RedshiftSQLOperator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
         self.log.info(f"Executing statement: {self.sql}")
-        sql_stmts = sqlparse.split(self.sql)
         hook = self.get_hook()
-
-        with hook.get_conn() as con:
-            con.autocommit = self.autocommit
-            with con.cursor() as cursor:
-                for stmt in sql_stmts:
-                    cursor.execute(stmt)
-                    if self.autocommit is False: con.commit()
+        hook.run_sql(self.sql, autocommit=self.autocommit)
