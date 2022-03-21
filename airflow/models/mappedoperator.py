@@ -305,6 +305,11 @@ class MappedOperator(AbstractOperator):
             return  # No need to validate deserialized operator.
         self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
 
+    def _looks_like_template_filepath(self, value: str) -> bool:
+        """Implementing Operator."""
+        assert not isinstance(self.operator_class, str)
+        return any(value.endswith(ext) for ext in self.operator_class.template_ext)
+
     @property
     def task_type(self) -> str:
         """Implementing Operator."""

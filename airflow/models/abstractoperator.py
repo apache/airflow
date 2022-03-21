@@ -75,10 +75,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     # Defines the operator level extra links.
     operator_extra_links: Collection["BaseOperatorLink"]
-    # For derived classes to define which fields will get jinjaified.
-    template_fields: Collection[str]
-    # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
 
     owner: str
     task_id: str
@@ -292,6 +288,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
             )
             setattr(parent, attr_name, rendered_content)
 
+    def _looks_like_template_filepath(self, value: str) -> bool:
+        raise NotImplementedError()
+
     def _render_template_field(
         self,
         key: str,
@@ -337,7 +336,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(value, str):
-            if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
+            if self._looks_like_template_filepath(value):
                 template = jinja_env.get_template(value)
             else:
                 template = jinja_env.from_string(value)

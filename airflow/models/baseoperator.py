@@ -1178,6 +1178,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
+    def _looks_like_template_filepath(self, value: str) -> bool:
+        return any(value.endswith(ext) for ext in self.template_ext)
+
     def resolve_template_files(self) -> None:
         """Getting the content of files for template_field / template_ext."""
         if self.template_ext:
@@ -1185,7 +1188,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 content = getattr(self, field, None)
                 if content is None:
                     continue
-                elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
+                elif isinstance(content, str) and self._looks_like_template_filepath(content):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
@@ -1194,7 +1197,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 elif isinstance(content, list):
                     env = self.get_template_env()
                     for i, item in enumerate(content):
-                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
+                        if isinstance(item, str) and self._looks_like_template_filepath(item):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
                             except Exception as e:
