@@ -1144,7 +1144,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
 
   tests-kubernetes:
-    timeout-minutes: 50
+    timeout-minutes: 70
     name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
