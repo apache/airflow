@@ -634,7 +634,11 @@ class AirflowConfigParser(ConfigParser):
 
             # the given value must be positive. Otherwise fallback value is returned.
             if int_val <= 0:
-                return fallback
+                raise AirflowConfigException(
+                    f'Failed to convert value to timedelta in `seconds`. '
+                    f'Value must be greater than zero. '
+                    f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
+                )
 
             try:
                 return datetime.timedelta(seconds=int_val)
