@@ -179,11 +179,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
-# We should remove the limits as soon as Flask App Builder releases version 3.4.4
-# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
-# TODO: remove it when we fix all SQLAlchemy 1.4 problems
-pandas_requirement = 'pandas>=0.17.1, <1.4'
+pandas_requirement = 'pandas>=0.17.1'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -242,8 +238,13 @@ celery = [
     'celery>=5.2.3',
     'flower>=1.0.0',
 ]
-cgroups = [
-    'cgroupspy>=0.1.4',
+cgroups = [  # type:ignore
+    # Cgroups are now vendored in `airflow/_vendor/cgroupspy` for Python 3.10 compatibility
+    # The vendored code can be removed once cgroupspy released a new version after fixing
+    # the incompatibility https://github.com/cloudsigma/cgroupspy/issues/13 (hopefully >0.2.1 will
+    # be good for that. We should also be able to remove type:ignore above, as MyPy can't derive the type
+    # when this line is commented out
+    # 'cgroupspy>0.2.1',
 ]
 cloudant = [
     'cloudant>=2.0',
