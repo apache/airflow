@@ -681,6 +681,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 mapped_kwargs={},
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
+                user_supplied_task_id=encoded_op["user_supplied_task_id"],
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
