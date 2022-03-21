@@ -42,6 +42,7 @@
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
+  - [Update issue template with the new release](#update-issue-template-with-the-new-release)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
   - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
@@ -695,6 +696,10 @@ Create a new release on GitHub with the changelog and assets from the release sv
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
+
+## Update issue template with the new release
+
+Updating issue templates in `.github/ISSUE_TEMPLATE/airflow_helmchart_bug_report.yml` with the new version
 
 ## Announce the release on the community slack
 
