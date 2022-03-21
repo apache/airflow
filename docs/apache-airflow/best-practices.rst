@@ -247,18 +247,26 @@ each parameter by following the links):
 Example of watcher pattern with trigger rules
 ---------------------------------------------
 
-The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks. It's primary purpose is to fail a DAG Run when any other task fail.
+The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
+It's primary purpose is to fail a DAG Run when any other task fail.
 The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
 
-Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But when we use trigger rules, we can disrupt the normal flow of running tasks and the whole DAG may represent different status that we expect.
-For example, we can have a teardown task (with trigger rule set to ``"all_done"``) that will be executed regardless of the state of the other tasks (e.g. to clean up the resources). In such situation, the DAG would always run this task and the DAG Run will get the status of this particular task, so we can potentially lose the information about failing tasks.
-If we want to ensure that the DAG with teardown task would fail if any task fails, we need to use the watcher pattern.
-The watcher task is a task that will always fail if triggered, but it needs to be triggered only if any other task fails. It needs to have a trigger rule set to ``"one_failed"`` and it needs also to be a downstream task for all other tasks in the DAG.
-Thanks to this, if every other task will pass, the watcher will be skipped, but when something fails, the watcher task will be executed and fail making the DAG Run fail too.
+Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But
+when we use trigger rules, we can disrupt the normal flow of running tasks and the whole DAG may represent different
+status that we expect. For example, we can have a teardown task (with trigger rule set to ``TriggerRule.ALL_DONE``)
+that will be executed regardless of the state of the other tasks (e.g. to clean up the resources). In such
+situation, the DAG would always run this task and the DAG Run will get the status of this particular task, so we can
+potentially lose the information about failing tasks. If we want to ensure that the DAG with teardown task would fail
+if any task fails, we need to  use the watcher pattern. The watcher task is a task that will always fail if
+triggered, but it needs to be triggered only if any other task fails. It needs to have a trigger rule set to
+``TriggerRule.ONE_FAILED`` and it needs also to be a  downstream task for all other tasks in the DAG. Thanks to
+this, if every other task will pass, the watcher will be skipped, but when something fails, the watcher task will be
+executed and fail making the DAG Run fail too.
 
 .. note::
 
-    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``one_failed`` will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
+    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``TriggerRule.ONE_FAILED``
+    will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
 
 It's easier to grab the concept with an example. Let's say that we have the following DAG:
 
@@ -270,9 +278,10 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from airflow.exceptions import AirflowException
     from airflow.operators.bash import BashOperator
     from airflow.operators.python import PythonOperator
+    from airflow.utils.trigger_rule import TriggerRule
 
 
-    @task(trigger_rule="one_failed", retries=0)
+    @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
     def watcher():
         raise AirflowException("Failing task because one or more upstream tasks failed.")
 
@@ -290,7 +299,9 @@ It's easier to grab the concept with an example. Let's say that we have the foll
             task_id="passing_task", bash_command="echo passing_task"
         )
         teardown = BashOperator(
-            task_id="teardown", bash_command="echo teardown", trigger_rule="all_done"
+            task_id="teardown",
+            bash_command="echo teardown",
+            trigger_rule=TriggerRule.ALL_DONE,
         )
 
         failing_task >> passing_task >> teardown

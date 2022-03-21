@@ -39,7 +39,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.utils.watcher import watcher
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "bigquery_tables"
@@ -221,6 +220,10 @@ with models.DAG(
         >> delete_dataset
     )
 
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
