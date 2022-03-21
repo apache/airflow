@@ -34,22 +34,24 @@ import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
+import useTreeData from '../../../useTreeData';
 
-const DagRun = ({
-  dagRun: {
+const DagRun = ({ runId }) => {
+  const { data: { dagRuns = [] } } = useTreeData();
+  const run = dagRuns.find((dr) => dr.runId === runId);
+  if (!run) return null;
+  const {
+    executionDate,
     dagId,
     state,
-    runId,
+    runType,
     duration,
+    lastSchedulingDecision,
     dataIntervalStart,
     dataIntervalEnd,
     startDate,
     endDate,
-    runType,
-    lastSchedulingDecision,
-    executionDate,
-  },
-}) => {
+  } = run;
   const params = new URLSearchParams({
     dag_id: dagId,
     run_id: runId,

@@ -30,6 +30,7 @@ import { MdPlayArrow } from 'react-icons/md';
 import { getMetaValue } from '../../utils';
 import { useSelection } from '../providers/selection';
 import Time from '../Time';
+import useTreeData from '../useTreeData';
 
 const dagId = getMetaValue('dag_id');
 
@@ -40,9 +41,11 @@ const LabelValue = ({ label, value }) => (
   </Box>
 );
 
-const Header = ({ dagRuns }) => {
-  const { selected: { taskId, runId, task }, onSelect } = useSelection();
+const Header = () => {
+  const { data: { dagRuns = [] } } = useTreeData();
+  const { selected: { taskId, runId, task }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
+
   let runLabel;
   if (dagRun) {
     if (runId.includes('manual__') || runId.includes('scheduled__') || runId.includes('backfill__')) {
@@ -65,13 +68,13 @@ const Header = ({ dagRuns }) => {
   return (
     <Breadcrumb color="gray.300">
       <BreadcrumbItem isCurrentPage={!runId && !taskId} mt="15px">
-        <BreadcrumbLink onClick={() => onSelect({})} color="black">
+        <BreadcrumbLink onClick={clearSelection} color="black">
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
         <BreadcrumbItem isCurrentPage={runId && !taskId} mt="15px">
-          <BreadcrumbLink onClick={() => onSelect({ runId, dagRun })} color="black">
+          <BreadcrumbLink onClick={() => onSelect({ runId })} color="black">
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>

@@ -78,7 +78,7 @@ const DagRunBar = ({
         zIndex={1}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        onClick={() => onSelect({ runId: run.runId, dagRun: run })}
+        onClick={() => onSelect({ runId: run.runId })}
       >
         <Tooltip
           label={<DagRunTooltip dagRun={run} />}
