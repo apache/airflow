@@ -204,6 +204,7 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
+    'sqlparse>=0.4.1',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
