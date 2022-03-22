@@ -1,0 +1,14 @@
+There is a new design of system tests that was introduced by the [AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests).
+
+All current system tests need to be migrated, so they can be run in the CI process automatically before releases.
+
+This is an aggregated issue for all system tests related to `{{ rows[0][0] }}` provider.
+
+It is created to track progress of their migration.
+
+List of paths to test files with corresponding number of tests inside:
+{%- for row in rows %}
+- [ ] {{ row[1]}} ({{ row[2] }})
+{%- endfor %}
+
+For anyone involved in working with this issue - please, make sure to also check if all example DAGs are migrated. The issue for them is stored separately. Search for `Migrate {{ rows[0][0] }} example DAGs to new design`
