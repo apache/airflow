@@ -41,7 +41,7 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 #    NOTE! GitHub has secondary rate limits for issue creation, and you might be
 #          temporarily blocked from creating issues and PRs if you create too many
 #          issues in a short time
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
