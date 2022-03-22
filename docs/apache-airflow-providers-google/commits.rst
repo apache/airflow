@@ -35,6 +35,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.7.0
+.....
+
+Latest change: 2022-03-21
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`7b851edc91 <https://github.com/apache/airflow/commit/7b851edc916281bb5d3a8358c46b013d6cae84b2>`_  2022-03-21   ``Add 'LocalFilesystemToGoogleDriveOperator' (#22219)``
+`14e6b657c2 <https://github.com/apache/airflow/commit/14e6b657c26df6aa3844c4f4531c623cddd143d7>`_  2022-03-21   ``Add timeout and retry to the BigQueryInsertJobOperator (#22395)``
+`a3ffbee7c9 <https://github.com/apache/airflow/commit/a3ffbee7c9b5cd8cc5b7b246116f0254f1daa505>`_  2022-03-20   ``Fix skipping non-GCS located jars (#22302)``
+`88402038ca <https://github.com/apache/airflow/commit/88402038cac10597a67d3dba6af66eb1bc14377d>`_  2022-03-19   ``Add dataflow_default_options to templated_fields (#22367)``
+`6448b2458c <https://github.com/apache/airflow/commit/6448b2458cbeb93c33bfe0ca03261498aa69a186>`_  2022-03-15   ``[FIX] typo doc of gcs operator (#22290)``
+=================================================================================================  ===========  ===================================================================
+
 6.6.0
 .....
 
@@ -43,6 +58,7 @@ Latest change: 2022-03-14
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
 `87c1246b79 <https://github.com/apache/airflow/commit/87c1246b79769f20214a339aadc6a8270d453953>`_  2022-03-14   ``Add Dataplex operators (#20377)``
 `c1ab8e2d7b <https://github.com/apache/airflow/commit/c1ab8e2d7b68a31408e750129592e16432474512>`_  2022-03-14   ``Protect against accidental misuse of XCom.get_value() (#22244)``
 `c108f264ab <https://github.com/apache/airflow/commit/c108f264abde68e8f458a401296a53ccbe7a47f6>`_  2022-03-13   ``Change the default 'chunk_size' to a clear representation & add documentation (#22222)``

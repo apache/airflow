@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.5.1
 .....
 

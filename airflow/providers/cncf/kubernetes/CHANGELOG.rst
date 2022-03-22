@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+Misc
+~~~~
+
+* ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
+
 3.1.1
 .....
 
