@@ -511,6 +511,22 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id='redshift_default',
+            conn_type='redshift',
+            extra="""{
+    "iam": true,
+    "cluster_identifier": "<REDSHIFT_CLUSTER_IDENTIFIER>",
+    "port": 5439,
+    "profile": "default",
+    "db_user": "awsuser",
+    "database": "dev",
+    "region": ""
+}""",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="segment_default",
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
