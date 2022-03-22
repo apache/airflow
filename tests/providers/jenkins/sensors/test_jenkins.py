@@ -24,11 +24,10 @@ import jenkins
 import pytest
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
-class TestJenkinsSensor(unittest.TestCase):
+class TestJenkinsBuildSensor(unittest.TestCase):
     @parameterized.expand(
         [
             (1,False,),
@@ -46,9 +45,9 @@ class TestJenkinsSensor(unittest.TestCase):
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsSensor, "get_hook") as get_hook_mocked:
+        with patch.object(JenkinsBuildSensor, "get_hook") as get_hook_mocked:
             get_hook_mocked.return_value = hook_mock
-            sensor = JenkinsSensor(
+            sensor = JenkinsBuildSensor(
                 dag=None,
                 jenkins_connection_id="fake_jenkins_connection",
                 # The hook is mocked, this connection won't be used
