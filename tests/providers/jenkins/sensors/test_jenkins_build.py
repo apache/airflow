@@ -25,7 +25,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
+from airflow.providers.jenkins.sensors.jenkins_build import JenkinsBuildSensor
 
 class TestJenkinsBuildSensor(unittest.TestCase):
     @parameterized.expand(
@@ -37,7 +37,7 @@ class TestJenkinsBuildSensor(unittest.TestCase):
     )
     def test_pole(self, _, build_number, build_state):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': 10}}
+        jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': (build_number if build_number else 10)}}
         jenkins_mock.get_build_info.return_value = {
             'building': build_state,
         }
@@ -63,5 +63,6 @@ class TestJenkinsBuildSensor(unittest.TestCase):
             assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
             assert jenkins_mock.get_build_info.call_count == 1
             jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins', number=(build_number if build_number else 10))
+
 
 

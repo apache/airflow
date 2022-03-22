@@ -60,5 +60,3 @@ class JenkinsBuildSensor(BaseSensorOperator):
         else:
             self.log.info(f"Build is finished.")
             return True
-
-
