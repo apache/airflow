@@ -18,6 +18,7 @@
 
 import unittest
 from unittest import mock
+from parameterized import parameterized
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -65,3 +66,35 @@ class TestJenkinsHook(unittest.TestCase):
         hook = JenkinsHook(default_connection_id)
         assert hook.jenkins_server is not None
         assert hook.jenkins_server.server == complete_url
+
+    @parameterized.expand(
+        [
+            [True],
+            [False]
+        ]
+    )
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
+    @mock.patch('jenkins.Jenkins.get_job_info')
+    @mock.patch('jenkins.Jenkins.get_build_info')
+    def test_get_build_building_state(
+        self, param_building, mock_get_build_info, mock_get_job_info, get_connection_mock
+    ):
+        mock_get_build_info.return_value = {'building': param_building}
+        mock_get_job_info.return_value = {'lastBuild': {'number': 1}}
+
+        default_connection_id = 'jenkins_default'
+
+        connection_host = 'http://test.com'
+        connection_port = 8080
+        get_connection_mock.return_value = mock.Mock(
+            connection_id=default_connection_id,
+            login='test',
+            password='test',
+            extra='true',
+            host=connection_host,
+            port=connection_port,
+        )
+
+        hook = JenkinsHook(default_connection_id)
+        result = hook.get_build_building_state()
+        assert result == (not param_building)
