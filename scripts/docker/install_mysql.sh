@@ -29,10 +29,6 @@ readonly COLOR_RESET
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 
 install_mysql_client() {
-    echo
-    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}${COLOR_RESET}"
-    echo
-
     if [[ "${1}" == "dev" ]]; then
         packages=("libmysqlclient-dev" "mysql-client")
     elif [[ "${1}" == "prod" ]]; then
@@ -43,6 +39,10 @@ install_mysql_client() {
         echo
         exit 1
     fi
+
+    echo
+    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}: ${1}${COLOR_RESET}"
+    echo
 
     local key="467B942D3A79BD29"
     readonly key
@@ -66,6 +66,11 @@ install_mysql_client() {
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    # disable MYSQL for ARM64
+    INSTALL_MYSQL_CLIENT="false"
+fi
 
 # Install MySQL client from Oracle repositories (Debian installs mariadb)
 # But only if it is not disabled

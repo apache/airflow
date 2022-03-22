@@ -157,6 +157,9 @@ class TriggerRuleDep(BaseTIDep):
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
                     ti.set_state(State.SKIPPED, session)
+            elif trigger_rule == TR.ALL_SKIPPED:
+                if successes or failed:
+                    ti.set_state(State.SKIPPED, session)
 
         if trigger_rule == TR.ONE_SUCCESS:
             if successes <= 0:
@@ -236,6 +239,17 @@ class TriggerRuleDep(BaseTIDep):
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to not have been "
                         f"skipped, but found {skipped} task(s) skipped. "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
+                    )
+                )
+        elif trigger_rule == TR.ALL_SKIPPED:
+            num_non_skipped = upstream - skipped
+            if num_non_skipped > 0:
+                yield self._failing_status(
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have been "
+                        f"skipped, but found {num_non_skipped} task(s) in non skipped state. "
                         f"upstream_tasks_state={upstream_tasks_state}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )

@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Callable, Iterable, Optional
+import warnings
+from typing import Any, Callable, Iterable, Optional, overload
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -111,27 +112,87 @@ class PrestoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    def get_records(self, hql, parameters: Optional[dict] = None):
-        """Get a set of records from Presto"""
+    @overload
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
+        """Get a set of records from Presto
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+        """:sphinx-autoapi-skip:"""
+
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         try:
-            return super().get_records(self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
-        """Returns only the first row, regardless of how many rows the query returns."""
+    @overload
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
+        """Returns only the first row, regardless of how many rows the query returns.
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+        """:sphinx-autoapi-skip:"""
+
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         try:
-            return super().get_first(self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_pandas_df(self, hql, parameters=None, **kwargs):
-        """Get a pandas dataframe from a sql query."""
+    @overload
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        """Get a pandas dataframe from a sql query.
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
+        """:sphinx-autoapi-skip:"""
+
+    def get_pandas_df(self, sql: str = "", parameters=None, hql: str = "", **kwargs):
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         import pandas
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(hql), parameters)
+            cursor.execute(self._strip_sql(sql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise PrestoException(e)
@@ -143,15 +204,45 @@ class PrestoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
+    @overload
     def run(
         self,
-        hql,
+        sql: str = "",
         autocommit: bool = False,
         parameters: Optional[dict] = None,
         handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters, handler=handler)
+
+    @overload
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+        hql: str = "",
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+        hql: str = "",
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
+        return super().run(sql=self._strip_sql(sql), parameters=parameters, handler=handler)
 
     def insert_rows(
         self,

@@ -22,6 +22,7 @@ from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
 from airflow.models import DagRun, SlaMiss, TaskInstance
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
@@ -29,7 +30,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
-from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
+from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -105,6 +106,7 @@ class TestTaskInstanceEndpoint:
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
+        clear_rendered_ti_fields()
         self.dagbag = dagbag
 
     def create_task_instances(
@@ -127,6 +129,7 @@ class TestTaskInstanceEndpoint:
         execution_date = self.ti_init.pop("execution_date", self.default_time)
         dr = None
 
+        tis = []
         for i in range(counter):
             if task_instances is None:
                 pass
@@ -155,8 +158,10 @@ class TestTaskInstanceEndpoint:
             for key, value in self.ti_extras.items():
                 setattr(ti, key, value)
             session.add(ti)
+            tis.append(ti)
 
         session.commit()
+        return tis
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
@@ -183,6 +188,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": None,
             "pid": 100,
@@ -198,6 +204,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -214,6 +221,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
@@ -229,10 +237,11 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
         }
 
-    def test_should_respond_200_task_instance_with_sla(self, session):
-        self.create_task_instances(session)
+    def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
+        tis = self.create_task_instances(session)
         session.query()
         sla_miss = SlaMiss(
             task_id="print_the_context",
@@ -241,6 +250,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             timestamp=self.default_time,
         )
         session.add(sla_miss)
+        rendered_fields = RTIF(tis[0], render_templates=False)
+        session.add(rendered_fields)
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -255,6 +266,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
@@ -278,7 +290,60 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {'op_args': [], 'op_kwargs': {}},
         }
+
+    def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
+        """Verify we don't duplicate rows through join to RTIF"""
+        tis = self.create_task_instances(session)
+        session.query()
+        ti = tis[0]
+        ti.map_index = 1
+        rendered_fields = RTIF(ti, render_templates=False)
+        session.add(rendered_fields)
+        session.commit()
+        new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
+        for attr in ['duration', 'end_date', 'pid', 'start_date', 'state', 'queue']:
+            setattr(new_ti, attr, getattr(ti, attr))
+        session.add(new_ti)
+        rendered_fields = RTIF(new_ti, render_templates=False)
+        session.add(rendered_fields)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            response = self.client.get(
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                + f"/print_the_context/{map_index}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200
+
+            assert response.json == {
+                "dag_id": "example_python_operator",
+                "duration": 10000.0,
+                "end_date": "2020-01-03T00:00:00+00:00",
+                "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor_config": "{}",
+                "hostname": "",
+                "map_index": map_index,
+                "max_tries": 0,
+                "operator": "_PythonDecoratedOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 6,
+                "queue": "default_queue",
+                "queued_when": None,
+                'sla_miss': None,
+                "start_date": "2020-01-02T00:00:00+00:00",
+                "state": "running",
+                "task_id": "print_the_context",
+                "try_number": 0,
+                "unixname": getuser(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+            }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
@@ -292,6 +357,24 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
+
+    def test_unmapped_map_index_should_return_404(self, session):
+        self.create_task_instances(session)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+
+    def test_should_return_404_for_mapped_endpoint(self, session):
+        self.create_task_instances(session)
+        for index in ['0', '1', '2']:
+            response = self.client.get(
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
+                f"taskInstances/print_the_context/{index}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 404
 
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
@@ -1116,7 +1199,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=None,
+            run_id=None,
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
@@ -1165,7 +1248,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            dag_run_id=run_id,
+            run_id=run_id,
             execution_date=None,
             future=True,
             past=True,

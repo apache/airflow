@@ -20,10 +20,9 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
-import click
 import click_completion
+import rich_click as click
 from click import ClickException
-from click_completion import get_auto_shell
 
 from airflow_breeze.cache import delete_cache, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_image import build_image
@@ -33,19 +32,27 @@ from airflow_breeze.docs_generator import build_documentation
 from airflow_breeze.docs_generator.doc_builder import DocBuilder
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
-    ALLOWED_PYTHON_MAJOR_MINOR_VERSION,
+    ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_EXECUTORS,
+    ALLOWED_INSTALL_AIRFLOW_VERSIONS,
+    ALLOWED_INTEGRATIONS,
+    ALLOWED_MSSQL_VERSIONS,
+    ALLOWED_MYSQL_VERSIONS,
+    ALLOWED_POSTGRES_VERSIONS,
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     get_available_packages,
 )
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
+from airflow_breeze.shell.enter_shell import build_shell
 from airflow_breeze.utils.docker_command_utils import check_docker_resources
 from airflow_breeze.utils.path_utils import (
     __AIRFLOW_SOURCES_ROOT,
-    BUILD_CACHE_DIR,
+    create_directories,
     find_airflow_sources_root,
     get_airflow_sources_root,
 )
 from airflow_breeze.utils.run_utils import check_package_installed, run_command
-from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
+from airflow_breeze.visuals import ASCIIART, ASCIIART_STYLE
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
@@ -62,10 +69,36 @@ def main():
 
 
 option_verbose = click.option(
-    "--verbose",
-    is_flag=True,
-    help="Print verbose information about performed steps",
+    "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps", envvar='VERBOSE'
 )
+
+option_python_version = click.option(
+    '-p',
+    '--python',
+    type=click.Choice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help='Choose your python version',
+    envvar='PYTHON_MAJOR_MINOR_VERSION',
+)
+
+option_backend = click.option(
+    '-b',
+    '--backend',
+    type=click.Choice(ALLOWED_BACKENDS),
+    help='Choose your backend database',
+)
+
+option_github_repository = click.option(
+    '-g', '--github-repository', help='GitHub repository used to pull, push images. Default: apache/airflow.'
+)
+
+option_github_image_id = click.option(
+    '-s',
+    '--github-image-id',
+    help='Commit SHA of the image. \
+    Breeze can automatically pull the commit SHA id specified Default: latest',
+)
+
+option_image_tag = click.option('--image-tag', help='Additional tag in the image.')
 
 
 @main.command()
@@ -76,19 +109,75 @@ def version():
 
 
 @option_verbose
-@main.command()
-def shell(verbose: bool):
+@main.command(
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python_version
+@option_backend
+@click.option('--integration', type=click.Choice(ALLOWED_INTEGRATIONS), multiple=True)
+@click.option('-L', '--build-cache-local', is_flag=True)
+@click.option('-U', '--build-cache-pulled', is_flag=True)
+@click.option('-X', '--build-cache-disabled', is_flag=True)
+@click.option('--postgres-version', type=click.Choice(ALLOWED_POSTGRES_VERSIONS))
+@click.option('--mysql-version', type=click.Choice(ALLOWED_MYSQL_VERSIONS))
+@click.option('--mssql-version', type=click.Choice(ALLOWED_MSSQL_VERSIONS))
+@click.option(
+    '--executor',
+    type=click.Choice(ALLOWED_EXECUTORS),
+    help='Executor to use in a kubernetes cluster. Default is KubernetesExecutor',
+)
+@click.option('-f', '--forward-credentials', is_flag=True)
+@click.option('-l', '--skip-mounting-local-sources', is_flag=True)
+@click.option('--use-airflow-version', type=click.Choice(ALLOWED_INSTALL_AIRFLOW_VERSIONS))
+@click.option('--use-packages-from-dist', is_flag=True)
+@click.option('--force-build', is_flag=True)
+@click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
+def shell(
+    verbose: bool,
+    python: str,
+    backend: str,
+    integration: Tuple[str],
+    build_cache_local: bool,
+    build_cache_pulled: bool,
+    build_cache_disabled: bool,
+    postgres_version: str,
+    mysql_version: str,
+    mssql_version: str,
+    executor: str,
+    forward_credentials: bool,
+    skip_mounting_local_sources: bool,
+    use_airflow_version: str,
+    use_packages_from_dist: bool,
+    force_build: bool,
+    extra_args: Tuple,
+):
     """Enters breeze.py environment. this is the default command use when no other is selected."""
-    from airflow_breeze.cache import read_from_cache_file
 
     if verbose:
         console.print("\n[green]Welcome to breeze.py[/]\n")
         console.print(f"\n[green]Root of Airflow Sources = {__AIRFLOW_SOURCES_ROOT}[/]\n")
-    if read_from_cache_file('suppress_asciiart') is None:
-        console.print(ASCIIART, style=ASCIIART_STYLE)
-    if read_from_cache_file('suppress_cheatsheet') is None:
-        console.print(CHEATSHEET, style=CHEATSHEET_STYLE)
-    raise ClickException("\nPlease implement entering breeze.py\n")
+    build_shell(
+        verbose,
+        python_version=python,
+        backend=backend,
+        integration=integration,
+        build_cache_local=build_cache_local,
+        build_cache_disabled=build_cache_disabled,
+        build_cache_pulled=build_cache_pulled,
+        postgres_version=postgres_version,
+        mysql_version=mysql_version,
+        mssql_version=mssql_version,
+        executor=executor,
+        forward_credentials=str(forward_credentials),
+        skip_mounting_local_sources=skip_mounting_local_sources,
+        use_airflow_version=use_airflow_version,
+        use_packages_from_dist=use_packages_from_dist,
+        force_build=force_build,
+        extra_args=extra_args,
+    )
 
 
 @option_verbose
@@ -96,51 +185,83 @@ def shell(verbose: bool):
 @click.option(
     '--additional-extras',
     help='This installs additional extra package while installing airflow in the image.',
+    envvar='ADDITIONAL_AIRFLOW_EXTRAS',
 )
-@click.option('-p', '--python', help='Choose your python version')
+@option_python_version
 @click.option(
-    '--additional-dev-apt-deps', help='Additional apt dev dependencies to use when building the images.'
+    '--additional-dev-apt-deps',
+    help='Additional apt dev dependencies to use when building the images.',
+    envvar='ADDITIONAL_DEV_APT_DEPS',
 )
 @click.option(
     '--additional-runtime-apt-deps',
     help='Additional apt runtime dependencies to use when building the images.',
+    envvar='ADDITIONAL_RUNTIME_APT_DEPS',
 )
 @click.option(
-    '--additional-python-deps', help='Additional python dependencies to use when building the images.'
+    '--additional-python-deps',
+    help='Additional python dependencies to use when building the images.',
+    envvar='ADDITIONAL_PYTHON_DEPS',
 )
 @click.option(
-    '--additional_dev_apt_command', help='Additional command executed before dev apt deps are installed.'
+    '--additional-dev-apt-command',
+    help='Additional command executed before dev apt deps are installed.',
+    envvar='ADDITIONAL_DEV_APT_COMMAND',
 )
 @click.option(
-    '--additional_runtime_apt_command',
+    '--additional-runtime-apt-command',
     help='Additional command executed before runtime apt deps are installed.',
+    envvar='ADDITIONAL_RUNTIME_APT_COMMAND',
 )
 @click.option(
-    '--additional_dev_apt_env', help='Additional environment variables set when adding dev dependencies.'
+    '--additional-dev-apt-env',
+    help='Additional environment variables set when adding dev dependencies.',
+    envvar='ADDITIONAL_DEV_APT_ENV',
 )
 @click.option(
-    '--additional_runtime_apt_env',
+    '--additional-runtime-apt-env',
     help='Additional environment variables set when adding runtime dependencies.',
+    envvar='ADDITIONAL_RUNTIME_APT_ENV',
 )
-@click.option('--dev-apt-command', help='The basic command executed before dev apt deps are installed.')
+@click.option(
+    '--dev-apt-command',
+    help='The basic command executed before dev apt deps are installed.',
+    envvar='DEV_APT_COMMAND',
+)
 @click.option(
     '--dev-apt-deps',
     help='The basic apt dev dependencies to use when building the images.',
+    envvar='DEV_APT_DEPS',
 )
 @click.option(
-    '--runtime-apt-command', help='The basic command executed before runtime apt deps are installed.'
+    '--runtime-apt-command',
+    help='The basic command executed before runtime apt deps are installed.',
+    envvar='RUNTIME_APT_COMMAND',
 )
 @click.option(
     '--runtime-apt-deps',
     help='The basic apt runtime dependencies to use when building the images.',
+    envvar='RUNTIME_APT_DEPS',
 )
-@click.option('--github-repository', help='Choose repository to push/pull image.')
+@click.option('--github-repository', help='Choose repository to push/pull image.', envvar='GITHUB_REPOSITORY')
 @click.option('--build-cache', help='Cache option')
-@click.option('--upgrade-to-newer-dependencies', is_flag=True)
+@click.option('--platform', help='Builds image for the platform specified.', envvar='PLATFORM')
+@click.option(
+    '-d',
+    '--debian-version',
+    help='Debian version used for the image.',
+    type=click.Choice(ALLOWED_DEBIAN_VERSIONS),
+    envvar='DEBIAN_VERSION',
+)
+@click.option(
+    '--upgrade-to-newer-dependencies',
+    help='Upgrades PIP packages to latest versions available without looking at the constraints.',
+    envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
+)
 def build_ci_image(
     verbose: bool,
     additional_extras: Optional[str],
-    python: Optional[float],
+    python: str,
     additional_dev_apt_deps: Optional[str],
     additional_runtime_apt_deps: Optional[str],
     additional_python_deps: Optional[str],
@@ -154,12 +275,18 @@ def build_ci_image(
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
     build_cache: Optional[str],
-    upgrade_to_newer_dependencies: bool,
+    platform: Optional[str],
+    debian_version: Optional[str],
+    upgrade_to_newer_dependencies: str,
 ):
     """Builds docker CI image without entering the container."""
 
     if verbose:
-        console.print(f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT}[/]\n")
+        console.print(
+            f"\n[blue]Building image of airflow from {__AIRFLOW_SOURCES_ROOT} "
+            f"python version: {python}[/]\n"
+        )
+    create_directories()
     build_image(
         verbose,
         additional_extras=additional_extras,
@@ -177,7 +304,9 @@ def build_ci_image(
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
         docker_cache=build_cache,
-        upgrade_to_newer_dependencies=str(upgrade_to_newer_dependencies).lower(),
+        platform=platform,
+        debian_version=debian_version,
+        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
 
@@ -229,7 +358,7 @@ def setup_autocomplete():
     global NAME
     breeze_comment = "Added by Updated Airflow Breeze autocomplete setup"
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
-    shell = get_auto_shell()
+    shell = click_completion.get_auto_shell()
     click.echo(f"Installing {shell} completion for local user")
     extra_env = {'_CLICK_COMPLETION_COMMAND_CASE_INSENSITIVE_COMPLETE': 'ON'}
     autocomplete_path = Path(AIRFLOW_SOURCES_DIR) / ".build/autocomplete" / f"{NAME}-complete.{shell}"
@@ -239,16 +368,16 @@ def setup_autocomplete():
     click.echo(f"Activation command scripts are created in this autocompletion path: {autocomplete_path}")
     if click.confirm(f"Do you want to add the above autocompletion scripts to your {shell} profile?"):
         if shell == 'bash':
-            script_path = Path('~').expanduser() / '/.bash_completion'
+            script_path = Path('~').expanduser() / '.bash_completion'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'zsh':
-            script_path = Path('~').expanduser() / '/.zshrc'
+            script_path = Path('~').expanduser() / '.zshrc'
             command_to_execute = f"source {autocomplete_path}"
             write_to_shell(command_to_execute, script_path, breeze_comment)
         elif shell == 'fish':
             # Include steps for fish shell
-            script_path = Path('~').expanduser() / f'/.config/fish/completions/{NAME}.fish'
+            script_path = Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish'
             with open(path) as source_file, open(script_path, 'w') as destination_file:
                 for line in source_file:
                     destination_file.write(line)
@@ -263,8 +392,8 @@ def setup_autocomplete():
 
 
 @main.command(name='config')
-@click.option('--python', type=click.Choice(ALLOWED_PYTHON_MAJOR_MINOR_VERSION))
-@click.option('--backend', type=click.Choice(ALLOWED_BACKENDS))
+@option_python_version
+@option_backend
 @click.option('--cheatsheet/--no-cheatsheet', default=None)
 @click.option('--asciiart/--no-asciiart', default=None)
 def change_config(python, backend, cheatsheet, asciiart):
@@ -304,13 +433,12 @@ def build_docs(verbose: bool, docs_only: bool, spellcheck_only: bool, package_fi
     """
     params = BuildParams()
     airflow_sources = str(get_airflow_sources_root())
-    mount_all_flag = False
     ci_image_name = params.airflow_ci_image_name
-    check_docker_resources(verbose, mount_all_flag, airflow_sources, ci_image_name)
+    check_docker_resources(verbose, airflow_sources, ci_image_name)
     doc_builder = DocBuilder(
         package_filter=package_filter, docs_only=docs_only, spellcheck_only=spellcheck_only
     )
-    build_documentation.build(verbose, mount_all_flag, airflow_sources, ci_image_name, doc_builder)
+    build_documentation.build(verbose, airflow_sources, ci_image_name, doc_builder)
 
 
 @option_verbose
@@ -354,5 +482,5 @@ def static_check(
 
 
 if __name__ == '__main__':
-    BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    create_directories()
     main()

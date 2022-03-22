@@ -22,12 +22,14 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
 
+from bcrypt import warnings
 from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob  # noqa: F401
@@ -63,10 +65,27 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session  
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query
 
 
 log = logging.getLogger(__name__)
+
+REVISION_HEADS_MAP = {
+    "2.0.0": "e959f08ac86c",
+    "2.0.1": "82b7c48c147f",
+    "2.0.2": "2e42bb497a22",
+    "2.1.0": "a13f7613ad25",
+    "2.1.1": "a13f7613ad25",
+    "2.1.2": "a13f7613ad25",
+    "2.1.3": "97cdd93827b8",
+    "2.1.4": "ccde3e26fe78",
+    "2.2.0": "7b2661a43ba3",
+    "2.2.1": "7b2661a43ba3",
+    "2.2.2": "7b2661a43ba3",
+    "2.2.3": "be2bfac3da23",
+    "2.2.4": "587bdf053233",
+}
 
 
 def _format_airflow_moved_table_name(source_table, version):
@@ -418,7 +437,8 @@ def create_default_connections(session: Session = NEW_SESSION):
             extra='''{
                 "auth_type": "AK",
                 "access_key_id": "<ACCESS_KEY_ID>",
-                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                "access_key_secret": "<ACCESS_KEY_SECRET>",
+                "region": "<YOUR_OSS_REGION>"}
                 ''',
         ),
         session,
@@ -632,25 +652,36 @@ def _get_alembic_config():
     return config
 
 
+def _get_script_object(config=None) -> "ScriptDirectory":
+    from alembic.script import ScriptDirectory
+
+    if not config:
+        config = _get_alembic_config()
+    return ScriptDirectory.from_config(config)
+
+
+def _get_current_revision(session):
+    from alembic.migration import MigrationContext
+
+    conn = session.connection()
+
+    migration_ctx = MigrationContext.configure(conn)
+
+    return migration_ctx.get_current_revision()
+
+
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
-    with EnvironmentContext(
-        config,
-        script_,
-    ) as env, settings.engine.connect() as connection:
-        env.configure(connection)
+    with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
         db_heads = None
         for ticker in range(timeout):
-            source_heads = set(script_.get_heads())
+            source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
             if source_heads == db_heads:
                 return
@@ -662,27 +693,32 @@ def check_migrations(timeout):
         )
 
 
-def _get_script_dir_and_config():
-    """Get config and script directory"""
-    from alembic.script import ScriptDirectory
+@contextlib.contextmanager
+def _configured_alembic_environment():
+    from alembic.runtime.environment import EnvironmentContext
 
     config = _get_alembic_config()
-    script_ = ScriptDirectory.from_config(config)
-    return script_, config
+    script = _get_script_object(config)
+
+    with EnvironmentContext(
+        config,
+        script,
+    ) as env, settings.engine.connect() as connection:
+
+        alembic_logger = logging.getLogger('alembic')
+        level = alembic_logger.level
+        alembic_logger.setLevel(logging.WARNING)
+        env.configure(connection)
+        alembic_logger.setLevel(level)
+
+        yield env
 
 
 def check_and_run_migrations():
     """Check and run migrations if necessary. Only use in a tty"""
-    from alembic.runtime.environment import EnvironmentContext
-
-    script_, config = _get_script_dir_and_config()
-    with EnvironmentContext(
-        config,
-        script_,
-    ) as env, settings.engine.connect() as connection:
-        env.configure(connection)
+    with _configured_alembic_environment() as env:
         context = env.get_context()
-        source_heads = set(script_.get_heads())
+        source_heads = set(env.script.get_heads())
         db_heads = set(context.get_current_heads())
         db_command = None
         command_name = None
@@ -732,24 +768,41 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
-
-    def check_templates(filename, elasticsearch_id):
-        stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
-
-        if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
-            session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
-
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
-    pre_upgrade_filename = conf.upgraded_values.get(('logging', 'log_filename_template'), None)
-    if pre_upgrade_filename is not None:
-        check_templates(pre_upgrade_filename, elasticsearch_id)
-        session.flush()
+    pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
+    pre_upgrade_elasticsearch_id = conf.upgraded_values.get(
+        ("elasticsearch", "log_id_template"), elasticsearch_id
+    )
 
-    check_templates(filename, elasticsearch_id)
+    if pre_upgrade_filename != filename or pre_upgrade_elasticsearch_id != elasticsearch_id:
+        # The previous non-upgraded value likely won't be the _latest_ value (as after we've recorded the
+        # recorded the upgraded value it will be second-to-newest), so we'll have to just search which is okay
+        # as this is a table with a tiny number of rows
+        row = (
+            session.query(LogTemplate.id)
+            .filter(
+                or_(
+                    LogTemplate.filename == pre_upgrade_filename,
+                    LogTemplate.elasticsearch_id == pre_upgrade_elasticsearch_id,
+                )
+            )
+            .order_by(LogTemplate.id.desc())
+            .first()
+        )
+        if not row:
+            session.add(
+                LogTemplate(filename=pre_upgrade_filename, elasticsearch_id=pre_upgrade_elasticsearch_id)
+            )
+            session.flush()
+
+    stored = session.query(LogTemplate).order_by(LogTemplate.id.desc()).first()
+
+    if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+        session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -913,8 +966,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -1001,17 +1056,110 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         session.commit()
 
 
+def _offline_migration(migration_func: Callable, config, revision):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        logging.disable(logging.CRITICAL)
+        migration_func(config, revision, sql=True)
+        logging.disable(logging.NOTSET)
+
+
+def print_happy_cat(message):
+    if sys.stdout.isatty():
+        size = os.get_terminal_size().columns
+    else:
+        size = 0
+    print(message.center(size))
+    print("""/\\_/\\""".center(size))
+    print("""(='_' )""".center(size))
+    print("""(,(") (")""".center(size))
+    print("""^^^""".center(size))
+    return
+
+
+def _revision_greater(config, this_rev, base_rev):
+    # Check if there is history between the revisions and the start revision
+    # This ensures that the revisions are above `min_revision`
+    script = _get_script_object(config)
+    try:
+        list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev))
+        return True
+    except Exception:
+        return False
+
+
+def _revisions_above_min_for_offline(config, revisions):
+    """
+    Checks that all supplied revision ids are above the minimum revision for the dialect.
+
+    :param config: Alembic config
+    :param revisions: list of Alembic revision ids
+    :return: None
+    :rtype: None
+    """
+    dbname = settings.engine.dialect.name
+    if dbname == 'sqlite':
+        raise AirflowException('Offline migration not supported for SQLite.')
+    min_version, min_revision = ('2.2.0', '7b2661a43ba3') if dbname == 'mssql' else ('2.0.0', 'e959f08ac86c')
+
+    # Check if there is history between the revisions and the start revision
+    # This ensures that the revisions are above `min_revision`
+    for rev in revisions:
+        if not _revision_greater(config, rev, min_revision):
+            raise ValueError(
+                f"Error while checking history for revision range {min_revision}:{rev}. "
+                f"Check that {rev} is a valid revision. "
+                f"For dialect {dbname!r}, supported revision for offline migration is from {min_revision} "
+                f"which corresponds to Airflow {min_version}."
+            )
+
+
 @provide_session
-def upgradedb(session: Session = NEW_SESSION):
-    """Upgrade the database."""
+def upgradedb(
+    *,
+    to_revision: Optional[str] = None,
+    from_revision: Optional[str] = None,
+    show_sql_only: bool = False,
+    session: Session = NEW_SESSION,
+):
+    """
+
+    :param to_revision: Optional Alembic revision ID to upgrade *to*.
+        If omitted, upgrades to latest revision.
+    :param from_revision: Optional Alembic revision ID to upgrade *from*.
+        Not compatible with ``sql_only=False``.
+    :param show_sql_only: if True, migration statements will be printed but not executed.
+    :param session: sqlalchemy session with connection to Airflow metadata database
+    :return: None
+    :rtype: None
+    """
+    if from_revision and not show_sql_only:
+        raise AirflowException("`from_revision` only supported with `sql_only=True`.")
+
     # alembic adds significant import time, so we import it lazily
     if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is critical assertion.")
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
     from alembic import command
 
     config = _get_alembic_config()
 
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    if show_sql_only:
+        if not from_revision:
+            from_revision = _get_current_revision(session)
+
+        if to_revision == from_revision:
+            print_happy_cat("No migrations to apply; nothing to do.")
+            return
+
+        if not _revision_greater(config, to_revision, from_revision):
+            raise ValueError(
+                f'Requested *to* revision {to_revision} is older than *from* revision {from_revision}. '
+                'Please check your requested versions / revisions.'
+            )
+        _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
+
+        _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
+        return  # only running sql; our job is done
 
     errors_seen = False
     for err in _check_migration_errors(session=session):
@@ -1025,7 +1173,7 @@ def upgradedb(session: Session = NEW_SESSION):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
-        command.upgrade(config, 'heads')
+        command.upgrade(config, revision=to_revision or 'heads')
     add_default_pool_if_not_exists()
     synchronize_log_template()
 
@@ -1044,6 +1192,56 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
 
     initdb(session=session)
+
+
+@provide_session
+def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: Session = NEW_SESSION):
+    """
+    Downgrade the airflow metastore schema to a prior version.
+
+    :param to_revision: The alembic revision to downgrade *to*.
+    :param show_sql_only: if True, print sql statements but do not run them
+    :param from_revision: if supplied, alembic revision to dawngrade *from*. This may only
+        be used in conjunction with ``sql=True`` because if we actually run the commands,
+        we should only downgrade from the *current* revision.
+    :param session: sqlalchemy session for connection to airflow metadata database
+    """
+    if from_revision and not show_sql_only:
+        raise ValueError(
+            "`from_revision` can't be combined with `sql=False`. When actually "
+            "applying a downgrade (instead of just generating sql), we always "
+            "downgrade from current revision."
+        )
+
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
+
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+
+    log.info("Attempting downgrade to revision %s", to_revision)
+    config = _get_alembic_config()
+
+    errors_seen = False
+    for err in _check_migration_errors(session=session):
+        if not errors_seen:
+            log.error("Automatic migration failed.  You may need to apply downgrades manually.  ")
+            errors_seen = True
+        log.error("%s", err)
+
+    if errors_seen:
+        exit(1)
+
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        if show_sql_only:
+            log.warning("Generating sql scripts for manual migration.")
+            if not from_revision:
+                from_revision = _get_current_revision(session)
+            revision_range = f"{from_revision}:{to_revision}"
+            _offline_migration(command.downgrade, config=config, revision=revision_range)
+        else:
+            log.info("Applying downgrade migrations.")
+            command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 
 def drop_airflow_models(connection):
@@ -1080,7 +1278,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if version.exists(connection):
+    if has_table(connection, version):
         version.drop(connection)
 
 

@@ -21,7 +21,7 @@
  */
 
 /* global document, DOMParser, $ */
-import getMetaValue from './meta_value';
+import { getMetaValue } from './utils';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
 const connectionTestUrl = getMetaValue('test_url');

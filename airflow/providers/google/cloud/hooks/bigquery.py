@@ -46,11 +46,7 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import (
-    GbqConnector,
-    _check_google_client_version as gbq_check_google_client_version,
-    _test_google_api_imports as gbq_test_google_api_imports,
-)
+from pandas_gbq.gbq import GbqConnector  # noqa
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
@@ -1507,6 +1503,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         nowait: bool = False,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: Optional[float] = None,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1524,6 +1522,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         :param nowait: specify whether to insert job without waiting for the result
+        :param retry: How to retry the RPC.
+        :param timeout: The number of seconds to wait for the underlying HTTP transport
+            before using ``retry``.
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
@@ -1556,7 +1557,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job._begin()
         else:
             # Start the job and wait for it to complete and get the result.
-            job.result()
+            job.result(timeout=timeout, retry=retry)
         return job
 
     def run_with_configuration(self, configuration: dict) -> str:
@@ -2191,28 +2192,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
         return job.job_id
-
-
-class BigQueryPandasConnector(GbqConnector):
-    """
-    This connector behaves identically to GbqConnector (from Pandas), except
-    that it allows the service to be injected, and disables a call to
-    self.get_credentials(). This allows Airflow to use BigQuery with Pandas
-    without forcing a three legged OAuth connection. Instead, we can inject
-    service account credentials into the binding.
-    """
-
-    def __init__(
-        self, project_id: str, service: str, reauth: bool = False, verbose: bool = False, dialect="legacy"
-    ) -> None:
-        super().__init__(project_id)
-        gbq_check_google_client_version()
-        gbq_test_google_api_imports()
-        self.project_id = project_id
-        self.reauth = reauth
-        self.service = service
-        self.verbose = verbose
-        self.dialect = dialect
 
 
 class BigQueryConnection:

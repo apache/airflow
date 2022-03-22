@@ -30,6 +30,9 @@
   "apache.livy": [
     "http"
   ],
+  "dbt.cloud": [
+    "http"
+  ],
   "dingding": [
     "http"
   ],
@@ -70,6 +73,9 @@
   "postgres": [
     "amazon"
   ],
+  "presto": [
+    "google"
+  ],
   "salesforce": [
     "tableau"
   ],
@@ -81,5 +87,8 @@
   ],
   "snowflake": [
     "slack"
+  ],
+  "trino": [
+    "google"
   ]
 }

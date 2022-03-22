@@ -17,10 +17,14 @@
 # under the License.
 
 import datetime
+import operator
 import os
+import pathlib
 import signal
+import sys
 import urllib
 from tempfile import NamedTemporaryFile
+from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -68,6 +72,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -1014,15 +1019,14 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, create_task_instance):
-        """
-        Test xcom_pull, using different filtering methods.
-        """
-        ti1 = create_task_instance(
-            dag_id='test_xcom',
-            task_id='test_xcom_1',
-            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0),
-        )
+    def test_xcom_pull(self, dag_maker):
+        """Test xcom_pull, using different filtering methods."""
+        with dag_maker(dag_id="test_xcom") as dag:
+            task_1 = DummyOperator(task_id="test_xcom_1")
+            task_2 = DummyOperator(task_id="test_xcom_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key='foo', value='bar')
@@ -1031,9 +1035,9 @@ class TestTaskInstance:
         XCom.set(
             key='foo',
             value='baz',
-            task_id='test_xcom_2',
-            dag_id=ti1.dag_id,
-            execution_date=ti1.execution_date,
+            task_id=task_2.task_id,
+            dag_id=dag.dag_id,
+            execution_date=dagrun.execution_date,
         )
 
         # Pull with no arguments
@@ -1858,6 +1862,27 @@ class TestTaskInstance:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        with dag_maker(dag_id='test_retries_on_other_exceptions'):
+            task = PythonOperator(
+                task_id='test_raise_other_exception',
+                python_callable=fail,
+                retries=1,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+            ti.run()
+        assert len(log.error.mock_calls) == 1
+        assert log.error.call_args[0] == ("Task failed with exception",)
+        exc_info = log.error.call_args[1]["exc_info"]
+        filename = exc_info[2].tb_frame.f_code.co_filename
+        formatted_exc = format_exception(*exc_info)
+        assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
+
     def _env_var_check_callback(self):
         assert 'test_echo_env_variables' == os.environ['AIRFLOW_CTX_DAG_ID']
         assert 'hive_in_python_op' == os.environ['AIRFLOW_CTX_TASK_ID']
@@ -1980,7 +2005,7 @@ class TestTaskInstance:
             'metadata': {
                 'annotations': {
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00:00:00+00:00',
+                    'run_id': 'test_run_id',
                     'task_id': 'op1',
                     'try_number': '1',
                 },
@@ -1988,7 +2013,7 @@ class TestTaskInstance:
                     'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00_00_00_plus_00_00',
+                    'run_id': 'test_run_id',
                     'kubernetes_executor': 'True',
                     'task_id': 'op1',
                     'try_number': '1',
@@ -2288,7 +2313,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComTypePushed) as ctx:
@@ -2311,7 +2336,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComLengthPushed) as ctx:
@@ -2340,7 +2365,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.map(value=push_something())
+            pull_something.expand(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
@@ -2353,3 +2378,179 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert task_map.map_index == -1
         assert task_map.length == expected_length
         assert task_map.keys == expected_keys
+
+
+class TestMappedTaskInstanceReceiveValue:
+    @pytest.mark.parametrize(
+        "literal, expected_outputs",
+        [
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
+        ],
+    )
+    def test_map_literal(self, literal, expected_outputs, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="literal", session=session) as dag:
+
+            @dag.task
+            def show(value):
+                outputs.append(value)
+
+            show.expand(value=literal)
+
+        dag_run = dag_maker.create_dagrun()
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(literal)
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs
+
+    @pytest.mark.parametrize(
+        "upstream_return, expected_outputs",
+        [
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
+        ],
+    )
+    def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="xcom", session=session) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                outputs.append(value)
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag.get_task("emit"))
+        emit_ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == len(upstream_return)
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == expected_outputs
+
+    def test_map_product(self, dag_maker, session):
+        outputs = []
+
+        with dag_maker(dag_id="product", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def emit_letters():
+                return {"a": "x", "b": "y", "c": "z"}
+
+            @dag.task
+            def show(number, letter):
+                outputs.append((number, letter))
+
+            show.expand(number=emit_numbers(), letter=emit_letters())
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ["emit_numbers", "emit_letters"]:
+            ti = dag_run.get_task_instance(task_id, session=session)
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [
+            (1, ("a", "x")),
+            (1, ("b", "y")),
+            (1, ("c", "z")),
+            (2, ("a", "x")),
+            (2, ("b", "y")),
+            (2, ("c", "z")),
+        ]
+
+    def test_map_product_same(self, dag_maker, session):
+        """Test a mapped task can refer to the same source multiple times."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same", session=session) as dag:
+
+            @dag.task
+            def emit_numbers():
+                return [1, 2]
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            emit_task = emit_numbers()
+            show.expand(a=emit_task, b=emit_task)
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("emit_numbers", session=session)
+        ti.refresh_from_task(dag.get_task("emit_numbers"))
+        ti.run()
+
+        show_task = dag.get_task("show")
+        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 4
+
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
+        out = tmp_path.joinpath("out")
+        out.touch()
+
+        with dag_maker(dag_id="in_group", session=session) as dag:
+
+            @dag.task
+            def envs():
+                return [{"VAR1": "FOO"}, {"VAR1": "BAR"}]
+
+            @dag.task
+            def cmds():
+                return [f'echo "hello $VAR1" >> {out}', f'echo "goodbye $VAR1" >> {out}']
+
+            with TaskGroup(group_id="dynamic"):
+                BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
+                    env=envs(),
+                    bash_command=cmds(),
+                )
+
+        dag_run: DagRun = dag_maker.create_dagrun()
+        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+
+        for task_id in ["dynamic.envs", "dynamic.cmds"]:
+            ti = original_tis[task_id]
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        bash_task = dag.get_task("dynamic.bash")
+        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(bash_task)
+            ti.run()
+
+        with out.open() as f:
+            out_lines = [line.strip() for line in f]
+        assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]

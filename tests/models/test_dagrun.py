@@ -26,13 +26,16 @@ import pytest
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -907,14 +910,73 @@ def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expecte
 def test_expand_mapped_task_instance(dag_maker, session):
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
-        mapped = MockOperator(task_id='task_2').map(arg2=literal)
+        mapped = MockOperator(task_id='task_2').expand(arg2=literal)
 
     dr = dag_maker.create_dagrun()
     indices = (
         session.query(TI.map_index)
         .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TI.insert_mapping)
+        .order_by(TI.map_index)
         .all()
     )
 
     assert indices == [0, 1, 2]
+
+
+def test_ti_scheduling_mapped_zero_length(dag_maker, session):
+    with dag_maker(session=session):
+        task = BaseOperator(task_id='task_1')
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    ti1.state = TaskInstanceState.SUCCESS
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id=ti1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
+    )
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    indices = (
+        session.query(TI.map_index, TI.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+        .all()
+    )
+
+    assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_upstream_failed(dag_maker, session):
+    from airflow.operators.python import PythonOperator
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {'a': 'b'}]))
+
+        def consumer(*args):
+            print(repr(args))
+
+        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+
+    dr = dag_maker.create_dagrun()
+    _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    make_list_ti.state = TaskInstanceState.FAILED
+    session.flush()
+
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+
+    assert sorted((ti.task_id, ti.map_index, ti.state) for ti in tis) == [
+        ("consumer", -1, TaskInstanceState.UPSTREAM_FAILED),
+        ("make_list", -1, TaskInstanceState.FAILED),
+    ]
+    # Bug/possible source of optimization: The DR isn't marked as failed until
+    # in the loop that marks the last task as UPSTREAM_FAILED
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    assert dr.state == DagRunState.FAILED

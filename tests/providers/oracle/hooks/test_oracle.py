@@ -347,3 +347,9 @@ class TestOracleHook(unittest.TestCase):
         expected = [1, 0, 0.0, False, '']
         assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:1,:2,:3,:4,:5); END;', expected)]
         assert result == expected
+
+    def test_test_connection_use_dual_table(self):
+        status, message = self.db_hook.test_connection()
+        self.cur.execute.assert_called_once_with("select 1 from dual")
+        assert status is True
+        assert message == 'Connection successfully tested'

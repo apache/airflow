@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
+import os
 import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
@@ -73,6 +74,8 @@ class GCSToS3Operator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
         object to be uploaded in S3
+    :param keep_directory_structure: (Optional) When set to False the path of the file
+         on the bucket is recreated within path passed in dest_s3_key.
     """
 
     template_fields: Sequence[str] = (
@@ -100,6 +103,7 @@ class GCSToS3Operator(BaseOperator):
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         dest_s3_extra_args: Optional[Dict] = None,
         s3_acl_policy: Optional[str] = None,
+        keep_directory_structure: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -125,6 +129,7 @@ class GCSToS3Operator(BaseOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
+        self.keep_directory_structure = keep_directory_structure
 
     def execute(self, context: 'Context') -> List[str]:
         # list all files in an Google Cloud Storage bucket
@@ -147,6 +152,9 @@ class GCSToS3Operator(BaseOperator):
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
         )
 
+        if not self.keep_directory_structure and self.prefix:
+            self.dest_s3_key = os.path.join(self.dest_s3_key, self.prefix)
+
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
             # and only keep those files which are present in
@@ -165,7 +173,7 @@ class GCSToS3Operator(BaseOperator):
 
             for file in files:
                 with hook.provide_file(object_name=file, bucket_name=self.bucket) as local_tmp_file:
-                    dest_key = self.dest_s3_key + file
+                    dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)
 
                     s3_hook.load_file(

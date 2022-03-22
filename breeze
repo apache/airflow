@@ -253,7 +253,7 @@ function breeze::initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/scripts/tools/confirm" "Proceeding with the initialization"
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
@@ -329,7 +329,7 @@ function breeze::initialize_virtualenv() {
 function breeze::setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo
-    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/scripts/tools/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
@@ -499,6 +499,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               Platform:               ${PLATFORM}
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -508,11 +509,13 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE_WITH_TAG}
+                               Platform:               ${PLATFORM}
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
         cat <<EOF
                                Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
+                               Debian version:         ${DEBIAN_VERSION}
                                Backend:                ${BACKEND} ${backend_version}
 EOF
         if [[ -n ${USE_AIRFLOW_VERSION=} ]]; then
@@ -530,6 +533,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
+   Platform:                ${PLATFORM}
 EOF
         else
             cat <<EOF
@@ -538,6 +542,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
+   Platform:                ${PLATFORM}
 
 EOF
         fi
@@ -625,9 +630,11 @@ export HOST_USER_ID=${HOST_USER_ID}
 export HOST_GROUP_ID=${HOST_GROUP_ID}
 export COMPOSE_FILE="${compose_file}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
+export DEBIAN_VERSION="${DEBIAN_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+export PLATFORM="${PLATFORM}"
 export SSH_PORT="${SSH_PORT}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
@@ -674,13 +681,19 @@ EOF
 #######################################################################################################
 function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
-    local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-${DEBIAN_VERSION}.yml
+    else
+        local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+    fi
+
     local backend_port_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-port.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
+
 
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
@@ -811,9 +824,21 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        -d | --debian-version)
+            export DEBIAN_VERSION="${2}"
+            echo "Debian version: ${DEBIAN_VERSION}"
+            echo
+            shift 2
+            ;;
         -b | --backend)
             export BACKEND="${2}"
             echo "Backend: ${BACKEND}"
+            echo
+            shift 2
+            ;;
+        --platform)
+            export PLATFORM="${2}"
+            echo "Backend: ${PLATFORM}"
             echo
             shift 2
             ;;
@@ -929,7 +954,7 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        -d | --db-reset)
+        --db-reset)
             echo "Resetting the DB!"
             echo
             export DB_RESET="true"
@@ -1095,6 +1120,11 @@ function breeze::parse_arguments() {
         --disable-mssql-client-installation)
             export INSTALL_MSSQL_CLIENT="false"
             echo "Install MsSQL client: ${INSTALL_MSSQL_CLIENT}"
+            shift
+            ;;
+        --disable-postgres-client-installation)
+            export INSTALL_POSTGRES_CLIENT="false"
+            echo "Install Postgres client: ${INSTALL_POSTGRES_CLIENT}"
             shift
             ;;
         --constraints-location)
@@ -1528,9 +1558,17 @@ function breeze::prepare_formatted_versions() {
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS
 
+    FORMATTED_DEBIAN_VERSIONS=$(echo "${_breeze_allowed_debian_versions=""}" | tr '\n' ' ' |
+        fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_DEBIAN_VERSIONS
+
     FORMATTED_BACKENDS=$(echo "${_breeze_allowed_backends=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_BACKENDS
+
+    FORMATTED_PLATFORMS=$(echo "${_breeze_allowed_platforms=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_PLATFORMS
 
     FORMATTED_STATIC_CHECKS=$(echo "${_breeze_allowed_static_checks=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2232,6 +2270,22 @@ function breeze::flag_airflow_variants() {
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
+
+--platform PLATFORM
+        Builds image for the platform specified.
+
+        One of:
+
+${FORMATTED_PLATFORMS}
+
+
+-d, --debian DEBIAN_VERSION
+        Debian version used for the image. This is always name of the debian distribution version.
+
+        One of:
+
+${FORMATTED_DEBIAN_VERSIONS}
+
 "
 }
 
@@ -3086,6 +3140,7 @@ function breeze::check_and_save_all_params() {
     fi
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
+    parameters::check_and_save_allowed_param "PLATFORM" "platform" "--platform"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
@@ -3334,7 +3389,6 @@ function breeze::run_build_command() {
             build_images::prepare_prod_build
             build_images::build_prod_images
         else
-
             build_images::prepare_ci_build
             build_images::rebuild_ci_image_if_needed
         fi
@@ -3445,9 +3499,19 @@ function breeze::run_breeze_command() {
     case "${command_to_run}" in
     enter_breeze)
         docker_engine_resources::check_all_resources
+        if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+            if [[ ${BACKEND} == "mysql" || ${BACKEND} == "mssql" ]]; then
+                echo "${COLOR_RED}MacOS with ARM processor is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
+                exit 1
+            fi
+        fi
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            ${run_command} "${SCRIPTS_CI_DIR}/tools/fix_ownership.sh"  || true
+            echo "${COLOR_RED}ERROR: Entering production image via breeze is not supported${COLOR_RESET}"
+            echo
+            echo "Please run ${COLOR_BLUE}docker run -it apache/airflow:latest bash${COLOR_RESET} instead"
+            echo
+            echo "See https://airflow.apache.org/docs/docker-stack/entrypoint.html#executing-commands for details"
+            exit 1
         else
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
@@ -3556,7 +3620,7 @@ function breeze::run_breeze_command() {
 # We have different versions of images depending on the python version used. We keep up with the
 # Latest patch-level changes in Python (this is done automatically during CI test runs) so we have
 # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
-# version of python in X.Y format (3.6, 3.7, 3.8, 3.9).
+# version of python in X.Y format (3.7, 3.8, 3.9, 3.10).
 #
 # In Breeze the precedence of setting the version is as follows:
 #      1. --python flag (if set, it will explicitly override it in the next step)

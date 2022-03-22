@@ -70,7 +70,7 @@ affinity = k8s.V1Affinity(
                 weight=1,
                 preference=k8s.V1NodeSelectorTerm(
                     match_expressions=[
-                        k8s.V1NodeSelectorRequirement(key="disktype", operator="in", values=["ssd"])
+                        k8s.V1NodeSelectorRequirement(key="disktype", operator="In", values=["ssd"])
                     ]
                 ),
             )

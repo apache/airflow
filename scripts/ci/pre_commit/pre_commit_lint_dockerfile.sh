@@ -15,9 +15,46 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# shellcheck source=scripts/ci/static_checks/lint_dockerfile.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/lint_dockerfile.sh" "${@}"
+function run_docker_lint() {
+    IMAGE_NAME="hadolint/hadolint:2.3.0-alpine"
+    if [[ "${#@}" == "0" ]]; then
+        echo
+        echo "Running docker lint for all Dockerfiles"
+        echo
+        # shellcheck disable=SC2046
+        docker_v run \
+            -v "$(pwd):/root" \
+            -w "/root" \
+            --rm \
+           "${IMAGE_NAME}" "/bin/hadolint" $(git ls-files| grep 'Dockerfile')
+        echo
+        echo "Hadolint completed with no errors"
+        echo
+    else
+        echo
+        echo "Running docker lint for $*"
+        echo
+        docker_v run \
+            -v "$(pwd):/root" \
+            -w "/root" \
+            --rm \
+            "${IMAGE_NAME}" "/bin/hadolint" "${@}"
+        echo
+        echo "Hadolint completed with no errors"
+        echo
+    fi
+}
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    # See https://github.com/hadolint/hadolint/issues/411
+    echo "Skip Hadolint check on ARM devices as they do not provide multiplatform images"
+else
+    run_docker_lint "$@"
+fi

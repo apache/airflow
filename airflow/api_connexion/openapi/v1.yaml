@@ -127,14 +127,6 @@ info:
     - APIs are designed to be backward compatible.
     - Any changes to the API will first go through a deprecation phase.
 
-    # Summary of Changes
-
-    | Airflow version | Description |
-    |-|-|
-    | v2.0 | Initial release |
-    | v2.0.2    | Added /plugins endpoint |
-    | v2.1 | New providers endpoint |
-
     # Trying the API
 
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
@@ -404,6 +396,10 @@ paths:
   /dags:
     get:
       summary: List DAGs
+      description: >
+       List DAGs in the database.
+
+       `dag_id_pattern` can be set to match dags of a specific pattern
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dags
       tags: [DAG]
@@ -412,16 +408,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
         - $ref: '#/components/parameters/FilterTags'
-        - name: only_active
-          in: query
-          schema:
-            type: boolean
-            default: true
-          required: false
-          description: |
-            Only return active DAGs.
-
-            *New in version 2.1.1*
+        - $ref: '#/components/parameters/OnlyActive'
         - name: dag_id_pattern
           in: query
           schema:
@@ -429,8 +416,6 @@ paths:
           required: false
           description: |
             If set, only return DAGs with dag_ids matching this pattern.
-
-            *New in version 2.3.0*
       responses:
         '200':
           description: Success.
@@ -440,6 +425,52 @@ paths:
                 $ref: '#/components/schemas/DAGCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+
+    patch:
+      summary: Update DAGs
+      description: >
+       Update DAGs of a given dag_id_pattern using UpdateMask.
+
+       This endpoint allows specifying `~` as the dag_id_pattern to update all DAGs.
+
+       *New in version 2.3.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: patch_dags
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterTags'
+        - $ref: '#/components/parameters/UpdateMask'
+        - $ref: '#/components/parameters/OnlyActive'
+        - name: dag_id_pattern
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            If set, only update DAGs with dag_ids matching this pattern.
+      tags: [DAG]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAG'
+            example:
+              is_paused: true
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}:
     parameters:
@@ -1033,6 +1064,36 @@ paths:
       summary: Get a task instance
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: get_task_instance
+      tags: [TaskInstance]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/MapIndex'
+
+    get:
+      summary: Get a mapped task instance
+      description: |
+        Get details of a mapped task instance.
+
+        *New in version 2.3.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance
       tags: [TaskInstance]
       responses:
         '200':
@@ -2496,6 +2557,12 @@ components:
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
           nullable: true
+        rendered_fields:
+          description: |
+            JSON object describing rendered fields.
+
+            *New in version 2.3.0*
+          type: object
 
     TaskInstanceCollection:
       type: object
@@ -3551,6 +3618,14 @@ components:
       required: true
       description: The task ID.
 
+    MapIndex:
+      in: path
+      name: map_index
+      schema:
+        type: integer
+      required: true
+      description: The map index.
+
     DAGRunID:
       in: path
       name: dag_run_id
@@ -3767,6 +3842,18 @@ components:
         Prefix a field name with `-` to reverse the sort order.
 
         *New in version 2.1.0*
+
+    OnlyActive:
+      in: query
+      name: only_active
+      schema:
+        type: boolean
+        default: true
+      required: false
+      description: |
+        Only filter active DAGs.
+
+        *New in version 2.1.1*
 
     # Other parameters
 

@@ -96,7 +96,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
@@ -194,6 +194,9 @@ class DAG(LoggingMixin):
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
 
+    Note that if you plan to use time zones all the dates provided should be pendulum
+    dates. See :ref:`timezone_aware_dags`.
+
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
@@ -242,8 +245,8 @@ class DAG(LoggingMixin):
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
         passed to the callback.
-    :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times), default tree
+    :param default_view: Specify DAG default view (grid, graph, duration,
+                                                   gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :param on_failure_callback: A function to be called when a DagRun of this dag fails.
@@ -251,7 +254,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
-        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -338,6 +341,8 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
+        if default_args and not isinstance(default_args, dict):
+            raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
@@ -431,6 +436,13 @@ class DAG(LoggingMixin):
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
+        elif default_view == 'tree':
+            warnings.warn(
+                "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._default_view = 'grid'
         else:
             raise AirflowException(
                 f'Invalid values of dag.default_view: only support '
@@ -547,7 +559,11 @@ class DAG(LoggingMixin):
         message = "`DAG.date_range()` is deprecated."
         if num is not None:
             warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-            return utils_date_range(start_date=start_date, num=num)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return utils_date_range(
+                    start_date=start_date, num=num, delta=self.normalized_schedule_interval
+                )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
         if end_date is None:
@@ -1606,7 +1622,7 @@ class DAG(LoggingMixin):
         *,
         task_id: str,
         execution_date: Optional[datetime] = None,
-        dag_run_id: Optional[str] = None,
+        run_id: Optional[str] = None,
         state: TaskInstanceState,
         upstream: bool = False,
         downstream: bool = False,
@@ -1621,7 +1637,7 @@ class DAG(LoggingMixin):
 
         :param task_id: Task ID of the TaskInstance
         :param execution_date: Execution date of the TaskInstance
-        :param dag_run_id: The run_id of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
         :param upstream: Include all upstream tasks of the given task_id
         :param downstream: Include all downstream tasks of the given task_id
@@ -1631,12 +1647,12 @@ class DAG(LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        if not exactly_one(execution_date, dag_run_id):
-            raise ValueError("Exactly one of execution_date or dag_run_id must be provided")
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
 
         if execution_date is None:
             dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == dag_run_id, DagRun.dag_id == self.dag_id).one()
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
             )  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
         else:
@@ -1648,7 +1664,7 @@ class DAG(LoggingMixin):
         altered = set_state(
             tasks=[task],
             execution_date=execution_date,
-            dag_run_id=dag_run_id,
+            run_id=run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
@@ -2445,17 +2461,18 @@ class DAG(LoggingMixin):
             else:
                 orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
-            for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in set(dag.tags):
+            dag_tags = set(dag.tags or {})
+            orm_dag_tags = list(orm_dag.tags or [])
+            for orm_tag in orm_dag_tags:
+                if orm_tag.name not in dag_tags:
                     session.delete(orm_tag)
                     orm_dag.tags.remove(orm_tag)
-            if dag.tags:
-                orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in set(dag.tags):
-                    if dag_tag not in orm_tag_names:
-                        dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
-                        orm_dag.tags.append(dag_tag_orm)
-                        session.add(dag_tag_orm)
+            orm_tag_names = {t.name for t in orm_dag_tags}
+            for dag_tag in dag_tags:
+                if dag_tag not in orm_tag_names:
+                    dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
+                    orm_dag.tags.append(dag_tag_orm)
+                    session.add(dag_tag_orm)
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 

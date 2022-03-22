@@ -100,6 +100,10 @@ The universal order of precedence for all configuration options is as follows:
 #. secret key in ``airflow.cfg``
 #. Airflow's built in defaults
 
+.. note::
+    For Airflow versions >= 2.2.1, < 2.3.0 Airflow's built in defaults took precedence
+    over command and secret key in ``airflow.cfg`` in some circumstances.
+
 You can check the current configuration with the ``airflow config list`` command.
 
 If you only want to see the value for one option, you can use ``airflow config get-value`` command as in
@@ -121,3 +125,8 @@ the example below.
     does not require all, some configurations need to be same otherwise they would not
     work as expected. A good example for that is :ref:`secret_key<config:webserver__secret_key>` which
     should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+
+    The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+    generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+    that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+    "forbidden" errors when the logs are accessed.

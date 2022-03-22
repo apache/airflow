@@ -83,9 +83,16 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
-    # until we have support for ARM images, we set docker default platform to AMD
+    # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+    local machine
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        machine="arm64"
+    else
+        machine="amd64"
+    fi
+
+    export PLATFORM=${PLATFORM:="linux/${machine}"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
@@ -110,11 +117,11 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -232,6 +239,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/install_airflow_dependencies_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
+        "scripts/docker/install_postgres.sh"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
@@ -352,7 +360,7 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="buster"}
+    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
 
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
@@ -400,6 +408,8 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # by default install mssql client
     export INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT:="true"}
+    # by default install postgres client
+    export INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 
@@ -409,9 +419,15 @@ function initialization::initialize_image_build_variables() {
     SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
     export SKIP_TWINE_CHECK
 
+    SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
+    export SKIP_SSH_SETUP
+
+    SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION:="false"}
+    export SKIP_ENVIRONMENT_INITIALIZATION
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.3.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.4"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -490,7 +506,7 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.21.1" "v1.20.2")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.23.3" "v1.22.0" "v1.21.1" "v1.20.2")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")

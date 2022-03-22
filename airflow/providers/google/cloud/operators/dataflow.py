@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -409,33 +410,33 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-                is_running = False
-                if self.check_if_running != CheckJobRunning.IgnoreJob:
+            is_running = False
+            if self.check_if_running != CheckJobRunning.IgnoreJob:
+                is_running = self.dataflow_hook.is_job_dataflow_running(
+                    name=self.job_name,
+                    variables=pipeline_options,
+                )
+                while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
+
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
                     )
-                    while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
-                        is_running = self.dataflow_hook.is_job_dataflow_running(
-                            name=self.job_name,
-                            variables=pipeline_options,
-                        )
-                if not is_running:
-                    pipeline_options["jobName"] = job_name
-                    with self.dataflow_hook.provide_authorized_gcloud():
-                        self.beam_hook.start_java_pipeline(
-                            variables=pipeline_options,
-                            jar=self.jar,
-                            job_class=self.job_class,
-                            process_line_callback=process_line_callback,
-                        )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=job_name,
-                        location=self.location,
-                        job_id=self.job_id,
-                        multiple_jobs=self.multiple_jobs,
+            if not is_running:
+                pipeline_options["jobName"] = job_name
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    self.beam_hook.start_java_pipeline(
+                        variables=pipeline_options,
+                        jar=self.jar,
+                        job_class=self.job_class,
+                        process_line_callback=process_line_callback,
                     )
+                self.dataflow_hook.wait_for_done(
+                    job_name=job_name,
+                    location=self.location,
+                    job_id=self.job_id,
+                    multiple_jobs=self.multiple_jobs,
+                )
 
         return {"job_id": self.job_id}
 
@@ -586,8 +587,10 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
+        "dataflow_default_options",
     )
     ui_color = "#0273d4"
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -638,6 +641,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -723,6 +727,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -760,6 +765,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         job = self.hook.start_flex_template(
             body=self.body,

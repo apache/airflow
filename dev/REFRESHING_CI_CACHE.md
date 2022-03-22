@@ -48,7 +48,7 @@ manual refresh might be needed.
 # Manually generating constraint files
 
 ```bash
-export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.7 3.8 3.9"
+export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.7 3.8 3.9 3.10"
 for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
 do
   ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version}
@@ -78,7 +78,16 @@ git push
 # Manually refreshing the images
 
 Note that in order to refresh images you have to not only have `buildx` command installed for docker,
-but you should also make sure that you have the buildkit builder configured and set.
+but you should also make sure that you have the buildkit builder configured and set. Since we also build
+multi-platform images (for both AMD and ARM), you need to have support for qemu installed with appropriate
+flags.
+
+According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
+this can be achieved via:
+
+```shell
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
 
 More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
 
@@ -87,7 +96,7 @@ python version is a simple as running the [refresh_images.sh](refresh_images.sh)
 as parameter:
 
 ```bash
-./dev/refresh_images.sh 3.9
+./dev/refresh_images.sh 3.10
 ```
 
 If you have fast network and powerful computer, you can refresh the images in parallel running the
@@ -95,5 +104,5 @@ If you have fast network and powerful computer, you can refresh the images in pa
 or with gnu parallel:
 
 ```bash
-parallel -j 4 --linebuffer --tagstring '{}' ./dev/refresh_images.sh ::: 3.7 3.8 3.9
+parallel -j 4 --linebuffer --tagstring '{}' ./dev/refresh_images.sh ::: 3.7 3.8 3.9 3.10
 ```

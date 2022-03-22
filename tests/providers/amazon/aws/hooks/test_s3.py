@@ -28,6 +28,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
+from airflow.utils.timezone import datetime
 
 try:
     from moto import mock_s3
@@ -151,10 +152,21 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
+        from_datetime = datetime(1992, 3, 8, 18, 52, 51)
+        to_datetime = datetime(1993, 3, 14, 21, 52, 42)
+
+        def dummy_object_filter(keys, from_datetime=None, to_datetime=None):
+            return []
+
         assert [] == hook.list_keys(s3_bucket, prefix='non-existent/')
         assert ['a', 'dir/b'] == hook.list_keys(s3_bucket)
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
+        assert ['dir/b'] == hook.list_keys(s3_bucket, start_after_key='a')
+        assert [] == hook.list_keys(s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime)
+        assert [] == hook.list_keys(
+            s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime, object_filter=dummy_object_filter
+        )
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()

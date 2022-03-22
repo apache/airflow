@@ -35,6 +35,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 from freezegun import freeze_time
 
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
@@ -45,17 +46,16 @@ from airflow.dag_processing.manager import (
     DagParsingStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, errors
+from airflow.models import DagBag, DagModel, DbCallbackRequest, errors
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 TEST_DAG_FOLDER = pathlib.Path(__file__).parent.parent / 'dags'
 
@@ -113,11 +113,13 @@ class TestDagFileProcessorManager:
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_callbacks()
 
     def teardown_class(self):
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_callbacks()
 
     def run_processor_manager_one_loop(self, manager, parent_pipe):
         if not manager._async_mode:
@@ -451,6 +453,54 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
 
+    def test_deactivate_stale_dags(self):
+        """
+        Ensure that DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated.
+        """
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_timeout=timedelta(minutes=10),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_example_bash_operator.py')
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+
+        with create_session() as session:
+            # Add stale DAG to the DB
+            dag = dagbag.get_dag('test_example_bash_operator')
+            dag.last_parsed_time = timezone.utcnow()
+            dag.sync_to_db()
+
+            # Add DAG to the file_parsing_stats
+            stat = DagFileStat(
+                num_dags=1,
+                import_errors=0,
+                last_finish_time=timezone.utcnow() + timedelta(hours=1),
+                last_duration=1,
+                run_count=1,
+            )
+            manager._file_paths = [test_dag_path]
+            manager._file_stats[test_dag_path] = stat
+
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+            assert len(active_dags) == 1
+
+            manager._file_stats[test_dag_path] = stat
+            manager._deactivate_stale_dags()
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+
+            assert len(active_dags) == 0
+
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.kill")
     def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
@@ -662,6 +712,137 @@ class TestDagFileProcessorManager:
         assert SerializedDagModel.has_dag('test_zip_dag')
         # assert code not deleted
         assert DagCode.has_dag(dag.fileloc)
+
+    @conf_vars(
+        {
+            ('core', 'load_examples'): 'False',
+            ('scheduler', 'standalone_dag_processor'): 'True',
+        }
+    )
+    def test_fetch_callbacks_from_database(self, tmpdir):
+        """Test DagFileProcessorManager._fetch_callbacks method"""
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        callback1 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            full_filepath=str(dag_filepath),
+            is_failure_callback=True,
+            run_id='123',
+        )
+        callback2 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            full_filepath=str(dag_filepath),
+            is_failure_callback=True,
+            run_id='456',
+        )
+        callback3 = SlaCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            full_filepath=str(dag_filepath),
+        )
+
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
+            session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
+            session.add(DbCallbackRequest(callback=callback3, priority_weight=9))
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+
+        with create_session() as session:
+            results = self.run_processor_manager_one_loop(manager, parent_pipe)
+
+        assert results[0] == callback3
+        assert results[1] == callback2
+        assert results[2] == callback1
+        with create_session() as session:
+            assert session.query(DbCallbackRequest).count() == 0
+
+    @conf_vars(
+        {
+            ('scheduler', 'standalone_dag_processor'): 'True',
+            ('scheduler', 'max_callbacks_per_loop'): '2',
+            ('core', 'load_examples'): 'False',
+        }
+    )
+    def test_fetch_callbacks_from_database_max_per_loop(self, tmpdir):
+        """Test DagFileProcessorManager._fetch_callbacks method"""
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        with create_session() as session:
+            for i in range(5):
+                callback = DagCallbackRequest(
+                    dag_id="test_start_date_scheduling",
+                    full_filepath=str(dag_filepath),
+                    is_failure_callback=True,
+                    run_id=str(i),
+                )
+                session.add(DbCallbackRequest(callback=callback, priority_weight=i))
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+
+        with create_session() as session:
+            results = self.run_processor_manager_one_loop(manager, parent_pipe)
+            assert (len(results)) == 2
+            assert session.query(DbCallbackRequest).count() == 3
+
+        with create_session() as session:
+            results = self.run_processor_manager_one_loop(manager, parent_pipe)
+            assert (len(results)) == 2
+            assert session.query(DbCallbackRequest).count() == 1
+
+    @conf_vars(
+        {
+            ('scheduler', 'standalone_dag_processor'): 'False',
+            ('core', 'load_examples'): 'False',
+        }
+    )
+    def test_fetch_callbacks_from_database_not_standalone(self, tmpdir):
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        with create_session() as session:
+            callback = DagCallbackRequest(
+                dag_id="test_start_date_scheduling",
+                full_filepath=str(dag_filepath),
+                is_failure_callback=True,
+                run_id='123',
+            )
+            session.add(DbCallbackRequest(callback=callback, priority_weight=10))
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+
+        with create_session() as session:
+            results = self.run_processor_manager_one_loop(manager, parent_pipe)
+
+        assert (len(results)) == 0
+        # Verify no callbacks removed from database.
+        with create_session() as session:
+            assert session.query(DbCallbackRequest).count() == 1
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

@@ -34,6 +34,9 @@ from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
@@ -48,7 +51,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -648,16 +650,18 @@ class SchedulerJob(BaseJob):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
-                "pool=%s, queue=%s, priority_weight=%d, operator=%s"
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "queued_by_job_id=%s, pid=%s"
             )
             self.log.info(
                 msg,
                 ti.dag_id,
                 ti.task_id,
                 ti.run_id,
+                ti.map_index,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,
@@ -670,6 +674,9 @@ class SchedulerJob(BaseJob):
                 ti.queue,
                 ti.priority_weight,
                 ti.operator,
+                ti.queued_dttm,
+                ti.queued_by_job_id,
+                ti.pid,
             )
 
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
@@ -692,10 +699,10 @@ class SchedulerJob(BaseJob):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance(ti),
+                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.processor_agent.send_callback_to_execute(request)
+                    self.executor.send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -726,6 +733,15 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
+            if conf.getboolean("scheduler", "standalone_dag_processor"):
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                self.executor.callback_sink = DatabaseCallbackSink()
+            else:
+                self.log.debug("Using PipeCallbackSink as callback sink.")
+                self.executor.callback_sink = PipeCallbackSink(
+                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
+                )
+
             self.executor.start()
 
             self.register_signals()
@@ -891,7 +907,6 @@ class SchedulerJob(BaseJob):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-
             if settings.USE_JOB_SCHEDULE:
                 self._create_dagruns_for_dags(guard, session)
 
@@ -908,46 +923,49 @@ class SchedulerJob(BaseJob):
 
             guard.commit()
 
-            # Send the callbacks after we commit to ensure the context is up to date when it gets run
-            for dag_run, callback_to_run in callback_tuples:
-                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if not dag:
-                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                    continue
+        # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        for dag_run, callback_to_run in callback_tuples:
+            dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                continue
+            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+            # so it must be done outside of prohibit_commit.
+            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
-                self._send_dag_callbacks_to_processor(dag, callback_to_run)
-
+        with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
             # END: schedule TIs
 
-            try:
-                if self.executor.slots_available <= 0:
-                    # We know we can't do anything here, so don't even try!
-                    self.log.debug("Executor full, skipping critical section")
-                    return 0
+            if self.executor.slots_available <= 0:
+                # We know we can't do anything here, so don't even try!
+                self.log.debug("Executor full, skipping critical section")
+                num_queued_tis = 0
+            else:
+                try:
+                    timer = Stats.timer('scheduler.critical_section_duration')
+                    timer.start()
 
-                timer = Stats.timer('scheduler.critical_section_duration')
-                timer.start()
+                    # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
+                    num_queued_tis = self._critical_section_execute_task_instances(session=session)
 
-                # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                num_queued_tis = self._critical_section_execute_task_instances(session=session)
+                    # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
+                    # metric, way down
+                    timer.stop(send=True)
+                except OperationalError as e:
+                    timer.stop(send=False)
 
-                # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
-                # metric, way down
-                timer.stop(send=True)
-            except OperationalError as e:
-                timer.stop(send=False)
-
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Critical section lock held by another Scheduler")
-                    Stats.incr('scheduler.critical_section_busy')
-                    session.rollback()
-                    return 0
-                raise
+                    if is_lock_not_available_error(error=e):
+                        self.log.debug("Critical section lock held by another Scheduler")
+                        Stats.incr('scheduler.critical_section_busy')
+                        session.rollback()
+                        return 0
+                    raise
 
             guard.commit()
-            return num_queued_tis
+
+        return num_queued_tis
 
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
@@ -1182,11 +1200,11 @@ class SchedulerJob(BaseJob):
         dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.processor_agent.send_callback_to_execute(callback)
+            self.executor.send_callback(callback)
+        else:
+            self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
@@ -1197,12 +1215,8 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
-        self.processor_agent.send_sla_callback_request_to_execute(
-            full_filepath=dag.fileloc, dag_id=dag.dag_id
-        )
+        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        self.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
@@ -1359,9 +1373,9 @@ class SchedulerJob(BaseJob):
         for ti, file_loc in zombies:
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                simple_task_instance=SimpleTaskInstance(ti),
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=f"Detected {ti} as zombie",
             )
             self.log.error("Detected zombie job: %s", request)
-            self.processor_agent.send_callback_to_execute(request)
+            self.executor.send_callback(request)
             Stats.incr('zombies_killed')

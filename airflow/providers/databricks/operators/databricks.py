@@ -28,7 +28,6 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
@@ -87,7 +86,12 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info('View run status, Spark UI, and logs at %s', run_page_url)
                     return
                 else:
-                    error_message = f'{operator.task_id} failed with terminal state: {run_state}'
+                    run_output = hook.get_run_output(operator.run_id)
+                    notebook_error = run_output['error']
+                    error_message = (
+                        f'{operator.task_id} failed with terminal state: {run_state} '
+                        f'and with the error {notebook_error}'
+                    )
                     raise AirflowException(error_message)
             else:
                 log.info('%s in run state: %s', operator.task_id, run_state)
@@ -241,6 +245,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -270,6 +275,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
+        databricks_retry_args: Optional[Dict[Any, Any]] = None,
         do_xcom_push: bool = False,
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
@@ -283,6 +289,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         if tasks is not None:
             self.json['tasks'] = tasks
@@ -323,6 +330,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
         )
 
     def execute(self, context: 'Context'):
@@ -397,6 +405,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     Currently the named parameters that ``DatabricksRunNowOperator`` supports are
         - ``job_id``
+        - ``job_name``
         - ``json``
         - ``notebook_params``
         - ``python_params``
@@ -409,6 +418,10 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
+    :param job_name: the name of the existing Databricks job.
+        It must exist only one job with the specified name.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+        This field will be templated.
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -475,6 +488,7 @@ class DatabricksRunNowOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     """
 
@@ -489,6 +503,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self,
         *,
         job_id: Optional[str] = None,
+        job_name: Optional[str] = None,
         json: Optional[Any] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
@@ -498,6 +513,7 @@ class DatabricksRunNowOperator(BaseOperator):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
+        databricks_retry_args: Optional[Dict[Any, Any]] = None,
         do_xcom_push: bool = False,
         wait_for_termination: bool = True,
         **kwargs,
@@ -509,10 +525,15 @@ class DatabricksRunNowOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
 
         if job_id is not None:
             self.json['job_id'] = job_id
+        if job_name is not None:
+            self.json['job_name'] = job_name
+        if 'job_id' in self.json and 'job_name' in self.json:
+            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
         if notebook_params is not None:
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
@@ -532,10 +553,17 @@ class DatabricksRunNowOperator(BaseOperator):
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
         )
 
     def execute(self, context: 'Context'):
         hook = self._get_hook()
+        if 'job_name' in self.json:
+            job_id = hook.find_job_id_by_name(self.json['job_name'])
+            if job_id is None:
+                raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
+            self.json['job_id'] = job_id
+            del self.json['job_name']
         self.run_id = hook.run_now(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 

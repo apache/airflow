@@ -179,11 +179,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
-# We should remove the limits as soon as Flask App Builder releases version 3.4.4
-# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
-# TODO: remove it when we fix all SQLAlchemy 1.4 problems
-pandas_requirement = 'pandas>=0.17.1, <1.4'
+pandas_requirement = 'pandas>=0.17.1'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -202,6 +198,8 @@ amazon = [
     'redshift_connector>=2.0.888',
     'sqlalchemy_redshift>=0.8.6',
     pandas_requirement,
+    'mypy-boto3-rds>=1.21.0',
+    'mypy-boto3-redshift-data>=1.21.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -240,8 +238,13 @@ celery = [
     'celery>=5.2.3',
     'flower>=1.0.0',
 ]
-cgroups = [
-    'cgroupspy>=0.1.4',
+cgroups = [  # type:ignore
+    # Cgroups are now vendored in `airflow/_vendor/cgroupspy` for Python 3.10 compatibility
+    # The vendored code can be removed once cgroupspy released a new version after fixing
+    # the incompatibility https://github.com/cloudsigma/cgroupspy/issues/13 (hopefully >0.2.1 will
+    # be good for that. We should also be able to remove type:ignore above, as MyPy can't derive the type
+    # when this line is commented out
+    # 'cgroupspy>0.2.1',
 ]
 cloudant = [
     'cloudant>=2.0',
@@ -249,13 +252,13 @@ cloudant = [
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
-    # TODO: upgrade libraries used or maybe deprecate and drop DASK support
-    'cloudpickle>=1.4.1, <1.5.0',
-    'dask>=2.9.0, <2021.6.1',  # dask 2021.6.1 does not work with `distributed`
-    'distributed>=2.11.1, <2.20',
+    'cloudpickle>=1.4.1',
+    'dask>=2.9.0',
+    'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0',
+    'requests>=2.26.0, <3',
+    'databricks-sql-connector>=1.0.0, <2.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -264,7 +267,7 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
-    'click>=7.1',
+    'click>=8.0',
     'sphinx>=4.4.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
@@ -273,7 +276,7 @@ doc = [
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi>=1.8.0',
     'sphinx-copybutton',
-    'sphinx-jinja>=1.1',
+    'sphinx-jinja>=2.0',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
@@ -326,15 +329,14 @@ google = [
     'google-cloud-build>=3.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0',
+    'google-cloud-dataplex>=0.1.0',
     'google-cloud-dataproc>=3.1.0',
     'google-cloud-dataproc-metastore>=1.2.0,<2.0.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=2.1.1',
-    # 1.1.0 removed field_mask and broke import for released providers
-    # We can remove the <1.1.0 limitation after we release new Google Provider
-    'google-cloud-memcache>=0.2.0,<1.1.0',
+    'google-cloud-memcache>=0.2.0',
     'google-cloud-monitoring>=2.0.0',
     'google-cloud-os-login>=2.0.0',
     'google-cloud-orchestration-airflow>=1.0.0,<2.0.0',
@@ -353,9 +355,8 @@ google = [
     'grpcio-gcp>=0.2.2',
     'httpx',
     'json-merge-patch>=0.2',
-    # pandas-gbq 0.15.0 release broke google provider's bigquery import
-    # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
-    'pandas-gbq<0.15.0',
+    'looker-sdk>=22.2.0',
+    'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
 ]
@@ -378,7 +379,11 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0;python_version<"3.9"',
+    'pyhive[hive]>=0.6.0',
+    # in case of Python 3.9 sasl library needs to be installed with version higher or equal than
+    # 0.3.1 because only that version supports Python 3.9. For other Python version pyhive[hive] pulls
+    # the sasl library anyway (and there sasl library version is not relevant)
+    'sasl>=0.3.1; python_version>="3.9"',
     'thrift>=0.9.2',
     pandas_requirement,
 ]
@@ -410,14 +415,14 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0',
+    'kubernetes>=21.7.0',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
-leveldb = ['plyvel']
+leveldb = ['plyvel; platform_machine != "aarch64"']
 mongo = [
     'dnspython>=1.13.0',
     # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
@@ -425,11 +430,11 @@ mongo = [
     'pymongo>=3.6.0,<4.0.0',
 ]
 mssql = [
-    'pymssql>=2.1.5',
+    'pymssql>=2.1.5; platform_machine != "aarch64"',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11',
-    'mysqlclient>=1.3.6',
+    'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+    'mysqlclient>=1.3.6; platform_machine != "aarch64"',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -507,13 +512,8 @@ slack = [
     'slack_sdk>=3.0.0',
 ]
 snowflake = [
-    # Snowflake connector 2.7.2 requires pyarrow >=6.0.0 but apache-beam requires < 6.0.0
-    # We should remove the limitation when apache-beam upgrades pyarrow
-    'snowflake-connector-python>=2.4.1,<2.7.2',
-    # The snowflake-alchemy 1.2.5 introduces a hard dependency on sqlalchemy>=1.4.0, but they didn't define
-    # this requirements in setup.py, so pip cannot figure out the correct set of dependencies.
-    # See: https://github.com/snowflakedb/snowflake-sqlalchemy/issues/234
-    'snowflake-sqlalchemy>=1.1.0,!=1.2.5',
+    'snowflake-connector-python>=2.4.1',
+    'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
     'pyspark',
@@ -549,7 +549,7 @@ winrm = [
     'pywinrm>=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.122.0',
+    'yandexcloud>=0.146.0',
 ]
 zendesk = [
     'zenpy>=2.0.24',
@@ -592,22 +592,29 @@ devel_only = [
     'black',
     'blinker',
     'bowler',
-    'click>=7.1',
+    'click>=8.0',
     'coverage',
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
     'freezegun',
-    'github3.py',
+    # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
+    # Actually GitHub3.1.0 already introduced PyJWT>=2.3.0 but so far `pip` was able to resolve it without
+    # getting into a long backtracking loop and figure out that github3 3.0.0 version is the right version
+    # similarly limiting it to 3.1.2 causes pip not to enter the backtracking loop. Apparently when there
+    # are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
+    # to resolve that github3 3.0.0 is the right version to use.
+    # This limitation could be removed if PyJWT limitation < 2.0.0 is dropped from FAB or when
+    # pip resolution is improved to handle the case. The issue which describes this PIP behaviour
+    # and hopefully allowing to improve it is tracked in https://github.com/pypa/pip/issues/10924
+    'github3.py<3.1.0',
     'gitpython',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    # Moto3 is limited for unknown reason
-    # TODO: attempt to remove the limitation
-    'moto~=2.2,>=2.2.12',
+    'moto>=3.1.0',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -633,6 +640,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'rich_click',
     'semver',
     'twine',
     'wheel',
@@ -665,6 +673,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,
     'databricks': databricks,
     'datadog': datadog,
+    'dbt.cloud': http_provider,
     'dingding': [],
     'discord': [],
     'docker': docker,
@@ -850,6 +859,7 @@ ALL_DB_PROVIDERS = [
     'apache.hive',
     'apache.pinot',
     'cloudant',
+    'databricks',
     'exasol',
     'influxdb',
     'microsoft.mssql',
@@ -954,12 +964,8 @@ def get_provider_package_from_package_id(package_id: str) -> str:
 
 
 def get_excluded_providers() -> List[str]:
-    """
-    Returns packages excluded for the current python version.
-    Currently the only excluded provider is apache hive for Python 3.9.
-    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
-    """
-    return ['apache.hive'] if PY39 else []
+    """Returns packages excluded for the current python version."""
+    return []
 
 
 def get_all_provider_packages() -> str:

@@ -17,7 +17,6 @@
 # under the License.
 import os
 import shutil
-import sys
 from datetime import datetime
 from pathlib import Path
 from unittest import TestCase
@@ -124,14 +123,6 @@ class SystemTest(TestCase, LoggingMixin):
         :param dag_id: id of a DAG to be run
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
         """
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            # For system tests purpose we are changing airflow/providers
-            # to side packages path of the installed providers package
-            python = f"python{sys.version_info.major}.{sys.version_info.minor}"
-            dag_folder = dag_folder.replace(
-                "/opt/airflow/airflow/providers",
-                f"/usr/local/lib/{python}/site-packages/airflow/providers",
-            )
         self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
         dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)

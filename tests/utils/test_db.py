@@ -17,9 +17,12 @@
 # under the License.
 
 import inspect
+import io
 import re
-import unittest
+from contextlib import redirect_stdout
+from unittest import mock
 
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
@@ -27,12 +30,13 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
 
+from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import check_migrations, create_default_connections
+from airflow.utils.db import check_migrations, create_default_connections, downgrade, upgradedb
 
 
-class TestDb(unittest.TestCase):
+class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
         all_meta_data = MetaData()
         for (table_name, table) in airflow_base.metadata.tables.items():
@@ -110,3 +114,83 @@ class TestDb(unittest.TestCase):
     def test_check_migrations(self):
         # Should run without error. Can't easily test the behaviour, but we can check it works
         check_migrations(1)
+
+    @mock.patch('alembic.command')
+    def test_upgradedb(self, mock_alembic_command):
+        upgradedb()
+        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision='heads')
+
+    @pytest.mark.parametrize(
+        'from_revision, to_revision',
+        [('be2bfac3da23', 'e959f08ac86c'), ('ccde3e26fe78', '2e42bb497a22')],
+    )
+    def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
+        with mock.patch('airflow.utils.db.settings.engine.dialect'):
+            with mock.patch('alembic.command.upgrade'):
+                with pytest.raises(ValueError, match='to.* revision .* older than .*from'):
+                    upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+
+    @pytest.mark.parametrize(
+        'to_revision, from_revision',
+        [
+            ('e959f08ac86c', 'e959f08ac86c'),
+        ],
+    )
+    def test_offline_upgrade_revision_nothing(self, from_revision, to_revision):
+        with mock.patch('airflow.utils.db.settings.engine.dialect'):
+            with mock.patch('alembic.command.upgrade'):
+                with redirect_stdout(io.StringIO()) as temp_stdout:
+                    upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
+                stdout = temp_stdout.getvalue()
+                assert 'nothing to do' in stdout
+
+    @pytest.mark.parametrize(
+        'from_revision, to_revision',
+        [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
+    )
+    def test_offline_upgrade_revision(self, from_revision, to_revision):
+        with mock.patch('airflow.utils.db.settings.engine.dialect'):
+            with mock.patch('alembic.command.upgrade') as mock_alembic_upgrade:
+                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+        mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
+
+    def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
+        with mock.patch('airflow.utils.db.settings.engine.dialect'):
+            with pytest.raises(ValueError, match='Check that e1a11ece99cc is a valid revision'):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
+
+    def test_sqlite_offline_upgrade_raises_with_revision(self):
+        with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
+            dialect.name = 'sqlite'
+            with pytest.raises(AirflowException, match='Offline migration not supported for SQLite'):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
+
+    def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
+        with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
+            dialect.name = 'mssql'
+            with pytest.raises(ValueError, match='Check that .* is a valid .* For dialect \'mssql\''):
+                upgradedb(from_revision='e1a11ece99cc', to_revision='54bebd308c5f', show_sql_only=True)
+
+    @mock.patch('airflow.utils.db._offline_migration')
+    def test_downgrade_sql_no_from(self, mock_om):
+        downgrade(to_revision='abc', show_sql_only=True, from_revision=None)
+        actual = mock_om.call_args[1]['revision']
+        assert re.match(r'[a-z0-9]+:abc', actual) is not None
+
+    @mock.patch('airflow.utils.db._offline_migration')
+    def test_downgrade_sql_with_from(self, mock_om):
+        downgrade(to_revision='abc', show_sql_only=True, from_revision='123')
+        actual = mock_om.call_args[1]['revision']
+        assert actual == '123:abc'
+
+    @mock.patch('alembic.command.downgrade')
+    def test_downgrade_invalid_combo(self, mock_om):
+        """can't combine `sql=False` and `from_revision`"""
+        with pytest.raises(ValueError, match="can't be combined"):
+            downgrade(to_revision='abc', from_revision='123')
+
+    @mock.patch('alembic.command.downgrade')
+    def test_downgrade_with_from(self, mock_om):
+        downgrade(to_revision='abc')
+        actual = mock_om.call_args[1]['revision']
+        assert actual == 'abc'

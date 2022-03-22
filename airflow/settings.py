@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 import pendulum
 import sqlalchemy
@@ -207,6 +207,18 @@ def get_airflow_context_vars(context):
     :param context: The context for the task_instance of interest.
     """
     return {}
+
+
+def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+    """
+    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+
+    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+    You can control them separately instead of having one value for all DAG files.
+
+    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+    """
+    return conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
 
 
 def configure_vars():
@@ -587,6 +599,7 @@ LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallbac
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
+    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')

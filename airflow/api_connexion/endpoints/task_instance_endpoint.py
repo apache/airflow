@@ -19,7 +19,8 @@ from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
@@ -65,7 +66,7 @@ def get_task_instance(
     """Get task instance"""
     query = (
         session.query(TI)
-        .filter(TI.dag_id == dag_id, DR.run_id == dag_run_id, TI.task_id == task_id)
+        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
         .outerjoin(
             SlaMiss,
@@ -76,6 +77,58 @@ def get_task_instance(
             ),
         )
         .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
+    )
+
+    try:
+        task_instance = query.one_or_none()
+    except MultipleResultsFound:
+        raise NotFound(
+            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+        )
+    if task_instance is None:
+        raise NotFound("Task instance not found")
+    if task_instance[0].map_index != -1:
+        raise NotFound(
+            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+        )
+
+    return task_instance_schema.dump(task_instance)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def get_mapped_task_instance(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get task instance"""
+    query = (
+        session.query(TI)
+        .filter(
+            TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index
+        )
+        .join(TI.dag_run)
+        .outerjoin(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.execution_date == DR.execution_date,
+                SlaMiss.task_id == TI.task_id,
+            ),
+        )
+        .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
     task_instance = query.one_or_none()
     if task_instance is None:
@@ -170,18 +223,20 @@ def get_task_instances(
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
     # Add join
-    base_query = base_query.join(
-        SlaMiss,
-        and_(
-            SlaMiss.dag_id == TI.dag_id,
-            SlaMiss.task_id == TI.task_id,
-            SlaMiss.execution_date == DR.execution_date,
-        ),
-        isouter=True,
+    query = (
+        base_query.join(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.task_id == TI.task_id,
+                SlaMiss.execution_date == DR.execution_date,
+            ),
+            isouter=True,
+        )
+        .add_entity(SlaMiss)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
-    ti_query = base_query.add_entity(SlaMiss)
-    task_instances = ti_query.offset(offset).limit(limit).all()
-
+    task_instances = query.offset(offset).limit(limit).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -237,8 +292,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             SlaMiss.execution_date == DR.execution_date,
         ),
         isouter=True,
-    )
-    ti_query = base_query.add_entity(SlaMiss)
+    ).add_entity(SlaMiss)
+    ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
     task_instances = ti_query.all()
 
     return task_instance_collection_schema.dump(
@@ -334,7 +389,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        dag_run_id=run_id,
+        run_id=run_id,
         execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],

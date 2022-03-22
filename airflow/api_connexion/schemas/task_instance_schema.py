@@ -22,6 +22,7 @@ from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
+from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
@@ -40,6 +41,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     task_id = auto_field()
     dag_id = auto_field()
     run_id = auto_field(data_key="dag_run_id")
+    map_index = auto_field()
     execution_date = auto_field()
     start_date = auto_field()
     end_date = auto_field()
@@ -58,6 +60,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     pid = auto_field()
     executor_config = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
+    rendered_fields = JsonObjectField(default={})
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -66,6 +69,8 @@ class TaskInstanceSchema(SQLAlchemySchema):
             # corresponding to the attr.
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
+        elif attr == "rendered_fields":
+            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
         return get_value(obj[0], attr, default)
 
 

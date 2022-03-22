@@ -232,7 +232,7 @@ Helm Unit Tests
 
 On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
-go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
+add them in ``tests/charts``.
 
 .. code-block:: python
 
@@ -249,7 +249,7 @@ Example test here:
 
 .. code-block:: python
 
-    from .helm_template_generator import render_chart, render_k8s_object
+    from tests.charts.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -1248,7 +1248,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
         --zone="${GCP_ZONE}" \
         --machine-type=f1-micro \
         --subnet="${GCP_NETWORK_NAME}" \
-        --image=debian-10-buster-v20200210 \
+        --image=debian-11-bullseye-v20220120 \
         --image-project=debian-cloud \
         --preemptible
 

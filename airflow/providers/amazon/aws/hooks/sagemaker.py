@@ -908,3 +908,14 @@ class SageMakerHook(AwsBaseHook):
             if e.response['Error']['Code'] in ['ValidationException', 'ResourceNotFound']:
                 return False
             raise
+
+    def delete_model(self, model_name: str):
+        """Delete SageMaker model
+
+        :param model_name: name of the model
+        """
+        try:
+            self.get_conn().delete_model(ModelName=model_name)
+        except Exception as general_error:
+            self.log.error("Failed to delete model, error: %s", general_error)
+            raise

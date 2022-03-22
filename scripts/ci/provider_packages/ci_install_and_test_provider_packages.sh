@@ -30,7 +30,6 @@ fi
 function run_test_package_import_all_classes() {
     # Groups are added internally
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
@@ -38,8 +37,9 @@ function run_test_package_import_all_classes() {
         -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
         -v "${AIRFLOW_SOURCES}/scripts/in_container:/opt/airflow/scripts/in_container:cached" \
         -v "${AIRFLOW_SOURCES}/dev/import_all_classes.py:/opt/airflow/dev/import_all_classes.py:cached" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_install_and_test_provider_packages.sh"
+        "/opt/airflow/scripts/in_container/run_install_and_test_provider_packages.sh"
 }
 
 build_images::prepare_ci_build

@@ -1270,7 +1270,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1470,7 +1485,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1530,7 +1560,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1597,7 +1642,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1633,7 +1693,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
 
   ####################################################################################################
@@ -1828,7 +1903,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1897,7 +1987,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2189,12 +2294,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
-                 end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
-                 identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
-                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
-                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
-                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
+                 end-of-file-fixer fix-encoding-pragma flake8 flynt forbidden-xcom-get-value
+                 codespell forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
+                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
+                 markdownlint mermaid migration-reference mixed-line-ending mypy mypy-helm
+                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
+                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 provide-create-sessions providers-changelogs providers-init-file
                  providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
@@ -2296,7 +2402,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2388,9 +2509,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.21.1 v1.20.2
+                 v1.23.3 v1.22.0 v1.21.1 v1.20.2
 
-          Default: v1.21.1
+          Default: v1.23.3
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
@@ -2413,6 +2534,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+                 LocalKubernetesExecutor
 
           Default: KubernetesExecutor
 
