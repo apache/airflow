@@ -19,6 +19,7 @@
 
 import jenkins
 
+from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.strings import to_boolean
 
@@ -46,3 +47,24 @@ class JenkinsHook(BaseHook):
     def get_jenkins_server(self) -> jenkins.Jenkins:
         """Get jenkins server"""
         return self.jenkins_server
+
+    def get_build_building_state(self, job_name: str, build_number: int) -> bool:
+        """Get build building state"""
+        try:
+            if not build_number:
+                self.log.info(f"Build number not specified, getting latest build info from Jenkins")
+                job_info = self.jenkins_server.get_job_info(self.job_name)
+                build_number_to_check = job_info['lastBuild']['number']
+            else:
+                build_number_to_check = self.build_number
+
+            self.log.info(f"Getting build info for build number: #{build_number_to_check}")
+            build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
+            building = build_info['building']
+            return building
+        except jenkins.NotFoundException as err:
+            raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
+        except jenkins.JenkinsException:
+            raise AirflowException(
+                f'Jenkins call failed with error : {err}'
+                )

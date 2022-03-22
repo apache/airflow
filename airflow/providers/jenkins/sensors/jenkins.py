@@ -30,7 +30,7 @@ class JenkinsSensor(BaseSensorOperator):
     """
     Monitor a jenkins job and pass when it is finished building. This is regardless of the build outcome.
     This sensor depend on python-jenkins library,
-    
+
     :param jenkins_connection_id: The jenkins connection to use for this job
     :param job_name: The name of the job to check
     :param build_number: Build number to check - if None, the latest build will be used
@@ -49,36 +49,16 @@ class JenkinsSensor(BaseSensorOperator):
         self.build_number = build_number
         self.jenkins_connection_id = jenkins_connection_id
 
-    def get_hook(self) -> JenkinsHook:
-        """Instantiate jenkins hook"""
-        return JenkinsHook(self.jenkins_connection_id)
-
     def poke(self, context: 'Context') -> bool:    
-        try:
-            self.log.info(f"Poking jenkins job {self.job_name}")
+        self.log.info(f"Poking jenkins job {self.job_name}")
+        hook = JenkinsHook(self.jenkins_connection_id)
+        is_building = hook.get_build_building_state(self.job_name, self.build_number)
 
-            jenkins_server = self.get_hook().get_jenkins_server()
-            if not self.build_number:
-                job_info = jenkins_server.get_job_info(self.job_name)
-                build_number_to_check = job_info['lastBuild']['number']
-                self.log.info(f"Build number not specified, getting latest build info from Jenkins")
-            else:
-                build_number_to_check = self.build_number
-            
-            self.log.info(f"Checking build number: #{build_number_to_check}")
-
-            build_info = jenkins_server.get_build_info(self.job_name, build_number_to_check)
-            if build_info['building']:
-                self.log.info(f"Build #{build_number_to_check} is still building")
-                return False
-            else:
-                self.log.info(f"Build #{build_number_to_check} is finished")
-                return True
-        except jenkins.NotFoundException as err:
-            raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
-        except jenkins.JenkinsException as err:
-            raise AirflowException(
-                f'Jenkins call failed with error : {err}'
-                )
+        if is_building:
+            self.log.info(f"Build still ongoing!")
+            return False
+        else:
+            self.log.info(f"Build is finished.")
+            return True
 
 
