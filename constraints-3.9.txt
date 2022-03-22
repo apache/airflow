@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-21T23:12:08Z
+# This constraints file was automatically generated on 2022-03-22T09:41:09Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -66,6 +66,7 @@ apache-airflow-providers-apache-cassandra==2.1.2
 apache-airflow-providers-apache-drill==1.0.3
 apache-airflow-providers-apache-druid==2.3.2
 apache-airflow-providers-apache-hdfs==2.2.2
+apache-airflow-providers-apache-hive==2.3.1
 apache-airflow-providers-apache-kylin==2.0.3
 apache-airflow-providers-apache-livy==2.2.1
 apache-airflow-providers-apache-pig==2.0.3
@@ -573,7 +574,7 @@ websocket-client==1.3.1
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.149.0
+yandexcloud==0.150.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
