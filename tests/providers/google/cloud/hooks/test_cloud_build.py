@@ -106,13 +106,17 @@ class TestCloudBuildHook(unittest.TestCase):
 
         self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
-        get_conn.return_value.create_build.assert_called_once_with(
+        mock_operation = get_conn.return_value.create_build
+
+        mock_operation.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'build': BUILD}, retry=None, timeout=None, metadata=()
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
         )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build_trigger(self, get_conn):
