@@ -35,7 +35,7 @@ class TestJenkinsBuildSensor(unittest.TestCase):
             (3, True,),
         ]
     )
-    def test_poke(self, _, build_number, build_state):
+    def test_poke(self, build_number, build_state):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': (build_number if build_number else 10)}}
         jenkins_mock.get_build_info.return_value = {
