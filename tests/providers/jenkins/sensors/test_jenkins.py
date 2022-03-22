@@ -26,7 +26,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.sensors.jenkins import JenkinsSensor
+from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 class TestJenkinsSensor(unittest.TestCase):
     @parameterized.expand(

@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
 
-class JenkinsSensor(BaseSensorOperator):
+class JenkinsBuildSensor(BaseSensorOperator):
     """
     Monitor a jenkins job and pass when it is finished building. This is regardless of the build outcome.
     This sensor depend on python-jenkins library,
