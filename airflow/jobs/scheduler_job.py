@@ -747,14 +747,14 @@ class SchedulerJob(BaseJob):
 
             self.register_signals()
 
-            if not self._standalone_dag_processor and self.processor_agent:
+            if self.processor_agent:
                 self.processor_agent.start()
 
             execute_start_time = timezone.utcnow()
 
             self._run_scheduler_loop()
 
-            if not self._standalone_dag_processor and self.processor_agent:
+            if self.processor_agent:
                 # Stop any processors
                 self.processor_agent.terminate()
 
@@ -776,7 +776,7 @@ class SchedulerJob(BaseJob):
                 self.executor.end()
             except Exception:
                 self.log.exception("Exception when executing Executor.end")
-            if not self._standalone_dag_processor and self.processor_agent:
+            if self.processor_agent:
                 try:
                     self.processor_agent.end()
                 except Exception:
@@ -800,7 +800,7 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        if not self._standalone_dag_processor and not self.processor_agent:
+        if self.processor_agent:
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
@@ -832,7 +832,7 @@ class SchedulerJob(BaseJob):
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
-                if not self._standalone_dag_processor and self.using_sqlite and self.processor_agent:
+                if self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor
                     # is finished to avoid concurrent access to the DB.
@@ -845,7 +845,7 @@ class SchedulerJob(BaseJob):
                     self.executor.heartbeat()
                     session.expunge_all()
                     num_finished_events = self._process_executor_events(session=session)
-                if not self._standalone_dag_processor and self.processor_agent:
+                if self.processor_agent:
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
@@ -870,7 +870,7 @@ class SchedulerJob(BaseJob):
                     loop_count,
                 )
                 break
-            if not self._standalone_dag_processor and self.processor_agent and self.processor_agent.done:
+            if self.processor_agent and self.processor_agent.done:
                 self.log.info(
                     "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
                     " scheduler loops",
