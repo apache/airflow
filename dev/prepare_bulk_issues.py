@@ -39,7 +39,7 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 #    NOTE! GitHub has secondary rate limits for issue creation, and you might be
-#          temporary blocked from creating issues and PRs if you create too many
+#          temporarily blocked from creating issues and PRs if you create too many
 #          issues in a short time
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
