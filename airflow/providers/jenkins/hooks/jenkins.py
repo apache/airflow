@@ -56,15 +56,13 @@ class JenkinsHook(BaseHook):
                 job_info = self.jenkins_server.get_job_info(self.job_name)
                 build_number_to_check = job_info['lastBuild']['number']
             else:
-                build_number_to_check = self.build_number
+                build_number_to_check = build_number
 
-            self.log.info(f"Getting build info for build number: #{build_number_to_check}")
+            self.log.info(f"Getting build info for {job_name} build number: #{build_number_to_check}")
             build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
             building = build_info['building']
             return building
-        except jenkins.NotFoundException as err:
-            raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
-        except jenkins.JenkinsException:
+        except jenkins.JenkinsException as err:
             raise AirflowException(
                 f'Jenkins call failed with error : {err}'
                 )
