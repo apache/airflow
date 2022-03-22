@@ -29,9 +29,6 @@ from airflow.sensors.base import BaseSensorOperator
 class JenkinsSensor(BaseSensorOperator):
     """
     Monitor a jenkins job and pass when it is finished building. This is regardless of the build outcome.
-    This sensor depend on python-jenkins library,
-    version >= 0.4.15 to communicate with jenkins server.
-    You'll also need to configure a Jenkins connection in the connections screen.
 
     :param jenkins_connection_id: The jenkins connection to use for this job
     :param job_name: The name of the job to check
