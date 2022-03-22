@@ -139,7 +139,7 @@ class SchedulerJob(BaseJob):
         sql_conn: str = conf.get('core', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
-
+        # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
@@ -734,14 +734,14 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
-            if self._standalone_dag_processor:
-                self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.executor.callback_sink = DatabaseCallbackSink()
-            elif self.processor_agent:
+            if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
                 self.executor.callback_sink = PipeCallbackSink(
                     get_sink_pipe=self.processor_agent.get_callbacks_pipe
                 )
+            else:
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                self.executor.callback_sink = DatabaseCallbackSink()
 
             self.executor.start()
 
@@ -800,7 +800,7 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        if self.processor_agent:
+        if not self.processor_agent and not self._standalone_dag_processor:
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
@@ -832,7 +832,7 @@ class SchedulerJob(BaseJob):
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
-                if self.processor_agent:
+                if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor
                     # is finished to avoid concurrent access to the DB.
