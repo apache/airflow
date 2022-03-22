@@ -2646,7 +2646,7 @@ class DagTag(Base):
 
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)
-    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
+    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey'), primary_key=True)
 
     def __repr__(self):
         return self.name

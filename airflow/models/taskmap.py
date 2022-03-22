@@ -61,7 +61,9 @@ class TaskMap(Base):
     keys = Column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
-        CheckConstraint(length >= 0, name="task_map_length_not_negative"),
+        CheckConstraint(length >= 0, name="length_not_negative"),
+        # Because we use naming convention, the constraint above will be named
+        # ck_task_map_length_not_negative
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

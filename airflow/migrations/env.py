@@ -21,12 +21,13 @@ from logging.config import fileConfig
 from alembic import context
 
 from airflow import models, settings
+from airflow.migrations.utils import exclude_table
 
 
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions"""
     # Ignore _anything_ to do with Celery, or FlaskSession's tables
-    if type_ == "table" and (name.startswith("celery_") or name == "session"):
+    if type_ == "table" and exclude_table(name):
         return False
     else:
         return True

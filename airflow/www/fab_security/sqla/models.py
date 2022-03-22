@@ -115,9 +115,11 @@ assoc_permission_role = Table(
     "ab_permission_view_role",
     Model.metadata,
     Column("id", Integer, get_sequence_or_identity("ab_permission_view_role_id_seq"), primary_key=True),
-    Column("permission_view_id", Integer, ForeignKey("ab_permission_view.id")),
-    Column("role_id", Integer, ForeignKey("ab_role.id")),
-    UniqueConstraint("permission_view_id", "role_id"),
+    Column(
+        "permission_view_id", Integer, ForeignKey("ab_permission_view.id", name='ab_pvr_perms_view_id_fkey')
+    ),
+    Column("role_id", Integer, ForeignKey("ab_role.id", name='ab_pvr_role_id_fkey')),
+    UniqueConstraint("permission_view_id", "role_id", name='ab_pvr_perms_view_role_key'),
 )
 
 
@@ -140,13 +142,17 @@ class Permission(Model):
     __tablename__ = "ab_permission_view"
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
     id = Column(Integer, get_sequence_or_identity("ab_permission_view_id_seq"), primary_key=True)
-    action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
+    action_id = Column(
+        "permission_id", Integer, ForeignKey("ab_permission.id", name='ab_pv_permission_id_fkey')
+    )
     action = relationship(
         "Action",
         uselist=False,
         lazy="joined",
     )
-    resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
+    resource_id = Column(
+        "view_menu_id", Integer, ForeignKey("ab_view_menu.id", name='ab_pv_view_menu_id_fkey')
+    )
     resource = relationship(
         "Resource",
         uselist=False,
@@ -161,9 +167,9 @@ assoc_user_role = Table(
     "ab_user_role",
     Model.metadata,
     Column("id", Integer, get_sequence_or_identity("ab_user_role_id_seq"), primary_key=True),
-    Column("user_id", Integer, ForeignKey("ab_user.id")),
-    Column("role_id", Integer, ForeignKey("ab_role.id")),
-    UniqueConstraint("user_id", "role_id"),
+    Column("user_id", Integer, ForeignKey("ab_user.id", name='ab_user_role_user_id_fkey')),
+    Column("role_id", Integer, ForeignKey("ab_role.id", name='ab_user_role_role_id_fkey')),
+    UniqueConstraint("user_id", "role_id", name='ab_user_role_user_id_role_id_key'),
 )
 
 
@@ -187,11 +193,21 @@ class User(Model):
 
     @declared_attr
     def created_by_fk(self):
-        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
+        return Column(
+            Integer,
+            ForeignKey("ab_user.id", name='ab_user_created_by_fk_fkey'),
+            default=self.get_user_id,
+            nullable=True,
+        )
 
     @declared_attr
     def changed_by_fk(self):
-        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
+        return Column(
+            Integer,
+            ForeignKey("ab_user.id", name='ab_user_changed_by_fk_fkey'),
+            default=self.get_user_id,
+            nullable=True,
+        )
 
     created_by = relationship(
         "User",

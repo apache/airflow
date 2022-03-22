@@ -80,7 +80,7 @@ def upgrade():
         Column("map_index", Integer, primary_key=True),
         Column("length", Integer, nullable=False),
         Column("keys", ExtendedJSON, nullable=True),
-        CheckConstraint("length >= 0", name="task_map_length_not_negative"),
+        CheckConstraint("length >= 0", name="length_not_negative"),
         ForeignKeyConstraint(
             ["dag_id", "task_id", "run_id", "map_index"],
             [

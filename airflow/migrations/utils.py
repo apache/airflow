@@ -41,3 +41,10 @@ def get_mssql_table_constraints(conn, table_name):
     for constraint, constraint_type, col_name in result:
         constraint_dict[constraint_type][constraint].append(col_name)
     return constraint_dict
+
+
+def exclude_table(name):
+    """Ignore _anything_ to do with Celery, or FlaskSession's tables"""
+    if name.startswith("celery_") or name == "session":
+        return True
+    return False
