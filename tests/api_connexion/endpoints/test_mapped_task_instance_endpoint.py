@@ -32,6 +32,8 @@ from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
+DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
+DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 
 @pytest.fixture(scope="module")
@@ -111,6 +113,7 @@ class TestMappedTaskInstanceEndpoint:
             for index in range(dags[dag_id]):
                 # Give the existing TIs a state to make sure we don't change them
                 ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+                setattr(ti, 'start_date', DEFAULT_DATETIME_1)
                 session.add(ti)
             session.flush()
 
@@ -185,7 +188,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queued_when": None,
             "rendered_fields": {},
             "sla_miss": None,
-            "start_date": None,
+            "start_date": '2020-01-01T00:00:00+00:00',
             "state": 'success',
             "task_id": "task_2",
             "try_number": 0,
@@ -266,6 +269,77 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.json["total_entries"] == 110
         assert len(response.json["task_instances"]) == 10
         assert list(range(4, 14)) == [ti['map_index'] for ti in response.json["task_instances"]]
+
+    @provide_session
+    def test_mapped_task_instances_with_date(self, one_task_with_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            f"?start_date_gte={DEFAULT_DATETIME_STR_1}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            f"?start_date_gte={DEFAULT_DATETIME_STR_2}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 0
+
+    @provide_session
+    def test_mapped_task_instances_with_state(self, one_task_with_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?state=success",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?state=running",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 0
+
+    @provide_session
+    def test_mapped_task_instances_with_pool(self, one_task_with_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            "?pool=default_pool",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?pool=test_pool",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 0
+
+    @provide_session
+    def test_mapped_task_instances_with_queue(self, one_task_with_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?queue=default",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?queue=test_queue",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 0
 
     @provide_session
     def test_mapped_task_instances_with_zero_mapped(self, one_task_with_zero_mapped_tis, session):

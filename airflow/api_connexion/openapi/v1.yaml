@@ -1127,6 +1127,17 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterExecutionDateGTE'
+        - $ref: '#/components/parameters/FilterExecutionDateLTE'
+        - $ref: '#/components/parameters/FilterStartDateGTE'
+        - $ref: '#/components/parameters/FilterStartDateLTE'
+        - $ref: '#/components/parameters/FilterEndDateGTE'
+        - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterDurationGTE'
+        - $ref: '#/components/parameters/FilterDurationLTE'
+        - $ref: '#/components/parameters/FilterState'
+        - $ref: '#/components/parameters/FilterPool'
+        - $ref: '#/components/parameters/FilterQueue'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':

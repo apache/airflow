@@ -137,6 +137,16 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@format_parameters(
+    {
+        "execution_date_gte": format_datetime,
+        "execution_date_lte": format_datetime,
+        "start_date_gte": format_datetime,
+        "start_date_lte": format_datetime,
+        "end_date_gte": format_datetime,
+        "end_date_lte": format_datetime,
+    },
+)
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -150,24 +160,52 @@ def get_mapped_task_instances(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
+    execution_date_gte: Optional[str] = None,
+    execution_date_lte: Optional[str] = None,
+    start_date_gte: Optional[str] = None,
+    start_date_lte: Optional[str] = None,
+    end_date_gte: Optional[str] = None,
+    end_date_lte: Optional[str] = None,
+    duration_gte: Optional[float] = None,
+    duration_lte: Optional[float] = None,
+    state: Optional[List[str]] = None,
+    pool: Optional[List[str]] = None,
+    queue: Optional[List[str]] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
+    # Because state can be 'none'
+    states = _convert_state(state)
+
     base_query = (
         session.query(TI)
         .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
     )
 
-    # Zero results without restricting map_index means no task
+    # Zero results without restrictions means no task
     if base_query.with_entities(func.count('*')).scalar() == 0:
+        print('**** no results')
         error_message = f"Task id {task_id} not found"
         raise NotFound(error_message)
 
     # Restrict on map_index to filter out task that created mapped TIs
     query = base_query.filter(TI.map_index >= 0)
+
+    # Other search criteria
+    query = _apply_range_filter(
+        query,
+        key=DR.execution_date,
+        value_range=(execution_date_gte, execution_date_lte),
+    )
+    query = _apply_range_filter(query, key=TI.start_date, value_range=(start_date_gte, start_date_lte))
+    query = _apply_range_filter(query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
+    query = _apply_range_filter(query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    query = _apply_array_filter(query, key=TI.state, values=states)
+    query = _apply_array_filter(query, key=TI.pool, values=pool)
+    query = _apply_array_filter(query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
     total_entries = query.with_entities(func.count('*')).scalar()
