@@ -661,6 +661,10 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+
 # Airflow create user job settings
 createUserJob:
   # Command to use when running the create user job (templated).
@@ -733,6 +737,7 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  enabled: true
   # Command to use when running the migrate database job (templated).
   command: ~
   # Args to use when running the migrate database job (templated).
@@ -928,6 +933,10 @@ webserver:
 
   podAnnotations: {}
 
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+
 # Airflow Triggerer Config
 triggerer:
   enabled: true
@@ -1012,6 +1021,10 @@ triggerer:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
 
 # Flower settings
 flower:
