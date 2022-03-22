@@ -16,13 +16,14 @@
 # under the License.
 
 import sys
-from typing import Dict, List, Optional, Union
+import sqlparse
+from contextlib import closing
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
-import sqlparse
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -135,12 +136,55 @@ class RedshiftSQLHook(DbApiHook):
 
         return conn
 
-    def run_sql(self, sql, autocommit=False) -> None:
-        """Execute one or multiple statements against Redshift"""
-        sql_stmts = sqlparse.split(sql)
-        with self.get_conn() as con:
-            con.autocommit = autocommit
-            with con.cursor() as cursor:
-                for stmt in sql_stmts:
-                    cursor.execute(stmt)
-                    if autocommit is False: con.commit()
+    def set_autocommit(self, conn, autocommit: Any) -> None:
+        conn.autocommit = autocommit
+
+    def get_autocommit(self, conn):
+        return getattr(conn, 'autocommit_mode', False)
+
+    def run(
+        self,
+        sql,
+        autocommit: bool = False,
+        parameters: Optional[Union[Sequence[Any], Dict[Any, Any]]] = None,
+        handler: Optional[Callable] = None,
+    ) -> None:
+        """
+        Runs a command or a list of commands. Pass a list of sql
+        statements to the sql parameter to get them to execute
+        sequentially. The variable execution_info is returned so that
+        it can be used in the Operators to modify the behavior
+        depending on the result of the query (i.e fail the operator
+        if the copy has processed 0 files)
+
+        :param sql: the sql string to be executed with possibly multiple statements,
+          or a list of sql statements to execute
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The parameters to render the SQL query with.
+        :param handler: The result handler which is called with the result of each statement.
+        """
+
+        with closing(self.get_conn()) as conn:
+            self.set_autocommit(conn, autocommit)
+
+            sql = sqlparse.split(sql)
+
+            self.log.debug("Executing %d statements against Redshift DB", len(sql))
+            with closing(conn.cursor()) as cur:
+                for stmt in sql:
+                    if parameters:
+                        cur.execute(stmt, parameters)
+                    else:
+                        cur.execute(stmt)
+
+                    execution_info = []
+                    if handler is not None:
+                        cur = handler(cur)
+
+                    self.log.info("Rows affected: %s", cur.rowcount)
+
+            if not self.get_autocommit(conn):
+                conn.commit()
+
+        return execution_info
