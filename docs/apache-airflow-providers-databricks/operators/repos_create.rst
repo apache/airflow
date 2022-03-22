@@ -17,12 +17,12 @@
 
 
 
-DatabricksReposUpdateOperator
+DatabricksReposCreateOperator
 =============================
 
 Use the :class:`~airflow.providers.databricks.operators.DatabricksReposCreateOperator` to create (and optionally checkout) a
 `Databricks Repos <https://docs.databricks.com/repos/index.html>`_
-via `api/2.0/repos https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo>`_ API endpoint.
+via `api/2.0/repos <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo>`_ API endpoint.
 
 
 Using the Operator

@@ -359,7 +359,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ('POST', f'api/2.0/repos')
+        repos_endpoint = ('POST', 'api/2.0/repos')
         return self._do_api_call(repos_endpoint, json)
 
     def get_repo_by_path(self, path: str) -> Optional[str]:

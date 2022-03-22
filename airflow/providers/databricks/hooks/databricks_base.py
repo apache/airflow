@@ -340,6 +340,8 @@ class BaseDatabricksHook(BaseHook):
             request_func = requests.post
         elif method == 'PATCH':
             request_func = requests.patch
+        elif method == 'DELETE':
+            request_func = requests.delete
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 

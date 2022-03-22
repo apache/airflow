@@ -19,18 +19,22 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
-from airflow.providers.databricks.operators.databricks_repos import DatabricksReposUpdateOperator, \
-    DatabricksReposCreateOperator, DatabricksReposDeleteOperator
+from airflow.providers.databricks.operators.databricks_repos import (
+    DatabricksReposCreateOperator,
+    DatabricksReposDeleteOperator,
+    DatabricksReposUpdateOperator,
+)
 
 default_args = {
     'owner': 'airflow',
-    'databricks_conn_id': 'my-shard-pat',
+    'databricks_conn_id': 'databricks',
 }
 
 with DAG(
-    dag_id='example_databricks_operator',
+    dag_id='example_databricks_repos_operator',
     schedule_interval='@daily',
     start_date=datetime(2021, 1, 1),
+    default_args=default_args,
     tags=['example'],
     catchup=False,
 ) as dag:

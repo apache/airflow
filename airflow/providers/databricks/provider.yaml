@@ -57,7 +57,9 @@ integrations:
   - integration-name: Databricks Repos
     external-doc-url: https://docs.databricks.com/repos/index.html
     how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/repos_create.rst
       - /docs/apache-airflow-providers-databricks/operators/repos_update.rst
+      - /docs/apache-airflow-providers-databricks/operators/repos_delete.rst
     logo: /integration-logos/databricks/Databricks.png
     tags: [service]
 
