@@ -47,6 +47,7 @@ def create_context(task):
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
+        "run_id": "test",
     }
 
 
