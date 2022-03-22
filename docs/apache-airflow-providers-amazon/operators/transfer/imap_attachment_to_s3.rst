@@ -40,5 +40,5 @@ Imap Attachment To Amazon S3
 Reference
 ^^^^^^^^^
 
-* `IMAP Library Documentation <https://docs.python.org/3.6/library/imaplib.html>`__
+* `IMAP Library Documentation <https://docs.python.org/3/library/imaplib.html>`__
 * `AWS boto3 Library Documentation for S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
