@@ -38,16 +38,23 @@ const Run = ({
   const [affectedTasks, setAffectedTasks] = useState([]);
 
   // Options check/unchecked
-  const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
-  const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
-  const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
-  const {
-    isOpen: downstream, onToggle: onToggleDownstream,
-  } = useDisclosure({ defaultIsOpen: true });
-  const {
-    isOpen: recursive, onToggle: onToggleRecursive,
-  } = useDisclosure({ defaultIsOpen: true });
-  const { isOpen: failed, onToggle: onToggleFailed } = useDisclosure();
+  const [past, setPast] = useState(false);
+  const onTogglePast = () => setPast(!past);
+
+  const [future, setFuture] = useState(false);
+  const onToggleFuture = () => setFuture(!future);
+
+  const [upstream, setUpstream] = useState(false);
+  const onToggleUpstream = () => setUpstream(!upstream);
+
+  const [downstream, setDownstream] = useState(true);
+  const onToggleDownstream = () => setDownstream(!downstream);
+
+  const [recursive, setRecursive] = useState(true);
+  const onToggleRecursive = () => setRecursive(!recursive);
+
+  const [failed, setFailed] = useState(false);
+  const onToggleFailed = () => setFailed(!failed);
 
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -117,7 +124,7 @@ const Run = ({
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        description="Here's the list of task instances you are about to clear:"
+        description="Task instances you are about to clear:"
         body={affectedTasks}
       />
     </Flex>

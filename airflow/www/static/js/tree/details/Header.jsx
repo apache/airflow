@@ -68,21 +68,21 @@ const Header = () => {
   const taskName = lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
   return (
-    <Breadcrumb color="gray.300">
-      <BreadcrumbItem isCurrentPage={!runId && !taskId} mt="15px">
+    <Breadcrumb color="gray.300" mt={4}>
+      <BreadcrumbItem isCurrentPage={!runId && !taskId}>
         <BreadcrumbLink onClick={clearSelection} color="black">
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
-        <BreadcrumbItem isCurrentPage={runId && !taskId} mt="15px">
+        <BreadcrumbItem isCurrentPage={runId && !taskId}>
           <BreadcrumbLink onClick={() => onSelect({ runId })} color="black">
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
-        <BreadcrumbItem isCurrentPage mt="15px">
+        <BreadcrumbItem isCurrentPage>
           <BreadcrumbLink color="black">
             <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>

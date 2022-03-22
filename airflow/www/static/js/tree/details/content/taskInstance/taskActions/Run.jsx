@@ -17,12 +17,11 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Flex,
   ButtonGroup,
-  useDisclosure,
 } from '@chakra-ui/react';
 
 import { useRunTask } from '../../../../api';
@@ -32,38 +31,51 @@ const Run = ({
   runId,
   taskId,
 }) => {
-  const { isOpen: isAllDeps, onToggle: onToggleAllDeps } = useDisclosure();
-  const { isOpen: isTaskState, onToggle: onToggleTaskState } = useDisclosure();
-  const { isOpen: isTaskDeps, onToggle: onToggleTaskDeps } = useDisclosure();
+  const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
+  const onToggleAllDeps = () => setIgnoreAllDeps(!ignoreAllDeps);
+
+  const [ignoreTaskState, setIgnoreTaskState] = useState(false);
+  const onToggleTaskState = () => setIgnoreTaskState(!ignoreTaskState);
+
+  const [ignoreTaskDeps, setIgnoreTaskDeps] = useState(false);
+  const onToggleTaskDeps = () => setIgnoreTaskDeps(!ignoreTaskDeps);
 
   const { mutate: onRun } = useRunTask(dagId, runId, taskId);
+
+  const onClick = () => {
+    onRun({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+    });
+  };
 
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
         <Button
-          bg={isAllDeps && 'gray.100'}
+          bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
           title="Ignores all non-critical dependencies, including task state and task_deps"
         >
           Ignore All Deps
         </Button>
         <Button
-          bg={isTaskState && 'gray.100'}
+          bg={ignoreTaskState && 'gray.100'}
           onClick={onToggleTaskState}
           title="Ignore previous success/failure"
         >
           Ignore Task State
         </Button>
         <Button
-          bg={isTaskDeps && 'gray.100'}
+          bg={ignoreTaskDeps && 'gray.100'}
           onClick={onToggleTaskDeps}
           title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past"
         >
           Ignore Task Deps
         </Button>
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onRun}>
+      <Button colorScheme="blue" onClick={onClick}>
         Run
       </Button>
     </Flex>

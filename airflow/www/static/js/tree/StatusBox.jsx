@@ -72,28 +72,26 @@ const StatusBox = ({
   };
 
   return (
-    <>
-      <Tooltip
-        label={<InstanceTooltip instance={instance} group={group} />}
-        fontSize="md"
-        portalProps={{ containerRef }}
-        hasArrow
-        placement="top"
-        openDelay={400}
-      >
-        <Box>
-          <SimpleStatus
-            state={instance.state}
-            onClick={onClick}
-            cursor="pointer"
-            data-testid="task-instance"
-            zIndex={1}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-          />
-        </Box>
-      </Tooltip>
-    </>
+    <Tooltip
+      label={<InstanceTooltip instance={instance} group={group} />}
+      fontSize="md"
+      portalProps={{ containerRef }}
+      hasArrow
+      placement="top"
+      openDelay={400}
+    >
+      <Box>
+        <SimpleStatus
+          state={instance.state}
+          onClick={onClick}
+          cursor="pointer"
+          data-testid="task-instance"
+          zIndex={1}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      </Box>
+    </Tooltip>
   );
 };
 

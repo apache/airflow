@@ -51,7 +51,7 @@ const MarkFailedRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        description="Here's the list of task instances you are about to mark as failed:"
+        description="Task instances you are about to mark as failed:"
         body={affectedTasks}
       />
     </>

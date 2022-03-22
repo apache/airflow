@@ -64,7 +64,7 @@ const QueueRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        description="Here's the list of task instances you are about to queue:"
+        description="Task instances you are about to queue:"
         body={affectedTasks}
       />
     </>

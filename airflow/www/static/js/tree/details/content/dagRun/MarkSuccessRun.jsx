@@ -55,7 +55,7 @@ const MarkSuccessRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        description="Here's the list of task instances you are about to mark as success:"
+        description="Task instances you are about to mark as success:"
         body={affectedTasks}
       />
     </>

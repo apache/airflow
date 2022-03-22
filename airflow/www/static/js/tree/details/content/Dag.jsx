@@ -29,7 +29,6 @@ import {
   Text,
   Code,
   Link,
-  Box,
   Button,
   Flex,
 } from '@chakra-ui/react';
@@ -61,7 +60,7 @@ const Dag = () => {
   });
 
   return (
-    <Box>
+    <>
       <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={`/dags/${dagId}/details`}>
         DAG Details
       </Button>
@@ -130,7 +129,7 @@ const Dag = () => {
           </Tr>
         </Tbody>
       </Table>
-    </Box>
+    </>
   );
 };
 

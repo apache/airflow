@@ -21,17 +21,24 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 
-export default function useClearRun(dagId, runId, taskId) {
+export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
   return useMutation(
     ['runTask', dagId, runId, taskId],
-    () => {
+    ({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+    }) => {
       const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
+        ignore_all_deps: ignoreAllDeps,
+        ignore_task_deps: ignoreTaskDeps,
+        ignore_ti_state: ignoreTaskState,
       }).toString();
 
       return axios.post('/run', params, {

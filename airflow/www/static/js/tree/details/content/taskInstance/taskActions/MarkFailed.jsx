@@ -37,10 +37,17 @@ const MarkFailed = ({
   const [affectedTasks, setAffectedTasks] = useState([]);
 
   // Options check/unchecked
-  const { isOpen: past, onToggle: onTogglePast } = useDisclosure();
-  const { isOpen: future, onToggle: onToggleFuture } = useDisclosure();
-  const { isOpen: upstream, onToggle: onToggleUpstream } = useDisclosure();
-  const { isOpen: downstream, onToggle: onToggleDownstream } = useDisclosure();
+  const [past, setPast] = useState(false);
+  const onTogglePast = () => setPast(!past);
+
+  const [future, setFuture] = useState(false);
+  const onToggleFuture = () => setFuture(!future);
+
+  const [upstream, setUpstream] = useState(false);
+  const onToggleUpstream = () => setUpstream(!upstream);
+
+  const [downstream, setDownstream] = useState(false);
+  const onToggleDownstream = () => setDownstream(!downstream);
 
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -99,7 +106,7 @@ const MarkFailed = ({
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
-        description="Here's the list of task instances you are about to mark as failed:"
+        description="Task instances you are about to mark as failed:"
         body={affectedTasks}
       />
     </Flex>

@@ -38,7 +38,7 @@ const ExtraLinks = ({
   });
 
   if (!links.length) return null;
-  const checkIfExternal = (url) => /^(?:[a-z]+:)?\/\//.test(url);
+  const isExternal = (url) => /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
     <>
@@ -51,7 +51,7 @@ const ExtraLinks = ({
             colorScheme="blue"
             href={url}
             isDisabled={!url}
-            target={checkIfExternal(url) ? '_blank' : undefined}
+            target={isExternal(url) ? '_blank' : undefined}
           >
             {name}
           </Button>
