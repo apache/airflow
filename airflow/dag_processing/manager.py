@@ -378,12 +378,12 @@ class DagFileProcessorManager(LoggingMixin):
         self._file_path_queue: List[str] = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
-        self._signal_conn = signal_conn
+        # signal_conn is None for dag_processor_standalone mode.
+        self._direct_scheduler_conn = signal_conn
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[int] = None
-        self._standalone_mode = conf.getboolean("scheduler", "standalone_dag_processor")
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -391,8 +391,8 @@ class DagFileProcessorManager(LoggingMixin):
         #
         # Don't do this in sync_mode, as we _need_ the DagParsingStat sent to
         # continue the scheduler
-        if self._async_mode and not self._standalone_mode and self._signal_conn is not None:
-            os.set_blocking(self._signal_conn.fileno(), False)
+        if self._async_mode and self._direct_scheduler_conn is not None:
+            os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if conf.get('core', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
@@ -437,9 +437,9 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.waitables: Dict[Any, Union[MultiprocessingConnection, DagFileProcessorProcess]] = (
             {
-                self._signal_conn: self._signal_conn,
+                self._direct_scheduler_conn: self._direct_scheduler_conn,
             }
-            if self._signal_conn is not None
+            if self._direct_scheduler_conn is not None
             else {}
         )
 
@@ -535,8 +535,8 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
-            if self._signal_conn in ready and not self._standalone_mode:
-                agent_signal = self._signal_conn.recv()
+            if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
+                agent_signal = self._direct_scheduler_conn.recv()
 
                 self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
@@ -567,7 +567,7 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             for sentinel in ready:
-                if sentinel is self._signal_conn:
+                if sentinel is self._direct_scheduler_conn:
                     continue
 
                 processor = self.waitables.get(sentinel)
@@ -578,7 +578,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if self._standalone_mode:
+            if conf.getboolean("scheduler", "standalone_dag_processor"):
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             self._refresh_dag_dir()
@@ -613,8 +613,8 @@ class DagFileProcessorManager(LoggingMixin):
             max_runs_reached = self.max_runs_reached()
 
             try:
-                if self._signal_conn:
-                    self._signal_conn.send(
+                if self._direct_scheduler_conn:
+                    self._direct_scheduler_conn.send(
                         DagParsingStat(
                             max_runs_reached,
                             all_files_processed,
@@ -936,10 +936,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors"""
-        ready = multiprocessing.connection.wait(self.waitables.keys() - [self._signal_conn], timeout=0)
+        ready = multiprocessing.connection.wait(
+            self.waitables.keys() - [self._direct_scheduler_conn], timeout=0
+        )
 
         for sentinel in ready:
-            if sentinel is self._signal_conn:
+            if sentinel is self._direct_scheduler_conn:
                 continue
             processor = cast(DagFileProcessorProcess, self.waitables[sentinel])
             self.waitables.pop(processor.waitable_handle)
