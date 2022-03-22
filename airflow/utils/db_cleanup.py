@@ -35,6 +35,7 @@ from airflow.models import (
     Base,
     DagModel,
     DagRun,
+    DbCallbackRequest,
     ImportError as models_ImportError,
     Log,
     RenderedTaskInstanceFields,
@@ -115,6 +116,7 @@ config_list: List[_TableConfig] = [
     _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
     _TableConfig(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
     _TableConfig(orm_model=XCom, recency_column=XCom.timestamp),
+    _TableConfig(orm_model=DbCallbackRequest, recency_column=XCom.timestamp),
 ]
 try:
     from celery.backends.database.models import Task, TaskSet

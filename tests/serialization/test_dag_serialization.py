@@ -920,7 +920,7 @@ class TestStringifiedDAGs:
 
             name = 'My Link'
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, *, ti_key):
                 return 'https://www.google.com'
 
         class MyOperator(BaseOperator):
@@ -1556,7 +1556,7 @@ def test_kubernetes_optional():
 
 def test_mapped_operator_serde():
     literal = [1, 2, {'a': 'b'}]
-    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).apply(
+    real_op = BashOperator.partial(task_id='a', executor_config={'dict': {'sub': 'value'}}).expand(
         bash_command=literal
     )
 
@@ -1589,6 +1589,7 @@ def test_mapped_operator_serde():
         'template_ext': ['.sh', '.bash'],
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'a',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1605,7 +1606,7 @@ def test_mapped_operator_xcomarg_serde():
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1622,6 +1623,7 @@ def test_mapped_operator_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'task_2',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1670,7 +1672,7 @@ def test_mapped_decorator_serde():
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).apply(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
+        x.partial(arg1=[1, 2, {"a": "b"}]).expand(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
 
@@ -1697,6 +1699,7 @@ def test_mapped_decorator_serde():
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
+        'user_supplied_task_id': 'x',
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1721,7 +1724,7 @@ def test_mapped_task_group_serde():
 
     literal = [1, 2, {'a': 'b'}]
     with DAG("test", start_date=execution_date) as dag:
-        with TaskGroup("process_one", dag=dag).apply(literal) as process_one:
+        with TaskGroup("process_one", dag=dag).expand(literal) as process_one:
             BaseOperator(task_id='one')
 
     serialized = SerializedTaskGroup.serialize_task_group(process_one)

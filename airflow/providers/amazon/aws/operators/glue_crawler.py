@@ -38,9 +38,14 @@ class GlueCrawlerOperator(BaseOperator):
     service that manages a catalog of metadata tables that contain the inferred
     schema, format and data types of data stores within the AWS cloud.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCrawlerOperator`
+
     :param config: Configurations for the AWS Glue crawler
     :param aws_conn_id: aws connection to use
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
+    :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
     ui_color = '#ededed'
@@ -50,11 +55,13 @@ class GlueCrawlerOperator(BaseOperator):
         config,
         aws_conn_id='aws_default',
         poll_interval: int = 5,
+        wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
+        self.wait_for_completion = wait_for_completion
         self.config = config
 
     @cached_property
@@ -76,8 +83,9 @@ class GlueCrawlerOperator(BaseOperator):
 
         self.log.info("Triggering AWS Glue Crawler")
         self.hook.start_crawler(crawler_name)
-        self.log.info("Waiting for AWS Glue Crawler")
-        self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
+        if self.wait_for_completion:
+            self.log.info("Waiting for AWS Glue Crawler")
+            self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
 

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from pathlib import Path
 from typing import List
 
@@ -31,7 +32,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = '3.7'
 DEFAULT_BACKEND = 'sqlite'
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_STATIC_CHECKS = [
     "all",
@@ -127,7 +128,7 @@ ALLOWED_INTEGRATIONS = [
     'all',
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.21.1', 'v1.20.2']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.23.3', 'v1.22.0', 'v1.21.1', 'v1.20.2']
 ALLOWED_KIND_VERSIONS = ['v0.11.1']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
@@ -197,7 +198,7 @@ def get_available_packages() -> List[str]:
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = "linux/amd64"
+DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"
@@ -212,8 +213,8 @@ SQLITE_URL = "sqlite:////root/airflow/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
-CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.6', '3.7', '3.8', '3.9']
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13']
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
@@ -281,7 +282,7 @@ ENABLED_SYSTEMS = ""
 
 
 CURRENT_KUBERNETES_MODES = ['image']
-CURRENT_KUBERNETES_VERSIONS = ['v1.21.1', 'v1.20.2']
+CURRENT_KUBERNETES_VERSIONS = ['v1.23.3', 'v1.22.0', 'v1.21.1', 'v1.20.2']
 CURRENT_KIND_VERSIONS = ['v0.11.1']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']

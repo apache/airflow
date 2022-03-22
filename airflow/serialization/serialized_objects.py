@@ -94,7 +94,7 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     are defaults, they are automatically supplied on de-serialization, so we
     don't need to store them.
     """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").apply().partial_kwargs
+    default_partial_kwargs = BaseOperator.partial(task_id="_").expand().partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
@@ -681,6 +681,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 mapped_kwargs={},
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
+                user_supplied_task_id=encoded_op["user_supplied_task_id"],
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,

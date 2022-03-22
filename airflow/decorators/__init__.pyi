@@ -55,10 +55,8 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -102,10 +100,8 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param requirements: Either a list of requirement strings, or a (templated)
             "requirements file" as specified by pip.
         :param python_version: The Python version to run the virtualenv with. Note that
@@ -151,6 +147,7 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: Optional[bool] = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
+        python_command: str = "python3",
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
@@ -187,11 +184,10 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
 
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
+        :param python_command: Python command for executing functions, Default: python3
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically
@@ -210,6 +206,12 @@ class TaskDecoratorCollection:
         :param host_tmp_dir: Specify the location of the temporary directory on the host which will
             be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
         :param network_mode: Network mode for the container.
+            It can be one of the following:
+            bridge - Create new network stack for the container with default docker bridge network
+            None - No networking for this container
+            container:<name|id> - Use the network stack of another container specified via <name|id>
+            host - Use the host network stack. Incompatible with `port_bindings`
+            '<network-name>|<network-id>' - Connects the container to user created network(using `docker network create` command)
         :param tls_ca_cert: Path to a PEM-encoded certificate authority
             to secure the docker connection.
         :param tls_client_cert: Path to the PEM-encoded certificate

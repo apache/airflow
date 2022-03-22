@@ -135,6 +135,7 @@ def encode_ti(
         'task_id': task_instance.task_id,
         'dag_id': task_instance.dag_id,
         'run_id': task_instance.run_id,
+        'map_index': task_instance.map_index,
         'state': task_instance.state,
         'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),
@@ -349,7 +350,13 @@ def task_instance_link(attr):
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
     execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
-    url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
+    url = url_for(
+        'Airflow.task',
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date.isoformat(),
+        map_index=attr.get('map_index', -1),
+    )
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
@@ -443,6 +450,14 @@ def dag_run_link(attr):
     execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+
+
+def format_map_index(attr: dict) -> str:
+    """Format map index for list columns in model view."""
+    value = attr['map_index']
+    if value < 0:
+        return Markup("&nbsp;")
+    return str(value)
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

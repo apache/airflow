@@ -30,7 +30,7 @@ def _on_config_inited(app, config):
 
 def setup(app: Sphinx):
     """Setup plugin"""
-    app.setup_extension('sphinxcontrib.jinja')
+    app.setup_extension('sphinx_jinja')
     app.connect("config-inited", _on_config_inited)
     app.add_crossref_type(
         directivename="provider",

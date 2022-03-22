@@ -31,10 +31,10 @@ function run_mypy() {
     fi
 
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
-        --entrypoint "/usr/local/bin/dumb-init"  \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
+        -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
-        "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
+        "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
 }
 
 build_images::prepare_ci_build

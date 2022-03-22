@@ -28,7 +28,8 @@ body:
         What Apache Airflow Helm Chart version are you using?
       multiple: false
       options:
-        - "1.4.0 (latest released)"
+        - "1.5.0 (latest released)"
+        - "1.4.0"
         - "1.3.0"
         - "1.2.0"
         - "1.1.0"
@@ -90,7 +91,7 @@ body:
         Please provide the context in which the problem occurred and explain what happened
   - type: textarea
     attributes:
-      label: What you expected to happen
+      label: What you think should happen instead
       description: What do you think went wrong?
       placeholder: >
         Please explain why you think the behaviour is erroneous. It is extremely helpful if you copy&paste

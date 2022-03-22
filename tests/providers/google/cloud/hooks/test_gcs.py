@@ -789,14 +789,20 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
+        metadata = {'key1': 'val1', 'key2': 'key2'}
 
-        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_filename
+        bucket_mock = mock_service.return_value.bucket
+        blob_object = bucket_mock.return_value.blob
 
-        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name)
+        upload_method = blob_object.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name, metadata=metadata)
 
         upload_method.assert_called_once_with(
             filename=self.testfile.name, content_type='application/octet-stream', timeout=60
         )
+
+        self.assertEqual(metadata, blob_object.return_value.metadata)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file_gzip(self, mock_service):

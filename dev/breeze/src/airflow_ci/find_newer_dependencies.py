@@ -37,7 +37,7 @@ option_branch = click.option(
 
 option_python = click.option(
     "--python",
-    type=click.Choice(["3.7", "3.8", "3.9"]),
+    type=click.Choice(["3.7", "3.8", "3.9", "3.10"]),
     default="3.7",
     help="Python version used",
 )

@@ -96,7 +96,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
@@ -245,8 +245,8 @@ class DAG(LoggingMixin):
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
         passed to the callback.
-    :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times), default tree
+    :param default_view: Specify DAG default view (grid, graph, duration,
+                                                   gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :param on_failure_callback: A function to be called when a DagRun of this dag fails.
@@ -341,6 +341,8 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
+        if default_args and not isinstance(default_args, dict):
+            raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
@@ -434,6 +436,13 @@ class DAG(LoggingMixin):
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
+        elif default_view == 'tree':
+            warnings.warn(
+                "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._default_view = 'grid'
         else:
             raise AirflowException(
                 f'Invalid values of dag.default_view: only support '

@@ -17,6 +17,7 @@
 # under the License.
 """Base operator for all operators."""
 import abc
+import collections
 import contextlib
 import copy
 import functools
@@ -136,6 +137,8 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     if task_group:
+        if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
         dag_args.update(task_group.default_args)
     return dag_args, dag_params
 
@@ -148,9 +151,11 @@ def _merge_defaults(
 ) -> Tuple[dict, ParamsDict]:
     if task_params:
         dag_params.update(task_params)
+    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
+        raise TypeError("default_args must be a mapping")
+    dag_args.update(task_default_args)
     with contextlib.suppress(KeyError):
         dag_params.update(task_default_args.pop("params"))
-    dag_args.update(task_default_args)
     return dag_args, dag_params
 
 
@@ -212,6 +217,7 @@ def partial(
     from airflow.utils.task_group import TaskGroupContext
 
     validate_mapping_kwargs(operator_class, "partial", kwargs)
+    user_supplied_task_id = task_id
 
     dag = dag or DagContext.get_current_dag()
     if dag:
@@ -262,7 +268,7 @@ def partial(
     partial_kwargs.setdefault("outlets", outlets)
     partial_kwargs.setdefault("resources", resources)
 
-    # Post-process arguments. Should be kept in sync with _TaskDecorator.apply().
+    # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
         raise TypeError("unexpected argument: task_concurrency")
     if partial_kwargs["wait_for_downstream"]:
@@ -276,7 +282,11 @@ def partial(
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
-    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
+    return OperatorPartial(
+        operator_class=operator_class,
+        user_supplied_task_id=user_supplied_task_id,
+        kwargs=partial_kwargs,
+    )
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -687,7 +697,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
         if not _airflow_mapped_validation_only and isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs).apply()
+            return cls.partial(dag=dag, task_group=task_group, **kwargs).expand()
         return super().__new__(cls)
 
     def __init__(

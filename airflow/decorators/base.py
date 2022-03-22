@@ -290,18 +290,18 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "apply" or value is NOTSET or isinstance(value, get_mappable_types()):
+            if func != "expand" or value is NOTSET or isinstance(value, get_mappable_types()):
                 continue
             tname = type(value).__name__
-            raise ValueError(f"apply() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def apply(self, **map_kwargs: "Mappable") -> XComArg:
-        self._validate_arg_names("apply", map_kwargs)
+    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+        self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)
 
@@ -309,7 +309,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
         dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
-        task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+        user_supplied_task_id = partial_kwargs.pop("task_id")
+        task_id = get_unique_task_id(user_supplied_task_id, dag, task_group)
         params = partial_kwargs.pop("params", None)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
@@ -334,6 +335,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
+            user_supplied_task_id=user_supplied_task_id,
             mapped_kwargs={},
             partial_kwargs=partial_kwargs,
             task_id=task_id,
@@ -420,7 +422,7 @@ class DecoratedMappedOperator(MappedOperator):
         return {
             "dag": self.dag,
             "task_group": self.task_group,
-            "task_id": self.task_id,
+            "task_id": self.user_supplied_task_id,
             "op_kwargs": op_kwargs,
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,
@@ -452,7 +454,7 @@ class Task(Generic[Function]):
 
     function: Function
 
-    def apply(self, **kwargs: "Mappable") -> XComArg:
+    def expand(self, **kwargs: "Mappable") -> XComArg:
         ...
 
     def partial(self, **kwargs: Any) -> "Task[Function]":

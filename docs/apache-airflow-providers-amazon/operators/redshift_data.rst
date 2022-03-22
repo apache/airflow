@@ -15,38 +15,37 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:RedshiftDataOperator:
-
-RedshiftDataOperator
-====================
-
-.. contents::
-  :depth: 1
-  :local:
-
-Overview
---------
+Amazon Redshift Data Operators
+==============================
 
 Use the :class:`RedshiftDataOperator <airflow.providers.amazon.aws.operators.redshift_data>` to execute
 statements against an Amazon Redshift cluster.
 
-This differs from RedshiftSQLOperator in that it allows users to query and retrieve data via the AWS API and avoid the necessity of a Postgres connection.
+This differs from ``RedshiftSQLOperator`` in that it allows users to query and retrieve data via the AWS API and avoid the necessity of a Postgres connection.
 
-example_redshift_data_execute_sql.py
-------------------------------------
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
 
-Purpose
-"""""""
+.. include:: _partials/prerequisite_tasks.rst
+
+Amazon Redshift Data
+^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/operator:RedshiftDataOperator:
+
+Execute a statement on an Amazon Redshift Cluster
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
 This is a basic example DAG for using :class:`RedshiftDataOperator <airflow.providers.amazon.aws.operators.redshift_data>`
 to execute statements against an Amazon Redshift cluster.
 
-List tables in database
-"""""""""""""""""""""""
-
-In the following code we list the tables in the provided database.
-
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_data_execute_sql.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_redshift_data]
     :end-before: [END howto_redshift_data]
+
+Reference
+^^^^^^^^^
+
+ * `AWS boto3 Library Documentation for Amazon Redshift Data <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-data.html>`__

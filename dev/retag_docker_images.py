@@ -31,7 +31,7 @@ from typing import List
 
 import rich_click as click
 
-PYTHON_VERSIONS = ["3.7", "3.8", "3.9"]
+PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 GHCR_IO_PREFIX = "ghcr.io"
 
