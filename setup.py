@@ -269,6 +269,10 @@ deprecated_api = [
 doc = [
     'click>=8.0',
     'sphinx>=4.4.0',
+    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
+    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
+    # <section> tags for sections
+    'docutils<0.17.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
