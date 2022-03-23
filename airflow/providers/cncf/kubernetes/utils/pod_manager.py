@@ -87,7 +87,7 @@ class PodLoggingStatus:
     """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
 
     running: bool
-    last_log_time: DateTime
+    last_log_time: Optional[DateTime]
 
 
 class PodManager(LoggingMixin):
