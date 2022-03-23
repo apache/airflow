@@ -152,10 +152,7 @@ class RedshiftSQLHook(DbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially. The variable execution_info is returned so that
-        it can be used in the Operators to modify the behavior
-        depending on the result of the query (i.e fail the operator
-        if the copy has processed 0 files)
+        sequentially.
 
         :param sql: the sql string to be executed with possibly multiple statements,
           or a list of sql statements to execute
@@ -163,15 +160,17 @@ class RedshiftSQLHook(DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :return: query results if handler was provided.
         """
 
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
-
             sql = sqlparse.split(sql)
-
             self.log.debug("Executing %d statements against Redshift DB", len(sql))
             with closing(conn.cursor()) as cur:
+                if self.supports_autocommit:
+                    self.set_autocommit(conn, autocommit)
+                results = []
                 for stmt in sql:
                     if parameters:
                         cur.execute(stmt, parameters)
@@ -179,9 +178,12 @@ class RedshiftSQLHook(DbApiHook):
                         cur.execute(stmt)
 
                     if handler is not None:
-                        cur = handler(cur)
+                        result = handler(cur)
+                        results.append(result)
 
                     self.log.info("Rows affected: %s", cur.rowcount)
 
-            if not self.get_autocommit(conn):
-                conn.commit()
+        if handler is None:
+            return None
+
+        return results
