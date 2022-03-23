@@ -20,6 +20,8 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 from kubernetes.client.rest import ApiException
+from pendulum import DateTime
+from pendulum.tz.timezone import Timezone
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
@@ -186,7 +188,7 @@ class TestPodManager:
 
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
         self.mock_kube_client.read_namespaced_pod_log.return_value = iter(())
-        self.pod_manager.follow_container_logs(mock.sentinel, 'base')
+        self.pod_manager.fetch_container_logs(mock.sentinel, 'base')
 
     def test_monitor_pod_logs_failures_non_fatal(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -209,7 +211,7 @@ class TestPodManager:
 
         self.mock_kube_client.read_namespaced_pod_log.side_effect = pod_log_gen()
 
-        self.pod_manager.follow_container_logs(mock.sentinel, 'base')
+        self.pod_manager.fetch_container_logs(mock.sentinel, 'base')
 
     def test_read_pod_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -281,6 +283,47 @@ class TestPodManager:
         self.pod_manager.read_pod = mock.MagicMock(return_value=mock_pod)
         self.pod_manager.container_is_running(None, 'base')
         container_is_running_mock.assert_called_with(pod=mock_pod, container_name='base')
+
+    @pytest.mark.parametrize('follow', [True, False])
+    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
+    def test_fetch_container_done(self, container_running, follow):
+        """If container done, should exit, no matter setting of follow."""
+        mock_pod = MagicMock()
+        container_running.return_value = False
+        self.mock_kube_client.read_namespaced_pod_log.return_value = [b'2021-01-01 hi']
+        ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', follow=follow)
+        assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone('UTC'))
+        assert ret.running is False
+
+    @mock.patch('pendulum.now')
+    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
+    def test_fetch_container_since_time(self, container_running, mock_now):
+        """If given since_time, should be used."""
+        mock_pod = MagicMock()
+        mock_now.return_value = DateTime(2020, 1, 1, 0, 0, 5, tzinfo=Timezone('UTC'))
+        container_running.return_value = False
+        self.mock_kube_client.read_namespaced_pod_log.return_value = [b'2021-01-01 hi']
+        since_time = DateTime(2020, 1, 1, tzinfo=Timezone('UTC'))
+        self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', since_time=since_time)
+        args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
+        assert kwargs['since_seconds'] == 5
+
+    @pytest.mark.parametrize('follow, is_running_calls, exp_running', [(True, 3, False), (False, 1, True)])
+    @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
+    def test_fetch_container_running_follow(
+        self, container_running_mock, follow, is_running_calls, exp_running
+    ):
+        """
+        When called with follow, should keep looping even after disconnections, if pod still running.
+        When called with follow=False, should return immediately even though still running.
+        """
+        mock_pod = MagicMock()
+        container_running_mock.side_effect = [True, True, False]  # only will be called once
+        self.mock_kube_client.read_namespaced_pod_log.return_value = [b'2021-01-01 hi']
+        ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', follow=follow)
+        assert len(container_running_mock.call_args_list) == is_running_calls
+        assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone('UTC'))
+        assert ret.running is exp_running
 
 
 def params_for_test_container_is_running():
