@@ -51,7 +51,7 @@ SCHEMA = [
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
-
+DAGS_LIST = []
 locations = [None, LOCATION]
 for index, location in enumerate(locations, 1):
     DAG_ID = "bigquery_queries_location" if location else "bigquery_queries"
@@ -230,9 +230,11 @@ for index, location in enumerate(locations, 1):
         # when "tearDown" task with trigger rule is part of the DAG
         list(dag.tasks) >> watcher()
 
+    DAGS_LIST.append(dag)
     globals()[DAG_ID] = dag
 
+for dag in DAGS_LIST:
+    from tests.system.utils import get_test_run  # noqa: E402
 
-from tests.system.utils import get_test_run  # noqa: E402
-
-test_run = get_test_run(dag)
+    # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+    test_run = get_test_run(dag)

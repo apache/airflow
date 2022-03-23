@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 import sys
 from pathlib import Path
 from typing import List
@@ -37,8 +38,14 @@ WATCHER_APPEND_INSTRUCTION = "list(dag.tasks) >> watcher()"
 PYTEST_FUNCTION = """
 from tests.system.utils import get_test_run  # noqa: E402
 
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
 """
+PYTEST_FUNCTION_PATTERN = re.compile(
+    r"from tests\.system\.utils import get_test_run  # noqa: E402\s+"
+    r"(?:# .+\))?\s+"
+    r"test_run = get_test_run\(dag\)"
+)
 
 
 def _check_file(file: Path):
@@ -65,7 +72,7 @@ def _check_file(file: Path):
                     f"        {WATCHER_APPEND_INSTRUCTION}\n\n"
                     "[yellow]as the last instruction in your example DAG.[/]\n"
                 )
-    if PYTEST_FUNCTION not in content:
+    if not PYTEST_FUNCTION_PATTERN.search(content):
         errors.append(
             f"[yellow]The example {file} missed the pytest function at the end.[/]\n\n"
             "All example tests should have this function added:\n\n" + PYTEST_FUNCTION + "\n\n"
