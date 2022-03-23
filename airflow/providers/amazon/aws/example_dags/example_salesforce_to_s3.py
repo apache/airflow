@@ -16,8 +16,8 @@
 # under the License.
 
 """
-This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce customer
-data and upload to an S3 bucket.
+This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce account
+data and upload it to an Amazon S3 bucket.
 """
 
 from datetime import datetime
