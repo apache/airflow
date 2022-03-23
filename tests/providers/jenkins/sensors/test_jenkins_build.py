@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 from parameterized import parameterized
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.sensors.jenkins_build import JenkinsBuildSensor
+from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 
 class TestJenkinsBuildSensor(unittest.TestCase):
@@ -68,5 +68,4 @@ class TestJenkinsBuildSensor(unittest.TestCase):
 
             assert output == (not build_state)
             assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
-            assert jenkins_mock.get_build_info.call_count == 1
             jenkins_mock.get_build_info.assert_called_once_with('a_job_on_jenkins', target_build_number)

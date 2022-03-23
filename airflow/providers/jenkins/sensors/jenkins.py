@@ -49,7 +49,7 @@ class JenkinsBuildSensor(BaseSensorOperator):
         self.jenkins_connection_id = jenkins_connection_id
 
     def poke(self, context: 'Context') -> bool:
-        self.log.info(f"Poking jenkins job {self.job_name}")
+        self.log.info("Poking jenkins job %s", self.job_name)
         hook = JenkinsHook(self.jenkins_connection_id)
         is_building = hook.get_build_building_state(self.job_name, self.build_number)
 
