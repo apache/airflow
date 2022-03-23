@@ -230,7 +230,7 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
 
 
 def check_exampleinclude_for_example_dags() -> List[DocBuildError]:
-    """Checks all exampleincludes for  example dags."""
+    """Checks all exampleincludes for example dags."""
     all_docs_files = glob(f"{DOCS_DIR}/**/*.rst", recursive=True)
     build_errors = []
     for doc_file in all_docs_files:
