@@ -226,7 +226,7 @@ class OperatorPartial:
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
-    operator_class: Union[Type["BaseOperator"], str]
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
     user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
@@ -305,7 +305,7 @@ class MappedOperator(AbstractOperator):
         arguments are *valid* (that depends on the actual mapping values), but
         makes sure there are *enough* of them.
         """
-        if isinstance(self.operator_class, str):
+        if not isinstance(self.operator_class, type):
             return  # No need to validate deserialized operator.
         self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
 
@@ -454,10 +454,19 @@ class MappedOperator(AbstractOperator):
         dag = self.dag
         if not dag:
             raise RuntimeError("Cannot unmap a task without a DAG")
-        if isinstance(self.operator_class, str):
-            raise RuntimeError("Cannot unmap a deserialized operator")
         dag._remove_task(self.task_id)
-        return self.operator_class(**self._get_unmap_kwargs())
+        if isinstance(self.operator_class, type):
+            return self.operator_class(**self._get_unmap_kwargs())
+
+        # After a mapped operator is serialized, there's no real way to actually
+        # unmap it since we've lost access to the underlying operator class.
+        # This tries its best to simply "forward" all the attributes on this
+        # mapped operator to a new SerializedBaseOperator instance.
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        op = SerializedBaseOperator(task_id=self.task_id)
+        SerializedBaseOperator.populate_operator(op, self.operator_class)
+        return op
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
