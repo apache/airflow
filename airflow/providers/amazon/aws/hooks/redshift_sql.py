@@ -16,11 +16,11 @@
 # under the License.
 
 import sys
-import sqlparse
 from contextlib import closing
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import redshift_connector
+import sqlparse
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
