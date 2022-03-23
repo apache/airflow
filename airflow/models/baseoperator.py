@@ -714,6 +714,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
+        ignore_first_depends_on_past: bool = conf.getboolean(
+            'scheduler', 'ignore_first_depends_on_past_by_default'
+        ),
         wait_for_downstream: bool = False,
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
@@ -836,6 +839,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.trigger_rule = trigger_rule
         self.depends_on_past: bool = depends_on_past
+        self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
