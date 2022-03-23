@@ -198,7 +198,9 @@ class TestCloudBuildHook(unittest.TestCase):
 
         self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
-        get_conn.return_value.retry_build.assert_called_once_with(
+        mock_operation = get_conn.return_value.retry_build
+
+        mock_operation.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
         )
 
@@ -207,6 +209,8 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.get_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
         )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
@@ -237,7 +241,9 @@ class TestCloudBuildHook(unittest.TestCase):
             trigger_id=TRIGGER_ID, source=REPO_SOURCE['repo_source'], project_id=PROJECT_ID
         )
 
-        get_conn.return_value.run_build_trigger.assert_called_once_with(
+        mock_operation = get_conn.return_value.run_build_trigger
+
+        mock_operation.assert_called_once_with(
             request={
                 'project_id': PROJECT_ID,
                 'trigger_id': TRIGGER_ID,
@@ -253,6 +259,8 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.get_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
         )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
