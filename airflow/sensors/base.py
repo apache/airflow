@@ -22,7 +22,7 @@ import hashlib
 import time
 import warnings
 from datetime import timedelta
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 from airflow import settings
 from airflow.configuration import conf
@@ -54,6 +54,23 @@ def _is_metadatabase_mysql() -> bool:
     if settings.engine is None:
         raise AirflowException("Must initialize ORM first")
     return settings.engine.url.get_backend_name() == "mysql"
+
+
+class PokeReturnValue:
+    """
+    Sensors can optionally return an instance of the PokeReturnValue class in the poke method.
+    If an XCom value is supplied when the sensor is done, then the XCom value will be
+    pushed through the operator return value.
+    :param is_done: Set to true to indicate the sensor can stop poking.
+    :param xcom_value: An optional XCOM value to be returned by the operator.
+    """
+
+    def __init__(self, is_done: bool, xcom_value: Optional[Any] = None) -> None:
+        self.xcom_value = xcom_value
+        self.is_done = is_done
+
+    def __bool__(self) -> bool:
+        return self.is_done
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -150,7 +167,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
                 )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
         """
         Function that the sensors defined while deriving this class should
         override.
@@ -255,7 +272,14 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         try_number = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
-        while not self.poke(context):
+        xcom_value = None
+        while True:
+            poke_return = self.poke(context)
+            if poke_return:
+                if isinstance(poke_return, PokeReturnValue):
+                    xcom_value = poke_return.xcom_value
+                break
+
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
                 if self.soft_fail:
@@ -275,6 +299,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
+        return xcom_value
 
     def _get_next_poke_interval(
         self,

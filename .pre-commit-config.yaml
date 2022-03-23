@@ -318,6 +318,14 @@ repos:
         pass_filenames: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_xcom_get_value.py
         additional_dependencies: ['rich']
+        # This check might be removed when min-airflow-version in providers is 2.2
+      - id: check-ti-run-id-in-providers
+        name: Check that run_id is not accessed in providers
+        entry: ./scripts/ci/pre_commit/pre_commit_check_no_ti_run_id.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/providers/.*\.py$
+        additional_dependencies: ['rich']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh

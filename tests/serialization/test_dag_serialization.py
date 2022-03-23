@@ -1589,6 +1589,7 @@ def test_mapped_operator_serde():
         'template_ext': ['.sh', '.bash'],
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'a',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1622,6 +1623,7 @@ def test_mapped_operator_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
+        'user_supplied_task_id': 'task_2',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1697,6 +1699,7 @@ def test_mapped_decorator_serde():
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
+        'user_supplied_task_id': 'x',
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)

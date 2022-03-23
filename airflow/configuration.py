@@ -34,6 +34,7 @@ from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # 
 from contextlib import suppress
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
@@ -297,6 +298,7 @@ class AirflowConfigParser(ConfigParser):
                     )
 
         self._upgrade_auth_backends()
+        self._upgrade_postgres_metastore_conn()
         self.is_validated = True
 
     def _upgrade_auth_backends(self):
@@ -317,6 +319,25 @@ class AirflowConfigParser(ConfigParser):
                 'Apache Airflow 3.0.',
                 FutureWarning,
             )
+
+    def _upgrade_postgres_metastore_conn(self):
+        """As of sqlalchemy 1.4, scheme `postgres+psycopg2` must be replaced with `postgresql`"""
+        section, key = 'core', 'sql_alchemy_conn'
+        old_value = self.get(section, key)
+        bad_scheme = 'postgres+psycopg2'
+        good_scheme = 'postgresql'
+        parsed = urlparse(old_value)
+        if parsed.scheme == bad_scheme:
+            warnings.warn(
+                f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{bad_scheme}`. "
+                "As of SqlAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
+                f"change to `{good_scheme}` before the next Airflow release.",
+                FutureWarning,
+            )
+            self.upgraded_values[(section, key)] = old_value
+            new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), f"{good_scheme}://", old_value)
+            self._update_env_var(section=section, name=key, new_value=new_value)
+            self.set(section=section, option=key, value=new_value)
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""

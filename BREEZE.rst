@@ -2292,10 +2292,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  build-providers-dependencies chart-schema-lint capitalized-breeze
                  changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-xml check-system-tests
-                 daysago-import-check debug-statements detect-private-key docstring-params doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt
-                 forbidden-xcom-get-value codespell forbid-tabs helm-lint identity
+                 check-integrations check-merge-conflict check-ti-run-id-in-providers check-xml
+                 check-system-tests daysago-import-check debug-statements detect-private-key
+                 docstring-params doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt forbidden-xcom-get-value codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid migration-reference
                  mixed-line-ending mypy mypy-helm no-providers-in-core-examples no-relative-imports
@@ -2509,9 +2509,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.21.1 v1.20.2
+                 v1.23.3 v1.22.0 v1.21.1 v1.20.2
 
-          Default: v1.21.1
+          Default: v1.23.3
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.

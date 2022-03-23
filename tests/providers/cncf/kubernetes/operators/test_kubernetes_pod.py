@@ -47,6 +47,7 @@ def create_context(task):
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
+        "run_id": "test",
     }
 
 
@@ -73,7 +74,7 @@ class TestKubernetesPodOperator:
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
 
-    def run_pod(self, operator, map_index: int = -1) -> k8s.V1Pod:
+    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
             operator.dag = dag
 
@@ -82,6 +83,7 @@ class TestKubernetesPodOperator:
         ti.map_index = map_index
         self.dag_run = dr
         context = ti.get_template_context(session=self.dag_maker.session)
+        self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
@@ -530,9 +532,9 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_describes_pod_on_failure(self, await_container_mock, follow_container_mock):
+    def test_describes_pod_on_failure(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -547,7 +549,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             cluster_context="default",
         )
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Failed'
         self.await_pod_mock.return_value = remote_pod_mock
@@ -558,9 +560,9 @@ class TestKubernetesPodOperator:
 
         assert not self.client_mock.return_value.read_namespaced_pod.called
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_no_handle_failure_on_success(self, await_container_mock, follow_container_mock):
+    def test_no_handle_failure_on_success(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -576,7 +578,7 @@ class TestKubernetesPodOperator:
             cluster_context="default",
         )
 
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock

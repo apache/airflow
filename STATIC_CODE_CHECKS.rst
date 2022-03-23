@@ -164,6 +164,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-ti-run-id-in-providers``       Check that run_id is not accessed in providers
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-system-tests``                 Check if system tests have required segments of code
