@@ -176,11 +176,12 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         """
-        if append and self.wasb_log_exists(remote_log_location):
-            old_log = self.wasb_read(remote_log_location)
-            log = '\n'.join([old_log, log]) if old_log else log
+        blob_type='BlockBlob'
 
+        if append:
+            blob_type='AppendBlob'
+        
         try:
-            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
+            self.hook.load_string(log, self.wasb_container, remote_log_location, blob_type=blob_type, overwrite=blob_type is 'BlockBlob')
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)

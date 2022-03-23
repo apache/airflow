@@ -264,6 +264,7 @@ class WasbHook(BaseHook):
         string_data: str,
         container_name: str,
         blob_name: str,
+        blob_type:str = 'BlockBlob',
         create_container: bool = False,
         **kwargs,
     ) -> None:
@@ -273,15 +274,18 @@ class WasbHook(BaseHook):
         :param string_data: String to load.
         :param container_name: Name of the container.
         :param blob_name: Name of the blob.
+        :param blob_type: The type of the blob. This can be either ``BlockBlob``,
+            ``PageBlob`` or ``AppendBlob``. The default value is ``BlockBlob``.
         :param create_container: Attempt to create the target container prior to uploading the blob. This is
             useful if the target container may not exist yet. Defaults to False.
-        :param kwargs: Optional keyword arguments that ``BlobClient.upload()`` takes.
+        :param kwargs: Optional keyword arguments that ``BlobClient.upload_blob()`` takes.
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
         self.upload(
             container_name=container_name,
             blob_name=blob_name,
             data=string_data,
+            blob_type=blob_type,
             create_container=create_container,
             **kwargs,
         )

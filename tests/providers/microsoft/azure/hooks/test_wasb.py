@@ -207,12 +207,14 @@ class TestWasbHook:
         )
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
+    @pytest.mark.parametrize(argnames="blob_type", argvalues=['AppendBlob', 'BlockBlob'])
     @mock.patch.object(WasbHook, 'upload')
-    def test_load_string(self, mock_upload, create_container):
+    def test_load_string(self, mock_upload, create_container,blob_type):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.load_string('big string', 'container', 'blob', create_container, max_connections=1)
         mock_upload.assert_called_once_with(
             container_name='container',
+            blob_type=blob_type,
             blob_name='blob',
             data='big string',
             create_container=create_container,
