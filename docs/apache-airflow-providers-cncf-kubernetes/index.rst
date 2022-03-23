@@ -59,7 +59,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 3.1.1
+Release: 3.1.2
 
 Provider package
 ----------------
@@ -81,7 +81,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
 ``cryptography``    ``>=2.0.0``
-``kubernetes``      ``>=3.0.0``
+``kubernetes``      ``>=21.7.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/cncf/kubernetes/CHANGELOG.rst

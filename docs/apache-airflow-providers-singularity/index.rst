@@ -52,7 +52,7 @@ Package apache-airflow-providers-singularity
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 
-Release: 2.0.3
+Release: 2.0.4
 
 Provider package
 ----------------

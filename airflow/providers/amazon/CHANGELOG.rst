@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add arguments to filter list: start_after_key, from_datetime, to_datetime, object_filter callable (#22231)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``ImapAttachmentToS3Operator: fix it, update sample dag and update doc (#22351)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update sample dag and doc for S3CreateBucketOperator, S3PutBucketTaggingOperator, S3GetBucketTaggingOperator, S3DeleteBucketTaggingOperator, S3DeleteBucketOperator (#22312)``
+   * ``Add docs and example dag for AWS Glue (#22295)``
+   * ``Update doc and sample dag for S3ToSFTPOperator and SFTPToS3Operator (#22313)``
+
 3.1.1
 .....
 

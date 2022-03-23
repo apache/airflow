@@ -52,7 +52,7 @@ Package apache-airflow-providers-jenkins
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 2.0.6
+Release: 2.0.7
 
 Provider package
 ----------------

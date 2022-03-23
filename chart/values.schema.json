@@ -1786,6 +1786,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2023,6 +2035,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2206,6 +2230,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable migrate database job.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "command": {
                     "description": "Command to use when running migrate database job (templated).",
                     "type": [
@@ -2806,6 +2835,18 @@
                     "default": {},
                     "additionalProperties": {
                         "type": "string"
+                    }
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
                     }
                 }
             }

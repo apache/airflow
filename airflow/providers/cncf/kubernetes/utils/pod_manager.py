@@ -18,7 +18,9 @@
 import json
 import math
 import time
+import warnings
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
@@ -78,6 +80,14 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.running is not None
+
+
+@dataclass
+class PodLoggingStatus:
+    """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
+
+    running: bool
+    last_log_time: Optional[DateTime]
 
 
 class PodManager(LoggingMixin):
@@ -166,17 +176,23 @@ class PodManager(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(1)
 
-    def follow_container_logs(self, pod: V1Pod, container_name: str) -> None:
+    def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
+        warnings.warn(
+            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
+            "with option `follow=True`.",
+            DeprecationWarning,
+        )
+        return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
+
+    def fetch_container_logs(
+        self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
+    ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
-
-        .. note:: :meth:`read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
-            loop as we do here. But in a long-running process we might temporarily lose connectivity.
-            So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_time: Optional[DateTime] = None) -> Optional[DateTime]:
+        def consume_logs(*, since_time: Optional[DateTime] = None, follow: bool = True) -> Optional[DateTime]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -193,6 +209,7 @@ class PodManager(LoggingMixin):
                     since_seconds=(
                         math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
                     ),
+                    follow=follow,
                 )
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
@@ -205,11 +222,16 @@ class PodManager(LoggingMixin):
                 )
             return timestamp or since_time
 
-        last_log_time = None
+        # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
+        # loop as we do here. But in a long-running process we might temporarily lose connectivity.
+        # So the looping logic is there to let us resume following the logs.
+        last_log_time = since_time
         while True:
-            last_log_time = follow_logs(since_time=last_log_time)
+            last_log_time = consume_logs(since_time=last_log_time, follow=follow)
             if not self.container_is_running(pod, container_name=container_name):
-                return
+                return PodLoggingStatus(running=False, last_log_time=last_log_time)
+            if not follow:
+                return PodLoggingStatus(running=True, last_log_time=last_log_time)
             else:
                 self.log.warning(
                     'Pod %s log read interrupted but container %s still running',
@@ -270,6 +292,7 @@ class PodManager(LoggingMixin):
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
+        follow=True,
     ) -> Iterable[bytes]:
         """Reads log from the POD"""
         additional_kwargs = {}
@@ -284,7 +307,7 @@ class PodManager(LoggingMixin):
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
                 container=container_name,
-                follow=True,
+                follow=follow,
                 timestamps=timestamps,
                 _preload_content=False,
                 **additional_kwargs,
