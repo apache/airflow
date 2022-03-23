@@ -16,15 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
-from urllib.error import HTTPError, URLError
+from typing import TYPE_CHECKING, Optional
 
-import jenkins
-from jenkins import JenkinsException
-
-from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class JenkinsBuildSensor(BaseSensorOperator):
     """
@@ -49,14 +48,14 @@ class JenkinsBuildSensor(BaseSensorOperator):
         self.build_number = build_number
         self.jenkins_connection_id = jenkins_connection_id
 
-    def poke(self, context: 'Context') -> bool:    
+    def poke(self, context: 'Context') -> bool:
         self.log.info(f"Poking jenkins job {self.job_name}")
         hook = JenkinsHook(self.jenkins_connection_id)
         is_building = hook.get_build_building_state(self.job_name, self.build_number)
 
         if is_building:
-            self.log.info(f"Build still ongoing!")
+            self.log.info("Build still ongoing!")
             return False
         else:
-            self.log.info(f"Build is finished.")
+            self.log.info("Build is finished.")
             return True

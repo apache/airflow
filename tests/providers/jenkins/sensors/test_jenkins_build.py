@@ -17,44 +17,51 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock, patch
-from xmlrpc.client import boolean
+from unittest.mock import MagicMock, patch
 
-import jenkins
-import pytest
 from parameterized import parameterized
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins_build import JenkinsBuildSensor
 
+
 class TestJenkinsBuildSensor(unittest.TestCase):
     @parameterized.expand(
         [
-            (1,False,),
-            (None, True,),
-            (3, True,),
+            (
+                1,
+                False,
+            ),
+            (
+                None,
+                True,
+            ),
+            (
+                3,
+                True,
+            ),
         ]
     )
-    def test_poke(self, build_number, build_state):
-        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
-        jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': (build_number if build_number else 10)}}
+    @patch('jenkins.Jenkins')
+    def test_poke(self, build_number, build_state, mock_jenkins):
+        target_build_number = build_number if build_number else 10
+
+        jenkins_mock = MagicMock()
+        jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': target_build_number}}
         jenkins_mock.get_build_info.return_value = {
             'building': build_state,
         }
+        mock_jenkins.return_value = jenkins_mock
 
-        hook_mock = Mock(spec=JenkinsHook)
-        hook_mock.get_jenkins_server.return_value = jenkins_mock
+        with patch.object(JenkinsHook, 'get_connection') as mock_get_connection:
+            mock_get_connection.return_value = MagicMock()
 
-        with patch.object(JenkinsBuildSensor, "get_hook") as get_hook_mocked:
-            get_hook_mocked.return_value = hook_mock
             sensor = JenkinsBuildSensor(
                 dag=None,
                 jenkins_connection_id="fake_jenkins_connection",
-                # The hook is mocked, this connection won't be used
                 task_id="sensor_test",
                 job_name="a_job_on_jenkins",
-                build_number=build_number,
-                sleep_time=1,
+                build_number=target_build_number,
             )
 
             output = sensor.poke(None)
@@ -62,7 +69,4 @@ class TestJenkinsBuildSensor(unittest.TestCase):
             assert output == (not build_state)
             assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
             assert jenkins_mock.get_build_info.call_count == 1
-            jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins', number=(build_number if build_number else 10))
-
-
-
+            jenkins_mock.get_build_info.assert_called_once_with('a_job_on_jenkins', target_build_number)

@@ -52,8 +52,8 @@ class JenkinsHook(BaseHook):
         """Get build building state"""
         try:
             if not build_number:
-                self.log.info(f"Build number not specified, getting latest build info from Jenkins")
-                job_info = self.jenkins_server.get_job_info(self.job_name)
+                self.log.info("Build number not specified, getting latest build info from Jenkins")
+                job_info = self.jenkins_server.get_job_info(job_name)
                 build_number_to_check = job_info['lastBuild']['number']
             else:
                 build_number_to_check = build_number
@@ -63,6 +63,4 @@ class JenkinsHook(BaseHook):
             building = build_info['building']
             return building
         except jenkins.JenkinsException as err:
-            raise AirflowException(
-                f'Jenkins call failed with error : {err}'
-                )
+            raise AirflowException(f'Jenkins call failed with error : {err}')
