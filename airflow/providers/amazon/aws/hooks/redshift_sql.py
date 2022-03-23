@@ -178,7 +178,6 @@ class RedshiftSQLHook(DbApiHook):
                     else:
                         cur.execute(stmt)
 
-                    execution_info = []
                     if handler is not None:
                         cur = handler(cur)
 
@@ -186,5 +185,3 @@ class RedshiftSQLHook(DbApiHook):
 
             if not self.get_autocommit(conn):
                 conn.commit()
-
-        return execution_info
