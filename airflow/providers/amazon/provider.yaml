@@ -465,6 +465,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/hive_to_dynamodb.rst
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
