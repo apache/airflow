@@ -17,6 +17,8 @@
 # under the License.
 #
 
+from typing import Optional
+
 import jenkins
 
 from airflow import AirflowException
@@ -48,7 +50,7 @@ class JenkinsHook(BaseHook):
         """Get jenkins server"""
         return self.jenkins_server
 
-    def get_build_building_state(self, job_name: str, build_number: int) -> bool:
+    def get_build_building_state(self, job_name: str, build_number: Optional[int]) -> bool:
         """Get build building state"""
         try:
             if not build_number:
