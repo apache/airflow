@@ -506,13 +506,13 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.23.3" "v1.22.0" "v1.21.1" "v1.20.2")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.23.4" "v1.22.7" "v1.21.10" "v1.20.15")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.11.1")
+    CURRENT_KIND_VERSIONS+=("v0.12.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.6.3")
