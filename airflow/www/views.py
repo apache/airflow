@@ -528,6 +528,18 @@ def get_task_stats_from_query(qry):
     return data
 
 
+def redirect_or_json(origin, return_as_json, msg, status=""):
+    """
+    Some endpoints are called by javascript,
+    returning json will allow us to more elegantly handle side-effects in-page
+    """
+    if return_as_json:
+        return {'status': status, 'message': msg}
+    else:
+        flash(msg, status)
+        return redirect(origin)
+
+
 ######################################################################################
 #                                    Error handlers
 ######################################################################################
@@ -1725,6 +1737,7 @@ class Airflow(AirflowBaseView):
         dag_run_id = request.form.get('dag_run_id')
         map_index = request.args.get('map_index', -1, type=int)
         origin = get_safe_url(request.form.get('origin'))
+        return_as_json = request.form.get('return_as_json') == "true"
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
@@ -1735,17 +1748,14 @@ class Airflow(AirflowBaseView):
         executor = ExecutorLoader.get_default_executor()
 
         if not getattr(executor, "supports_ad_hoc_ti_run", False):
-            flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
-            return redirect(origin)
+            msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry"
+            return redirect_or_json(origin, return_as_json, msg, "error")
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
-            flash(
-                "Could not queue task instance for execution, task instance is missing",
-                "error",
-            )
-            return redirect(origin)
+            msg = "Could not queue task instance for execution, task instance is missing"
+            return redirect_or_json(origin, return_as_json, msg, "error")
 
         ti.refresh_from_task(task)
 
@@ -1759,11 +1769,8 @@ class Airflow(AirflowBaseView):
         failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
-            flash(
-                f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}",
-                "error",
-            )
-            return redirect(origin)
+            msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
+            return redirect_or_json(origin, return_as_json, msg, "error")
 
         executor.job_id = "manual"
         executor.start()
@@ -1776,8 +1783,8 @@ class Airflow(AirflowBaseView):
         executor.heartbeat()
         ti.queued_dttm = timezone.utcnow()
         session.merge(ti)
-        flash(f"Sent {ti} to the message queue, it should start any moment now.")
-        return redirect(origin)
+        msg = f"Sent {ti} to the message queue, it should start any moment now."
+        return redirect_or_json(origin, return_as_json, msg)
 
     @expose('/delete', methods=['POST'])
     @auth.has_access(
@@ -1944,7 +1951,15 @@ class Airflow(AirflowBaseView):
         return redirect(origin)
 
     def _clear_dag_tis(
-        self, dag, start_date, end_date, origin, recursive=False, confirmed=False, only_failed=False
+        self,
+        dag,
+        start_date,
+        end_date,
+        origin,
+        recursive=False,
+        confirmed=False,
+        only_failed=False,
+        return_as_json=False,
     ):
         if confirmed:
             count = dag.clear(
@@ -1955,8 +1970,8 @@ class Airflow(AirflowBaseView):
                 only_failed=only_failed,
             )
 
-            flash(f"{count} task instances have been cleared")
-            return redirect(origin)
+            msg = f"{count} task instances have been cleared"
+            return redirect_or_json(origin, return_as_json, msg)
 
         try:
             tis = dag.clear(
@@ -1968,12 +1983,11 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            flash(str(ex), 'error')
-            return redirect(origin)
+            return redirect_or_json(origin, return_as_json, msg=str(ex), status="error")
 
         if not tis:
-            flash("No task instances to clear", 'error')
-            response = redirect(origin)
+            msg = "No task instances to clear"
+            return redirect_or_json(origin, return_as_json, msg, status="error")
         else:
             details = "\n".join(str(t) for t in tis)
 
@@ -1986,9 +2000,7 @@ class Airflow(AirflowBaseView):
 
         return response
 
-    def _clear_dag_run(
-        self, dag, start_date, end_date, origin, recursive=False, confirmed=False, only_failed=False
-    ):
+    def _clear_dag_run(self, dag, start_date, end_date, recursive=False, confirmed=False, only_failed=False):
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
@@ -1997,9 +2009,7 @@ class Airflow(AirflowBaseView):
                 include_parentdag=recursive,
                 only_failed=only_failed,
             )
-
-            flash(f"{count} task instances have been cleared")
-            return redirect(origin)
+            return {'status': 'success', 'message': f"{count} task instances have been cleared"}
 
         try:
             tis = dag.clear(
@@ -2011,12 +2021,10 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            flash(str(ex), 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': str(ex)}
 
         if not tis:
-            flash("No task instances to clear", 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': "No task instances to clear"}
         else:
             details = [str(t) for t in tis]
 
@@ -2039,6 +2047,7 @@ class Airflow(AirflowBaseView):
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
+        return_as_json = request.form.get('return_as_json') == "true"
         confirmed = request.form.get('confirmed') == "true"
         upstream = request.form.get('upstream') == "true"
         downstream = request.form.get('downstream') == "true"
@@ -2063,6 +2072,7 @@ class Airflow(AirflowBaseView):
             recursive=recursive,
             confirmed=confirmed,
             only_failed=only_failed,
+            return_as_json=return_as_json,
         )
 
     @expose('/dagrun_clear', methods=['POST'])
@@ -2076,7 +2086,6 @@ class Airflow(AirflowBaseView):
     def dagrun_clear(self):
         """Clears the DagRun"""
         dag_id = request.form.get('dag_id')
-        origin = get_safe_url(request.form.get('origin'))
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == "true"
 
@@ -2085,7 +2094,7 @@ class Airflow(AirflowBaseView):
         start_date = dr.logical_date
         end_date = dr.logical_date
 
-        return self._clear_dag_run(dag, start_date, end_date, origin, recursive=True, confirmed=confirmed)
+        return self._clear_dag_run(dag, start_date, end_date, recursive=True, confirmed=confirmed)
 
     @expose('/blocked', methods=['POST'])
     @auth.has_access(
@@ -2133,66 +2142,55 @@ class Airflow(AirflowBaseView):
             )
         return wwwutils.json_response(payload)
 
-    def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed, origin):
+    def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_failed(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash(f'Marked failed on {len(new_dag_state)} task instances')
-            return redirect(origin)
-
+            return {'status': 'success', 'message': f'Marked failed on {len(new_dag_state)} task instances'}
         else:
             details = [str(t) for t in new_dag_state]
 
             return htmlsafe_json_dumps(details, separators=(',', ':'))
 
-    def _mark_dagrun_state_as_success(self, dag_id, dag_run_id, confirmed, origin):
+    def _mark_dagrun_state_as_success(self, dag_id, dag_run_id, confirmed):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_success(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash(f'Marked success on {len(new_dag_state)} task instances')
-            return redirect(origin)
-
+            return {'status': 'success', 'message': f'Marked success on {len(new_dag_state)} task instances'}
         else:
             details = [str(t) for t in new_dag_state]
 
             return htmlsafe_json_dumps(details, separators=(',', ':'))
 
-    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, origin: str):
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash('Marked the DagRun as queued.')
-            return redirect(origin)
+            return {'status': 'success', 'message': 'Marked the DagRun as queued.'}
 
         else:
             details = [str(t) for t in new_dag_state]
@@ -2212,8 +2210,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_failed(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_failed(dag_id, dag_run_id, confirmed)
 
     @expose('/dagrun_success', methods=['POST'])
     @auth.has_access(
@@ -2228,8 +2225,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed)
 
     @expose('/dagrun_queued', methods=['POST'])
     @auth.has_access(
@@ -2244,8 +2240,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed)
 
     @expose("/dagrun_details")
     @auth.has_access(

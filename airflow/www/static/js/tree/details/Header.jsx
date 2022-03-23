@@ -30,7 +30,7 @@ import { MdPlayArrow } from 'react-icons/md';
 import { getMetaValue } from '../../utils';
 import { useSelection } from '../providers/selection';
 import Time from '../Time';
-import useTreeData from '../useTreeData';
+import { useTreeData } from '../api';
 
 const dagId = getMetaValue('dag_id');
 

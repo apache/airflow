@@ -18,11 +18,15 @@
  */
 
 import axios from 'axios';
+import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
+import { useAutoRefresh } from '../providers/autorefresh';
 
 export default function useClearRun(dagId, runId) {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['dagRunClear', dagId, runId],
     ({ confirmed = false }) => {
@@ -41,9 +45,20 @@ export default function useClearRun(dagId, runId) {
       });
     },
     {
-      onSuccess: () => {
-        // Invalidating the query will force a new API request
-        queryClient.invalidateQueries('treeData');
+      onSuccess: (data) => {
+        const { message, status } = data;
+        if (message && status === 'error') {
+          toast({
+            description: message,
+            isClosable: true,
+            status: status || 'info',
+          });
+        }
+        if (!status || status !== 'error') {
+          // Invalidating the query will force a new API request
+          queryClient.invalidateQueries('treeData');
+          startRefresh();
+        }
       },
     },
   );

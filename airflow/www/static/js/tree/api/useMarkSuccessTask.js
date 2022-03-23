@@ -20,11 +20,13 @@
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
+import { useAutoRefresh } from '../providers/autorefresh';
 
 export default function useMarkSuccessTask({
   dagId, runId, taskId,
 }) {
   const queryClient = useQueryClient();
+  const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['markSuccess', dagId, runId, taskId],
     ({
@@ -52,6 +54,7 @@ export default function useMarkSuccessTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('treeData');
+        startRefresh();
       },
     },
   );

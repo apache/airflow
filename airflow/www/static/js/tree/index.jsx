@@ -30,6 +30,7 @@ import Tree from './Tree';
 import { SelectionProvider } from './providers/selection';
 import { ContainerRefProvider } from './providers/containerRef';
 import { TimezoneProvider } from './providers/timezone';
+import { AutoRefreshProvider } from './providers/autorefresh';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -58,9 +59,11 @@ function App() {
           <ContainerRefProvider>
             <QueryClientProvider client={queryClient}>
               <TimezoneProvider>
-                <SelectionProvider>
-                  <Tree />
-                </SelectionProvider>
+                <AutoRefreshProvider>
+                  <SelectionProvider>
+                    <Tree />
+                  </SelectionProvider>
+                </AutoRefreshProvider>
               </TimezoneProvider>
             </QueryClientProvider>
           </ContainerRefProvider>

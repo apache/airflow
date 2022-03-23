@@ -26,7 +26,7 @@ import {
   Flex,
 } from '@chakra-ui/react';
 
-import useTreeData from '../useTreeData';
+import { useTreeData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
 

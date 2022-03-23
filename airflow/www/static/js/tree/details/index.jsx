@@ -30,7 +30,7 @@ import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
 import { useSelection } from '../providers/selection';
 
-const Details = () => {
+const Details = ({ isRefreshOn, onToggleRefresh }) => {
   const { selected } = useSelection();
   return (
     <Flex borderLeftWidth="1px" flexDirection="column" p={3} flexGrow={1} maxWidth="600px">
@@ -39,11 +39,19 @@ const Details = () => {
       <Box minWidth="500px">
         {/* TODO: get full instance data from the API */}
         {!selected.runId && !selected.taskId && <DagContent />}
-        {selected.runId && !selected.taskId && <DagRunContent runId={selected.runId} />}
+        {selected.runId && !selected.taskId && (
+          <DagRunContent
+            runId={selected.runId}
+            isRefreshOn={isRefreshOn}
+            onToggleRefresh={onToggleRefresh}
+          />
+        )}
         {selected.taskId && (
         <TaskInstanceContent
           runId={selected.runId}
           taskId={selected.taskId}
+          isRefreshOn={isRefreshOn}
+          onToggleRefresh={onToggleRefresh}
         />
         )}
       </Box>

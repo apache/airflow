@@ -40,7 +40,7 @@ const Run = ({
   const [ignoreTaskDeps, setIgnoreTaskDeps] = useState(false);
   const onToggleTaskDeps = () => setIgnoreTaskDeps(!ignoreTaskDeps);
 
-  const { mutate: onRun } = useRunTask(dagId, runId, taskId);
+  const { mutate: onRun, isLoading } = useRunTask(dagId, runId, taskId);
 
   const onClick = () => {
     onRun({
@@ -75,7 +75,7 @@ const Run = ({
           Ignore Task Deps
         </Button>
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onClick}>
+      <Button colorScheme="blue" onClick={onClick} isLoading={isLoading}>
         Run
       </Button>
     </Flex>

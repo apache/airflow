@@ -33,6 +33,7 @@ import useMarkSuccessTask from './useMarkSuccessTask';
 import useExtraLinks from './useExtraLinks';
 import useConfirmMarkTask from './useConfirmMarkTask';
 import useConfirmClearTask from './useConfirmClearTask';
+import useTreeData from './useTreeData';
 
 axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -52,4 +53,5 @@ export {
   useExtraLinks,
   useConfirmMarkTask,
   useConfirmClearTask,
+  useTreeData,
 };

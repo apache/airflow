@@ -29,6 +29,7 @@ import DagRuns from './index';
 import { ContainerRefProvider } from '../providers/containerRef';
 import { SelectionProvider } from '../providers/selection';
 import { TimezoneProvider } from '../providers/timezone';
+import { AutoRefreshProvider } from '../providers/autorefresh';
 
 global.moment = moment;
 
@@ -40,13 +41,15 @@ const Wrapper = ({ children }) => {
         <QueryClientProvider client={queryClient}>
           <ContainerRefProvider value={{}}>
             <TimezoneProvider value={{ timezone: 'UTC' }}>
-              <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
-                <Table>
-                  <Tbody>
-                    {children}
-                  </Tbody>
-                </Table>
-              </SelectionProvider>
+              <AutoRefreshProvider value={{ isRefreshOn: false, stopRefresh: () => {} }}>
+                <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+                  <Table>
+                    <Tbody>
+                      {children}
+                    </Tbody>
+                  </Table>
+                </SelectionProvider>
+              </AutoRefreshProvider>
             </TimezoneProvider>
           </ContainerRefProvider>
         </QueryClientProvider>

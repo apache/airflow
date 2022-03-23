@@ -34,20 +34,24 @@ import {
   Button,
 } from '@chakra-ui/react';
 
-import useTreeData from './useTreeData';
+import { getMetaValue } from '../utils';
+import { useTreeData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import Details from './details';
 import { useSelection } from './providers/selection';
+import { useAutoRefresh } from './providers/autorefresh';
 
+const isPaused = getMetaValue('is_paused') === 'True';
 const sidePanelKey = 'showSidePanel';
 
 const Tree = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
   const [tableWidth, setTableWidth] = useState('100%');
-  const { data: { groups = {}, dagRuns = [] }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const { isRefreshOn, toggleRefresh } = useAutoRefresh();
   const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
 
@@ -84,7 +88,13 @@ const Tree = () => {
           <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
             Auto-refresh
           </FormLabel>
-          <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
+          <Switch
+            id="auto-refresh"
+            onChange={() => toggleRefresh(true)}
+            isDisabled={isPaused}
+            isChecked={isRefreshOn}
+            size="lg"
+          />
         </FormControl>
         <Button
           onClick={toggleSidePanel}

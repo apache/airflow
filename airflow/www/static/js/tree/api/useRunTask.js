@@ -18,11 +18,15 @@
  */
 
 import axios from 'axios';
+import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
+import { useAutoRefresh } from '../providers/autorefresh';
 
 export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['runTask', dagId, runId, taskId],
     ({
@@ -39,6 +43,7 @@ export default function useRunTask(dagId, runId, taskId) {
         ignore_all_deps: ignoreAllDeps,
         ignore_task_deps: ignoreTaskDeps,
         ignore_ti_state: ignoreTaskState,
+        return_as_json: true,
       }).toString();
 
       return axios.post('/run', params, {
@@ -48,8 +53,19 @@ export default function useRunTask(dagId, runId, taskId) {
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('treeData');
+      onSuccess: (data) => {
+        const { message, status } = data;
+        if (message) {
+          toast({
+            description: message,
+            isClosable: true,
+            status: status || 'info',
+          });
+        }
+        if (!status || status !== 'error') {
+          queryClient.invalidateQueries('treeData');
+          startRefresh();
+        }
       },
     },
   );

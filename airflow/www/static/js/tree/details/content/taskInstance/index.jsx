@@ -40,7 +40,7 @@ import { finalStatesMap, getMetaValue } from '../../../../utils';
 import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
 import Time from '../../../Time';
-import useTreeData from '../../../useTreeData';
+import { useTreeData } from '../../../api';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');

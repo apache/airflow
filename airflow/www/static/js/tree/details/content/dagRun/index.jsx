@@ -34,7 +34,7 @@ import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
-import useTreeData from '../../../useTreeData';
+import { useTreeData } from '../../../api';
 
 const DagRun = ({ runId }) => {
   const { data: { dagRuns = [] } } = useTreeData();
