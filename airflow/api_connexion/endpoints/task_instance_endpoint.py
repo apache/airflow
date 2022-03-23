@@ -173,6 +173,7 @@ def get_mapped_task_instances(
     queue: Optional[List[str]] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    order_by: Optional[str] = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -212,8 +213,7 @@ def get_mapped_task_instances(
 
     # Add SLA miss
     query = (
-        query.order_by(TI.map_index)
-        .join(
+        query.join(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
@@ -225,6 +225,18 @@ def get_mapped_task_instances(
         .add_entity(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
+
+    if order_by:
+        if order_by == 'state':
+            query = query.order_by(TI.state.asc(), TI.map_index.asc())
+        elif order_by == '-state':
+            query = query.order_by(TI.state.desc(), TI.map_index.asc())
+        elif order_by == '-map_index':
+            query = query.order_by(TI.map_index.desc())
+        else:
+            raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
+    else:
+        query = query.order_by(TI.map_index.asc())
 
     task_instances = query.offset(offset).limit(limit).all()
     return task_instance_collection_schema.dump(

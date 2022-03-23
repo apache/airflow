@@ -85,6 +85,7 @@ class TestMappedTaskInstanceEndpoint:
 
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags={}):
         for dag_id in dags:
+            count = dags[dag_id]['success'] + dags[dag_id]['running']
             with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
                 task1 = BaseOperator(task_id="op1")
                 mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
@@ -97,12 +98,12 @@ class TestMappedTaskInstanceEndpoint:
                     task_id=task1.task_id,
                     run_id=dr.run_id,
                     map_index=-1,
-                    length=dags[dag_id],
+                    length=count,
                     keys=None,
                 )
             )
 
-            if dags[dag_id]:
+            if count:
                 # Remove the map_index=-1 TI when we're creating other TIs
                 session.query(TaskInstance).filter(
                     TaskInstance.dag_id == mapped.dag_id,
@@ -110,14 +111,25 @@ class TestMappedTaskInstanceEndpoint:
                     TaskInstance.run_id == dr.run_id,
                 ).delete()
 
-            for index in range(dags[dag_id]):
-                # Give the existing TIs a state to make sure we don't change them
+            index = 0
+            for i in range(dags[dag_id]['success']):
                 ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
                 setattr(ti, 'start_date', DEFAULT_DATETIME_1)
                 session.add(ti)
+                index += 1
+            for i in range(dags[dag_id]['failed']):
+                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.FAILED)
+                setattr(ti, 'start_date', DEFAULT_DATETIME_1)
+                session.add(ti)
+                index += 1
+            for i in range(dags[dag_id]['running']):
+                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.RUNNING)
+                setattr(ti, 'start_date', DEFAULT_DATETIME_1)
+                session.add(ti)
+                index += 1
             session.flush()
 
-            if dags[dag_id]:
+            if count:
                 mapped.expand_mapped_task(dr.run_id, session=session)
 
     @pytest.fixture
@@ -126,7 +138,11 @@ class TestMappedTaskInstanceEndpoint:
             dag_maker,
             session,
             dags={
-                'mapped_tis': 3,
+                'mapped_tis': {
+                    'success': 3,
+                    'failed': 0,
+                    'running': 0,
+                },
             },
         )
 
@@ -136,7 +152,11 @@ class TestMappedTaskInstanceEndpoint:
             dag_maker,
             session,
             dags={
-                'mapped_tis': 1,
+                'mapped_tis': {
+                    'success': 1,
+                    'failed': 0,
+                    'running': 0,
+                },
             },
         )
 
@@ -146,7 +166,11 @@ class TestMappedTaskInstanceEndpoint:
             dag_maker,
             session,
             dags={
-                'mapped_tis': 110,
+                'mapped_tis': {
+                    'success': 5,
+                    'failed': 20,
+                    'running': 85,
+                },
             },
         )
 
@@ -156,7 +180,11 @@ class TestMappedTaskInstanceEndpoint:
             dag_maker,
             session,
             dags={
-                'mapped_tis': 0,
+                'mapped_tis': {
+                    'success': 0,
+                    'failed': 0,
+                    'running': 0,
+                },
             },
         )
 
@@ -269,6 +297,53 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.json["total_entries"] == 110
         assert len(response.json["task_instances"]) == 10
         assert list(range(4, 14)) == [ti['map_index'] for ti in response.json["task_instances"]]
+
+    @provide_session
+    def test_mapped_task_instances_order(self, one_task_with_many_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 110
+        assert len(response.json["task_instances"]) == 100
+        assert list(range(0, 100)) == [ti['map_index'] for ti in response.json["task_instances"]]
+
+    @provide_session
+    def test_mapped_task_instances_reverse_order(self, one_task_with_many_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            "?order_by=-map_index",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 110
+        assert len(response.json["task_instances"]) == 100
+        assert list(range(109, 9, -1)) == [ti['map_index'] for ti in response.json["task_instances"]]
+
+    @provide_session
+    def test_mapped_task_instances_state_order(self, one_task_with_many_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            "?order_by=-state",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 110
+        assert len(response.json["task_instances"]) == 100
+        assert list(range(0, 5)) + list(range(25, 110)) + list(range(5, 15)) == [
+            ti['map_index'] for ti in response.json["task_instances"]
+        ]
+
+    @provide_session
+    def test_mapped_task_instances_invalid_order(self, one_task_with_many_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            "?order_by=unsupported",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "Ordering with 'unsupported' is not supported"
 
     @provide_session
     def test_mapped_task_instances_with_date(self, one_task_with_mapped_tis, session):
