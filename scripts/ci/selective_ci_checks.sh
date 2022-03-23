@@ -127,7 +127,7 @@ function output_all_basic_variables() {
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-exclude '[{ "python-version": "3.7" }]'
         initialization::ga_output mssql-exclude '[{ "python-version": "3.8" }]'
-        initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output mysql-exclude '[{ "python-version": "3.10" }]'
         initialization::ga_output sqlite-exclude '[{ "python-version": "3.9" }]'
     else
         initialization::ga_output postgres-exclude '[]'

@@ -18,6 +18,7 @@
 ################################
 ## Airflow Run Migrations
 #################################
+{{- if .Values.migrateDatabaseJob.enabled }}
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
@@ -112,4 +113,5 @@ spec:
             name: {{ template "airflow_config" . }}
 {{- if .Values.migrateDatabaseJob.extraVolumes }}
 {{ toYaml .Values.migrateDatabaseJob.extraVolumes | nindent 8 }}
+{{- end }}
 {{- end }}

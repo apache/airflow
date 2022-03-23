@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence,
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.api_core.retry import Retry
+from google.cloud.bigquery import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -2052,6 +2054,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :param result_retry: How to retry the `result` call that retrieves rows
+    :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     """
 
     template_fields: Sequence[str] = (
@@ -2075,6 +2079,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         cancel_on_kill: bool = True,
+        result_retry: Retry = DEFAULT_RETRY,
+        result_timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2088,6 +2094,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.reattach_states: Set[str] = reattach_states or set()
         self.impersonation_chain = impersonation_chain
         self.cancel_on_kill = cancel_on_kill
+        self.result_retry = result_retry
+        self.result_timeout = result_timeout
         self.hook: Optional[BigQueryHook] = None
 
     def prepare_template(self) -> None:
@@ -2107,6 +2115,8 @@ class BigQueryInsertJobOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             job_id=job_id,
+            timeout=self.result_timeout,
+            retry=self.result_retry,
         )
 
     @staticmethod
@@ -2151,7 +2161,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
-                job.result()
+                job.result(timeout=self.result_timeout, retry=self.result_retry)
                 self._handle_job_error(job)
             else:
                 # Same job configuration so we need force_rerun

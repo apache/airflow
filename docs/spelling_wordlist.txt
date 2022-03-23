@@ -309,6 +309,7 @@ ProductSearchClient
 Protobuf
 PublisherClient
 Pubsub
+PutObject
 Py
 PyPI
 Pyarrow

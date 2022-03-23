@@ -1874,7 +1874,7 @@
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated.
-      version_added: 2.3.0
+      version_added: 2.2.5
       type: integer
       example: ~
       default: "60"
