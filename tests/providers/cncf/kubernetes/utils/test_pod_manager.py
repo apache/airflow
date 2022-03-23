@@ -305,8 +305,8 @@ class TestPodManager:
         self.mock_kube_client.read_namespaced_pod_log.return_value = [b'2021-01-01 hi']
         since_time = DateTime(2020, 1, 1, tzinfo=Timezone('UTC'))
         self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', since_time=since_time)
-        call_kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0].kwargs
-        assert call_kwargs['since_seconds'] == 5
+        args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
+        assert kwargs['since_seconds'] == 5
 
     @pytest.mark.parametrize('follow, is_running_calls, exp_running', [(True, 3, False), (False, 1, True)])
     @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
