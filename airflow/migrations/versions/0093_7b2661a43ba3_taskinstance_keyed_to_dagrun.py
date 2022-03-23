@@ -92,8 +92,8 @@ def upgrade():
                 'run_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type, nullable=False
             )
             batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
-            batch_op.drop_constraint('dag_run_dag_id_execution_date_key', 'unique')
-            batch_op.drop_constraint('dag_run_dag_id_run_id_key', 'unique')
+            batch_op.drop_constraint('dag_id', 'unique')
+            batch_op.drop_constraint('dag_id_2', 'unique')
             batch_op.create_unique_constraint(
                 'dag_run_dag_id_execution_date_key', ['dag_id', 'execution_date']
             )
