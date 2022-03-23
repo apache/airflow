@@ -206,6 +206,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``      Checks if LoggingMixin is properly imported
 ------------------------------------ ---------------------------------------------------------------- ------------
+``inline-dockerfile-scripts``          Inline Dockerfile and Dockerfile.ci scripts
+------------------------------------ ---------------------------------------------------------------- ------------
 ``insert-license``                     Adds licenses for most file types
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``isort``                              Sorts imports in python files

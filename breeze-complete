@@ -116,6 +116,7 @@ helm-lint
 identity
 incorrect-use-of-LoggingMixin
 insert-license
+inline-dockerfile-scripts
 isort
 json-schema
 language-matters

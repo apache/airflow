@@ -136,9 +136,7 @@ def black_mode():
         line_length=bool(config.get('line_length', Mode.line_length)),
         is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
         string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get('experimental_string_processing', Mode.experimental_string_processing)
-        ),
+        preview=bool(config.get('preview', Mode.preview)),
     )
 
 

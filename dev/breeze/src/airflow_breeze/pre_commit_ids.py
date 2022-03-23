@@ -58,6 +58,7 @@ PRE_COMMIT_LIST = [
     'helm-lint',
     'identity',
     'incorrect-use-of-LoggingMixin',
+    'inline-dockerfile-scripts',
     'insert-license',
     'isort',
     'json-schema',

@@ -188,7 +188,6 @@ labelPRBasedOnFilePath:
   area:production-image:
     - Dockerfile
     - docs/docker-stack/**/*
-    - scripts/in_container/prod/*
     - scripts/ci/libraries/_verify_image.sh
     - docker_tests/**/*
 

@@ -34,6 +34,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
 
+    if [[ ! -d /docker-context-files ]]; then
+        echo
+        echo "${COLOR_RED}You must provide a folder via --build-arg DOCKER_CONTEXT_FILES=<FOLDER> and you missed it!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
     # shellcheck disable=SC2206
     local pip_flags=(
         # Don't quote this -- if it is empty we don't want it to create an

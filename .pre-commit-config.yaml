@@ -572,7 +572,7 @@ repos:
           - --max-length=70
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.1.0']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -696,6 +696,13 @@ repos:
         language: python
         pass_filenames: false
         files: ^chart/values\.schema\.json$
+        require_serial: true
+      - id: inline-dockerfile-scripts
+        name: Inline Dockerfile and Dockerfile.ci scripts
+        entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
+        language: python
+        pass_filenames: false
+        files: ^Dockerfile$|^Dockerfile.ci|scripts/ci/docker/.*$
         require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui

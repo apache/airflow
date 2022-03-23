@@ -311,8 +311,9 @@ Here just a few examples are presented which should give you general understandi
 This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
-It is recommended to build images with ``DOCKER_BUILDKIT=1`` variable
-(Breeze sets ``DOCKER_BUILDKIT=1`` variable automatically).
+As of Airflow 2.3.0, it is required to build images with ``DOCKER_BUILDKIT=1`` variable
+(Breeze sets ``DOCKER_BUILDKIT=1`` variable automatically) or via ``docker buildx build`` command if
+you have ``buildx`` plugin installed.
 
 .. code-block:: bash
 
@@ -543,7 +544,7 @@ Running the CI image
 --------------------
 
 The entrypoint in the CI image contains all the initialisation needed for tests to be immediately executed.
-It is copied from ``scripts/in_container/entrypoint_ci.sh``.
+It is copied from ``scripts/docker/entrypoint_ci.sh``.
 
 The default behaviour is that you are dropped into bash shell. However if RUN_TESTS variable is
 set to "true", then tests passed as arguments are executed
