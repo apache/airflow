@@ -16,9 +16,10 @@
 # under the License.
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
+from airflow.utils.trigger_rule import TriggerRule
 
 
-@task(trigger_rule="one_failed", retries=0)
+@task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
 def watcher():
     """Watcher task raises an AirflowException and is used to 'watch' tasks for failures
     and propagates fail status to the whole DAG Run"""

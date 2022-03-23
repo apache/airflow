@@ -24,7 +24,7 @@ from rich.console import Console
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command [FILE] ..."
+        f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
 
@@ -51,27 +51,27 @@ def _check_file(file: Path):
                 f"but does not use it properly![/]\n\n"
                 "[yellow]Make sure you have:[/]\n\n"
                 f"        {WATCHER_APPEND_INSTRUCTION}\n\n"
-                "[yellow]as last instruction in your example DAG.[/]\n"
+                "[yellow]as the last instruction in your example DAG.[/]\n"
             )
         else:
             operator_leftshift_index = content.find("<<", index + len(WATCHER_APPEND_INSTRUCTION))
             operator_rightshift_index = content.find(">>", index + len(WATCHER_APPEND_INSTRUCTION))
             if operator_leftshift_index != -1 or operator_rightshift_index != -1:
                 errors.append(
-                    f"[red]In the  example {file} "
-                    f"watcher is not last instruction in your DAG (there are << "
-                    f"or >> operators after it)![/]\n\n"
+                    f"[red]In the example {file} "
+                    f"watcher is not the last instruction in your DAG "
+                    f"(there are << or >> operators after it)![/]\n\n"
                     "[yellow]Make sure you have:[/]\n"
                     f"        {WATCHER_APPEND_INSTRUCTION}\n\n"
-                    "[yellow]as last instruction in your example DAG.[/]\n"
+                    "[yellow]as the last instruction in your example DAG.[/]\n"
                 )
-        if PYTEST_FUNCTION not in content:
-            errors.append(
-                f"[yellow]The  example {file} missed the pytest function at the end.[/]\n\n"
-                "All example tests should have this function added:\n\n" + PYTEST_FUNCTION + "\n\n"
-                "[yellow]Automatically adding it now!\n"
-            )
-            file.write_text(content + "\n" + PYTEST_FUNCTION)
+    if PYTEST_FUNCTION not in content:
+        errors.append(
+            f"[yellow]The example {file} missed the pytest function at the end.[/]\n\n"
+            "All example tests should have this function added:\n\n" + PYTEST_FUNCTION + "\n\n"
+            "[yellow]Automatically adding it now![/]\n"
+        )
+        file.write_text(content + "\n" + PYTEST_FUNCTION)
 
 
 if __name__ == '__main__':

@@ -2292,7 +2292,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  build-providers-dependencies chart-schema-lint capitalized-breeze
                  changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-xml check-watcher-in-examples
+                 check-integrations check-merge-conflict check-xml check-system-tests
                  daysago-import-check debug-statements detect-private-key docstring-params doctoc
                  dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt
                  forbidden-xcom-get-value codespell forbid-tabs helm-lint identity

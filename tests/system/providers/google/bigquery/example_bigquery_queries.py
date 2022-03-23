@@ -36,7 +36,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryValueCheckOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.utils.watcher import watcher
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
@@ -225,6 +224,10 @@ for index, location in enumerate(locations, 1):
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
 
+        from tests.system.utils.watcher import watcher
+
+        # This test needs watcher in order to properly mark success/failure
+        # when "tearDown" task with trigger rule is part of the DAG
         list(dag.tasks) >> watcher()
 
     globals()[DAG_ID] = dag
