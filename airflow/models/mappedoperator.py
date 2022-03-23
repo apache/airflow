@@ -451,12 +451,8 @@ class MappedOperator(AbstractOperator):
 
     def unmap(self) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping."""
-        dag = self.dag
-        if not dag:
-            raise RuntimeError("Cannot unmap a task without a DAG")
-        dag._remove_task(self.task_id)
         if isinstance(self.operator_class, type):
-            return self.operator_class(**self._get_unmap_kwargs())
+            return self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
 
         # After a mapped operator is serialized, there's no real way to actually
         # unmap it since we've lost access to the underlying operator class.
@@ -464,7 +460,7 @@ class MappedOperator(AbstractOperator):
         # mapped operator to a new SerializedBaseOperator instance.
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-        op = SerializedBaseOperator(task_id=self.task_id)
+        op = SerializedBaseOperator(task_id=self.task_id, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         return op
 
