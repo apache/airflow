@@ -146,6 +146,10 @@ class PsrpOperator(BaseOperator):
         if ps.had_errors:
             raise AirflowException("Process failed")
 
+        rc = ps.runspace_pool.host.rc
+        if rc:
+            raise AirflowException("Process exited with non-zero status code: %d", rc)
+
         if not self.do_xcom_push:
             return None
 
