@@ -51,6 +51,8 @@ integrations:
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
     logo: /integration-logos/aws/AWS-CloudFormation_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/cloudformation.rst
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
