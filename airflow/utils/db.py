@@ -25,7 +25,7 @@ from tempfile import gettempdir
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
 
 from bcrypt import warnings
-from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy import Table, column, exc, func, inspect, literal, or_, table, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -843,6 +843,72 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
+def reflect_tables(models, session):
+    """
+    When running checks prior to upgrades, we use reflection to determine current state of the
+    database.
+    This function gets the current state of each table in the set of models provided and returns
+    a SqlAlchemy metadata object containing them.
+    """
+
+    import sqlalchemy.schema
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+
+    for model in models:
+        try:
+            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
+        except exc.InvalidRequestError:
+            continue
+    return metadata
+
+
+def check_task_fail_for_duplicates(session):
+    """Check that there are no duplicates in the task_fail table before creating FK"""
+    metadata = reflect_tables([TaskFail], session)
+    task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
+    if task_fail is None:  # table not there
+        return
+    if "run_id" in task_fail.columns:  # upgrade already applied
+        return
+    yield from check_table_for_duplicates(
+        table_name=task_fail.name,
+        uniqueness=['dag_id', 'task_id', 'execution_date'],
+        session=session,
+    )
+
+
+def check_table_for_duplicates(table_name: str, uniqueness: List[str], session: Session) -> Iterable[str]:
+    """
+    Check table for duplicates, given a list of columns which define the uniqueness of the table.
+
+    Call from ``run_duplicates_checks``.
+
+    :param table_name: table name to check
+    :param uniqueness: uniqueness constraint to evaluate against
+    :param session:  session of the sqlalchemy
+    :rtype: str
+    """
+    table_obj = table(table_name, *[column(x) for x in uniqueness])
+    dupe_count = 0
+    try:
+        subquery = (
+            session.query(table_obj, func.count().label('dupe_count'))
+            .group_by(*[text(x) for x in uniqueness])
+            .having(func.count() > literal(1))
+            .subquery()
+        )
+        dupe_count = session.query(func.sum(subquery.c.dupe_count)).scalar()
+    except (exc.OperationalError, exc.ProgrammingError):
+        # fallback if tables hasn't been created yet
+        session.rollback()
+    if dupe_count:
+        yield (
+            f"Found {dupe_count} duplicate records in table {table_name}. You must de-dupe these "
+            f"records before upgrading.  The uniqueness constraint for this table is {uniqueness!r}"
+        )
+
+
 def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
@@ -979,13 +1045,20 @@ def _move_dangling_data_to_new_table(
 
 
 def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
+    """
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id`
+    in many tables.
+    Here we go through each table and look for records that can't be mapped to a dag run.
+    When we find such "dangling" rows we back them up in a special table and delete them
+    from the main table.
+    """
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
+    models_to_dagrun: List[Any] = [RenderedTaskInstanceFields, TaskInstance, TaskFail, TaskReschedule, XCom]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(
@@ -1018,6 +1091,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         if "run_id" in source_table.columns:
             continue
 
+        # find rows in source table which don't have a matching dag run
         source_to_dag_run_join_cond = and_(
             source_table.c.dag_id == dagrun_table.c.dag_id,
             source_table.c.execution_date == dagrun_table.c.execution_date,
@@ -1061,13 +1135,14 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :rtype: list[str]
     """
     check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
+        check_task_fail_for_duplicates,
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
         check_task_tables_without_matching_dagruns,
     )
     for check_fn in check_functions:
-        yield from check_fn(session)
+        yield from check_fn(session=session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
 
