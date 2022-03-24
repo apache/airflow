@@ -101,6 +101,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Dbt
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -647,6 +648,7 @@ dbapi
 dbexportcmd
 dbimportcmd
 dbs
+dbt
 dbtapquerycmd
 dbutils
 de
