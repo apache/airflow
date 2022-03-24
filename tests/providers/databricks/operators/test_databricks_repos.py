@@ -175,7 +175,8 @@ class TestDatabricksReposCreateOperator(unittest.TestCase):
         )
 
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, repo_path=repo_path)
+            op = DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, repo_path=repo_path)
+            op.execute(None)
 
         with pytest.raises(
             AirflowException, match="Only one of branch or tag should be provided, but not both"

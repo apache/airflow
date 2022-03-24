@@ -53,7 +53,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'git_url', 'tag', 'branch')
+    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch')
 
     __git_providers__ = {
         "github.com": "gitHub",
@@ -91,10 +91,6 @@ class DatabricksReposCreateOperator(BaseOperator):
                 )
         else:
             self.git_provider = git_provider
-        if repo_path is not None and not self.__repos_path_regexp__.match(repo_path):
-            raise AirflowException(
-                f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{repo_path}'"
-            )
         self.repo_path = repo_path
         if branch is not None and tag is not None:
             raise AirflowException("Only one of branch or tag should be provided, but not both")
@@ -131,13 +127,17 @@ class DatabricksReposCreateOperator(BaseOperator):
         :param context: context
         :return: Repo ID
         """
-        hook = self._get_hook()
         payload = {
             "url": self.git_url,
             "provider": self.git_provider,
         }
         if self.repo_path is not None:
+            if not self.__repos_path_regexp__.match(self.repo_path):
+                raise AirflowException(
+                    f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{self.repo_path}'"
+                )
             payload["path"] = self.repo_path
+        hook = self._get_hook()
         result = hook.create_repo(payload)
         repo_id = result["id"]
         # update repo if necessary
