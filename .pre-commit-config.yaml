@@ -311,17 +311,10 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
-      - id: forbidden-xcom-get-value
-        name: Check if XCom.get_value is used in backwards-compatible way
-        language: python
-        files: ^airflow/providers/.*\.py$
-        pass_filenames: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_xcom_get_value.py
-        additional_dependencies: ['rich']
         # This check might be removed when min-airflow-version in providers is 2.2
-      - id: check-ti-run-id-in-providers
-        name: Check that run_id is not accessed in providers
-        entry: ./scripts/ci/pre_commit/pre_commit_check_no_ti_run_id.py
+      - id: check-2-1-compatibility
+        name: Check that providers are 2.1 compatible.
+        entry: ./scripts/ci/pre_commit/pre_commit_check_2_1_compatibility.py
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$

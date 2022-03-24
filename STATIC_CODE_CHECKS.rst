@@ -150,6 +150,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``changelog-duplicates``               Checks for duplicate changelog entries
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-2-1-compatibility``            Check that providers are 2.1-compatible
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-apache-license``               Checks compatibility with Apache License requirements
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-builtin-literals``             Require literal syntax when initializing Python builtin types
@@ -163,8 +165,6 @@ require Breeze Docker images to be installed locally.
 ``check-integrations``                 Checks if integration list is synchronized in code
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
------------------------------------- ---------------------------------------------------------------- ------------
-``check-ti-run-id-in-providers``       Check that run_id is not accessed in providers
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -189,8 +189,6 @@ require Breeze Docker images to be installed locally.
 ``end-of-file-fixer``                  Makes sure that there is an empty line at the end.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``                Removes encoding header from python files
------------------------------------- ---------------------------------------------------------------- ------------
-``forbidden-xcom-get-value``           Check if XCom.get_value is used in backwards-compatible way
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``pyupgrade``                          Runs pyupgrade
 ------------------------------------ ---------------------------------------------------------------- ------------

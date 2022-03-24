@@ -90,6 +90,7 @@ build-providers-dependencies
 chart-schema-lint
 capitalized-breeze
 changelog-duplicates
+check-2-1-compatibility
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
@@ -97,7 +98,6 @@ check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
-check-ti-run-id-in-providers
 check-xml
 check-system-tests
 daysago-import-check
@@ -110,7 +110,6 @@ end-of-file-fixer
 fix-encoding-pragma
 flake8
 flynt
-forbidden-xcom-get-value
 codespell
 forbid-tabs
 helm-lint
