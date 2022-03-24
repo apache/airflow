@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.5](#airflow-225)
 - [Airflow 2.2.4](#airflow-224)
 - [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
@@ -86,8 +87,6 @@ https://developers.google.com/style/inclusive-documentation
 ### Minimum kubernetes version bumped from 3.0.0 to  21.7.0
 
 No change in behavior is expected.  This was necessary in order to take advantage of a [bugfix](https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4) concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some [workaround code](https://github.com/apache/airflow/pull/20759).
-
-### Deprecation: `Connection.extra` must be JSON-encoded dict
 
 ## Airflow 2.2.4
 
