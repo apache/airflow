@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime as dt
+import os
 
 import pytest
 
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagbag import DagBag
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.security import permissions
@@ -127,10 +129,13 @@ class TestMappedTaskInstanceEndpoint:
                 setattr(ti, 'start_date', DEFAULT_DATETIME_1)
                 session.add(ti)
                 index += 1
+
+            self.app.dag_bag = DagBag(os.devnull, include_examples=False)
+            self.app.dag_bag.dags = {dag_id: dag_maker.dag}  # type: ignore
+            self.app.dag_bag.sync_to_db()  # type: ignore
             session.flush()
 
-            if count:
-                mapped.expand_mapped_task(dr.run_id, session=session)
+            mapped.expand_mapped_task(dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):
@@ -187,6 +192,17 @@ class TestMappedTaskInstanceEndpoint:
                 },
             },
         )
+
+
+class TestNonExistent(TestMappedTaskInstanceEndpoint):
+    @provide_session
+    def test_non_existent_task_instance(self, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json['title'] == 'DAG mapped_tis not found'
 
 
 class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
@@ -425,11 +441,3 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
         assert len(response.json["task_instances"]) == 0
-
-    @provide_session
-    def test_invalid_task_instance(self, session):
-        response = self.client.get(
-            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-        assert response.status_code == 404

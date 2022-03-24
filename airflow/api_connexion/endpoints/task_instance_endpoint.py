@@ -182,22 +182,27 @@ def get_mapped_task_instances(
 
     base_query = (
         session.query(TI)
-        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .filter(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
     )
 
-    # Zero results without restrictions means no task
+    # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     if base_query.with_entities(func.count('*')).scalar() == 0:
-        print('**** no results')
-        error_message = f"Task id {task_id} not found"
-        raise NotFound(error_message)
-
-    # Restrict on map_index to filter out task that created mapped TIs
-    query = base_query.filter(TI.map_index >= 0)
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            error_message = f"DAG {dag_id} not found"
+            raise NotFound(error_message)
+        task = dag.get_task(task_id)
+        if not task:
+            error_message = f"Task id {task_id} not found"
+            raise NotFound(error_message)
+        if not task.is_mapped:
+            error_message = f"Task id {task_id} is not mapped"
+            raise NotFound(error_message)
 
     # Other search criteria
     query = _apply_range_filter(
-        query,
+        base_query,
         key=DR.execution_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
