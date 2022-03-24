@@ -525,7 +525,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
             docs-inventory-${{ hashFiles('constraints.txt') }}
             docs-inventory-
       - name: "Build docs"
-        run: ./scripts/ci/docs/ci_docs.sh
+        run: ./scripts/ci/docs/ci_docs.sh --package-filter apache-airflow --package-filter docker-stack
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
