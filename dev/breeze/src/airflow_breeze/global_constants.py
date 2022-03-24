@@ -32,7 +32,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = '3.7'
 DEFAULT_BACKEND = 'sqlite'
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10', '3.6']
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_STATIC_CHECKS = [
     "all",
