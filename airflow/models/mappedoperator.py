@@ -161,6 +161,7 @@ class OperatorPartial:
     """
 
     operator_class: Type["BaseOperator"]
+    user_supplied_task_id: str
     kwargs: Dict[str, Any]
 
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
@@ -197,6 +198,7 @@ class OperatorPartial:
 
         op = MappedOperator(
             operator_class=self.operator_class,
+            user_supplied_task_id=self.user_supplied_task_id,
             mapped_kwargs=mapped_kwargs,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
@@ -224,6 +226,7 @@ class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
     operator_class: Union[Type["BaseOperator"], str]
+    user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
 
@@ -434,7 +437,7 @@ class MappedOperator(AbstractOperator):
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
         return {
-            "task_id": self.task_id,
+            "task_id": self.user_supplied_task_id,
             "dag": self.dag,
             "task_group": self.task_group,
             "params": self.params,

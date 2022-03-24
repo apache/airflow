@@ -17,13 +17,11 @@
  * under the License.
  */
 import React from 'react';
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react-hooks';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import useTreeData from './useTreeData';
 
 /* global describe, test, expect, jest, beforeAll */
-
-global.autoRefreshInterval = 5;
 
 const pendingTreeData = {
   groups: {},
@@ -58,6 +56,7 @@ const QueryWrapper = ({ children }) => {
 
 describe('Test useTreeData hook', () => {
   beforeAll(() => {
+    global.autoRefreshInterval = 5;
     global.fetch = jest.fn();
   });
 
@@ -70,11 +69,11 @@ describe('Test useTreeData hook', () => {
     expect(typeof data === 'object').toBe(true);
     expect(data.dagRuns).toBeDefined();
     expect(data.dag_runs).toBeUndefined();
-    expect(isRefreshOn).toBe(true);
+    expect(isRefreshOn).toBe(false);
     expect(typeof onToggleRefresh).toBe('function');
   });
 
-  test('queued run should have refreshOn by default and then turn off when run failed', async () => {
+  test('turn on autorefresh for a queued run and then auto-turn off when run fails', async () => {
     // return a dag run of failed during refresh
     const mockFetch = jest
       .spyOn(global, 'fetch')
@@ -84,6 +83,12 @@ describe('Test useTreeData hook', () => {
     global.autoRefreshInterval = 0.1;
 
     const { result, waitFor } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
+
+    expect(result.current.isRefreshOn).toBe(false);
+
+    act(() => {
+      result.current.onToggleRefresh();
+    });
 
     expect(result.current.isRefreshOn).toBe(true);
 

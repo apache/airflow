@@ -211,7 +211,7 @@ Options:
                               after if specified)
 
   --updated-on-or-after TEXT  Date when the release was updated after
-  --python [3.7|3.8|3.9]      Python version used
+  --python [3.7|3.8|3.9,3.10]      Python version used
   --constraints-branch TEXT   Constraint branch to use to find newer
                               dependencies
 

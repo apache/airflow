@@ -164,6 +164,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-ti-run-id-in-providers``       Check that run_id is not accessed in providers
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``daysago-import-check``               Checks if daysago is properly imported
@@ -185,6 +187,8 @@ require Breeze Docker images to be installed locally.
 ``end-of-file-fixer``                  Makes sure that there is an empty line at the end.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``                Removes encoding header from python files
+------------------------------------ ---------------------------------------------------------------- ------------
+``forbidden-xcom-get-value``           Check if XCom.get_value is used in backwards-compatible way
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``pyupgrade``                          Runs pyupgrade
 ------------------------------------ ---------------------------------------------------------------- ------------

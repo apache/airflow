@@ -498,6 +498,52 @@ class TestConnection(unittest.TestCase):
         assert connection.port == uri_parts.port
         assert connection.schema == uri_parts.schema
 
+    @parameterized.expand(
+        [
+            ('{"extra": null}', None),
+            ('{"extra": "hi"}', 'hi'),
+            ('{"extra": {"yo": "hi"}}', '{"yo": "hi"}'),
+            ('{"extra": "{\\"yo\\": \\"hi\\"}"}', '{"yo": "hi"}'),
+        ]
+    )
+    def test_from_json_extra(self, extra, expected):
+        """json serialization should support extra stored as object _or_ as string"""
+        assert Connection.from_json(extra).extra == expected
+
+    @parameterized.expand(
+        [
+            ('{"conn_type": "abc-abc"}', 'abc_abc'),
+            ('{"conn_type": "abc_abc"}', 'abc_abc'),
+            ('{"conn_type": "postgresql"}', 'postgres'),
+        ]
+    )
+    def test_from_json_conn_type(self, val, expected):
+        """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
+        assert Connection.from_json(val).conn_type == expected
+
+    @parameterized.expand(
+        [
+            ('{"port": 1}', 1),
+            ('{"port": "1"}', 1),
+            ('{"port": null}', None),
+        ]
+    )
+    def test_from_json_port(self, val, expected):
+        """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
+        assert Connection.from_json(val).port == expected
+
+    @parameterized.expand(
+        [
+            ('pass :/!@#$%^&*(){}"', 'pass :/!@#$%^&*(){}"'),  # these are the same
+            (None, None),
+            ('', None),  # this is a consequence of the password getter
+        ]
+    )
+    def test_from_json_special_characters(self, val, expected):
+        """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
+        json_val = json.dumps(dict(password=val))
+        assert Connection.from_json(json_val).password == expected
+
     @mock.patch.dict(
         'os.environ',
         {

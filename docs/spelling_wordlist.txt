@@ -98,6 +98,7 @@ Dataflow
 Dataframe
 Datalake
 Datanodes
+Dataplex
 Dataprep
 Dataproc
 Dataset
@@ -308,6 +309,7 @@ ProductSearchClient
 Protobuf
 PublisherClient
 Pubsub
+PutObject
 Py
 PyPI
 Pyarrow
@@ -442,6 +444,7 @@ Zsh
 Zymergen
 abc
 accessor
+accountmaking
 aci
 ack
 ackIds
@@ -666,6 +669,7 @@ dataflow
 dataframe
 dataframes
 datapipe
+dataplex
 datapoint
 dataproc
 dataset

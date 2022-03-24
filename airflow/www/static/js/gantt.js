@@ -204,7 +204,8 @@ d3.gantt = () => {
       .on('mouseover', tip.show)
       .on('mouseout', tip.hide)
       .on('click', (d) => {
-        callModal(d.task_id, d.execution_date, d.extraLinks, undefined, undefined, d.run_id);
+        // eslint-disable-next-line max-len
+        callModal(d.task_id, d.execution_date, d.extraLinks, undefined, undefined, d.run_id, d.map_index);
       })
       .attr('class', (d) => d.state || 'null')
       .attr('y', 0)

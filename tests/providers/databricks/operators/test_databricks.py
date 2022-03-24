@@ -224,7 +224,10 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -257,7 +260,10 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -297,7 +303,10 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -322,7 +331,10 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -445,7 +457,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         )
 
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -475,7 +490,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -513,7 +531,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.run_now.assert_called_once_with(expected)
@@ -540,7 +561,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.run_now.assert_called_once_with(expected)
@@ -582,7 +606,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         )
 
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
         db_mock.run_now.assert_called_once_with(expected)

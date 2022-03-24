@@ -22,7 +22,8 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
-  - 3.1.0
+  - 3.2.0
+  - 3.1.1
   - 3.0.0
   - 2.6.0
   - 2.5.0
@@ -174,6 +175,8 @@ integrations:
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
     logo: /integration-logos/aws/AWS-Glue_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/glue.rst
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
@@ -463,7 +466,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/imap_attachment_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/imap_attachment_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.imap_attachment_to_s3
   - source-integration-name: MongoDB
     target-integration-name: Amazon Simple Storage Service (S3)

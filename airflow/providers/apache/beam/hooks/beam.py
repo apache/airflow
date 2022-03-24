@@ -20,12 +20,13 @@ import json
 import os
 import select
 import shlex
+import shutil
 import subprocess
 import textwrap
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Optional
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -307,6 +308,13 @@ class BeamHook(BaseHook):
             source with GCSHook.
         :return:
         """
+        if shutil.which("go") is None:
+            raise AirflowConfigException(
+                "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
+                "installation guide. If you are running airflow in Docker see more info at "
+                "'https://airflow.apache.org/docs/docker-stack/recipes.html'."
+            )
+
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
 

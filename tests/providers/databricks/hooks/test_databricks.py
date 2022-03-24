@@ -24,6 +24,7 @@ import unittest
 from unittest import mock
 
 import pytest
+import tenacity
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
@@ -50,6 +51,11 @@ CLUSTER_ID = 'cluster_id'
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = 'job-name'
+DEFAULT_RETRY_NUMBER = 3
+DEFAULT_RETRY_ARGS = dict(
+    wait=tenacity.wait_none(),
+    stop=tenacity.stop_after_attempt(DEFAULT_RETRY_NUMBER),
+)
 HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
@@ -228,6 +234,8 @@ class TestDatabricksHook(unittest.TestCase):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
         for exception in [
             requests_exceptions.ConnectionError,
             requests_exceptions.SSLError,
@@ -236,25 +244,41 @@ class TestDatabricksHook(unittest.TestCase):
             requests_exceptions.HTTPError,
         ]:
             with mock.patch('airflow.providers.databricks.hooks.databricks_base.requests') as mock_requests:
-                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception)
 
                     with pytest.raises(AirflowException):
-                        self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                        hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    assert mock_errors.call_count == self.hook.retry_limit
+                    assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
+
+    def test_do_api_call_retries_with_too_many_requests(self):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
+        with mock.patch('airflow.providers.databricks.hooks.databricks_base.requests') as mock_requests:
+            with mock.patch.object(hook.log, 'error') as mock_errors:
+                setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=429)
+
+                with pytest.raises(AirflowException):
+                    hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+                assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
         setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=400)
 
-        with mock.patch.object(self.hook.log, 'error') as mock_errors:
+        with mock.patch.object(hook.log, 'error') as mock_errors:
             with pytest.raises(AirflowException):
-                self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
             mock_errors.assert_not_called()
 
     def test_do_api_call_succeeds_after_retrying(self):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
         for exception in [
             requests_exceptions.ConnectionError,
             requests_exceptions.SSLError,
@@ -263,20 +287,18 @@ class TestDatabricksHook(unittest.TestCase):
             requests_exceptions.HTTPError,
         ]:
             with mock.patch('airflow.providers.databricks.hooks.databricks_base.requests') as mock_requests:
-                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(
                         mock_requests, exception, error_count=2, response_content={'run_id': '1'}
                     )
 
-                    response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                    response = hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
                     assert mock_errors.call_count == 2
                     assert response == {'run_id': '1'}
 
-    @mock.patch('airflow.providers.databricks.hooks.databricks_base.sleep')
-    def test_do_api_call_waits_between_retries(self, mock_sleep):
-        retry_delay = 5
-        self.hook = DatabricksHook(retry_delay=retry_delay)
+    def test_do_api_call_custom_retry(self):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
         for exception in [
             requests_exceptions.ConnectionError,
@@ -286,16 +308,13 @@ class TestDatabricksHook(unittest.TestCase):
             requests_exceptions.HTTPError,
         ]:
             with mock.patch('airflow.providers.databricks.hooks.databricks_base.requests') as mock_requests:
-                with mock.patch.object(self.hook.log, 'error'):
-                    mock_sleep.reset_mock()
+                with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception)
 
                     with pytest.raises(AirflowException):
-                        self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                        hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    assert len(mock_sleep.mock_calls) == self.hook.retry_limit - 1
-                    calls = [mock.call(retry_delay), mock.call(retry_delay)]
-                    mock_sleep.assert_has_calls(calls)
+                    assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_do_api_call_patch(self, mock_requests):
@@ -796,7 +815,7 @@ class TestDatabricksHookAadToken(unittest.TestCase):
             }
         )
         session.commit()
-        self.hook = DatabricksHook()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_submit_run(self, mock_requests):
@@ -838,7 +857,7 @@ class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
             }
         )
         session.commit()
-        self.hook = DatabricksHook()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_submit_run(self, mock_requests):
@@ -883,7 +902,7 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
             }
         )
         session.commit()
-        self.hook = DatabricksHook()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_submit_run(self, mock_requests):
@@ -931,7 +950,7 @@ class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
             }
         )
         session.commit()
-        self.hook = DatabricksHook()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
     def test_submit_run(self, mock_requests):

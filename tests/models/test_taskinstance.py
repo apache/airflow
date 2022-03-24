@@ -19,6 +19,7 @@
 import datetime
 import operator
 import os
+import pathlib
 import signal
 import sys
 import urllib
@@ -71,6 +72,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -1017,15 +1019,14 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, create_task_instance):
-        """
-        Test xcom_pull, using different filtering methods.
-        """
-        ti1 = create_task_instance(
-            dag_id='test_xcom',
-            task_id='test_xcom_1',
-            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0),
-        )
+    def test_xcom_pull(self, dag_maker):
+        """Test xcom_pull, using different filtering methods."""
+        with dag_maker(dag_id="test_xcom") as dag:
+            task_1 = DummyOperator(task_id="test_xcom_1")
+            task_2 = DummyOperator(task_id="test_xcom_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key='foo', value='bar')
@@ -1034,9 +1035,9 @@ class TestTaskInstance:
         XCom.set(
             key='foo',
             value='baz',
-            task_id='test_xcom_2',
-            dag_id=ti1.dag_id,
-            execution_date=ti1.execution_date,
+            task_id=task_2.task_id,
+            dag_id=dag.dag_id,
+            execution_date=dagrun.execution_date,
         )
 
         # Pull with no arguments
@@ -2515,3 +2516,41 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
+        out = tmp_path.joinpath("out")
+        out.touch()
+
+        with dag_maker(dag_id="in_group", session=session) as dag:
+
+            @dag.task
+            def envs():
+                return [{"VAR1": "FOO"}, {"VAR1": "BAR"}]
+
+            @dag.task
+            def cmds():
+                return [f'echo "hello $VAR1" >> {out}', f'echo "goodbye $VAR1" >> {out}']
+
+            with TaskGroup(group_id="dynamic"):
+                BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
+                    env=envs(),
+                    bash_command=cmds(),
+                )
+
+        dag_run: DagRun = dag_maker.create_dagrun()
+        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+
+        for task_id in ["dynamic.envs", "dynamic.cmds"]:
+            ti = original_tis[task_id]
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        bash_task = dag.get_task("dynamic.bash")
+        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(bash_task)
+            ti.run()
+
+        with out.open() as f:
+            out_lines = [line.strip() for line in f]
+        assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]

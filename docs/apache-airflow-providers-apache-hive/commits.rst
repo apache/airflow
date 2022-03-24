@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.3.1
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
+=================================================================================================  ===========  ====================================================================
+
 2.3.0
 .....
 
-Latest change: 2022-03-01
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `563ecfa053 <https://github.com/apache/airflow/commit/563ecfa0539f5cbd42a715de0e25e563bd62c179>`_  2022-03-01   ``Add Python 3.9 support to Hive (#21893)``
 `f6e0ed0dcc <https://github.com/apache/airflow/commit/f6e0ed0dcc492636f6d1a3a413d5df2f9758f80d>`_  2022-02-15   ``Add how-to guide for hive operator (#21590)``
 `041babb060 <https://github.com/apache/airflow/commit/041babb0608a102fd9d83e77b7fab5d9831ec2b4>`_  2022-02-15   ``Fix mypy issues in 'example_twitter_dag' (#21571)``

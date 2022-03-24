@@ -2244,6 +2244,7 @@ class TaskInstance(Base, LoggingMixin):
             task_id=self.task_id,
             dag_id=self.dag_id,
             run_id=self.run_id,
+            map_index=self.map_index,
             session=session,
         )
 

@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+3.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.4.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 3.4.1
 .....
 
