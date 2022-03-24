@@ -166,8 +166,6 @@ jobs:
     needs: [build-info]
     strategy:
       matrix:
-        # We need to attempt to build all possible versions here because pull_request_target
-        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
     if: needs.build-info.outputs.image-build == 'true'
@@ -254,8 +252,6 @@ jobs:
     needs: [build-info, build-ci-images]
     strategy:
       matrix:
-        # We need to attempt to build all possible versions here because pull_request_target
-        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
     if: needs.build-info.outputs.image-build == 'true'
