@@ -1485,18 +1485,34 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def defer(
         self,
         *,
-        trigger: BaseTrigger,
-        method_name: str,
+        trigger: Optional[BaseTrigger] = None,
+        method_name: Optional[str] = None,
         kwargs: Optional[Dict[str, Any]] = None,
         timeout: Optional[timedelta] = None,
+        **defer_kwargs,
     ):
         """
-        Marks this Operator as being "deferred" - that is, suspending its
+        Marks this Operator as being "deferred" -- that is, suspending its
         execution until the provided trigger fires an event.
 
         This is achieved by raising a special exception (TaskDeferred)
         which is caught in the main _execute_task wrapper.
+
+        :param trigger: the trigger class to defer with
+        :param method_name: the operator method to resume to
+        :param kwargs: kwargs to pass back to operator when resuming at ``method_name``
+        :param timeout: max time to be in deferred state for this deferral
+        :param defer_kwargs: additional kwargs to use (only makes sense for subclasses that
+            override this ``defer`` method.
+        :return: None
+        :rtype: NoneType
         """
+        if not trigger or not method_name:
+            raise ValueError(
+                "Params ``trigger`` and ``method_name`` are required.  We only "
+                "make them optional in the base class so that subclasses can "
+                "implement more freely customize ``defer``."
+            )
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     @classmethod
