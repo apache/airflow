@@ -1,4 +1,4 @@
-Airflow 2.2.5, 2022-03-31
+Airflow 2.2.5, 2022-04-01
 -------------------------
 
 Bug Fixes
@@ -48,6 +48,7 @@ Misc
 """"
 - Add the new Airflow Trove Classifier to setup.cfg (#22241)
 - Rename ``to_delete`` to ``to_cancel`` in TriggerRunner (#20658)
+- Update FAB to latest released from 3.4 line (3.4.5) (#22596)
 
 Airflow 2.2.4, 2022-02-22
 -------------------------
