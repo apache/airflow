@@ -175,10 +175,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
+
+        # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
+        # don't need to implement (or direct users to use) method `get_conn_value` instead
         warnings.warn(
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Since VaultBackend implements `get_connection`, `get_conn_uri` "
-            "is not used.",
+            "in a future release.",
             PendingDeprecationWarning,
             stacklevel=2,
         )

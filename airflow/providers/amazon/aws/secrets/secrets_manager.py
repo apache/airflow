@@ -220,7 +220,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if _parse_version(airflow_version) >= (2, 3):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-                "in a future release.",
+                "in a future release.  Please use method `get_conn_value` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
