@@ -19,11 +19,15 @@
 
 import ast
 import json
+import re
 import sys
+import warnings
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
+
+from airflow.version import version as airflow_version
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -32,6 +36,11 @@ else:
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split('.'))
 
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -173,9 +182,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return connection
 
-    def get_conn_uri(self, conn_id: str):
+    def get_conn_value(self, conn_id: str):
         """
-        Get Connection Value
+        Get serialized representation of Connection
 
         :param conn_id: connection id
         """
@@ -198,6 +207,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 connection = self.get_uri_from_secret(secret)
 
             return connection
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id.
+
+        As of Airflow version 2.3.0 this method is deprecated.
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        if _parse_version(airflow_version) >= (2, 3):
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+                "in a future release.  Please use method `get_conn_value` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
