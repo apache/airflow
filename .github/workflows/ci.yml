@@ -18,14 +18,9 @@
 ---
 name: Tests
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 0 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
-  pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches: ['v[0-9]+-[0-9]+-test']
 permissions:
-  # All other permissions are set to none
   contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
@@ -47,7 +42,7 @@ env:
   # In builds from forks, this token is empty, and this is good because such builds do not even try
   # to push images to the registry.
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_PUSH_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
@@ -141,7 +136,11 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
+      cacheDirective: "pulled"
+      targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
+      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
@@ -245,6 +244,103 @@ jobs:
           github.event_name == 'push' &&
           steps.selective-checks.outputs.default-branch == 'main'
 
+  build-ci-images:
+    permissions:
+      packages: write
+    timeout-minutes: 80
+    name: "Build CI images ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    strategy:
+      matrix:
+        # We need to attempt to build all possible versions here because pull_request_target
+        # event is run for both main and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      outputs: ${{toJSON(needs.build-info.outputs) }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+      - name: "Retrieve DEFAULTS"
+        id: defaults
+        run: |
+          echo "DEFAULT_BRANCH=v2-2-test" >> $GITHUB_ENV
+          echo "DEFAULT_CONSTRAINTS_BRANCH=constraints-2-2" >> $GITHUB_ENV
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/free_space.sh
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_push_ci_images.sh
+
+  build-prod-images:
+    permissions:
+      packages: write
+    timeout-minutes: 80
+    name: "Build PROD images ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, build-ci-images]
+    strategy:
+      matrix:
+        # We need to attempt to build all possible versions here because pull_request_target
+        # event is run for both main and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Retrieve DEFAULTS"
+        id: defaults
+        run: |
+          echo "DEFAULT_BRANCH=v2-2-test" >> $GITHUB_ENV
+          echo "DEFAULT_CONSTRAINTS_BRANCH=constraints-2-2" >> $GITHUB_ENV
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/free_space.sh
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        # Pull images built in the previous step (so GITHUB_REGISTRY_PULL_IMAGE_TAG needs to be overridden)
+        env:
+          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_push_production_images.sh
+
   tests-ui:
     timeout-minutes: 10
     name: React UI tests
@@ -346,7 +442,7 @@ jobs:
     timeout-minutes: 120
     name: "Wait for CI images"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info]
+    needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -1045,7 +1141,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 120
     name: "Wait for PROD images"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
+    needs: [build-info, ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
