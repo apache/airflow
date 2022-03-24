@@ -68,7 +68,7 @@ with DAG(
     # [START howto_operator_databricks_repo_delete]
     # Example of deleting a Databricks Repo
     repo_path = "/Repos/user@domain.com/demo-repo"
-    delete_repo = DatabricksReposDeleteOperator(task_id='update_repo', repo_path=repo_path)
+    delete_repo = DatabricksReposDeleteOperator(task_id='delete_repo', repo_path=repo_path)
     # [END howto_operator_databricks_repo_delete]
 
     (create_repo >> update_repo >> notebook_task >> delete_repo)
