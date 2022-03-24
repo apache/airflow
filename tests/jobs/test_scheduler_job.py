@@ -636,8 +636,8 @@ class TestSchedulerJob:
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
 
         assert 2 == len(res)
-        assert res[0].key == ti3.key
-        assert res[1].key == ti2.key
+        assert ti3.key == res[0].key
+        assert ti2.key == res[1].key
 
         session.rollback()
 
