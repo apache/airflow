@@ -24,7 +24,7 @@ import time
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
 
-from bcrypt import warnings
+import warnings
 from sqlalchemy import Table, exc, func, inspect, or_, text
 from sqlalchemy.orm.session import Session
 
