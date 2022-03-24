@@ -692,7 +692,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         operation_state = hook.get_sdf_download_operation(operation_name=self.operation_name)
 
         self.log.info("Creating file for upload...")
-        media = hook.download_media(resource_name=operation_state)
+        media = hook.download_media(resource_name=operation_state["response"]["resourceName"])
 
         self.log.info("Sending file to the Google Cloud Storage...")
         with tempfile.NamedTemporaryFile() as temp_file:

@@ -85,6 +85,8 @@ It is transparent to the individual users. Existing DAGs don't need to be change
 enabling/disabling the smart sensor. Rotating centralized smart sensor tasks will not
 cause any user’s sensor task failure.
 
+*   Using callback arguments (``on_success_callback``, ``on_failure_callback``, and ``on_retry_callback``) on a sensor task is not compatible with the smart sensor mode. If any callback arguments are provided, the sensor task will not be executed when the smart sensor mode is enabled.
+
 Support new operators in the smart sensor service
 -------------------------------------------------
 

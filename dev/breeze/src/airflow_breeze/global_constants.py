@@ -128,8 +128,8 @@ ALLOWED_INTEGRATIONS = [
     'all',
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.23.3', 'v1.22.0', 'v1.21.1', 'v1.20.2']
-ALLOWED_KIND_VERSIONS = ['v0.11.1']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
+ALLOWED_KIND_VERSIONS = ['v0.12.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
@@ -282,8 +282,8 @@ ENABLED_SYSTEMS = ""
 
 
 CURRENT_KUBERNETES_MODES = ['image']
-CURRENT_KUBERNETES_VERSIONS = ['v1.23.3', 'v1.22.0', 'v1.21.1', 'v1.20.2']
-CURRENT_KIND_VERSIONS = ['v0.11.1']
+CURRENT_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
+CURRENT_KIND_VERSIONS = ['v0.12.0']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
