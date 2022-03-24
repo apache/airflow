@@ -183,7 +183,7 @@ function draw() {
         executionDate,
         task.extra_links,
         tryNumber,
-        task.task_tupe === 'SubDagOperator',
+        task.task_type === 'SubDagOperator',
         dagRunId,
         task.map_index,
       );
