@@ -1,10 +1,8 @@
-Airflow 2.2.5, 2022-03-28
+Airflow 2.2.5, 2022-03-31
 -------------------------
 
 Bug Fixes
 """""""""
-- Fix handling some None parameters in kubernetes 23 libs. (#21905)
-- Remove RefreshConfiguration workaround for K8s token refreshing (#20759)
 - Check and disallow a relative path for sqlite (#22530)
 - Fixed dask executor and tests (#22027)
 - Fix broken links to celery documentation (#22364)
@@ -48,7 +46,10 @@ Doc only changes
 
 Misc
 """"
+<<<<<<< HEAD
 - Update Kubernetes library version (#18797)
+=======
+>>>>>>> Add 2.2.5 to CHANGELOG.txt and UPDATING.md
 - Add the new Airflow Trove Classifier to setup.cfg (#22241)
 - Rename ``to_delete`` to ``to_cancel`` in TriggerRunner (#20658)
 
