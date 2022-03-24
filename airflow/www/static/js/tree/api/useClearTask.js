@@ -33,7 +33,7 @@ export default function useClearTask({
   return useMutation(
     ['clearTask', dagId, runId, taskId],
     ({
-      past, future, upstream, downstream, recursive, failed,
+      past, future, upstream, downstream, recursive, failed, confirmed,
     }) => {
       const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
@@ -41,7 +41,7 @@ export default function useClearTask({
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        confirmed: true,
+        confirmed,
         execution_date: executionDate,
         past,
         future,
@@ -49,11 +49,11 @@ export default function useClearTask({
         downstream,
         recursive,
         only_failed: failed,
-        return_as_json: true,
       }).toString();
 
       return axios.post('/clear', params, {
         headers: {
+          Accept: 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
@@ -61,11 +61,11 @@ export default function useClearTask({
     {
       onSuccess: (data) => {
         const { message, status } = data;
-        if (message) {
+        if (message && status === 'error') {
           toast({
             description: message,
             isClosable: true,
-            status: status || 'info',
+            status,
           });
         }
         if (!status || status !== 'error') {

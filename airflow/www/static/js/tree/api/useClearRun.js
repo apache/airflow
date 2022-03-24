@@ -51,7 +51,7 @@ export default function useClearRun(dagId, runId) {
           toast({
             description: message,
             isClosable: true,
-            status: status || 'info',
+            status,
           });
         }
         if (!status || status !== 'error') {

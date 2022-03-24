@@ -27,7 +27,7 @@ import {
 
 import ActionButton from './ActionButton';
 import ConfirmDialog from '../../ConfirmDialog';
-import { useClearTask, useConfirmClearTask } from '../../../../api';
+import { useClearTask } from '../../../../api';
 
 const Run = ({
   dagId,
@@ -59,24 +59,20 @@ const Run = ({
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { mutateAsync: clearTaskMutation, isLoading: isClearLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
-  });
-  const {
-    mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
-  } = useConfirmClearTask({
+  const { mutateAsync: clearTask, isLoading } = useClearTask({
     dagId, runId, taskId, executionDate,
   });
 
   const onClick = async () => {
     try {
-      const data = await confirmChangeMutation({
+      const data = await clearTask({
         past,
         future,
         upstream,
         downstream,
         recursive,
         failed,
+        confirmed: false,
       });
       setAffectedTasks(data);
       onOpen();
@@ -87,13 +83,14 @@ const Run = ({
 
   const onConfirm = async () => {
     try {
-      await clearTaskMutation({
+      await clearTask({
         past,
         future,
         upstream,
         downstream,
         recursive,
         failed,
+        confirmed: true,
       });
       setAffectedTasks([]);
       onClose();
@@ -115,7 +112,7 @@ const Run = ({
       <Button
         colorScheme="blue"
         onClick={onClick}
-        isLoading={isClearLoading || isConfirmLoading}
+        isLoading={isLoading}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear

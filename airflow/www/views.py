@@ -536,7 +536,10 @@ def redirect_or_json(origin, return_as_json, msg, status=""):
     if return_as_json:
         return {'status': status, 'message': msg}
     else:
-        flash(msg, status)
+        if status:
+            flash(msg, status)
+        else:
+            flash(msg)
         return redirect(origin)
 
 
@@ -1737,7 +1740,8 @@ class Airflow(AirflowBaseView):
         dag_run_id = request.form.get('dag_run_id')
         map_index = request.args.get('map_index', -1, type=int)
         origin = get_safe_url(request.form.get('origin'))
-        return_as_json = request.form.get('return_as_json') == "true"
+        header = request.headers['Accept']
+        return_as_json = header == 'application/json'
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
@@ -1988,6 +1992,10 @@ class Airflow(AirflowBaseView):
         if not tis:
             msg = "No task instances to clear"
             return redirect_or_json(origin, return_as_json, msg, status="error")
+        elif return_as_json:
+            details = [str(t) for t in tis]
+
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
         else:
             details = "\n".join(str(t) for t in tis)
 
@@ -1999,36 +2007,6 @@ class Airflow(AirflowBaseView):
             )
 
         return response
-
-    def _clear_dag_run(self, dag, start_date, end_date, recursive=False, confirmed=False, only_failed=False):
-        if confirmed:
-            count = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                include_parentdag=recursive,
-                only_failed=only_failed,
-            )
-            return {'status': 'success', 'message': f"{count} task instances have been cleared"}
-
-        try:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                include_parentdag=recursive,
-                only_failed=only_failed,
-                dry_run=True,
-            )
-        except AirflowException as ex:
-            return {'status': 'error', 'message': str(ex)}
-
-        if not tis:
-            return {'status': 'error', 'message': "No task instances to clear"}
-        else:
-            details = [str(t) for t in tis]
-
-            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     @expose('/clear', methods=['POST'])
     @auth.has_access(
@@ -2044,10 +2022,11 @@ class Airflow(AirflowBaseView):
         task_id = request.form.get('task_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
+        header = request.headers['Accept']
+        return_as_json = header == 'application/json'
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
-        return_as_json = request.form.get('return_as_json') == "true"
         confirmed = request.form.get('confirmed') == "true"
         upstream = request.form.get('upstream') == "true"
         downstream = request.form.get('downstream') == "true"
@@ -2094,7 +2073,9 @@ class Airflow(AirflowBaseView):
         start_date = dr.logical_date
         end_date = dr.logical_date
 
-        return self._clear_dag_run(dag, start_date, end_date, recursive=True, confirmed=confirmed)
+        return self._clear_dag_tis(
+            dag, start_date, end_date, recursive=True, confirmed=confirmed, return_as_json=True, origin=None
+        )
 
     @expose('/blocked', methods=['POST'])
     @auth.has_access(
@@ -2341,22 +2322,25 @@ class Airflow(AirflowBaseView):
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
         origin = args.get('origin')
+        header = request.headers['Accept']
+        return_as_json = header == 'application/json'
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
+        origin = origin or url_for('Airflow.index')
 
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
-            flash(f'DAG {dag_id} not found', "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f'DAG {dag_id} not found'
+            return redirect_or_json(origin, return_as_json, msg, status='error')
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
-            flash(f"Task {task_id} not found", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Task {task_id} not found"
+            return redirect_or_json(origin, return_as_json, msg, status='error')
 
         task.dag = dag
 
@@ -2364,13 +2348,13 @@ class Airflow(AirflowBaseView):
             'success',
             'failed',
         ):
-            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Invalid state {state}, must be either 'success' or 'failed'"
+            return redirect_or_json(origin, return_as_json, msg, status='error')
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
-            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
+            return redirect_or_json(origin, return_as_json, msg, status='error')
 
         from airflow.api.common.mark_tasks import set_state
 
@@ -2384,6 +2368,10 @@ class Airflow(AirflowBaseView):
             state=state,
             commit=False,
         )
+
+        if return_as_json:
+            details = [str(t) for t in to_be_altered]
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
         details = "\n".join(str(t) for t in to_be_altered)
 
@@ -2395,124 +2383,6 @@ class Airflow(AirflowBaseView):
         )
 
         return response
-
-    @expose('/object/confirm_state_change', methods=['GET'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-        ]
-    )
-    @action_logging
-    def confirm_state_change(self):
-        """Return list of tasks that will be affected by changing a task state."""
-        args = request.args
-        dag_id = args.get('dag_id')
-        task_id = args.get('task_id')
-        dag_run_id = args.get('dag_run_id')
-        state = args.get('state')
-        origin = args.get('origin')
-
-        upstream = to_boolean(args.get('upstream'))
-        downstream = to_boolean(args.get('downstream'))
-        future = to_boolean(args.get('future'))
-        past = to_boolean(args.get('past'))
-
-        dag = current_app.dag_bag.get_dag(dag_id)
-        if not dag:
-            flash(f'DAG {dag_id} not found', "error")
-            return redirect(origin or url_for('Airflow.index'))
-
-        try:
-            task = dag.get_task(task_id)
-        except airflow.exceptions.TaskNotFound:
-            flash(f"Task {task_id} not found", "error")
-            return redirect(origin or url_for('Airflow.index'))
-
-        task.dag = dag
-
-        if state not in (
-            'success',
-            'failed',
-        ):
-            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(origin or url_for('Airflow.index'))
-
-        latest_execution_date = dag.get_latest_execution_date()
-        if not latest_execution_date:
-            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(origin or url_for('Airflow.index'))
-
-        from airflow.api.common.mark_tasks import set_state
-
-        to_be_altered = set_state(
-            tasks=[task],
-            run_id=dag_run_id,
-            upstream=upstream,
-            downstream=downstream,
-            future=future,
-            past=past,
-            state=state,
-            commit=False,
-        )
-
-        details = [str(t) for t in to_be_altered]
-
-        return htmlsafe_json_dumps(details, separators=(',', ':'))
-
-    @expose('/object/confirm_clear', methods=['GET'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-        ]
-    )
-    @action_logging
-    def confirm_clear(self):
-        """Return list of tasks that will be affected by clearing a task."""
-        args = request.args
-        dag_id = args.get('dag_id')
-        task_id = args.get('task_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
-        origin = args.get('origin')
-
-        execution_date = args.get('execution_date')
-        execution_date = timezone.parse(execution_date)
-        upstream = args.get('upstream') == "true"
-        downstream = args.get('downstream') == "true"
-        future = args.get('future') == "true"
-        past = args.get('past') == "true"
-        recursive = args.get('recursive') == "true"
-        only_failed = args.get('only_failed') == "true"
-
-        dag = dag.partial_subset(
-            task_ids_or_regex=fr"^{task_id}$",
-            include_downstream=downstream,
-            include_upstream=upstream,
-        )
-        end_date = execution_date if not future else None
-        start_date = execution_date if not past else None
-
-        try:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                include_parentdag=recursive,
-                only_failed=only_failed,
-                dry_run=True,
-            )
-        except AirflowException as ex:
-            flash(str(ex), 'error')
-            return redirect(origin)
-
-        if not tis:
-            flash("No task instances to clear", 'error')
-            return redirect(origin)
-        else:
-            details = [str(t) for t in tis]
-
-        return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     @expose('/failed', methods=['POST'])
     @auth.has_access(

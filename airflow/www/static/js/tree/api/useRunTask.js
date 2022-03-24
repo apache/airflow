@@ -43,23 +43,23 @@ export default function useRunTask(dagId, runId, taskId) {
         ignore_all_deps: ignoreAllDeps,
         ignore_task_deps: ignoreTaskDeps,
         ignore_ti_state: ignoreTaskState,
-        return_as_json: true,
       }).toString();
 
       return axios.post('/run', params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
         },
       });
     },
     {
       onSuccess: (data) => {
         const { message, status } = data;
-        if (message) {
+        if (message && status === 'error') {
           toast({
             description: message,
             isClosable: true,
-            status: status || 'info',
+            status,
           });
         }
         if (!status || status !== 'error') {

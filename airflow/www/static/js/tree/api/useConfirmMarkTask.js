@@ -27,8 +27,8 @@ export default function useConfirmMarkTask({
     ['confirmStateChange', dagId, runId, taskId, state],
     ({
       past, future, upstream, downstream,
-    }) => {
-      const params = new URLSearchParams({
+    }) => axios.get('/confirm', {
+      params: {
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
@@ -37,9 +37,10 @@ export default function useConfirmMarkTask({
         upstream,
         downstream,
         state,
-      }).toString();
-
-      return axios.get(`/object/confirm_state_change?${params}`);
-    },
+      },
+      headers: {
+        Accept: 'application/json',
+      },
+    }),
   );
 }
