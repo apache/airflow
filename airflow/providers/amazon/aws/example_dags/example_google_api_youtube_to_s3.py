@@ -41,7 +41,9 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
-YOUTUBE_CHANNEL_ID = getenv("YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA")  # Youtube channel "Apache Airflow"
+YOUTUBE_CHANNEL_ID = getenv(
+    "YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA"
+)  # Youtube channel "Apache Airflow"
 YOUTUBE_VIDEO_PUBLISHED_AFTER = getenv("YOUTUBE_VIDEO_PUBLISHED_AFTER", "2019-09-25T00:00:00Z")
 YOUTUBE_VIDEO_PUBLISHED_BEFORE = getenv("YOUTUBE_VIDEO_PUBLISHED_BEFORE", "2019-10-18T00:00:00Z")
 S3_BUCKET_NAME = getenv("S3_DESTINATION_KEY", "s3://bucket-test")
