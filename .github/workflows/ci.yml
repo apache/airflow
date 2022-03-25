@@ -1402,7 +1402,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   push-buildx-cache-to-github-registry:
     permissions:
       packages: write
-    timeout-minutes: 10
+    timeout-minutes: 120
     name: "Push images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
