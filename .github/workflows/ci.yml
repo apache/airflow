@@ -21,7 +21,6 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
 permissions:
@@ -45,10 +44,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  # In builds from forks, this token is empty, and this is good because such builds do not even try
-  # to push images to the registry.
-  GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
@@ -127,6 +122,10 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
+      targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
+      waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
+      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
@@ -161,10 +160,14 @@ jobs:
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
       runCoverage: ${{ steps.set-run-coverage.outputs.runCoverage }}
+      inWorkflowBuild: ${{ steps.set-in-workflow-build.outputs.inWorkflowBuild }}
+      buildJobDescription: ${{ steps.set-in-workflow-build.outputs.buildJobDescription }}
+      mergeRun: ${{ steps.set-merge-run.outputs.merge-run }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -216,12 +219,174 @@ jobs:
       # Avoid having to specify the coverage logic every time.
       - name: Set run coverage
         id: set-run-coverage
-        run: |
-          echo "::set-output name=runCoverage::true"
+        run: echo "::set-output name=runCoverage::true"
         if: >
           github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push' &&
           steps.selective-checks.outputs.default-branch == 'main'
+      - name: Determine where to run image builds
+        id: set-in-workflow-build
+        # Run in-workflow build image when:
+        #  * direct push is run
+        #  * schedule build is run
+        #  * pull request is run not from fork
+        run: |
+          set -x
+          if [[  ${GITHUB_EVENT_NAME} == "push" || ${GITHUB_EVENT_NAME} == "push" || \
+                 ${{steps.source-run-info.outputs.sourceHeadRepo}} == "apache/airflow" ]]; then
+              echo "Images will be built in current workflow"
+              echo "::set-output name=inWorkflowBuild::true"
+              echo "::set-output name=buildJobDescription::Build"
+          else
+              echo "Images will be built in pull_request_target workflow"
+              echo "::set-output name=inWorkflowBuild::false"
+              echo "::set-output name=buildJobDescription::Skip Build (pull_request_target)"
+          fi
+      - name: Determine if this is merge run (or schedule)
+        id: set-merge-run
+        run: echo "::set-output name=merge-run::true"
+        # Only in Apache Airflow repo, when either schedule or push to main or any of v2*test branches
+        if: |
+          github.repository == 'apache/airflow' &&
+          (github.event_name == 'push' || github.event_name == 'schedule') &&
+          (
+              github.ref_name == 'main' ||
+              startsWith(github.ref_name, 'v2') && endsWith(github.ref_name, 'test')
+          )
+
+  build-ci-images:
+    permissions:
+      packages: write
+    timeout-minutes: 80
+    name: "${{needs.build-info.outputs.buildJobDescription}} CI image ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      outputs: ${{toJSON(needs.build-info.outputs) }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - run: python -m pip install --editable ./dev/breeze/
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Free space"
+        run: airflow-freespace
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: Breeze2 build-ci-image
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_push_ci_images.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+        if: failure() || cancelled()
+        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+
+  build-prod-images:
+    permissions:
+      packages: write
+    timeout-minutes: 80
+    name: "${{needs.build-info.outputs.buildJobDescription}} PROD image ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, build-ci-images]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - run: python -m pip install --editable ./dev/breeze/
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Free space"
+        run: airflow-freespace
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Pull CI image for PROD ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
+        env:
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_push_production_images.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
 
   run-new-breeze-tests:
     timeout-minutes: 10
@@ -367,12 +532,13 @@ jobs:
     timeout-minutes: 120
     name: "Wait for CI images"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info]
+    needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -415,6 +581,7 @@ jobs:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -580,6 +747,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -632,6 +800,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -682,6 +851,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: ""
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
@@ -749,6 +919,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -816,6 +987,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -882,6 +1054,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -944,6 +1117,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1003,6 +1177,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       TEST_TYPES: "Quarantined"
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1102,13 +1277,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 120
     name: "Wait for PROD images"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
+    needs: [build-info, ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1165,6 +1341,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
         needs.build-info.outputs.needs-helm-tests == 'true' ) &&
@@ -1226,6 +1403,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: >
       needs.build-info.outputs.run-kubernetes-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main'
@@ -1298,6 +1476,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
     if: needs.build-info.outputs.upgradeToNewerDependencies != 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1338,26 +1517,20 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
-      # only actually checkout and push it when we are in apache/airflow repository
+        if: needs.build-info.outputs.mergeRun == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v2
-        if: >
-          github.repository == 'apache/airflow' &&
-          (github.event_name == 'push' || github.event_name == 'schedule')
+        if: needs.build-info.outputs.mergeRun == 'true'
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
-        if: >
-          github.repository == 'apache/airflow' &&
-          (github.event_name == 'push' || github.event_name == 'schedule')
+        if: needs.build-info.outputs.mergeRun == 'true'
       - name: "Push changes"
         uses: ./.github/actions/github-push-action
-        if: >
-          github.repository == 'apache/airflow' &&
-          (github.event_name == 'push' || github.event_name == 'schedule')
+        if: needs.build-info.outputs.mergeRun == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
@@ -1377,10 +1550,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - build-info
       - constraints
       - docs
-    # Only run it for direct pushes and scheduled builds
-    if: >
-      (github.event_name == 'push' || github.event_name == 'schedule')
-      && github.repository == 'apache/airflow'
+    if: needs.build-info.outputs.mergeRun == 'true'
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -1393,6 +1563,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       # Rebuild images before push using the latest constraints (just pushed) without
       # eager upgrade. Do not wait for images, but rebuild them
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1411,12 +1583,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
         env:
           PREPARE_BUILDX_CACHE: "true"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
       - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
         env:
           VERSION_SUFFIX_FOR_PYPI: ".dev0"
           PREPARE_BUILDX_CACHE: "true"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"

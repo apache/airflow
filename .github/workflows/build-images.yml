@@ -18,11 +18,7 @@
 ---
 name: "Build Images"
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 0 * * *'
   pull_request_target:
-  push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
 permissions:
   # all other permissions are set to none
   contents: read
@@ -168,7 +164,9 @@ jobs:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
-    if: needs.build-info.outputs.image-build == 'true'
+    if: |
+      needs.build-info.outputs.image-build == 'true' &&
+      github.event.pull_request.repo.head.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
@@ -254,7 +252,9 @@ jobs:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
-    if: needs.build-info.outputs.image-build == 'true'
+    if: |
+      needs.build-info.outputs.image-build == 'true' &&
+      github.event.pull_request.repo.head.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
