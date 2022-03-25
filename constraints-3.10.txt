@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-24T09:17:44Z
+# This constraints file was automatically generated on 2022-03-25T09:10:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -166,9 +166,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.25
+boto3==1.21.26
 boto==2.49.0
-botocore==1.24.25
+botocore==1.24.26
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -201,7 +201,7 @@ cx-Oracle==8.3.0
 dask==2022.3.0
 databricks-sql-connector==1.0.1
 datadog==0.44.0
-db-dtypes==0.3.1
+db-dtypes==0.4.0
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -285,8 +285,8 @@ graphviz==0.19.1
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
-grpcio-status==1.45.0
-grpcio==1.45.0
+grpcio-status==1.44.0
+grpcio==1.44.0
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
@@ -329,7 +329,7 @@ lazy-object-proxy==1.7.1
 ldap3==2.9.1
 locket==0.2.1
 lockfile==0.12.2
-looker-sdk==22.2.1
+looker-sdk==22.4.0
 lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
