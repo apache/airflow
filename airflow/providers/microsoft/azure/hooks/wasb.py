@@ -25,7 +25,7 @@ login (=Storage account name) and password (=KEY), or login and SAS token in the
 field (see connection `wasb_default` for an example).
 
 """
-
+import warnings
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -66,18 +66,16 @@ class WasbHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__wasb__connection_string": PasswordField(
+            "connection_string": PasswordField(
                 lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__wasb__shared_access_key": PasswordField(
+            "shared_access_key": PasswordField(
                 lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__wasb__tenant_id": StringField(
+            "tenant_id": StringField(
                 lazy_gettext('Tenant Id (Active Directory Auth)'), widget=BS3TextFieldWidget()
             ),
-            "extra__wasb__sas_token": PasswordField(
-                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
-            ),
+            "sas_token": PasswordField(lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()),
         }
 
     @staticmethod
@@ -123,23 +121,25 @@ class WasbHook(BaseHook):
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host)
 
-        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
+        connection_string = self._get_field(extra, 'connection_string')
+        if connection_string:
             # connection_string auth takes priority
-            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
             return BlobServiceClient.from_connection_string(connection_string)
-        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
-            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
+
+        shared_access_key = self._get_field(extra, 'shared_access_key')
+        if shared_access_key:
             # using shared access key
             return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
-        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
+
+        tenant = self._get_field(extra, 'tenant_id')
+        if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
 
-        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
+        sas_token = self._get_field(extra, 'sas_token')
         if sas_token:
             if sas_token.startswith('https'):
                 return BlobServiceClient(account_url=sas_token)
@@ -442,3 +442,19 @@ class WasbHook(BaseHook):
             raise AirflowException(f'Blob(s) not found: {blob_name}')
 
         self.delete_blobs(container_name, *blobs_to_delete, **kwargs)
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

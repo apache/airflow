@@ -52,13 +52,11 @@ class AzureFileShareHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__azure_fileshare__sas_token": PasswordField(
-                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__azure_fileshare__connection_string": StringField(
+            "sas_token": PasswordField(lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()),
+            "connection_string": StringField(
                 lazy_gettext('Connection String (optional)'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_fileshare__protocol": StringField(
+            "protocol": StringField(
                 lazy_gettext('Account URL or token (optional)'), widget=BS3TextFieldWidget()
             ),
         }
@@ -83,34 +81,31 @@ class AzureFileShareHook(BaseHook):
 
     def get_conn(self) -> FileService:
         """Return the FileService object."""
-        prefix = "extra__azure_fileshare__"
         if self._conn:
             return self._conn
+
+        deprecated_prefix = "extra__azure_fileshare__"
         conn = self.get_connection(self.conn_id)
-        service_options_with_prefix = conn.extra_dejson
-        service_options = {}
-        for key, value in service_options_with_prefix.items():
+        service_options_raw = conn.extra_dejson
+        service_options_normalized = {}
+        for key, value in service_options_raw.items():
             # in case dedicated FileShareHook is used, the connection will use the extras from UI.
             # in case deprecated wasb hook is used, the old extras will work as well
-            if key.startswith(prefix):
-                if value != '':
-                    service_options[key[len(prefix) :]] = value
-                else:
-                    # warn if the deprecated wasb_connection is used
-                    warnings.warn(
-                        "You are using deprecated connection for AzureFileShareHook."
-                        " Please change it to `Azure FileShare`.",
-                        DeprecationWarning,
-                    )
-            else:
-                service_options[key] = value
-                # warn if the old non-prefixed value is used
+            if key.startswith(deprecated_prefix):
+                normalized_key = key.replace(deprecated_prefix, '')
                 warnings.warn(
-                    "You are using deprecated connection for AzureFileShareHook."
-                    " Please change it to `Azure FileShare`.",
+                    f"Extra param {key!r} in conn {self.conn_id!r} has been renamed to {normalized_key}. "
+                    f"Please update your connection prior to the next major release for this provider.",
                     DeprecationWarning,
                 )
-        self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
+
+                if value != '':
+                    service_options_normalized[normalized_key] = value
+            else:
+                service_options_normalized[key] = value
+        self._conn = FileService(
+            account_name=conn.login, account_key=conn.password, **service_options_normalized
+        )
         return self._conn
 
     def check_for_directory(self, share_name: str, directory_name: str, **kwargs) -> bool:

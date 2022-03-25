@@ -18,6 +18,7 @@
 
 """Connect to Asana."""
 import sys
+import warnings
 from typing import Any, Dict, Optional
 
 from asana import Client
@@ -43,8 +44,24 @@ class AsanaHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.connection = self.get_connection(conn_id)
         extras = self.connection.extra_dejson
-        self.workspace = extras.get("extra__asana__workspace") or None
-        self.project = extras.get("extra__asana__project") or None
+        self.workspace = self._get_field(extras, "workspace", None) or None
+        self.project = self._get_field(extras, "project", None) or None
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default
 
     def get_conn(self) -> Client:
         return self.client

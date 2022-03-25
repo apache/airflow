@@ -16,6 +16,7 @@
 # under the License.
 
 """GRPC Hook"""
+import warnings
 from typing import Any, Callable, Dict, Generator, List, Optional
 
 import grpc
@@ -58,15 +59,11 @@ class GrpcHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__grpc__auth_type": StringField(
-                lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()
-            ),
-            "extra__grpc__credential_pem_file": StringField(
+            "auth_type": StringField(lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget()),
+            "credential_pem_file": StringField(
                 lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
             ),
-            "extra__grpc__scopes": StringField(
-                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-            ),
+            "scopes": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
         }
 
     def __init__(
@@ -157,5 +154,15 @@ class GrpcHook(BaseHook):
         to the hook page, which allow admins to specify scopes, credential pem files, etc.
         They get formatted as shown below.
         """
-        full_field_name = f'extra__grpc__{field_name}'
-        return self.extras[full_field_name]
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        conn_id = getattr(self, self.conn_name_attr)
+        if long_f in self.extras:
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return self.extras[long_f]
+        elif field_name in self.extras:
+            return self.extras[field_name]
+        raise ValueError(f"Extra param {field_name!r} does not exist for connection {conn_id!r}.")

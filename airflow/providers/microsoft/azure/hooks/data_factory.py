@@ -29,6 +29,7 @@
 """
 import inspect
 import time
+import warnings
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 
@@ -65,19 +66,20 @@ def provide_targeted_factory(func: Callable) -> Callable:
     def wrapper(*args, **kwargs) -> Callable:
         bound_args = signature.bind(*args, **kwargs)
 
-        def bind_argument(arg, default_key):
+        def bind_argument(arg):
             # Check if arg was not included in the function signature or, if it is, the value is not provided.
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
-                self = args[0]
+                self: AzureDataFactoryHook = args[0]
                 conn = self.get_connection(self.conn_id)
-                default_value = conn.extra_dejson.get(default_key)
+                extras = conn.extra_dejson
+                default_value = self._get_field(extras, arg)
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
-                bound_args.arguments[arg] = conn.extra_dejson[default_key]
+                bound_args.arguments[arg] = default_value
 
-        bind_argument("resource_group_name", "extra__azure_data_factory__resource_group_name")
-        bind_argument("factory_name", "extra__azure_data_factory__factory_name")
+        bind_argument("resource_group_name")
+        bind_argument("factory_name")
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -129,18 +131,12 @@ class AzureDataFactoryHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_data_factory__tenantId": StringField(
-                lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_factory__resource_group_name": StringField(
+            "tenantId": StringField(lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()),
+            "resource_group_name": StringField(
                 lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_data_factory__factory_name": StringField(
-                lazy_gettext('Factory Name'), widget=BS3TextFieldWidget()
-            ),
+            "factory_name": StringField(lazy_gettext('Factory Name'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -164,11 +160,11 @@ class AzureDataFactoryHook(BaseHook):
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
+        extras = conn.extra_dejson
+        tenant = self._get_field(extras, 'tenantId')
 
-        try:
-            subscription_id = conn.extra_dejson['extra__azure_data_factory__subscriptionId']
-        except KeyError:
+        subscription_id = self._get_field('subscriptionId')
+        if not subscription_id:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 
         credential: Credentials
@@ -911,3 +907,19 @@ class AzureDataFactoryHook(BaseHook):
             return success
         except Exception as e:
             return False, str(e)
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

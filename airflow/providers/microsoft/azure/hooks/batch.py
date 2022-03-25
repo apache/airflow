@@ -17,6 +17,7 @@
 # under the License.
 #
 import time
+import warnings
 from datetime import timedelta
 from typing import Any, Dict, Optional, Set
 
@@ -50,9 +51,7 @@ class AzureBatchHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_batch__account_url": StringField(
-                lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()
-            ),
+            "account_url": StringField(lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -84,7 +83,8 @@ class AzureBatchHook(BaseHook):
         """
         conn = self._connection()
 
-        batch_account_url = conn.extra_dejson.get('extra__azure_batch__account_url')
+        extras = conn.extra_dejson
+        batch_account_url = self._get_field(extras, 'account_url')
         if not batch_account_url:
             raise AirflowException('Batch Account URL parameter is missing.')
 
@@ -362,3 +362,19 @@ class AzureBatchHook(BaseHook):
                 self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

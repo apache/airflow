@@ -725,16 +725,17 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
+    def _add_widgets(self, package_name: str, hook_class: BaseHook, widgets: Dict[str, Any]):
         for field_name, field in widgets.items():
             if not field_name.startswith("extra__"):
                 log.warning(
-                    "The field %s from class %s does not start with 'extra__'. Ignoring it.",
+                    f"Custom field %s from hook %s starts with 'extra__'. Please rename it.",
                     field_name,
                     hook_class.__name__,
                 )
                 continue
-            if field_name in self._connection_form_widgets:
+            field_name_with_prefix = f"extra__{hook_class.conn_type}__{field_name}"
+            if field_name_with_prefix in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
                     field_name,
@@ -742,7 +743,7 @@ class ProvidersManager(LoggingMixin):
                 )
                 # In case of inherited hooks this might be happening several times
                 continue
-            self._connection_form_widgets[field_name] = ConnectionFormWidgetInfo(
+            self._connection_form_widgets[field_name_with_prefix] = ConnectionFormWidgetInfo(
                 hook_class.__name__, package_name, field
             )
 

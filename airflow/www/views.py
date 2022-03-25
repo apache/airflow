@@ -3939,10 +3939,11 @@ class ConnectionModelView(AirflowModelView):
                     category="error",
                 )
 
+        extra_prefix = f"extra__{conn_type}__"
         custom_fields = {
-            key: form.data[key]
+            key.replace(extra_prefix, ''): form.data[key]
             for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
+            if key in form.data and key.startswith(extra_prefix)
         }
 
         extra.update(custom_fields)

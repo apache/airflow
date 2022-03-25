@@ -45,33 +45,33 @@ class YandexCloudBaseHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__yandexcloud__service_account_json": PasswordField(
+            "service_account_json": PasswordField(
                 lazy_gettext('Service account auth JSON'),
                 widget=BS3PasswordFieldWidget(),
                 description='Service account auth JSON. Looks like '
                 '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
                 'Will be used instead of OAuth token and SA JSON file path field if specified.',
             ),
-            "extra__yandexcloud__service_account_json_path": StringField(
+            "service_account_json_path": StringField(
                 lazy_gettext('Service account auth JSON file path'),
                 widget=BS3TextFieldWidget(),
                 description='Service account auth JSON file path. File content looks like '
                 '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
                 'Will be used instead of OAuth token if specified.',
             ),
-            "extra__yandexcloud__oauth": PasswordField(
+            "oauth": PasswordField(
                 lazy_gettext('OAuth Token'),
                 widget=BS3PasswordFieldWidget(),
                 description='User account OAuth token. '
                 'Either this or service account JSON must be specified.',
             ),
-            "extra__yandexcloud__folder_id": StringField(
+            "folder_id": StringField(
                 lazy_gettext('Default folder ID'),
                 widget=BS3TextFieldWidget(),
                 description='Optional. This folder will be used '
                 'to create all new clusters and nodes by default',
             ),
-            "extra__yandexcloud__public_ssh_key": StringField(
+            "public_ssh_key": StringField(
                 lazy_gettext('Public SSH key'),
                 widget=BS3TextFieldWidget(),
                 description='Optional. This key will be placed to all created Compute nodes'
@@ -146,8 +146,16 @@ class YandexCloudBaseHook(BaseHook):
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
         """Fetches a field from extras, and returns it."""
-        long_f = f'extra__yandexcloud__{field_name}'
+        long_f = f'extra__{self.conn_type}__{field_name}'
         if hasattr(self, 'extras') and long_f in self.extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
             return self.extras[long_f]
+        elif hasattr(self, 'extras') and field_name in self.extras:
+            return self.extras[field_name]
         else:
             return default

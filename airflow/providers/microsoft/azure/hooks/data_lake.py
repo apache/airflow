@@ -24,6 +24,7 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
+import warnings
 from typing import Any, Dict, Optional
 
 from azure.datalake.store import core, lib, multithread
@@ -56,10 +57,8 @@ class AzureDataLakeHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_data_lake__tenant": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_lake__account_name": StringField(
+            "tenant": StringField(lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()),
+            "account_name": StringField(
                 lazy_gettext('Azure DataLake Store Name'), widget=BS3TextFieldWidget()
             ),
         }
@@ -91,12 +90,9 @@ class AzureDataLakeHook(BaseHook):
         """Return a AzureDLFileSystem object."""
         if not self._conn:
             conn = self.get_connection(self.conn_id)
-            service_options = conn.extra_dejson
-            self.account_name = service_options.get('account_name') or service_options.get(
-                'extra__azure_data_lake__account_name'
-            )
-            tenant = service_options.get('tenant') or service_options.get('extra__azure_data_lake__tenant')
-
+            extras = conn.extra_dejson
+            self.account_name = self._get_field(extras, 'account_name')
+            tenant = self._get_field(extras, 'tenant')
             adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
             self._conn.connect()
@@ -225,3 +221,19 @@ class AzureDataLakeHook(BaseHook):
                 self.log.info("File %s not found", path)
             else:
                 raise AirflowException(f"File {path} not found")
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

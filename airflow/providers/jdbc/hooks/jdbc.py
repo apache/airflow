@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from typing import Any, Dict, Optional
 
 import jaydebeapi
@@ -47,10 +47,8 @@ class JdbcHook(DbApiHook):
         from wtforms import StringField
 
         return {
-            "extra__jdbc__drv_path": StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget()),
-            "extra__jdbc__drv_clsname": StringField(
-                lazy_gettext('Driver Class'), widget=BS3TextFieldWidget()
-            ),
+            "drv_path": StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget()),
+            "drv_clsname": StringField(lazy_gettext('Driver Class'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -66,8 +64,10 @@ class JdbcHook(DbApiHook):
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
-        jdbc_driver_loc: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_path')
-        jdbc_driver_name: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_clsname')
+
+        extras = conn.extra_dejson
+        jdbc_driver_loc: Optional[str] = self._get_field(extras, 'drv_path')
+        jdbc_driver_name: Optional[str] = self._get_field(extras, 'drv_clsname')
 
         conn = jaydebeapi.connect(
             jclassname=jdbc_driver_name,
@@ -97,3 +97,19 @@ class JdbcHook(DbApiHook):
         :rtype: bool
         """
         return conn.jconn.getAutoCommit()
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

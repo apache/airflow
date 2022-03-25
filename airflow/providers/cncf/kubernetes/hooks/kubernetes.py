@@ -76,19 +76,13 @@ class KubernetesHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "extra__kubernetes__in_cluster": BooleanField(lazy_gettext('In cluster configuration')),
-            "extra__kubernetes__kube_config_path": StringField(
-                lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()
-            ),
-            "extra__kubernetes__kube_config": StringField(
+            "in_cluster": BooleanField(lazy_gettext('In cluster configuration')),
+            "kube_config_path": StringField(lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()),
+            "kube_config": StringField(
                 lazy_gettext('Kube config (JSON format)'), widget=BS3TextFieldWidget()
             ),
-            "extra__kubernetes__namespace": StringField(
-                lazy_gettext('Namespace'), widget=BS3TextFieldWidget()
-            ),
-            "extra__kubernetes__cluster_context": StringField(
-                lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()
-            ),
+            "namespace": StringField(lazy_gettext('Namespace'), widget=BS3TextFieldWidget()),
+            "cluster_context": StringField(lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from typing import Any, Dict
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
@@ -47,12 +47,8 @@ class AzureBaseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure__tenantId": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure__subscriptionId": StringField(
-                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
-            ),
+            "tenantId": StringField(lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -93,19 +89,17 @@ class AzureBaseHook(BaseHook):
         :return: the authenticated client.
         """
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure__tenantId') or conn.extra_dejson.get('tenantId')
-        subscription_id = conn.extra_dejson.get('extra__azure__subscriptionId') or conn.extra_dejson.get(
-            'subscriptionId'
-        )
-
-        key_path = conn.extra_dejson.get('key_path')
+        extras = conn.extra_dejson
+        tenant = self._get_field(extras, 'tenantId')
+        subscription_id = self._get_field('subscriptionId')
+        key_path = self._get_field(extras, 'key_path')
         if key_path:
             if not key_path.endswith('.json'):
                 raise AirflowException('Unrecognised extension for key file.')
             self.log.info('Getting connection using a JSON key file.')
             return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
 
-        key_json = conn.extra_dejson.get('key_json')
+        key_json = self._get_field(extras, 'key_json')
         if key_json:
             self.log.info('Getting connection using a JSON config.')
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
@@ -117,3 +111,19 @@ class AzureBaseHook(BaseHook):
             ),
             subscription_id=subscription_id,
         )
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

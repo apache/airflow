@@ -175,22 +175,14 @@ class GoogleBaseHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "extra__google_cloud_platform__project": StringField(
-                lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__key_path": StringField(
-                lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__keyfile_dict": PasswordField(
-                lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__google_cloud_platform__scope": StringField(
-                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-            ),
-            "extra__google_cloud_platform__key_secret_name": StringField(
+            "project": StringField(lazy_gettext('Project Id'), widget=BS3TextFieldWidget()),
+            "key_path": StringField(lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()),
+            "keyfile_dict": PasswordField(lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()),
+            "scope": StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()),
+            "key_secret_name": StringField(
                 lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
             ),
-            "extra__google_cloud_platform__num_retries": IntegerField(
+            "num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),
                 validators=[NumberRange(min=0)],
                 widget=BS3TextFieldWidget(),
@@ -300,9 +292,17 @@ class GoogleBaseHook(BaseHook):
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        long_f = f'extra__google_cloud_platform__{f}'
+        long_f = f'extra__{self.conn_type}__{f}'
         if hasattr(self, 'extras') and long_f in self.extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {f}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
             return self.extras[long_f]
+        elif hasattr(self, 'extras') and f in self.extras:
+            return self.extras[f]
         else:
             return default
 

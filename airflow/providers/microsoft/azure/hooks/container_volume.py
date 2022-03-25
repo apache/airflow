@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from typing import Any, Dict
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
@@ -48,7 +49,7 @@ class AzureContainerVolumeHook(BaseHook):
         from wtforms import PasswordField
 
         return {
-            "extra__azure_container_volume__connection_string": PasswordField(
+            "connection_string": PasswordField(
                 lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
             ),
         }
@@ -72,10 +73,11 @@ class AzureContainerVolumeHook(BaseHook):
     def get_storagekey(self) -> str:
         """Get Azure File Volume storage key"""
         conn = self.get_connection(self.conn_id)
-        service_options = conn.extra_dejson
+        extras = conn.extra_dejson
 
-        if 'extra__azure_container_volume__connection_string' in service_options:
-            for keyvalue in service_options['extra__azure_container_volume__connection_string'].split(";"):
+        connection_string = self._get_field(extras, 'connection_string')
+        if connection_string:
+            for keyvalue in connection_string.split(";"):
                 key, value = keyvalue.split("=", 1)
                 if key == "AccountKey":
                     return value
@@ -94,3 +96,19 @@ class AzureContainerVolumeHook(BaseHook):
                 storage_account_key=self.get_storagekey(),
             ),
         )
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

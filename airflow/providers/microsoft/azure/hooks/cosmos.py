@@ -58,10 +58,10 @@ class AzureCosmosDBHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_cosmos__database_name": StringField(
+            "database_name": StringField(
                 lazy_gettext('Cosmos Database Name (optional)'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_cosmos__collection_name": StringField(
+            "collection_name": StringField(
                 lazy_gettext('Cosmos Collection Name (optional)'), widget=BS3TextFieldWidget()
             ),
         }

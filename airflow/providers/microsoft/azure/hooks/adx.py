@@ -25,6 +25,7 @@ This module contains Azure Data Explorer hook.
     KustoResponseDataSetV
     kusto
 """
+import warnings
 from typing import Any, Dict, Optional
 
 from azure.kusto.data.exceptions import KustoServiceError
@@ -82,16 +83,12 @@ class AzureDataExplorerHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__azure_data_explorer__tenant": StringField(
-                lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_explorer__auth_method": StringField(
-                lazy_gettext('Authentication Method'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_explorer__certificate": PasswordField(
+            "tenant": StringField(lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()),
+            "auth_method": StringField(lazy_gettext('Authentication Method'), widget=BS3TextFieldWidget()),
+            "certificate": PasswordField(
                 lazy_gettext('Application PEM Certificate'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__azure_data_explorer__thumbprint": PasswordField(
+            "thumbprint": PasswordField(
                 lazy_gettext('Application Certificate Thumbprint'), widget=BS3PasswordFieldWidget()
             ),
         }
@@ -129,22 +126,23 @@ class AzureDataExplorerHook(BaseHook):
 
         def get_required_param(name: str) -> str:
             """Extract required parameter value from connection, raise exception if not found"""
-            value = conn.extra_dejson.get(name)
+            extras = conn.extra_dejson
+            value = self._get_field(extras, name)
             if not value:
                 raise AirflowException(f'Required connection parameter is missing: `{name}`')
             return value
 
-        auth_method = get_required_param('extra__azure_data_explorer__auth_method')
+        auth_method = get_required_param('auth_method')
 
         if auth_method == 'AAD_APP':
-            tenant = get_required_param('extra__azure_data_explorer__tenant')
+            tenant = get_required_param('tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
                 cluster, conn.login, conn.password, tenant
             )
         elif auth_method == 'AAD_APP_CERT':
-            certificate = get_required_param('extra__azure_data_explorer__certificate')
-            thumbprint = get_required_param('extra__azure_data_explorer__thumbprint')
-            tenant = get_required_param('extra__azure_data_explorer__tenant')
+            certificate = get_required_param('certificate')
+            thumbprint = get_required_param('thumbprint')
+            tenant = get_required_param('tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
                 cluster,
                 conn.login,
@@ -153,7 +151,7 @@ class AzureDataExplorerHook(BaseHook):
                 tenant,
             )
         elif auth_method == 'AAD_CREDS':
-            tenant = get_required_param('extra__azure_data_explorer__tenant')
+            tenant = get_required_param('tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_user_password_authentication(
                 cluster, conn.login, conn.password, tenant
             )
@@ -184,3 +182,19 @@ class AzureDataExplorerHook(BaseHook):
             return self.connection.execute(database, query, properties=properties)
         except KustoServiceError as error:
             raise AirflowException(f'Error running Kusto query: {error}')
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default
