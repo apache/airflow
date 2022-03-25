@@ -166,6 +166,10 @@ class GoogleBaseHook(BaseHook):
     conn_type = 'google_cloud_platform'
     hook_name = 'Google Cloud'
 
+    __EXTRA_PREFIX_DEPRECATED = True
+    """This attribute lets the webserver know whether the hook has been updated to handle the
+     deprecation of the `extra__...` prefix in custom fields."""
+
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""

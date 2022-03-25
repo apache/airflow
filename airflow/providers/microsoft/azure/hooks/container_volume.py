@@ -37,6 +37,10 @@ class AzureContainerVolumeHook(BaseHook):
     conn_type = 'azure_container_volume'
     hook_name = 'Azure Container Volume'
 
+    __EXTRA_PREFIX_DEPRECATED = True
+    """This attribute lets the webserver know whether the hook has been updated to handle the
+     deprecation of the `extra__...` prefix in custom fields."""
+
     def __init__(self, azure_container_volume_conn_id: str = 'azure_container_volume_default') -> None:
         super().__init__()
         self.conn_id = azure_container_volume_conn_id

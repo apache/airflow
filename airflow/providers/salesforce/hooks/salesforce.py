@@ -71,6 +71,10 @@ class SalesforceHook(BaseHook):
     conn_type = "salesforce"
     hook_name = "Salesforce"
 
+    __EXTRA_PREFIX_DEPRECATED = True
+    """This attribute lets the webserver know whether the hook has been updated to handle the
+     deprecation of the `extra__...` prefix in custom fields."""
+
     def __init__(
         self,
         salesforce_conn_id: str = default_conn_name,

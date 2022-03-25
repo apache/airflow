@@ -76,7 +76,7 @@ def test_process_form_extras():
     cmv.process_form(form=mock_form, is_created=True)
 
     assert json.loads(mock_form.extra.data) == {
-        "extra__test__custom_field": "custom_field_val",
+        "custom_field": "custom_field_val",
         "param1": "param1_val",
     }
 
@@ -105,9 +105,9 @@ def test_process_form_extras():
     cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test3__custom_field": "custom_field_val3"}
+    assert json.loads(mock_form.extra.data) == {"custom_field": "custom_field_val3"}
 
-    # Testing parameters set in both extra and custom fields (cunnection updates).
+    # Testing parameters set in both extra and custom fields (connection updates).
     mock_form = mock.Mock()
     mock_form.data = {
         "conn_type": "test4",
@@ -120,7 +120,7 @@ def test_process_form_extras():
     cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+    assert json.loads(mock_form.extra.data) == {"custom_field": "custom_field_val4"}
 
 
 def test_duplicate_connection(admin_client):

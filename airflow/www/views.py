@@ -3915,6 +3915,7 @@ class ConnectionModelView(AirflowModelView):
         """Process form data."""
         conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
+        extra_prefix = f"extra__{conn_type}__"
 
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
         # The extra form field with all extra values (including custom fields) is in the form being processed
@@ -3923,9 +3924,10 @@ class ConnectionModelView(AirflowModelView):
 
         extra_field = form.data.get("extra")
 
+        raw_extra_dict = {}
         if extra_field:
             try:
-                extra.update(json.loads(extra_field))
+                raw_extra_dict = json.loads(extra_field)
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -3939,12 +3941,56 @@ class ConnectionModelView(AirflowModelView):
                     category="error",
                 )
 
-        extra_prefix = f"extra__{conn_type}__"
-        custom_fields = {
-            key.replace(extra_prefix, ''): form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(extra_prefix)
-        }
+        def warn_of_deprecated_conn_extra(old, new):
+            try:
+                flash(
+                    Markup(
+                        f"Deprecation warning for connection <q>{conn_id}</q>:</p>"
+                        f"<p>The <em>Extra</em> connection field <q>{old}</q> has been renamed to <q>{new}</q>."
+                    ),
+                    category="warning",
+                )
+            except RuntimeError:
+                warnings.warn("Could not generate flash message; likely invoked via test.")
+
+        def hook_deprecates_extra_prefix():
+            from airflow.utils.module_loading import import_string
+
+            hook_info = ProvidersManager().hooks.get(conn_type, None)
+            if not hook_info:
+                warnings.warn(f"Connection type {conn_type!r} not recognized by providers manager.")
+                return True
+            hook_class = import_string(hook_info.hook_class_name)
+            is_deprecated = getattr(hook_class, '__EXTRA_PREFIX_DEPRECATED', False) is True
+            return is_deprecated
+
+        def strip_prefix(val):
+            return val.replace(extra_prefix, '')
+
+        prefix_is_deprecated = hook_deprecates_extra_prefix()
+
+        if prefix_is_deprecated:
+            for k, v in raw_extra_dict.items():
+                new_k = strip_prefix(k)
+                extra[new_k] = v
+                warn_of_deprecated_conn_extra(k, new_k)
+        else:
+            extra.update(raw_extra_dict)
+
+        del raw_extra_dict
+
+        if prefix_is_deprecated:
+            custom_fields = {
+                strip_prefix(key): form.data[key]
+                for key in self.extra_fields
+                if key in form.data and key.startswith(extra_prefix)
+            }
+        else:
+            custom_fields = {
+                key: form.data[key]
+                for key in self.extra_fields
+                if key in form.data and key.startswith(extra_prefix)
+            }
 
         extra.update(custom_fields)
 
