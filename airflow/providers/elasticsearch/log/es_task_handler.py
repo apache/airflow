@@ -286,7 +286,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            record.offset = int(time() * (10 ** 9))
+            record.offset = int(time() * (10**9))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:

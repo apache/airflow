@@ -113,7 +113,7 @@ class BaseDatabricksHook(BaseHook):
         else:
             self.retry_args = dict(
                 stop=stop_after_attempt(self.retry_limit),
-                wait=wait_exponential(min=self.retry_delay, max=(2 ** retry_limit)),
+                wait=wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
                 retry=retry_if_exception(self._retryable_error),
                 after=my_after_func,
             )
