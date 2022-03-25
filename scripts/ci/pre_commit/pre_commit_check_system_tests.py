@@ -42,7 +42,7 @@ from tests.system.utils import get_test_run  # noqa: E402
 test_run = get_test_run(dag)
 """
 PYTEST_FUNCTION_PATTERN = re.compile(
-    r"from tests\.system\.utils import get_test_run  # noqa: E402\s+"
+    r"from tests\.system\.utils import get_test_run(?:  # noqa: E402)?\s+"
     r"(?:# .+\))?\s+"
     r"test_run = get_test_run\(dag\)"
 )
