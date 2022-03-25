@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from distributed import LocalCluster
 
+from airflow import PY36
 from airflow.exceptions import AirflowException
 from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job import BackfillJob
@@ -126,7 +127,33 @@ class TestDaskExecutorTLS(TestBaseDask):
             ('dask', 'tls_key'): 'certs/tls-key.pem',
         }
     )
+    @unittest.skipIf(PY36, "Skipped when Python == 3.6")
     def test_tls(self):
+        # These use test certs that ship with dask/distributed and should not be
+        #  used in production
+        with dask_testing_cluster(
+            worker_kwargs={'security': tls_security(), "protocol": "tls"},
+            scheduler_kwargs={'security': tls_security(), "protocol": "tls"},
+        ) as (cluster, _):
+
+            executor = DaskExecutor(cluster_address=cluster['address'])
+
+            self.assert_tasks_on_executor(executor, timeout_executor=120)
+
+            executor.end()
+            # close the executor, the cluster context manager expects all listeners
+            # and tasks to have completed.
+            executor.client.close()
+
+    @conf_vars(
+        {
+            ('dask', 'tls_ca'): get_cert('tls-ca-cert.pem'),
+            ('dask', 'tls_cert'): get_cert('tls-key-cert.pem'),
+            ('dask', 'tls_key'): get_cert('tls-key.pem'),
+        }
+    )
+    @unittest.skipIf(not PY36, "Skipped when Python > 3.6")
+    def test_tls_PY36(self):
         # These use test certs that ship with dask/distributed and should not be
         #  used in production
         with dask_testing_cluster(
