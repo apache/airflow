@@ -742,7 +742,7 @@ def check_and_run_migrations():
     if len(db_heads) < 1:
         db_command = initdb
         command_name = "init"
-        verb = "initialization"
+        verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
         command_name = "upgrade"
