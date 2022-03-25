@@ -313,15 +313,12 @@ class TestGcpVisionHook(unittest.TestCase):
         err = ctx.value
         # self.assertIn("The required parameter 'project_id' is missing", str(err))
         assert err
-        assert (
-            ERR_DIFF_NAMES.format(
-                explicit_name=explicit_ps_name,
-                constructed_name=template_ps_name,
-                label="ProductSet",
-                id_label="productset_id",
-            )
-            in str(err)
-        )
+        assert ERR_DIFF_NAMES.format(
+            explicit_name=explicit_ps_name,
+            constructed_name=template_ps_name,
+            label="ProductSet",
+            id_label="productset_id",
+        ) in str(err)
         update_product_set_method.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -652,15 +649,12 @@ class TestGcpVisionHook(unittest.TestCase):
             )
         err = ctx.value
         assert err
-        assert (
-            ERR_DIFF_NAMES.format(
-                explicit_name=explicit_p_name,
-                constructed_name=template_p_name,
-                label="Product",
-                id_label="product_id",
-            )
-            in str(err)
-        )
+        assert ERR_DIFF_NAMES.format(
+            explicit_name=explicit_p_name,
+            constructed_name=template_p_name,
+            label="Product",
+            id_label="product_id",
+        ) in str(err)
         update_product_method.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
