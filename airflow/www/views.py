@@ -3999,6 +3999,8 @@ class ConnectionModelView(AirflowModelView):
 
     def prefill_form(self, form, pk):
         """Prefill the form."""
+        conn_type = form.data['conn_type']
+        extra_prefix = f"extra__{conn_type}__"
         try:
             extra = form.data.get('extra')
             if extra is None:
@@ -4012,10 +4014,12 @@ class ConnectionModelView(AirflowModelView):
             logging.warning('extra field for %s is not a dictionary', form.data.get('conn_id', '<unknown>'))
             return
 
-        for field in self.extra_fields:
-            value = extra_dictionary.get(field, '')
+        for field_name_with_prefix in self.extra_fields:
+            value = extra_dictionary.get(field_name_with_prefix.replace(extra_prefix, ''), '')
+            if not value:
+                value = extra_dictionary.get(field_name_with_prefix, '')
             if value:
-                field = getattr(form, field)
+                field = getattr(form, field_name_with_prefix)
                 field.data = value
 
 
