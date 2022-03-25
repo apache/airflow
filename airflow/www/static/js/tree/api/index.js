@@ -38,6 +38,8 @@ axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
 );
 
+axios.defaults.headers.common.Accept = 'application/json';
+
 export {
   useDag,
   useTasks,

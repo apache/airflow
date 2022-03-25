@@ -38,9 +38,6 @@ export default function useConfirmMarkTask({
         downstream,
         state,
       },
-      headers: {
-        Accept: 'application/json',
-      },
     }),
   );
 }

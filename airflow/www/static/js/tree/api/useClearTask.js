@@ -53,7 +53,6 @@ export default function useClearTask({
 
       return axios.post('/clear', params, {
         headers: {
-          Accept: 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });

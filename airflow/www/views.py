@@ -528,12 +528,12 @@ def get_task_stats_from_query(qry):
     return data
 
 
-def redirect_or_json(origin, return_as_json, msg, status=""):
+def redirect_or_json(origin, request, msg, status=""):
     """
     Some endpoints are called by javascript,
     returning json will allow us to more elegantly handle side-effects in-page
     """
-    if return_as_json:
+    if request.headers['Accept'] == 'application/json':
         return {'status': status, 'message': msg}
     else:
         if status:
@@ -1740,8 +1740,6 @@ class Airflow(AirflowBaseView):
         dag_run_id = request.form.get('dag_run_id')
         map_index = request.args.get('map_index', -1, type=int)
         origin = get_safe_url(request.form.get('origin'))
-        header = request.headers['Accept']
-        return_as_json = header == 'application/json'
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
@@ -1753,13 +1751,13 @@ class Airflow(AirflowBaseView):
 
         if not getattr(executor, "supports_ad_hoc_ti_run", False):
             msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry"
-            return redirect_or_json(origin, return_as_json, msg, "error")
+            return redirect_or_json(origin, request, msg, "error")
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
             msg = "Could not queue task instance for execution, task instance is missing"
-            return redirect_or_json(origin, return_as_json, msg, "error")
+            return redirect_or_json(origin, request, msg, "error")
 
         ti.refresh_from_task(task)
 
@@ -1774,7 +1772,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
-            return redirect_or_json(origin, return_as_json, msg, "error")
+            return redirect_or_json(origin, request, msg, "error")
 
         executor.job_id = "manual"
         executor.start()
@@ -1788,7 +1786,7 @@ class Airflow(AirflowBaseView):
         ti.queued_dttm = timezone.utcnow()
         session.merge(ti)
         msg = f"Sent {ti} to the message queue, it should start any moment now."
-        return redirect_or_json(origin, return_as_json, msg)
+        return redirect_or_json(origin, request, msg)
 
     @expose('/delete', methods=['POST'])
     @auth.has_access(
@@ -1960,10 +1958,10 @@ class Airflow(AirflowBaseView):
         start_date,
         end_date,
         origin,
+        request,
         recursive=False,
         confirmed=False,
         only_failed=False,
-        return_as_json=False,
     ):
         if confirmed:
             count = dag.clear(
@@ -1975,7 +1973,7 @@ class Airflow(AirflowBaseView):
             )
 
             msg = f"{count} task instances have been cleared"
-            return redirect_or_json(origin, return_as_json, msg)
+            return redirect_or_json(origin, request, msg)
 
         try:
             tis = dag.clear(
@@ -1987,12 +1985,12 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            return redirect_or_json(origin, return_as_json, msg=str(ex), status="error")
+            return redirect_or_json(origin, request, msg=str(ex), status="error")
 
         if not tis:
             msg = "No task instances to clear"
-            return redirect_or_json(origin, return_as_json, msg, status="error")
-        elif return_as_json:
+            return redirect_or_json(origin, request, msg, status="error")
+        elif request.headers['Accept'] == 'application/json':
             details = [str(t) for t in tis]
 
             return htmlsafe_json_dumps(details, separators=(',', ':'))
@@ -2022,8 +2020,6 @@ class Airflow(AirflowBaseView):
         task_id = request.form.get('task_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
-        header = request.headers['Accept']
-        return_as_json = header == 'application/json'
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
@@ -2048,10 +2044,10 @@ class Airflow(AirflowBaseView):
             start_date,
             end_date,
             origin,
-            recursive=recursive,
-            confirmed=confirmed,
-            only_failed=only_failed,
-            return_as_json=return_as_json,
+            request,
+            recursive,
+            confirmed,
+            only_failed,
         )
 
     @expose('/dagrun_clear', methods=['POST'])
@@ -2074,7 +2070,7 @@ class Airflow(AirflowBaseView):
         end_date = dr.logical_date
 
         return self._clear_dag_tis(
-            dag, start_date, end_date, recursive=True, confirmed=confirmed, return_as_json=True, origin=None
+            dag, start_date, end_date, recursive=True, confirmed=confirmed, request=request, origin=None
         )
 
     @expose('/blocked', methods=['POST'])
@@ -2322,8 +2318,6 @@ class Airflow(AirflowBaseView):
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
         origin = args.get('origin')
-        header = request.headers['Accept']
-        return_as_json = header == 'application/json'
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2334,13 +2328,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             msg = f'DAG {dag_id} not found'
-            return redirect_or_json(origin, return_as_json, msg, status='error')
+            return redirect_or_json(origin, request, msg, status='error')
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             msg = f"Task {task_id} not found"
-            return redirect_or_json(origin, return_as_json, msg, status='error')
+            return redirect_or_json(origin, request, msg, status='error')
 
         task.dag = dag
 
@@ -2349,12 +2343,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             msg = f"Invalid state {state}, must be either 'success' or 'failed'"
-            return redirect_or_json(origin, return_as_json, msg, status='error')
+            return redirect_or_json(origin, request, msg, status='error')
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
-            return redirect_or_json(origin, return_as_json, msg, status='error')
+            return redirect_or_json(origin, request, msg, status='error')
 
         from airflow.api.common.mark_tasks import set_state
 
@@ -2369,7 +2363,7 @@ class Airflow(AirflowBaseView):
             commit=False,
         )
 
-        if return_as_json:
+        if request.headers['Accept'] == 'application/json':
             details = [str(t) for t in to_be_altered]
             return htmlsafe_json_dumps(details, separators=(',', ':'))
 

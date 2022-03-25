@@ -48,7 +48,6 @@ export default function useRunTask(dagId, runId, taskId) {
       return axios.post('/run', params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
         },
       });
     },
