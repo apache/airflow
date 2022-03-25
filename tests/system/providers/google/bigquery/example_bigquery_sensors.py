@@ -33,9 +33,13 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_sensors_dataset")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "bigquery_sensors"
+
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
 
 TABLE_NAME = "partitioned_table"
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
@@ -49,19 +53,19 @@ SCHEMA = [
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
-dag_id = "example_bigquery_sensors"
 
 with models.DAG(
-    dag_id,
-    schedule_interval='@once',  # Override to match your needs
+    DAG_ID,
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "bigquery"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
     default_args={"project_id": PROJECT_ID},
-) as dag_with_locations:
+) as dag:
+
     create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create-dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
+        task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )
 
     create_table = BigQueryCreateEmptyTableOperator(
@@ -101,12 +105,25 @@ with models.DAG(
     # [END howto_sensor_bigquery_table_partition]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+        task_id="delete_dataset",
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     create_dataset >> create_table
-    create_table >> check_table_exists
-    create_table >> execute_insert_query
+    create_table >> [check_table_exists, execute_insert_query]
     execute_insert_query >> check_table_partition_exists
-    check_table_exists >> delete_dataset
-    check_table_partition_exists >> delete_dataset
+    [check_table_exists, check_table_partition_exists] >> delete_dataset
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

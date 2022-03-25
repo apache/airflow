@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+Misc
+~~~~
+
+* ``Correct 'multiple_outputs' param descriptions mentioning lists/tuples (#22371)``
+
 2.5.1
 .....
 

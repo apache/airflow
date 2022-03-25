@@ -115,7 +115,7 @@ class PubSubHook(GoogleBaseHook):
             include the ``projects/{project}/topics/`` prefix.
         :param messages: messages to publish; if the data field in a
             message is set, it should be a bytestring (utf-8 encoded)
-            http://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
+            https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage
         :param project_id: Optional, the Google Cloud project ID in which to publish.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         """
@@ -489,7 +489,7 @@ class PubSubHook(GoogleBaseHook):
         :return: A list of Pub/Sub ReceivedMessage objects each containing
             an ``ackId`` property and a ``message`` property, which includes
             the base64-encoded message content. See
-            https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
+            https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
         """
         subscriber = self.subscriber_client
         # E501

@@ -51,6 +51,18 @@ class TriggererTest(unittest.TestCase):
 
         assert 0 == len(docs)
 
+    def test_disable_wait_for_migration(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "waitForMigrations": {"enabled": False},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        assert actual is None
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={

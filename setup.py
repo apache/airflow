@@ -179,11 +179,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
-# We should remove the limits as soon as Flask App Builder releases version 3.4.4
-# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
-# TODO: remove it when we fix all SQLAlchemy 1.4 problems
-pandas_requirement = 'pandas>=0.17.1, <1.4'
+pandas_requirement = 'pandas>=0.17.1'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -242,8 +238,13 @@ celery = [
     'celery>=5.2.3',
     'flower>=1.0.0',
 ]
-cgroups = [
-    'cgroupspy>=0.1.4',
+cgroups = [  # type:ignore
+    # Cgroups are now vendored in `airflow/_vendor/cgroupspy` for Python 3.10 compatibility
+    # The vendored code can be removed once cgroupspy released a new version after fixing
+    # the incompatibility https://github.com/cloudsigma/cgroupspy/issues/13 (hopefully >0.2.1 will
+    # be good for that. We should also be able to remove type:ignore above, as MyPy can't derive the type
+    # when this line is commented out
+    # 'cgroupspy>0.2.1',
 ]
 cloudant = [
     'cloudant>=2.0',
@@ -268,6 +269,10 @@ deprecated_api = [
 doc = [
     'click>=8.0',
     'sphinx>=4.4.0',
+    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
+    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
+    # <section> tags for sections
+    'docutils<0.17.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
@@ -963,12 +968,8 @@ def get_provider_package_from_package_id(package_id: str) -> str:
 
 
 def get_excluded_providers() -> List[str]:
-    """
-    Returns packages excluded for the current python version.
-    Currently the only excluded provider is apache hive for Python 3.9.
-    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
-    """
-    return ['apache.hive'] if PY39 else []
+    """Returns packages excluded for the current python version."""
+    return []
 
 
 def get_all_provider_packages() -> str:

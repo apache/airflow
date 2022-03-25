@@ -54,7 +54,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 2.1.6
+Release: 2.1.7
 
 Provider package
 ----------------

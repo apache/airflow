@@ -59,7 +59,7 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 1.1.2
+Release: 1.1.3
 
 Provider package
 ----------------

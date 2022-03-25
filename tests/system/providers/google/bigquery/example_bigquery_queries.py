@@ -21,6 +21,7 @@ Example Airflow DAG for Google BigQuery service.
 """
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -34,10 +35,12 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryIntervalCheckOperator,
     BigQueryValueCheckOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
-LOCATION = "southamerica-east1"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+LOCATION = "us-east1"
+QUERY_SQL_PATH = str(Path(__file__).parent / "resources" / "example_bigquery_query.sql")
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"
@@ -48,29 +51,31 @@ SCHEMA = [
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
+DAGS_LIST = []
 locations = [None, LOCATION]
 for index, location in enumerate(locations, 1):
-    dag_id = "example_bigquery_queries_location" if location else "example_bigquery_queries"
-    DATASET = DATASET_NAME + str(index)
+    DAG_ID = "bigquery_queries_location" if location else "bigquery_queries"
+    DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+    DATASET = f"{DATASET_NAME}{index}"
     INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
     # [START howto_operator_bigquery_query]
     INSERT_ROWS_QUERY = (
         f"INSERT {DATASET}.{TABLE_1} VALUES "
-        f"(42, 'monthy python', '{INSERT_DATE}'), "
+        f"(42, 'monty python', '{INSERT_DATE}'), "
         f"(42, 'fishy fish', '{INSERT_DATE}');"
     )
     # [END howto_operator_bigquery_query]
 
     with models.DAG(
-        dag_id,
-        schedule_interval='@once',  # Override to match your needs
+        DAG_ID,
+        schedule_interval="@once",
         start_date=datetime(2021, 1, 1),
         catchup=False,
-        tags=["example"],
-        user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1},
-    ) as dag_with_locations:
+        tags=["example", "bigquery"],
+        user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1, "QUERY_SQL_PATH": QUERY_SQL_PATH},
+    ) as dag:
         create_dataset = BigQueryCreateEmptyDatasetOperator(
-            task_id="create-dataset",
+            task_id="create_dataset",
             dataset_id=DATASET,
             location=location,
         )
@@ -91,12 +96,6 @@ for index, location in enumerate(locations, 1):
             location=location,
         )
 
-        create_dataset >> [create_table_1, create_table_2]
-
-        delete_dataset = BigQueryDeleteDatasetOperator(
-            task_id="delete_dataset", dataset_id=DATASET, delete_contents=True
-        )
-
         # [START howto_operator_bigquery_insert_job]
         insert_query_job = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -115,7 +114,7 @@ for index, location in enumerate(locations, 1):
             task_id="select_query_job",
             configuration={
                 "query": {
-                    "query": "{% include 'example_bigquery_query.sql' %}",
+                    "query": "{% include QUERY_SQL_PATH %}",
                     "useLegacySql": False,
                 }
             },
@@ -134,17 +133,6 @@ for index, location in enumerate(locations, 1):
             location=location,
         )
 
-        bigquery_execute_multi_query = BigQueryInsertJobOperator(
-            task_id="execute_multi_query",
-            configuration={
-                "query": {
-                    "query": f"SELECT * FROM {DATASET}.{TABLE_2};SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
-                    "useLegacySql": False,
-                }
-            },
-            location=location,
-        )
-
         execute_query_save = BigQueryInsertJobOperator(
             task_id="execute_query_save",
             configuration={
@@ -156,6 +144,20 @@ for index, location in enumerate(locations, 1):
                         'datasetId': DATASET,
                         'tableId': TABLE_2,
                     },
+                }
+            },
+            location=location,
+        )
+
+        bigquery_execute_multi_query = BigQueryInsertJobOperator(
+            task_id="execute_multi_query",
+            configuration={
+                "query": {
+                    "query": [
+                        f"SELECT * FROM {DATASET}.{TABLE_2}",
+                        f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+                    ],
+                    "useLegacySql": False,
                 }
             },
             location=location,
@@ -207,11 +209,32 @@ for index, location in enumerate(locations, 1):
         )
         # [END howto_operator_bigquery_interval_check]
 
-        [create_table_1, create_table_2] >> insert_query_job >> select_query_job
+        delete_dataset = BigQueryDeleteDatasetOperator(
+            task_id="delete_dataset",
+            dataset_id=DATASET,
+            delete_contents=True,
+            trigger_rule=TriggerRule.ALL_DONE,
+        )
 
-        insert_query_job >> execute_insert_query
+        # TEST SETUP
+        create_dataset >> [create_table_1, create_table_2]
+        # TEST BODY
+        [create_table_1, create_table_2] >> insert_query_job >> [select_query_job, execute_insert_query]
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
 
-    globals()[dag_id] = dag_with_locations
+        from tests.system.utils.watcher import watcher
+
+        # This test needs watcher in order to properly mark success/failure
+        # when "tearDown" task with trigger rule is part of the DAG
+        list(dag.tasks) >> watcher()
+
+    DAGS_LIST.append(dag)
+    globals()[DAG_ID] = dag
+
+for dag in DAGS_LIST:
+    from tests.system.utils import get_test_run
+
+    # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+    test_run = get_test_run(dag)

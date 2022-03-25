@@ -165,7 +165,10 @@ class BaseXCom(Base, LoggingMixin):
         from airflow.models.dagrun import DagRun
 
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+            raise ValueError(
+                f"Exactly one of run_id or execution_date must be passed. "
+                f"Passed execution_date={execution_date}, run_id={run_id}"
+            )
 
         if run_id is None:
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
@@ -426,7 +429,10 @@ class BaseXCom(Base, LoggingMixin):
         from airflow.models.dagrun import DagRun
 
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+            raise ValueError(
+                f"Exactly one of run_id or execution_date must be passed. "
+                f"Passed execution_date={execution_date}, run_id={run_id}"
+            )
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
@@ -538,7 +544,10 @@ class BaseXCom(Base, LoggingMixin):
             raise TypeError("clear() missing required argument: task_id")
 
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
+            raise ValueError(
+                f"Exactly one of run_id or execution_date must be passed. "
+                f"Passed execution_date={execution_date}, run_id={run_id}"
+            )
 
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
