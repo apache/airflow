@@ -55,6 +55,15 @@ PY39 = sys.version_info >= (3, 9)
 PY310 = sys.version_info >= (3, 10)
 
 
+if PY36:
+    # Make patterns deep-copyable in Python 3.6
+    # See: https://stackoverflow.com/questions/6279305/typeerror-cannot-deepcopy-this-pattern-object
+    import copy
+    import re
+
+    copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
+
+
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "DAG":
