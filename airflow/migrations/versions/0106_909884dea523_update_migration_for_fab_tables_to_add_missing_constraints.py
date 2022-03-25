@@ -62,7 +62,6 @@ def upgrade():
             batch_op.alter_column('username', existing_type=sa.String(256), nullable=False)
             batch_op.create_unique_constraint(None, ['username'])
             batch_op.alter_column('email', existing_type=sa.String(256), nullable=False)
-            batch_op.create_unique_constraint(None, ['email'])
         with op.batch_alter_table('ab_user') as batch_op:
             # Drop the unique constraint on username and email
             constraints = get_mssql_table_constraints(conn, 'ab_user')
@@ -98,8 +97,6 @@ def downgrade():
             batch_op.alter_column('username', existing_type=sa.String(256), nullable=False, unique=True)
             batch_op.create_unique_constraint(None, ['username'])
             batch_op.alter_column('email', existing_type=sa.String(256), nullable=False, unique=True)
-            batch_op.create_unique_constraint(None, ['email'])
-
         with op.batch_alter_table('ab_user') as batch_op:
             # Drop the unique constraint on username and email
             constraints = get_mssql_table_constraints(conn, 'ab_user')
