@@ -40,7 +40,7 @@ class AsanaHook(BaseHook):
     conn_type = "asana"
     hook_name = "Asana"
 
-    __EXTRA_PREFIX_DEPRECATED = True
+    _EXTRA_PREFIX_DEPRECATED = True
     """This attribute lets the webserver know whether the hook has been updated to handle the
      deprecation of the `extra__...` prefix in custom fields."""
 
@@ -79,8 +79,8 @@ class AsanaHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__asana__workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
-            "extra__asana__project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
+            "workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
+            "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod

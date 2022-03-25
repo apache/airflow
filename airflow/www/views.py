@@ -3961,7 +3961,7 @@ class ConnectionModelView(AirflowModelView):
                 warnings.warn(f"Connection type {conn_type!r} not recognized by providers manager.")
                 return True
             hook_class = import_string(hook_info.hook_class_name)
-            is_deprecated = getattr(hook_class, '__EXTRA_PREFIX_DEPRECATED', False) is True
+            is_deprecated = getattr(hook_class, '_EXTRA_PREFIX_DEPRECATED', False) is True
             return is_deprecated
 
         def strip_prefix(val):

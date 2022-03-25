@@ -39,7 +39,7 @@ class AzureBaseHook(BaseHook):
     conn_type = 'azure'
     hook_name = 'Azure'
 
-    __EXTRA_PREFIX_DEPRECATED = True
+    _EXTRA_PREFIX_DEPRECATED = True
     """This attribute lets the webserver know whether the hook has been updated to handle the
      deprecation of the `extra__...` prefix in custom fields."""
 

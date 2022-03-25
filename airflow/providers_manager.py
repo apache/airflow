@@ -726,15 +726,16 @@ class ProvidersManager(LoggingMixin):
         )
 
     def _add_widgets(self, package_name: str, hook_class: BaseHook, widgets: Dict[str, Any]):
+        field_prefix = f"extra__{hook_class.conn_type}__"
         for field_name, field in widgets.items():
-            if not field_name.startswith("extra__"):
+            if field_name.startswith("extra__"):
                 log.warning(
                     f"Custom field %s from hook %s starts with 'extra__'. Please rename it.",
                     field_name,
                     hook_class.__name__,
                 )
                 continue
-            field_name_with_prefix = f"extra__{hook_class.conn_type}__{field_name}"
+            field_name_with_prefix = f"{field_prefix}{field_name}"
             if field_name_with_prefix in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
