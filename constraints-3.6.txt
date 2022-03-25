@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-24T19:05:23Z
+# This constraints file was automatically generated on 2022-03-25T00:42:54Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -176,9 +176,9 @@ billiard==3.6.4.0
 black==21.12b0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.25
+boto3==1.21.26
 boto==2.49.0
-botocore==1.24.25
+botocore==1.24.26
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -338,12 +338,12 @@ jwcrypto==1.0
 keyring==23.4.1
 kombu==5.1.0
 krb5==0.3.0
-kubernetes==23.3.0
+kubernetes==11.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
 lockfile==0.12.2
-looker-sdk==22.2.1
+looker-sdk==22.4.0
 lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
