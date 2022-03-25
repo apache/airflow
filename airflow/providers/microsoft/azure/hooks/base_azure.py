@@ -91,7 +91,7 @@ class AzureBaseHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         tenant = self._get_field(extras, 'tenantId')
-        subscription_id = self._get_field('subscriptionId')
+        subscription_id = self._get_field(extras, 'subscriptionId')
         key_path = self._get_field(extras, 'key_path')
         if key_path:
             if not key_path.endswith('.json'):

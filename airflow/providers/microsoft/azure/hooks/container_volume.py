@@ -101,9 +101,8 @@ class AzureContainerVolumeHook(BaseHook):
         """Fetches a field from extras, and returns it."""
         long_f = f'extra__{self.conn_type}__{field_name}'
         if long_f in extras:
-            conn_id = getattr(self, self.conn_name_attr)
             warnings.warn(
-                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Extra param {long_f!r} in conn {self.conn_id!r} has been renamed to {field_name}. "
                 f"Please update your connection prior to the next major release for this provider.",
                 DeprecationWarning,
             )

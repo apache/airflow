@@ -163,7 +163,7 @@ class AzureDataFactoryHook(BaseHook):
         extras = conn.extra_dejson
         tenant = self._get_field(extras, 'tenantId')
 
-        subscription_id = self._get_field('subscriptionId')
+        subscription_id = self._get_field(extras, 'subscriptionId')
         if not subscription_id:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 
@@ -912,9 +912,8 @@ class AzureDataFactoryHook(BaseHook):
         """Fetches a field from extras, and returns it."""
         long_f = f'extra__{self.conn_type}__{field_name}'
         if long_f in extras:
-            conn_id = getattr(self, self.conn_name_attr)
             warnings.warn(
-                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Extra param {long_f!r} in conn {self.conn_id!r} has been renamed to {field_name}. "
                 f"Please update your connection prior to the next major release for this provider.",
                 DeprecationWarning,
             )

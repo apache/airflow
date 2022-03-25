@@ -42,7 +42,8 @@ class AsanaHook(BaseHook):
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.connection = self.get_connection(conn_id)
+        self.asana_conn_id = conn_id
+        self.connection = self.get_connection(self.asana_conn_id)
         extras = self.connection.extra_dejson
         self.workspace = self._get_field(extras, "workspace", None) or None
         self.project = self._get_field(extras, "project", None) or None

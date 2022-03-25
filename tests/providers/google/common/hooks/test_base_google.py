@@ -159,7 +159,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         }
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == key_path
 
         with pytest.raises(
@@ -174,7 +174,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -190,7 +190,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == file_name
             assert file_content == string_file.getvalue()
 
@@ -202,7 +202,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -214,7 +214,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             raise Exception()
 
         with pytest.raises(Exception):
@@ -228,7 +228,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -240,7 +240,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(_):
+        def assert_gcp_credential_file_in_env(self):
             raise Exception()
 
         with pytest.raises(Exception):
@@ -510,7 +510,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
@@ -526,7 +526,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
-        def assert_gcp_credential_file_in_env(hook_instance):
+        def assert_gcp_credential_file_in_env(self):
             assert os.environ[CREDENTIALS] == file_name
             assert file_content == string_file.getvalue()
 
