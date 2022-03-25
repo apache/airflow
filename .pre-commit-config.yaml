@@ -590,6 +590,14 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich']
+      - id: check-system-tests
+        name: Check if system tests have required segments of code
+        entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
+        language: python
+        files: ^tests/system/.*/example_[^/]*.py$
+        exclude: ^tests/system/providers/google/bigquery/example_bigquery_queries\.py$
+        pass_filenames: true
+        additional_dependencies: ['rich']
       - id: markdownlint
         name: Run markdownlint
         description: Checks the style of Markdown files.

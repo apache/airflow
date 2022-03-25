@@ -99,6 +99,7 @@ check-integrations
 check-merge-conflict
 check-ti-run-id-in-providers
 check-xml
+check-system-tests
 daysago-import-check
 debug-statements
 detect-private-key

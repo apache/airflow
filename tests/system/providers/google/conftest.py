@@ -15,24 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[pytest]
-addopts =
-    -rasl
-    --verbosity=2
-;    This will treat all tests as flaky
-;    --force-flaky
-norecursedirs =
-    .eggs
-    airflow
-    tests/dags_with_system_exit
-    tests/test_utils
-    tests/dags_corrupted
-    tests/dags
-faulthandler_timeout = 480
-log_level = INFO
-filterwarnings =
-    error::pytest.PytestCollectionWarning
-markers =
-    need_serialized_dag
-asyncio_mode = strict
-python_files = test_*.py example_*.py
+import pytest
+
+REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
+
+
+@pytest.fixture()
+def provider_env_vars():
+    return REQUIRED_ENV_VARS

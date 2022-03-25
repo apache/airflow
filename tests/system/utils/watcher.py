@@ -14,25 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.decorators import task
+from airflow.exceptions import AirflowException
+from airflow.utils.trigger_rule import TriggerRule
 
-[pytest]
-addopts =
-    -rasl
-    --verbosity=2
-;    This will treat all tests as flaky
-;    --force-flaky
-norecursedirs =
-    .eggs
-    airflow
-    tests/dags_with_system_exit
-    tests/test_utils
-    tests/dags_corrupted
-    tests/dags
-faulthandler_timeout = 480
-log_level = INFO
-filterwarnings =
-    error::pytest.PytestCollectionWarning
-markers =
-    need_serialized_dag
-asyncio_mode = strict
-python_files = test_*.py example_*.py
+
+@task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
+def watcher():
+    """Watcher task raises an AirflowException and is used to 'watch' tasks for failures
+    and propagates fail status to the whole DAG Run"""
+    raise AirflowException("Failing task because one or more upstream tasks failed.")

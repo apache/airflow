@@ -168,6 +168,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-system-tests``                 Check if system tests have required segments of code
+------------------------------------ ---------------------------------------------------------------- ------------
 ``daysago-import-check``               Checks if daysago is properly imported
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``debug-statements``                   Detects accidentally committed debug statements

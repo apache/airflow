@@ -40,6 +40,7 @@ PRE_COMMIT_LIST = [
     'check-hooks-apply',
     'check-integrations',
     'check-merge-conflict',
+    'check-system-tests',
     'check-ti-run-id-in-providers',
     'check-xml',
     'codespell',

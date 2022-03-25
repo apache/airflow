@@ -2293,9 +2293,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  changelog-duplicates check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-ti-run-id-in-providers check-xml
-                 daysago-import-check debug-statements detect-private-key docstring-params doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt
-                 forbidden-xcom-get-value codespell forbid-tabs helm-lint identity
+                 check-system-tests daysago-import-check debug-statements detect-private-key
+                 docstring-params doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt forbidden-xcom-get-value codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid migration-reference
                  mixed-line-ending mypy mypy-helm no-providers-in-core-examples no-relative-imports
