@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""rename unnamed unique and foreign keys
+"""rename unnamed foreign keys
 
 Revision ID: 0152485aedf5
 Revises: f490ff2fb77b
@@ -28,7 +28,6 @@ from alembic import op
 from alembic.operations.ops import CreateForeignKeyOp
 from sqlalchemy import MetaData, Table
 
-from airflow.migrations.utils import exclude_table
 from airflow.models.base import naming_convention
 
 # revision identifiers, used by Alembic.
@@ -38,20 +37,65 @@ branch_labels = None
 depends_on = None
 airflow_version = '2.3.0'
 
+TABLES_WITH_UNNAMED_FOREIGN_KEYS = [
+    'ab_permission_view',
+    'ab_permission_view_role',
+    'ab_user',
+    'ab_user_role',
+    'dag_tag',
+]
+
+TABLES_WITH_UNNAMED_UNIQUES = [
+    'ab_permission',
+    'ab_permission_view',
+    'ab_permission_view_role',
+    'ab_register_user',
+    'ab_role',
+    'ab_user',
+    'ab_user_role',
+    'ab_view_menu',
+    'connection',
+    'slot_pool',
+    'variable',
+]
+
+
+def _drop_and_recreate(constraints, table_name, convention):
+    for unique_cons in constraints:
+        op.drop_constraint(unique_cons['name'], table_name, type_='unique')
+        with op.batch_alter_table(table_name, naming_convention=convention) as batch_op:
+            batch_op.create_unique_constraint(None, unique_cons['column_names'])
+
+
+def drop_and_recreate_unique_key(insp, table, table_name, dialect='mysql', convention=None):
+    fks = table.foreign_key_constraints
+    for constraint in fks:
+        op.drop_constraint(constraint.name, table_name, type_='foreignkey')
+    if dialect == 'mysql':
+        constraints = insp.get_unique_constraints(table_name)
+        _drop_and_recreate(constraints, table_name, convention)
+    elif dialect == 'mssql':
+        constraints = insp.get_indexes(table_name)
+        _drop_and_recreate(constraints, table_name, convention)
+    for constraint in fks:
+        op.invoke(CreateForeignKeyOp.from_constraint(constraint))
+
 
 def upgrade():
-    """Apply rename unnamed unique and foreign keys"""
+    """Apply rename unnamed foreign keys"""
     conn = op.get_bind()
     engine = conn.engine
+    dialect_name = conn.engine.dialect.name
+    if dialect_name not in ['mysql', 'mssql']:
+        return
     meta = MetaData(naming_convention=naming_convention)
 
+    # recreate foreign keys so they are similar to postgresql foreign keys
     for table_name in engine.table_names():
-        if table_name == 'alembic_version' or exclude_table(table_name):
+        if table_name not in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
             continue
         t = Table(table_name, meta, autoload_with=conn)
         for constraint in t.foreign_key_constraints:
-            if constraint.name.endswith('_fkey'):
-                continue
             op.drop_constraint(constraint.name, table_name, type_='foreignkey')
             constraint.name = None
             op.invoke(CreateForeignKeyOp.from_constraint(constraint))
@@ -61,15 +105,16 @@ def downgrade():
     """Unapply rename unnamed unique and foreign keys"""
     conn = op.get_bind()
     engine = conn.engine
+    dialect_name = conn.engine.dialect.name
+    if dialect_name not in ['mysql', 'mssql']:
+        return
     meta = MetaData()
-
+    # recreate foreign keys
     for table_name in engine.table_names():
-        if table_name == 'alembic_version' or exclude_table(table_name):
+        if table_name not in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
             continue
         t = Table(table_name, meta, autoload_with=conn)
         for constraint in t.foreign_key_constraints:
-            if constraint.name.endswith('_fkey'):
-                continue
             op.drop_constraint(constraint.name, table_name, type_='foreignkey')
             constraint.name = None
             op.invoke(CreateForeignKeyOp.from_constraint(constraint))

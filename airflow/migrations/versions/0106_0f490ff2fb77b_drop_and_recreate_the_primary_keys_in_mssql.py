@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""drop and recreate the primary keys in mssql and sqlite
+"""drop and recreate the primary keys in mssql
 
 Revision ID: f490ff2fb77b
 Revises: 909884dea523
@@ -130,7 +130,7 @@ def drop_and_create_ab_user_pkey(table, meta, conn):
 
 
 def upgrade():
-    """Apply add naming convention to db"""
+    """Apply drop and recreate the primary keys in mssql"""
     conn = op.get_bind()
     meta = MetaData(naming_convention=naming_convention)
     engine = conn.engine
@@ -180,7 +180,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add naming convention to db"""
+    """Unapply drop and recreate the primary keys in mssql"""
     conn = op.get_bind()
     meta = MetaData()
     engine = conn.engine
