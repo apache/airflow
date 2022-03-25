@@ -163,7 +163,7 @@ function initializeUITimezone() {
   }
 
   $('a[data-timezone]').click((evt) => {
-    changeDisplayedTimezone($(evt.target).data('timezone'));
+    changeDisplayedTimezone($(evt.currentTarget).data('timezone'));
   });
 
   $('#timezone-other').typeahead({
