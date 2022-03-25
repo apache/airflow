@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-25T00:42:50Z
+# This constraints file was automatically generated on 2022-03-25T21:03:22Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -174,9 +174,9 @@ billiard==3.6.4.0
 black==22.1.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.26
+boto3==1.21.27
 boto==2.49.0
-botocore==1.24.26
+botocore==1.24.27
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -438,7 +438,7 @@ pyrsistent==0.18.1
 pysftp==0.2.9
 pyspark==3.2.1
 pyspnego==0.5.1
-pytest-asyncio==0.18.2
+pytest-asyncio==0.18.3
 pytest-cov==3.0.0
 pytest-forked==1.4.0
 pytest-httpx==0.20.0
@@ -550,7 +550,7 @@ uritemplate==3.0.1
 urllib3==1.26.9
 vertica-python==1.0.4
 vine==5.0.0
-virtualenv==20.13.4
+virtualenv==20.14.0
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
