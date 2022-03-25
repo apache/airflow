@@ -17,6 +17,7 @@
 # under the License.
 """This module contains Google Ad hook."""
 import sys
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, List, Optional
 
@@ -203,7 +204,8 @@ class GoogleAdsHook(BaseHook):
         Note, the secret must be passed as a file path for Google Ads API
         """
         secret_conn = self.get_connection(self.gcp_conn_id)
-        secret = secret_conn.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
+        extras = secret_conn.extra_dejson
+        secret = self._get_field(extras, "keyfile_dict", strict=True)
         secrets_temp.write(secret)
         secrets_temp.flush()
 
@@ -262,3 +264,20 @@ class GoogleAdsHook(BaseHook):
                     for field_path_element in error.location.field_path_elements:
                         self.log.error("\t\tOn field: %s", field_path_element.field_name)
             raise
+
+    def _get_field(self, extras, field_name: str, default: Any = None, strict=False) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__google_cloud_platform__{field_name}'
+        if long_f in extras:
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {self.gcp_conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        elif strict is True:
+            raise ValueError(f"Field {field_name!r} not found in connection {self.gcp_conn_id!r}")
+        else:
+            return default

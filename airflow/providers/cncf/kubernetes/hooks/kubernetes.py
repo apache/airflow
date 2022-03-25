@@ -16,6 +16,7 @@
 # under the License.
 import sys
 import tempfile
+import warnings
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
 if sys.version_info >= (3, 8):
@@ -46,11 +47,15 @@ class KubernetesHook(BaseHook):
     """
     Creates Kubernetes API connection.
 
-    - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
-    - use custom config by providing path to the file using ``extra__kubernetes__kube_config_path``
-    - use custom configuration by providing content of kubeconfig file via
-        ``extra__kubernetes__kube_config`` in connection
+    You may specify certain configuraions from the ``extra`` JSON field:
+
+    - use in cluster configuration by setting ``{"in_cluster": true}``
+    - use custom config with ``{"kube_config_path": "/path/to/file.txt"}``
+    - use custom configuration by providing content of kubeconfig file under ``kube_config`` param
+        in the connection ``extra`` JSON field
     - use default config by providing no extras
+
+    The above options can also be set at hook init.
 
     This hook check for configuration option in the above order. Once an option is present it will
     use this configuration.
@@ -125,16 +130,14 @@ class KubernetesHook(BaseHook):
             extras = connection.extra_dejson
         else:
             extras = {}
-        in_cluster = self._coalesce_param(
-            self.in_cluster, extras.get("extra__kubernetes__in_cluster") or None
-        )
+        in_cluster = self._coalesce_param(self.in_cluster, self._get_field(extras, "in_cluster") or None)
         cluster_context = self._coalesce_param(
-            self.cluster_context, extras.get("extra__kubernetes__cluster_context") or None
+            self.cluster_context, self._get_field(extras, "cluster_context") or None
         )
         kubeconfig_path = self._coalesce_param(
-            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+            self.config_file, self._get_field(extras, "kube_config_path") or None
         )
-        kubeconfig = extras.get("extra__kubernetes__kube_config") or None
+        kubeconfig = self._get_field(extras, "kube_config") or None
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
@@ -239,7 +242,7 @@ class KubernetesHook(BaseHook):
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
-            namespace = extras.get("extra__kubernetes__namespace", "default")
+            namespace = self._get_field(extras, "namespace", "default")
             return namespace
         return None
 
@@ -288,3 +291,19 @@ class KubernetesHook(BaseHook):
             _preload_content=False,
             namespace=namespace if namespace else self.get_namespace(),
         )
+
+    def _get_field(self, extras, field_name: str, default: Any = None) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__{self.conn_type}__{field_name}'
+        if long_f in extras:
+            conn_id = getattr(self, self.conn_name_attr)
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        else:
+            return default

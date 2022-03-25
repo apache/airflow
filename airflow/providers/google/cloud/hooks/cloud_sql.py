@@ -31,6 +31,7 @@ import string
 import subprocess
 import time
 import uuid
+import warnings
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -375,9 +376,6 @@ CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL = (
     "https://storage.googleapis.com/cloudsql-proxy/{}/cloud_sql_proxy.{}.{}"
 )
 
-GCP_CREDENTIALS_KEY_PATH = "extra__google_cloud_platform__key_path"
-GCP_CREDENTIALS_KEYFILE_DICT = "extra__google_cloud_platform__keyfile_dict"
-
 
 class CloudSqlProxyRunner(LoggingMixin):
     """
@@ -481,13 +479,31 @@ class CloudSqlProxyRunner(LoggingMixin):
         os.chmod(self.sql_proxy_path, 0o744)  # Set executable bit
         self.sql_proxy_was_downloaded = True
 
+    def _get_field(self, extras, field_name: str, default: Any = None, strict=False) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__google_cloud_platform__{field_name}'
+        if long_f in extras:
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {self.gcp_conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        elif strict is True:
+            raise ValueError(f"Field {field_name!r} not found in connection {self.gcp_conn_id!r}")
+        else:
+            return default
+
     def _get_credential_parameters(self) -> List[str]:
         connection = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id)
-
-        if connection.extra_dejson.get(GCP_CREDENTIALS_KEY_PATH):
-            credential_params = ['-credential_file', connection.extra_dejson[GCP_CREDENTIALS_KEY_PATH]]
-        elif connection.extra_dejson.get(GCP_CREDENTIALS_KEYFILE_DICT):
-            credential_file_content = json.loads(connection.extra_dejson[GCP_CREDENTIALS_KEYFILE_DICT])
+        extras = connection.extra_dejson
+        credential_file_path = self._get_field(extras, 'key_path')
+        if credential_file_path:
+            credential_params = ['-credential_file', credential_file_path]
+        elif self._get_field(extras, 'keyfile_dict'):
+            credential_file_content = json.loads(self._get_field(extras, 'keyfile_dict'))
             self.log.info("Saving credentials to %s", self.credentials_path)
             with open(self.credentials_path, "w") as file:
                 json.dump(credential_file_content, file)
@@ -502,7 +518,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             credential_params = []
 
         if not self.instance_specification:
-            project_id = connection.extra_dejson.get('extra__google_cloud_platform__project')
+            project_id = self._get_field(extras, 'project')
             if self.project_id:
                 project_id = self.project_id
             if not project_id:

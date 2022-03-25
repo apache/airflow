@@ -153,6 +153,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         return f"bigquery://{self.project_id}"
 
+    def _get_field(self, extras, field_name: str, default: Any = None, strict=False) -> Any:
+        """Fetches a field from extras, and returns it."""
+        long_f = f'extra__google_cloud_platform__{field_name}'
+        if long_f in extras:
+            warnings.warn(
+                f"Extra param {long_f!r} in conn {self.gcp_conn_id!r} has been renamed to {field_name}. "
+                f"Please update your connection prior to the next major release for this provider.",
+                DeprecationWarning,
+            )
+            return extras[long_f]
+        elif field_name in extras:
+            return extras[field_name]
+        elif strict is True:
+            raise ValueError(f"Field {field_name!r} not found in connection {self.gcp_conn_id!r}")
+        else:
+            return default
+
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
         Get an sqlalchemy_engine object.
@@ -163,13 +180,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if engine_kwargs is None:
             engine_kwargs = {}
         connection = self.get_connection(self.gcp_conn_id)
-        if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
-            credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
+        extras = connection.extra_dejson
+        if self._get_field(extras, "key_path"):
+            credentials_path = self._get_field(extras, "key_path")
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
-        elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
-            credential_file_content = json.loads(
-                connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
-            )
+        elif self._get_field(extras, "keyfile_dict"):
+            credential_file_content = json.loads(self._get_field(extras, "keyfile_dict"))
             return create_engine(self.get_uri(), credentials_info=credential_file_content, **engine_kwargs)
         try:
             # 1. If the environment variable GOOGLE_APPLICATION_CREDENTIALS is set
@@ -181,9 +197,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.log.error(e)
             raise AirflowException(
                 "For now, we only support instantiating SQLAlchemy engine by"
-                " using ADC"
-                ", extra__google_cloud_platform__key_path"
-                "and extra__google_cloud_platform__keyfile_dict"
+                " using ADC, or extras `key_path` or `keyfile_dict`"
             )
 
     def get_records(self, sql, parameters=None):

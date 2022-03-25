@@ -289,16 +289,16 @@ class GoogleBaseHook(BaseHook):
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http
 
-    def _get_field(self, f: str, default: Any = None) -> Any:
+    def _get_field(self, f: str, default: Any = None, strict=False) -> Any:
         """
         Fetches a field from extras, and returns it. This is some Airflow
         magic. The google_cloud_platform hook type adds custom UI elements
         to the hook page, which allow admins to specify service_account,
         key_path, etc. They get formatted as shown below.
         """
-        long_f = f'extra__{self.conn_type}__{f}'
+        long_f = f'extra__google_cloud_platform__{f}'
+        conn_id = getattr(self, self.conn_name_attr)
         if hasattr(self, 'extras') and long_f in self.extras:
-            conn_id = getattr(self, self.conn_name_attr)
             warnings.warn(
                 f"Extra param {long_f!r} in conn {conn_id!r} has been renamed to {f}. "
                 f"Please update your connection prior to the next major release for this provider.",
@@ -307,6 +307,8 @@ class GoogleBaseHook(BaseHook):
             return self.extras[long_f]
         elif hasattr(self, 'extras') and f in self.extras:
             return self.extras[f]
+        elif strict is True:
+            raise ValueError(f"Field {f!r} not found in connection {conn_id!r}")
         else:
             return default
 
