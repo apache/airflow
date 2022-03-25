@@ -19,12 +19,16 @@
 
 import json
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
-from airflow import DAG
 from airflow.models import Connection
+from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.utils import db, timezone
+from airflow.models import DAG, DagRun, TaskInstance
+from airflow.utils.state import State
+from kubernetes.client import models as k8s
 
 TEST_VALID_APPLICATION_YAML = """
 apiVersion: "sparkoperator.k8s.io/v1beta2"
@@ -161,7 +165,7 @@ TEST_APPLICATION_DICT = {
 
 
 @patch('airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn')
-class TestSparkKubernetesOperator(unittest.TestCase):
+class TestSparkKubernetesOperatorYaml(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
@@ -320,3 +324,84 @@ class TestSparkKubernetesOperator(unittest.TestCase):
             plural='sparkapplications',
             version='v1beta2',
         )
+
+
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
+SPARK_CLASS = "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator"
+
+
+class TestSparkKubernetesOperator:
+    def setup_method(self):
+        self.create_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+        self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+        self.client_patch_pod_launcher = mock.patch("airflow.kubernetes.pod_launcher_deprecated.get_kube_client")
+
+        self.delete_spark_job_patch = mock.patch(f"{SPARK_CLASS}.delete_spark_job")
+        self.create_custom_obj_patch = mock.patch(f"{SPARK_CLASS}.create_new_custom_obj_for_operator")
+
+        self.delete_spark_job_patch.start()
+        self.delete_spark_job_patch = self.create_custom_obj_patch.start()
+        self.delete_spark_job_patch.return_value = (State.SUCCESS, None)
+        self.create_mock = self.create_pod_patch.start()
+        self.await_start_mock = self.await_pod_patch.start()
+        self.await_pod_mock = self.await_pod_completion_patch.start()
+        self.client_mock = self.client_patch.start()
+        self.client_mock = self.client_patch_pod_launcher.start()
+        args = {'owner': 'airflow', 'start_date': timezone.datetime(2020, 2, 1)}
+        self.dag = DAG('test_dag_id', default_args=args)
+
+    def teardown_method(self):
+        self.create_pod_patch.stop()
+        self.await_pod_patch.stop()
+        self.await_pod_completion_patch.stop()
+        self.client_patch.stop()
+        self.client_patch_pod_launcher.stop()
+        self.delete_spark_job_patch.stop()
+
+    @staticmethod
+    def create_context(task):
+        dag = DAG(dag_id="dag")
+        task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
+        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
+        return {
+            "dag": dag,
+            "ts": DEFAULT_DATE.isoformat(),
+            "task": task,
+            "ti": task_instance,
+            "task_instance": task_instance,
+        }
+
+    def test_env_vars(self):
+        env_from = [
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret'))
+        ]
+        from_env_config_map = ['env-from-configmap']
+        from_env_secret = ['env-from-secret']
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            namespace='mock_namespace',
+            service_account_name='mock_sa',
+            code_path='/code/path',
+            image='mock_image_tag',
+            env_vars={"TEST_ENV_1": 'VALUE1', "TEST_ENV_2": 'VALUE2'},
+            env_from=env_from,
+            from_env_config_map=from_env_config_map,
+            from_env_secret=from_env_secret,
+            dag=self.dag,
+        )
+        context = self.create_context(op)
+        op.execute(context)
+        assert op.launcher.body['spec']['driver']['env'] == [k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'), k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2')]
+        assert op.launcher.body['spec']['executor']['env'] == [k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'), k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2')]
+        exp_env_from = [
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret')),
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-from-configmap')),
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-from-secret'))
+        ]
+        assert op.launcher.body['spec']['driver']['envFrom'] == exp_env_from
+        assert op.launcher.body['spec']['executor']['envFrom'] == exp_env_from

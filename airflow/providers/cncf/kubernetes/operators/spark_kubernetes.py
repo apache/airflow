@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow import AirflowException
 from airflow.kubernetes import kube_client, pod_generator
@@ -31,7 +31,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_resources,
     convert_toleration,
     convert_volume,
-    convert_volume_mount, convert_configmap_to_volume,
+    convert_volume_mount, convert_configmap_to_volume, convert_secret,
 )
 from airflow.utils.state import State
 from kubernetes import client
@@ -77,12 +77,12 @@ class SparkKubernetesOperator(BaseOperator):
         *,
         image: Optional[str] = None,
         code_path: Optional[str] = None,
-        namespace: Optional[str] = 'default',
+        namespace: Optional[str] = None,
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
         resources: dict = None,
         labels: dict = None,
-        env_vars: Optional[List[k8s.V1EnvVar]] = None,
+        env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
         env_from: Optional[List[k8s.V1EnvFromSource]] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
@@ -263,8 +263,7 @@ class SparkKubernetesOperator(BaseOperator):
             raise AirflowException(
                 f'More than one pod running with labels: {label_selector}'
             )
-        launcher = CustomObjectLauncher(
->>>>>>> Add SparkKubernetesOperator using custom operator
+        self.launcher = CustomObjectLauncher(
             namespace=self.namespace,
             kube_client=self.client,
             custom_obj_api=custom_obj_api,
@@ -275,7 +274,7 @@ class SparkKubernetesOperator(BaseOperator):
             extract_xcom=self.do_xcom_push,
             application_file=self.application_file
         )
-        launcher.set_body(
+        self.launcher.set_body(
             name=self.name,
             namespace=self.namespace,
             image=self.image,
@@ -306,20 +305,22 @@ class SparkKubernetesOperator(BaseOperator):
             volumes=self.volumes,
             volume_mounts=self.volume_mounts
         )
+
         if len(pod_list.items) == 1:
             try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
             final_state, result = self.handle_spark_object_overlap(
-                labels, try_numbers_match, launcher, pod_list.items[0]
+                labels, try_numbers_match, self.launcher, pod_list.items[0]
             )
         else:
-            self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
-            final_state, result = self.create_new_custom_obj_for_operator(launcher)
+            self.log.info("creating pod with labels %s and launcher %s", labels, self.launcher)
+            final_state, result = self.create_new_custom_obj_for_operator(self.launcher)
+
         if final_state != State.SUCCESS:
             status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace).status
-            self.delete_spark_job(launcher)
+            self.delete_spark_job(self.launcher)
             raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status.container_statuses}')
 
-        self.delete_spark_job(launcher)
+        self.delete_spark_job(self.launcher)
         return result
 
     def delete_spark_job(self, launcher):
