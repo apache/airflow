@@ -131,32 +131,24 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     def convert_type(self, value, schema_type):
         """
         Takes a value from Postgres, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery. Time zone aware DateTime are converted to UTC seconds,
-        unaware DateTime, Date and Time are iso formatted.
+        JSON/Google Cloud Storage/BigQuery.
+        Timezone aware Datetime are converted to UTC seconds.
+        Unaware Datetime, Date and Time are converted to ISO formatted strings.
         Decimals are converted to floats.
         """
         if isinstance(value, datetime.datetime):
+            iso_format_value = value.isoformat()
             if value.tzinfo is None:
-                return value.isoformat()
-            return pendulum.parse(value.isoformat()).float_timestamp
+                return iso_format_value
+            return pendulum.parse(iso_format_value).float_timestamp
         if isinstance(value, datetime.date):
             return value.isoformat()
         if isinstance(value, datetime.time):
             formatted_time = time.strptime(str(value), "%H:%M:%S")
-            if value.tzinfo is None:
-                return str(
-                    datetime.timedelta(
-                        hours=formatted_time.tm_hour,
-                        minutes=formatted_time.tm_min,
-                        seconds=formatted_time.tm_sec,
-                    )
-                )
-
-            return int(
-                datetime.timedelta(
-                    hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
-                ).total_seconds()
+            time_delta = datetime.timedelta(
+                hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
             )
+            return str(time_delta)
         if isinstance(value, dict):
             return json.dumps(value)
         if isinstance(value, Decimal):
