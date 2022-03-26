@@ -17,16 +17,19 @@
 # under the License.
 import logging
 import re
-import unittest
+from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
+from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+from flask_babel import lazy_gettext
+from wtforms import StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import HookClassProvider, ProviderInfo, ProvidersManager
 
 
-class TestProviderManager(unittest.TestCase):
+class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -137,6 +140,41 @@ class TestProviderManager(unittest.TestCase):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         assert len(connections_form_widgets) > 29
+
+    @pytest.mark.parametrize(
+        'deprecated, name, warn_msg, should_find',
+        [
+            (True, 'extra__test__my_param', "field 'extra__test__my_param'.*starts with", False),
+            (False, 'extra__test__my_param', None, True),
+            (True, 'my_param', None, True),
+            (False, 'my_param', 'does not start with', False),
+        ],
+    )
+    def test_connection_form__add_widgets_prefix_backcompat(self, deprecated, name, warn_msg, should_find):
+        """
+        When hook hasn't been updated to deprecate extra prefix, then field named
+        with extra prefix should still work; otherwise it shouldn't.
+        When hook *has* been updated to deprecate extra prefix, then field name with
+        extra prefix should *not* work; otherwise it should.
+        """
+
+        class MyHook:
+            conn_type = 'test'
+
+        MyHook._EXTRA_PREFIX_DEPRECATED = deprecated
+        provider_manager = ProvidersManager()
+        widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
+        cm = pytest.warns(Warning, match=warn_msg) if warn_msg else nullcontext()
+        with cm:
+            provider_manager._add_widgets(
+                package_name='abc',
+                hook_class=MyHook,
+                widgets={name: widget_field},
+            )
+        if should_find:
+            assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
+        else:
+            assert 'extra__test__my_param' not in provider_manager.connection_form_widgets
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()

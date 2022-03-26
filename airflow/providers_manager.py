@@ -725,16 +725,43 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
+    def _add_widgets(self, package_name: str, hook_class: BaseHook, widgets: Dict[str, Any]):
+        """
+        Previously, connection "extra" fields which were added as custom fields in the
+        webserver connection form had to be named with prefix `extra__<conn_type>__`.
+        This was because custom fields are registered globally on the connection view model,
+        so the prefix was necessary to prevent collisions.
+
+        But the prefix is ugly and cumbersome in the `extra` field.  So now what we do is
+        add this prefix when defining the field internally in the model, and strip it when
+        saving the connection.
+
+        In this method, we handle backcompat by checking for a special attribute on the hook
+        class (to determine whether it has been updated to deprecate the old way) and handle
+        accordingly.
+        """
+        field_prefix = f"extra__{hook_class.conn_type}__"
+        prefix_is_deprecated = getattr(hook_class, '_EXTRA_PREFIX_DEPRECATED', False) is True
         for field_name, field in widgets.items():
-            if not field_name.startswith("extra__"):
-                log.warning(
-                    "The field %s from class %s does not start with 'extra__'. Ignoring it.",
-                    field_name,
-                    hook_class.__name__,
-                )
-                continue
-            if field_name in self._connection_form_widgets:
+            if field_name.startswith("extra__"):
+                if prefix_is_deprecated:
+                    warnings.warn(
+                        f"Custom field {field_name!r} from hook {hook_class.__name__} starts with 'extra__'. Use of the "
+                        "`extra__<conn type>__` prefix in connection extras is deprecated.",
+                        DeprecationWarning,
+                    )
+                    continue
+                field_name_with_prefix = field_name
+            else:
+                if not prefix_is_deprecated:
+                    warnings.warn(
+                        f"Field {field_name!r} in hook {hook_class.__name__!r} does not start with prefix "
+                        f"'extra__...' and will be ignored.",
+                        RuntimeWarning,
+                    )
+                    continue
+                field_name_with_prefix = f"{field_prefix}{field_name}"
+            if field_name_with_prefix in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
                     field_name,
@@ -742,7 +769,7 @@ class ProvidersManager(LoggingMixin):
                 )
                 # In case of inherited hooks this might be happening several times
                 continue
-            self._connection_form_widgets[field_name] = ConnectionFormWidgetInfo(
+            self._connection_form_widgets[field_name_with_prefix] = ConnectionFormWidgetInfo(
                 hook_class.__name__, package_name, field
             )
 

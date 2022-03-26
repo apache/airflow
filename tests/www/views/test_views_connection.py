@@ -17,6 +17,7 @@
 # under the License.
 import json
 from unittest import mock
+from unittest.mock import PropertyMock
 
 import pytest
 
@@ -57,10 +58,43 @@ def test_prefill_form_null_extra():
     cmv.prefill_form(form=mock_form, pk=1)
 
 
-def test_process_form_extras():
+@pytest.mark.parametrize(
+    'extras, expected',
+    [
+        ({"extra__test__my_param": "this_val"}, "this_val"),
+        ({"my_param": "other_val"}, "other_val"),
+    ],
+)
+def test_prefill_form(extras, expected):
+    """
+    When populating custom fields in connection form we should first check for the non-prefixed
+    value (since prefixes in extra are deprecated) and then fallback to the prefixed value.
+
+    Either way, the field is known internally to the model view as the prefixed value.
+    """
+    mock_form = mock.Mock()
+    mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
+    cmv = ConnectionModelView()
+    cmv.extra_fields = ['extra__test__my_param']
+    cmv.prefill_form(form=mock_form, pk=1)
+    assert mock_form.extra__test__my_param.data == expected
+
+
+@pytest.mark.parametrize('prefix_deprecated', [True, False])
+@mock.patch('airflow.utils.module_loading.import_string')
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_process_form_extras(mock_pm_hooks, mock_import_str, prefix_deprecated):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
     """
+    mock_pm_hooks.get.return_value = True  # ensure that hook appears registered
+    mock_import_str.return_value._EXTRA_PREFIX_DEPRECATED = prefix_deprecated
+
+    def conform_key(key, conn_type):
+        if not prefix_deprecated:
+            return f'extra__{conn_type}__' + key
+        else:
+            return key
 
     # Testing parameters set in both `Extra` and custom fields.
     mock_form = mock.Mock()
@@ -76,7 +110,7 @@ def test_process_form_extras():
     cmv.process_form(form=mock_form, is_created=True)
 
     assert json.loads(mock_form.extra.data) == {
-        "extra__test__custom_field": "custom_field_val",
+        conform_key("custom_field", 'test'): "custom_field_val",
         "param1": "param1_val",
     }
 
@@ -105,9 +139,9 @@ def test_process_form_extras():
     cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test3__custom_field": "custom_field_val3"}
+    assert json.loads(mock_form.extra.data) == {conform_key("custom_field", "test3"): "custom_field_val3"}
 
-    # Testing parameters set in both extra and custom fields (cunnection updates).
+    # Testing parameters set in both extra and custom fields (connection updates).
     mock_form = mock.Mock()
     mock_form.data = {
         "conn_type": "test4",
@@ -120,7 +154,7 @@ def test_process_form_extras():
     cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+    assert json.loads(mock_form.extra.data) == {conform_key("custom_field", "test4"): "custom_field_val4"}
 
 
 def test_duplicate_connection(admin_client):
