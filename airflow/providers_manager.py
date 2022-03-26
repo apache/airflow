@@ -46,6 +46,7 @@ from packaging import version as packaging_version
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
+from airflow.settings import conf
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -61,6 +62,10 @@ else:
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
 }
+
+PROVIDER_IMPORT_ERROR_LEVEL = logging.getLevelName(
+    conf.get('logging', 'provider_import_error_level', fallback='WARNING').upper()
+)
 
 
 class LazyDictWithCache(MutableMapping):
@@ -168,8 +173,14 @@ def _sanity_check(provider_package: str, class_name: str) -> Optional[Type[BaseH
     except ImportError as e:
         # When there is an ImportError we turn it into debug warnings as this is
         # an expected case when only some providers are installed
-        log.warning(
-            "Exception when importing '%s' from '%s' package",
+        log.log(
+            PROVIDER_IMPORT_ERROR_LEVEL,
+            "Exception when importing '%s' from '%s' package. Set log level to DEBUG for traceback.",
+            class_name,
+            provider_package,
+        )
+        log.debug(
+            "Traceback from failed import of class %r from package %r",
             class_name,
             provider_package,
             exc_info=e,

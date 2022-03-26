@@ -539,6 +539,15 @@
       type: string
       example: ~
       default: "INFO"
+    - name: provider_import_error_level
+      description: |
+        Logging level for provider import failures.  Intended mainly for Airflow developers.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
     - name: celery_logging_level
       description: |
         Logging level for celery. If not set, it uses the value of logging_level
