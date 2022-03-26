@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-25T21:04:23Z
+# This constraints file was automatically generated on 2022-03-26T02:36:28Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -239,7 +239,7 @@ idna-ssl==1.1.0
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
-immutables==0.16
+immutables==0.17
 importlib-metadata==4.2.0
 importlib-resources==5.2.3
 inflection==0.5.1
