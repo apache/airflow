@@ -338,7 +338,7 @@ jwcrypto==1.0
 keyring==23.4.1
 kombu==5.1.0
 krb5==0.3.0
-kubernetes==11.0.0
+kubernetes==23.3.0
 kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
