@@ -20,8 +20,6 @@
 from typing import Dict, Optional, Any
 
 from arango import ArangoClient as ArangoDBClient, AQLQueryExecuteError
-from arango.cursor import Cursor
-from arango.database import StandardDatabase
 from arango.result import Result
 
 from airflow import AirflowException
@@ -92,7 +90,7 @@ class ArangoDBHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         return {
-            "hidden_fields": ['schema', 'port', 'extra'],
+            "hidden_fields": ['port', 'extra'],
             "relabeling": {
                 'host': 'ArangoDB Host URL or  comma separated list of URLs (coordinators in a cluster)',
                 'schema': 'ArangoDB Database',

@@ -55,7 +55,7 @@ class AQLOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.sql)
-        hook = ArangoDBHook(conn_id=self.arangodb_conn_id)
+        hook = ArangoDBHook(arangodb_conn_id=self.arangodb_conn_id)
         result = hook.query(self.sql)
         if self.result_processor:
             self.result_processor(result)
