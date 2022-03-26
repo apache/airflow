@@ -3435,6 +3435,16 @@
                     "type": "integer",
                     "default": 0
                 },
+                "auth_type": {
+                    "description": "Method of authenticating users",
+                    "type": "string",
+                    "default": "md5"
+                },
+                "auth_file": {
+                    "description": "The name of the file to load user names and passwords from",
+                    "type": "string",
+                    "default": "/etc/pgbouncer/users.txt"
+                },
                 "logDisconnections": {
                     "description": "Log disconnections with reasons.",
                     "type": "integer",

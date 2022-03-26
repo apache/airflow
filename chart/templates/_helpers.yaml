@@ -351,8 +351,8 @@ If release name contains chart name it will be used as a full name.
 pool_mode = transaction
 listen_port = {{ .Values.ports.pgbouncer }}
 listen_addr = *
-auth_type = md5
-auth_file = /etc/pgbouncer/users.txt
+auth_type = {{ .Values.pgbouncer.auth_type }}
+auth_file = {{ .Values.pgbouncer.auth_file }}
 stats_users = {{ .Values.data.metadataConnection.user }}
 ignore_startup_parameters = extra_float_digits
 max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
