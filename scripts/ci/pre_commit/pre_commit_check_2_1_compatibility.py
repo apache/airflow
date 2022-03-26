@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 import sys
 from pathlib import Path
 from typing import List
@@ -32,10 +33,25 @@ console = Console(color_system="standard", width=200)
 
 errors: List[str] = []
 
+GET_ATTR_MATCHER = re.compile(r".*getattr\((ti|TI), ['\"]run_id['\"]\).*")
+TI_RUN_ID_MATCHER = re.compile(r".*(ti|TI)\.run_id.*")
+
 
 def _check_file(_file: Path):
     lines = _file.read_text().splitlines()
+
     for index, line in enumerate(lines):
+        if GET_ATTR_MATCHER.match(line) or TI_RUN_ID_MATCHER.match(line):
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                f"(Airflow 2.2+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                f"[yellow]You should not retrieve run_id from Task Instance in providers as it "
+                f"is not available in Airflow 2.1[/]\n\n"
+                f"Use one of: \n\n"
+                f"     context['run_id']\n\n"
+                f"     getattr(ti, 'run_id', '<DEFAULT>')\n\n"
+            )
         if "XCom.get_value(" in line:
             if "if ti_key is not None:" not in lines[index - 1]:
                 errors.append(
@@ -48,13 +64,21 @@ def _check_file(_file: Path):
                     f"See: https://airflow.apache.org/docs/apache-airflow-providers/"
                     f"howto/create-update-providers.html#using-providers-with-dynamic-task-mapping\n"
                 )
+        if "timezone.coerce_datetime" in line:
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                f"(Airflow 2.2+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                f"[yellow]You should not use coerce_datetime in providers "
+                f"as it is not available in Airflow 2.1[/]"
+            )
 
 
 if __name__ == '__main__':
     for file in sys.argv[1:]:
         _check_file(Path(file))
     if errors:
-        console.print("[red]Found forbidden usage of XCom.get_value( in providers:[/]\n")
+        console.print("[red]Found Airflow 2.1 compatibility problems in providers:[/]\n")
         for error in errors:
             console.print(f"{error}")
         sys.exit(1)
