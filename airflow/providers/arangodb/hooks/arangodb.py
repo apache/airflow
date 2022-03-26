@@ -102,6 +102,6 @@ class ArangoDBHook(BaseHook):
                         'a cluster)',
                 'schema': '_system',
                 'login': 'root',
-                'password': 'passwd',
+                'password': 'password',
             },
         }

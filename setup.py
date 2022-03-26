@@ -881,6 +881,7 @@ ALL_DB_PROVIDERS = [
     'apache.hdfs',
     'apache.hive',
     'apache.pinot',
+    'arangodb',
     'cloudant',
     'databricks',
     'exasol',
