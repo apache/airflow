@@ -154,6 +154,7 @@ class TestDatabricksReposCreateOperator(unittest.TestCase):
         db_mock = db_mock_class.return_value
         db_mock.update_repo.return_value = {'head_commit_id': '123456'}
         db_mock.create_repo.return_value = {'id': '123', 'branch': 'main'}
+        db_mock.get_repo_by_path.return_value = None
 
         op.execute(None)
 
@@ -162,6 +163,33 @@ class TestDatabricksReposCreateOperator(unittest.TestCase):
         )
 
         db_mock.create_repo.assert_called_once_with({'url': git_url, 'provider': 'gitHub', 'path': repo_path})
+        db_mock.update_repo.assert_called_once_with('123', {'branch': 'releases'})
+
+    @mock.patch('airflow.providers.databricks.operators.databricks_repos.DatabricksHook')
+    def test_create_ignore_existing_plus_checkout(self, db_mock_class):
+        """
+        Test the execute function creating new Repo.
+        """
+        git_url = "https://github.com/test/test"
+        repo_path = '/Repos/Project1/test-repo'
+        op = DatabricksReposCreateOperator(
+            task_id=TASK_ID,
+            git_url=git_url,
+            repo_path=repo_path,
+            branch="releases",
+            ignore_existing_repo=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.update_repo.return_value = {'head_commit_id': '123456'}
+        db_mock.get_repo_by_path.return_value = '123'
+
+        op.execute(None)
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+        )
+
+        db_mock.get_repo_by_path.assert_called_once_with(repo_path)
         db_mock.update_repo.assert_called_once_with('123', {'branch': 'releases'})
 
     def test_init_exception(self):

@@ -42,6 +42,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         If not specified, it will be created in the user's directory.
     :param branch: optional name of branch to check out.
     :param tag: optional name of tag to checkout.
+    :param ignore_existing_repo: don't throw exception if repository with given path already exists.
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
@@ -72,6 +73,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         branch: Optional[str] = None,
         tag: Optional[str] = None,
         repo_path: Optional[str] = None,
+        ignore_existing_repo: bool = False,
         databricks_conn_id: str = 'databricks_default',
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
@@ -83,6 +85,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.git_url = git_url
+        self.ignore_existing_repo = ignore_existing_repo
         if git_provider is None:
             self.git_provider = self.__detect_repo_provider__(git_url)
             if self.git_provider is None:
@@ -138,10 +141,18 @@ class DatabricksReposCreateOperator(BaseOperator):
                 )
             payload["path"] = self.repo_path
         hook = self._get_hook()
-        result = hook.create_repo(payload)
-        repo_id = result["id"]
+        existing_repo_id = None
+        if self.repo_path is not None:
+            existing_repo_id = hook.get_repo_by_path(self.repo_path)
+            if existing_repo_id is not None and not self.ignore_existing_repo:
+                raise AirflowException(f"Repo with path '{self.repo_path}' already exists")
+        if existing_repo_id is None:
+            result = hook.create_repo(payload)
+            repo_id = result["id"]
+        else:
+            repo_id = existing_repo_id
         # update repo if necessary
-        if self.branch is not None and self.branch != result["branch"]:
+        if self.branch is not None:
             hook.update_repo(str(repo_id), {'branch': str(self.branch)})
         elif self.tag is not None:
             hook.update_repo(str(repo_id), {'tag': str(self.tag)})

@@ -46,6 +46,8 @@ To use this operator you need to provide at least ``git_url`` parameter.
      - Optional name of the existing Git tag to checkout.
    * - repo_path: str
      - Optional path to a Databricks Repos, like, ``/Repos/<user_email>/repo_name``. If not specified, it will be created in the user's directory.
+   * - ignore_existing_repo: bool
+     - Don't throw exception if repository with given path already exists.
    * - databricks_conn_id: string
      - the name of the Airflow connection to use.
    * - databricks_retry_limit: integer
