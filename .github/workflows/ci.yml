@@ -1583,8 +1583,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
         env:
           PREPARE_BUILDX_CACHE: "true"
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
         env:
           VERSION_SUFFIX_FOR_PYPI: ".dev0"
           PREPARE_BUILDX_CACHE: "true"
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always()
