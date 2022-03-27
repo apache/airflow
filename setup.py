@@ -218,7 +218,7 @@ azure = [
     'azure-cosmos>=4.0.0',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
-    'azure-keyvault>=4.1.0',
+    'azure-keyvault-secrets>=4.1.0,<5.0',
     'azure-kusto-data>=0.0.43,<0.1',
     # Azure integration uses old librarires and the limits below reflect that
     # TODO: upgrade to newer versions of all the below libraries
