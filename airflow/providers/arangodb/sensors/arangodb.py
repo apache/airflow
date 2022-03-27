@@ -36,20 +36,20 @@ class AQLSensor(BaseSensorOperator):
     :param arangodb_db: Target ArangoDB name.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ('query',)
 
     def __init__(
-        self, *, sql: str, arangodb_conn_id: str = "arangodb_default", **kwargs
+        self, *, query: str, arangodb_conn_id: str = "arangodb_default", **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.arangodb_conn_id = arangodb_conn_id
-        self.sql = sql
+        self.query = query
 
     def poke(self, context: 'Context') -> bool:
         self.log.info(
-            f"Sensor running following query: {self.sql}"
+            f"Sensor running following query: {self.query}"
         )
         hook = ArangoDBHook(self.arangodb_conn_id)
-        records = hook.query(self.sql, count=True).count()
+        records = hook.query(self.query, count=True).count()
         self.log.info(f"Total Records found: {records}")
         return 0 != records

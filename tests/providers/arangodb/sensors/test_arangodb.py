@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,22 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
 import unittest
-from unittest import mock
 from unittest.mock import Mock, patch
 
+from pyasn1.type import tag
+
 from airflow.models import Connection
-from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
+from airflow.models.dag import DAG
+from airflow.providers.arangodb.sensors.arangodb import AQLSensor
+from airflow.utils import db, timezone
+from arango.cursor import Cursor
 
-from airflow.utils import db
-
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
 
 
-class TestArangoDBHook(unittest.TestCase):
+class TestAQLSensor(unittest.TestCase):
     def setUp(self):
-        super().setUp()
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG('test_dag_id', default_args=args)
+        self.dag = dag
         db.merge_conn(
             Connection(
                 conn_id='arangodb_default',
@@ -44,18 +51,19 @@ class TestArangoDBHook(unittest.TestCase):
     @patch(
         "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient", autospec=True, return_value=arangodb_client_mock
     )
-    def test_query(self, arango_mock):
-        arangodb_hook = ArangoDBHook()
-        arangodb_query = "FOR doc IN students " \
-                         "RETURN doc",
+    def test_arangodb_document_created(self, arangodb_mock):
+        query = "FOR doc IN students " \
+              "FILTER doc.name == 'judy' " \
+              "RETURN doc"
 
-        arangodb_hook.query(arangodb_query)
+        arangodb_tag_sensor = AQLSensor(
+            task_id='aql_search_document',
+            query=query,
+            timeout=60,
+            poke_interval=10,
+            dag=self.dag,
+        )
 
-        assert arangodb_hook.hosts == ['http://127.0.0.1:8529']
-        assert arangodb_hook.username == 'root'
-        assert arangodb_hook.password == 'password'
-        assert arangodb_hook.database == '_system'
-        assert arangodb_hook.client is not None
-        assert arango_mock.called
-        assert isinstance(arangodb_hook.client, Mock)
+        arangodb_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert arangodb_mock.return_value.db.called
 

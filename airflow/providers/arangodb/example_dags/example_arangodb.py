@@ -36,9 +36,9 @@ dag = DAG(
 
 sensor = AQLSensor(
     task_id="aql_sensor",
-    sql="FOR doc IN students " \
-        "FILTER doc.name == 'judy' " \
-        "RETURN doc",
+    query="FOR doc IN students " \
+          "FILTER doc.name == 'judy' " \
+          "RETURN doc",
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -50,8 +50,8 @@ sensor = AQLSensor(
 
 operator = AQLOperator(
     task_id='aql_operator',
-    sql="FOR doc IN students " \
-        "RETURN doc",
+    query="FOR doc IN students " \
+          "RETURN doc",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor])
 )

@@ -32,30 +32,30 @@ class AQLOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AQLOperator`
 
-    :param sql: the AQL query to be executed. Can receive a str representing a
-        sql statement
+    :param query: the AQL query to be executed. Can receive a str representing a
+        Aql statement
     :param result_processor: function to further process the Result from ArangoDB
     :param arangodb_conn_id: Reference to :ref:`ArangoDB connection id <howto/connection:arangodb>`.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ('query',)
 
     def __init__(
         self,
         *,
-        sql: str,
+        query: str,
         arangodb_conn_id: str = 'arangodb_default',
         result_processor: Optional[Callable] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.arangodb_conn_id = arangodb_conn_id
-        self.sql = sql
+        self.query = query
         self.result_processor = result_processor
 
     def execute(self, context: 'Context'):
-        self.log.info('Executing: %s', self.sql)
+        self.log.info('Executing: %s', self.query)
         hook = ArangoDBHook(arangodb_conn_id=self.arangodb_conn_id)
-        result = hook.query(self.sql)
+        result = hook.query(self.query)
         if self.result_processor:
             self.result_processor(result)
