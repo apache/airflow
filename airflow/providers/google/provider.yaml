@@ -500,6 +500,10 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.dataset
       - airflow.providers.google.cloud.operators.vertex_ai.custom_job
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
+      - airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job
+      - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
+      - airflow.providers.google.cloud.operators.vertex_ai.model_service
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -714,6 +718,10 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.dataset
       - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
       - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
+      - airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job
+      - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
+      - airflow.providers.google.cloud.hooks.vertex_ai.model_service
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -880,9 +888,17 @@ extra-links:
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelExportLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAITrainingLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAITrainingPipelinesLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIDatasetListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIHyperparameterTuningJobListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink

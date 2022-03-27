@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,16 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-COLOR_RED=$'\e[31m'
-COLOR_RESET=$'\e[0m'
-COLOR_YELLOW=$'\e[33m'
 
-if [[ $(id -u) == "0" ]]; then
-    echo
-    echo "${COLOR_RED}You are running pip as root. Please use 'airflow' user to run pip!${COLOR_RESET}"
-    echo
-    echo "${COLOR_YELLOW}See: https://airflow.apache.org/docs/docker-stack/build.html#adding-a-new-pypi-package${COLOR_RESET}"
-    echo
-    exit 1
-fi
-exec "${HOME}"/.local/bin/pip "${@}"
+
+import os
+from datetime import datetime
+
+from airflow import models
+from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
+
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
+
+with models.DAG(
+    "example_ftp_to_s3",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
+    # [START howto_transfer_ftp_to_s3]
+    ftp_to_s3_task = FTPToS3Operator(
+        task_id="ftp_to_s3_task",
+        ftp_path="/tmp/ftp_path",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
+        replace=True,
+    )
+    # [END howto_transfer_ftp_to_s3]

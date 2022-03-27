@@ -2296,11 +2296,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-system-tests daysago-import-check debug-statements detect-private-key
                  docstring-params doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
                  flake8 flynt codespell forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
-                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
-                 markdownlint mermaid migration-reference mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-changelogs providers-init-file
+                 insert-license inline-dockerfile-scripts isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid migration-reference
+                 mixed-line-ending mypy mypy-helm no-providers-in-core-examples no-relative-imports
+                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
+                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
                  providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace

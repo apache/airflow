@@ -15,35 +15,33 @@
     specific language governing permissions and limitations
     under the License.
 
-Salesforce To S3 Operator
-==============================
-
-.. _howto/operator:SalesforceToS3Operator:
-
-Overview
---------
+Salesforce To Amazon S3 Transfer Operator
+=========================================
 
 Use the
 :class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
-to execute a Salesforce query to fetch data and upload to S3.  The results of the query
-are initially written to a local, temporary directory and then uploaded to an S3 bucket.
+to execute a Salesforce query to fetch data and upload to an Amazon S3 bucket.
 
-Extract Customer Data from Salesforce
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
 
-The following example demonstrates a use case of extracting customer data from a Salesforce
-instance and upload to a "landing" bucket in S3.
+.. include:: ../_partials/prerequisite_tasks.rst
+
+.. _howto/operator:SalesforceToS3Operator:
+
+Extract Account data from Salesforce
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following example demonstrates a use case of extracting account data from a Salesforce
+instance and upload to an Amazon S3 bucket.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_salesforce_to_s3.py
     :language: python
-    :start-after: [START howto_operator_salesforce_to_s3_transfer]
-    :end-before: [END howto_operator_salesforce_to_s3_transfer]
+    :dedent: 4
+    :start-after: [START howto_transfer_salesforce_to_s3]
+    :end-before: [END howto_transfer_salesforce_to_s3]
 
 Reference
 ---------
 
-This operator uses the :class:`~airflow.providers.salesforce.hooks.salesforce.SalesforceHook`
-to interact with Salesforce.  This hook is built with functionality from the Simple Salesforce
-package.
-
-For further information, review the `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__.
+* `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__
