@@ -459,7 +459,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.glacier_to_gcs
   - source-integration-name: Google
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/google_api_to_s3_transfer.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/google_api_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB

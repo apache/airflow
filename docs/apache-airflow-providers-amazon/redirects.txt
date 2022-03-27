@@ -16,5 +16,6 @@
 # under the License.
 
 operators/s3_to_redshift.rst operators/transfer/s3_to_redshift.rst
+operators/google_api_to_s3_transfer.rst operators/transfer/google_api_to_s3.rst
 operators/imap_attachment_to_s3.rst operators/transfer/imap_attachment_to_s3.rst
 operators/salesforce_to_s3.rst operators/transfer/salesforce_to_s3.rst
