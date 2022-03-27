@@ -295,7 +295,7 @@ function breeze::initialize_virtualenv() {
         echo
         AIRFLOW__CORE__LOAD_EXAMPLES="False" \
             AIRFLOW__CORE__UNIT_TEST_MODE="False" \
-            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED="False" \
             AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
             AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
             airflow db reset -y
@@ -304,7 +304,7 @@ function breeze::initialize_virtualenv() {
         echo
         AIRFLOW__CORE__LOAD_EXAMPLES="False" \
             AIRFLOW__CORE__UNIT_TEST_MODE="True" \
-            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED="False" \
             AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
             AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
             airflow db reset -y

@@ -82,7 +82,7 @@ are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/ai
 
 The working directory is ``/opt/airflow`` by default.
 
-If no :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable is set then SQLite database is created in
+If no :envvar:`AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite database is created in
 ``${AIRFLOW_HOME}/airflow.db``.
 
 For example commands that start Airflow see: :ref:`entrypoint:commands`.
