@@ -66,7 +66,6 @@ class ArangoDBHook(BaseHook):
 
         self.client = ArangoDBClient(hosts=self.hosts)
         self.db_conn = self.client.db(name=self.database, username=self.username, password=self.password)
-        self.db_conn.collection("x").find
         return self.client
 
     def query(self, query, **kwargs) -> Result:
