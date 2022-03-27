@@ -254,6 +254,166 @@ If you wish to delete a Auto ML Training Job you can use
     :start-after: [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
 
+Creating a Batch Prediction Jobs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Google VertexAI Batch Prediction Job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`.
+The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` under ``batch_prediction_job_id`` key.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
+
+To delete batch prediction job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+
+To get a batch prediction job list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
+
+Creating an Endpoint Service
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Google VertexAI endpoint you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.CreateEndpointOperator`.
+The operator returns endpoint id in :ref:`XCom <concepts:xcom>` under ``endpoint_id`` key.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_endpoint_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_endpoint_operator]
+
+After creating an endpoint you can use it to deploy some model using
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_deploy_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_deploy_model_operator]
+
+To un deploy model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UndeployModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_undeploy_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_undeploy_model_operator]
+
+To delete endpoint you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeleteEndpointOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_endpoint_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_endpoint_operator]
+
+To get an endpoint list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.ListEndpointsOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_endpoints_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_endpoints_operator]
+
+Creating a Hyperparameter Tuning Jobs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Google VertexAI hyperparameter tuning job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator`.
+The operator returns hyperparameter tuning job id in :ref:`XCom <concepts:xcom>` under ``hyperparameter_tuning_job_id`` key.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
+
+To delete hyperparameter tuning job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.DeleteHyperparameterTuningJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
+
+To get hyperparameter tuning job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.GetHyperparameterTuningJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
+
+To get a hyperparameter tuning job list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.ListHyperparameterTuningJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
+
+Creating a Model Service
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+To upload a Google VertexAI model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.UploadModelOperator`.
+The operator returns model id in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_upload_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_upload_model_operator]
+
+To export model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ExportModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_export_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_export_model_operator]
+
+To delete model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_model_operator]
+
+To get a model list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelsOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_vertex_ai.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_models_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_models_operator]
+
 Reference
 ^^^^^^^^^
 
