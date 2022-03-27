@@ -503,7 +503,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
   - source-integration-name: Salesforce
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/salesforce_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
   - source-integration-name: Local
     target-integration-name: Amazon Simple Storage Service (S3)
