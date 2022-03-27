@@ -763,12 +763,13 @@ class DAG(LoggingMixin):
         earliest = None
         if start_dates:
             earliest = timezone.coerce_datetime(min(start_dates))
+        latest = self.end_date
         end_dates = [t.end_date for t in self.tasks if t.end_date]
-        if self.end_date is not None:
-            end_dates.append(self.end_date)
-        latest = None
-        if end_dates:
-            latest = timezone.coerce_datetime(max(end_dates))
+        if len(end_dates) == len(self.tasks):  # not exists null end_date
+            if self.end_date is not None:
+                end_dates.append(self.end_date)
+            if end_dates:
+                latest = timezone.coerce_datetime(max(end_dates))
         return TimeRestriction(earliest, latest, self.catchup)
 
     def iter_dagrun_infos_between(
