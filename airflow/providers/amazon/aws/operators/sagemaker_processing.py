@@ -60,6 +60,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         print_log: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
+        check_if_job_exists: bool = True,
         action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
         **kwargs,
     ):
@@ -76,6 +77,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self._create_integer_fields()
+        self.check_if_job_exists = check_if_job_exists
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
@@ -93,10 +95,22 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
     def execute(self, context) -> dict:
         self.preprocess_config()
+        if self.check_if_job_exists:
+            self._check_if_job_exists()
+        self.log.info("Creating SageMaker processing job %s.", self.config["ProcessingJobName"])
+        response = self.hook.create_processing_job(
+            self.config,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            max_ingestion_time=self.max_ingestion_time,
+        )
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise AirflowException(f'Sagemaker Processing Job creation failed: {response}')
+        return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}
 
+    def _check_if_job_exists(self):
         processing_job_name = self.config["ProcessingJobName"]
         processing_jobs = self.hook.list_processing_jobs(NameContains=processing_job_name)
-
         # Check if given ProcessingJobName already exists
         if processing_job_name in [pj["ProcessingJobName"] for pj in processing_jobs]:
             if self.action_if_job_exists == "fail":
@@ -108,14 +122,3 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 new_processing_job_name = f"{processing_job_name}-{len(processing_jobs) + 1}"
                 self.config["ProcessingJobName"] = new_processing_job_name
                 self.log.info("Incremented processing job name to '%s'.", new_processing_job_name)
-
-        self.log.info("Creating SageMaker processing job %s.", self.config["ProcessingJobName"])
-        response = self.hook.create_processing_job(
-            self.config,
-            wait_for_completion=self.wait_for_completion,
-            check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time,
-        )
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Sagemaker Processing Job creation failed: {response}')
-        return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}
