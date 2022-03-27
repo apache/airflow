@@ -21,16 +21,16 @@
 
 Operators
 =======================
-You can build your own Operator hook in :class:`~airflow.providers.hooks.ArangoDBHook`,
+You can build your own Operator hook in :class:`~airflow.providers.arangodb.hooks.ArangoDBHook`,
 
 
 AQLOperator
-=========
+===========
 
 Use the :class:`~airflow.providers.arangodb.operators.AQLOperator` to execute
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
 
-You can further process your result using :class:`~airflow.providers.arangodb.operators.ArangoDBOperator` and
+You can further process your result using :class:`~airflow.providers.arangodb.operators.AQLOperator` and
 further process the result using **result_processor** Callable as you like.
 
 An example of Listing all Documents in **students** collection can be implemented as following:
@@ -53,4 +53,3 @@ An example for waiting a document in **students** collection with student name *
     :language: python
     :start-after: [START howto_aql_sensor_arangodb]
     :end-before: [END howto_aql_sensor_arangodb]
-

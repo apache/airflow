@@ -20,13 +20,10 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from pyasn1.type import tag
-
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import db, timezone
-from arango.cursor import Cursor
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 arangodb_client_mock = Mock(name="arangodb_client_for_test")

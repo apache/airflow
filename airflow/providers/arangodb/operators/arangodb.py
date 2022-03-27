@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence, Callable
+from typing import TYPE_CHECKING, Callable, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook

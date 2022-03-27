@@ -17,9 +17,9 @@
 # under the License.
 
 """This module allows connecting to a ArangoDB."""
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-from arango import ArangoClient as ArangoDBClient, AQLQueryExecuteError
+from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 from arango.result import Result
 
 from airflow import AirflowException
@@ -52,9 +52,7 @@ class ArangoDBHook(BaseHook):
         self.get_conn()
 
     def get_conn(self) -> ArangoDBClient:
-        """
-        Function that initiates a new ArangoDB connection
-        """
+        """Function that initiates a new ArangoDB connection"""
         if self.client is not None:
             return self.client
 
@@ -74,8 +72,6 @@ class ArangoDBHook(BaseHook):
         and execute the AQL query in the session.
 
         :param query: AQL query
-        :param count: If set to True, the total document count is included in
-            the result cursor.
         :return: Result
         """
         try:
@@ -83,8 +79,6 @@ class ArangoDBHook(BaseHook):
             return result
         except AQLQueryExecuteError as error:
             raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
-
-
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
@@ -97,8 +91,8 @@ class ArangoDBHook(BaseHook):
                 'password': 'ArangoDB Password',
             },
             "placeholders": {
-                'host': 'eg."http://127.0.0.1:8529" or "http://127.0.0.1:8529,http://127.0.0.1:8530" (coordinators in '
-                        'a cluster)',
+                'host': 'eg."http://127.0.0.1:8529" or "http://127.0.0.1:8529,http://127.0.0.1:8530"'
+                ' (coordinators in a cluster)',
                 'schema': '_system',
                 'login': 'root',
                 'password': 'password',

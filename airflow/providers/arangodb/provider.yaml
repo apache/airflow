@@ -22,6 +22,7 @@ description: |
     `ArangoDB <https://www.arangodb.com/>`__
 versions:
   - 1.0.0
+
 integrations:
   - integration-name: ArangoDB
     external-doc-url: https://www.arangodb.com/
