@@ -18,24 +18,25 @@
 
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
-
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 TEMP_DOCKER_DIR=$(mktemp -d)
 pushd "${TEMP_DOCKER_DIR}"
 
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
-
 # [START build]
-export DEBIAN_VERSION="bullseye"
-export DOCKER_BUILDKIT=1
+mkdir -p docker-context-files
 
+cat <<EOF >./docker-context-files/requirements.txt
+beautifulsoup4==4.10.0
+EOF
+
+export DOCKER_BUILDKIT=1
 docker build . \
-    --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
-    --tag "my-github-main:0.0.1"
+    --build-arg DOCKER_CONTEXT_FILES=./docker-context-files \
+    --tag "my-beautifulsoup4-airflow:0.0.1"
+docker run -it my-beautifulsoup4-airflow:0.0.1 python -c 'import bs4; import sys; sys.exit(0)' && \
+    echo "Success! Beautifulsoup4 installed" && echo
 # [END build]
-docker rmi --force "my-github-main:0.0.1"
+docker rmi --force "my-beautifulsoup4-airflow:0.0.1"
 popd
 rm -rf "${TEMP_DOCKER_DIR}"

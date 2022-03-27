@@ -27,10 +27,10 @@ function build_images::add_build_args_for_remote_install() {
     # entrypoint is used as AIRFLOW_SOURCES_(WWW)_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
     EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=empty"
-        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/empty"
-        "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
-        "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
     )
     if [[ ${CI} == "true" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
@@ -356,7 +356,6 @@ function build_images::prepare_ci_build() {
     readonly AIRFLOW_EXTRAS
 
     sanity_checks::go_to_airflow_sources
-    permissions::fix_group_permissions
 }
 
 function build_images::clean_build_cache() {
@@ -447,7 +446,7 @@ function build_images::build_ci_image() {
         # we need to login to docker registry so that we can push cache there
         build_images::login_to_docker_registry
         docker_ci_directive+=(
-            "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache"
+            "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache,mode=max"
             "--push"
         )
         if [[ ${PLATFORM} =~ .*,.* ]]; then

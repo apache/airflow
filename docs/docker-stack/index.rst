@@ -30,6 +30,7 @@ Docker Image for Apache Airflow
     Home <self>
     build
     entrypoint
+    changelog
     recipes
 
 .. toctree::
