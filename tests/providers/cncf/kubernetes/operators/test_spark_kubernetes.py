@@ -23,7 +23,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from airflow.models import Connection
-from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
+from airflow.utils.types import DagRunType
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.utils import db, timezone
 from airflow.models import DAG, DagRun, TaskInstance
@@ -364,14 +364,18 @@ class TestSparkKubernetesOperator:
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
-        task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
-        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), run_type=DagRunType.MANUAL
+        )
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
+        task_instance.dag_run = dag_run
         return {
             "dag": dag,
             "ts": DEFAULT_DATE.isoformat(),
             "task": task,
             "ti": task_instance,
             "task_instance": task_instance,
+            "run_id": "test",
         }
 
     def test_env_vars(self):
