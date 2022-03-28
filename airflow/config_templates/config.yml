@@ -1766,13 +1766,6 @@
       type: string
       example: ~
       default: "False"
-    - name: stuck_queued_task_check_interval
-      description: |
-        How often to check for stuck queued task (in seconds)
-      version_added: 2.2.4
-      type: integer
-      example: ~
-      default: "300"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
