@@ -21,8 +21,8 @@ from unittest import mock
 from unittest.mock import call
 
 import pytest
-from docker.errors import APIError
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 
