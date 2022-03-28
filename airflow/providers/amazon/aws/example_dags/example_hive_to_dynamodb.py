@@ -28,6 +28,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
+from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
 from airflow.utils import db
@@ -79,11 +80,8 @@ def get_dynamodb_item_count():
     print(f'DynamoDB table contains {item_count} items.')
 
 
-# Included for sample purposes only; in production you wouldn't delete
-# the table you just backed your data up to.  Using 'all_done' so even
-# if an intermediate step fails, the DAG will clean up after itself.
-@task(trigger_rule='all_done')
-def delete_dynamodb_table():
+# Included for sample purposes only; in production you wouldn't delete your fresh backup.
+def delete_dynamodb_table_fn():
     DynamoDBHook(client_type='dynamodb').conn.delete_table(TableName=DYNAMODB_TABLE_NAME)
 
 
@@ -124,10 +122,17 @@ with DAG(
     )
     # [END howto_transfer_hive_to_dynamodb]
 
+    # Using 'all_done' so even if an intermediate step fails, the DAG will clean up after itself.
+    delete_dynamodb_table = PythonOperator(
+        task_id="delete_dynamodb_table",
+        python_callable=delete_dynamodb_table_fn,
+        trigger_rule='all_done',
+    )
+
     chain(
         configure_hive_connection(),
         create_dynamodb_table(),
         backup_to_dynamodb,
         get_dynamodb_item_count(),
-        delete_dynamodb_table(),
+        delete_dynamodb_table,
     )
