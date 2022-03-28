@@ -1557,9 +1557,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      # Build cache for both platforms for development even if we are releasing
-      # PROD images only for amd64
-      PLATFORM: "linux/amd64,linux/arm64"
       # Rebuild images before push using the latest constraints (just pushed) without
       # eager upgrade. Do not wait for images, but rebuild them
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
@@ -1579,17 +1576,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         run: ./scripts/ci/images/ci_build_ci_image_on_ci.sh
         env:
           PREPARE_BUILDX_CACHE: "true"
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-      - name: "Build CI image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
+          PLATFORM: "linux/amd64,linux/arm64"
+      - name: "Build PROD image cache and push ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
         env:
           VERSION_SUFFIX_FOR_PYPI: ".dev0"
           PREPARE_BUILDX_CACHE: "true"
+          PLATFORM: "linux/amd64,linux/arm64"
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
