@@ -64,7 +64,7 @@ def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
     api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)
-    print("Pool created")
+    print(f"Pool {args.pool} created")
 
 
 @cli_utils.action_cli
@@ -74,7 +74,7 @@ def pool_delete(args):
     api_client = get_current_api_client()
     try:
         api_client.delete_pool(name=args.pool)
-        print("Pool deleted")
+        print(f"Pool {args.pool} deleted")
     except PoolNotFound:
         raise SystemExit(f"Pool {args.pool} does not exist")
 
@@ -84,7 +84,7 @@ def pool_delete(args):
 def pool_import(args):
     """Imports pools from the file"""
     if not os.path.exists(args.file):
-        raise SystemExit("Missing pools file.")
+        raise SystemExit(f"Missing pools file {args.file}")
     pools, failed = pool_import_helper(args.file)
     if len(failed) > 0:
         raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
@@ -106,7 +106,7 @@ def pool_import_helper(filepath):
     try:
         pools_json = json.loads(data)
     except JSONDecodeError as e:
-        raise SystemExit("Invalid json file: " + str(e))
+        raise SystemExit(f"Invalid json file: {e}")
     pools = []
     failed = []
     for k, v in pools_json.items():
