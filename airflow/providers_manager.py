@@ -24,6 +24,7 @@ import os
 import sys
 import warnings
 from collections import OrderedDict
+from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
 from typing import (
@@ -138,59 +139,21 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
     return True
 
 
-def _sanity_check(provider_package: str, class_name: str) -> Optional[Type[BaseHook]]:
-    """
-    Performs coherence check on provider classes.
-    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
-    it tries to import the provider - checking that there are no exceptions during importing.
-    It logs appropriate warning in case it detects any problems.
-
-    :param provider_package: name of the provider package
-    :param class_name: name of the class to import
-
-    :return the class if the class is OK, None otherwise.
-    """
-    if not _check_builtin_provider_prefix(provider_package, class_name):
-        return None
-    try:
-        imported_class = import_string(class_name)
-    except AirflowOptionalProviderFeatureException as e:
-        # When the provider class raises AirflowOptionalProviderFeatureException
-        # this is an expected case when only some classes in provider are
-        # available. We just log debug level here
-        log.debug(
-            "Optional feature disabled on exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
-        return None
-    except ImportError as e:
-        # When there is an ImportError we turn it into debug warnings as this is
-        # an expected case when only some providers are installed
-        log.warning(
-            "Exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
-        return None
-    except Exception as e:
-        log.warning(
-            "Exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
-        return None
-    return imported_class
-
-
-class ProviderInfo(NamedTuple):
+@dataclass
+class ProviderInfo:
     """Provider information"""
 
     version: str
     provider_info: Dict
+    package_or_source: str
+
+    def __post_init__(self):
+        if not self.package_or_source in ('source', 'package'):
+            raise ValueError(
+                f"Received {self.package_or_source!r} for `package_or_source`. "
+                "Must be either 'package' or 'source'."
+            )
+        self.is_source = self.package_or_source == 'source'
 
 
 class HookClassProvider(NamedTuple):
@@ -222,6 +185,63 @@ class ConnectionFormWidgetInfo(NamedTuple):
 T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
+
+
+def _sanity_check(
+    provider_package: str, class_name: str, provider_info: ProviderInfo
+) -> Optional[Type[BaseHook]]:
+    """
+    Performs coherence check on provider classes.
+    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
+    it tries to import the provider - checking that there are no exceptions during importing.
+    It logs appropriate warning in case it detects any problems.
+
+    :param provider_package: name of the provider package
+    :param class_name: name of the class to import
+
+    :return the class if the class is OK, None otherwise.
+    """
+    if not _check_builtin_provider_prefix(provider_package, class_name):
+        return None
+    try:
+        imported_class = import_string(class_name)
+    except AirflowOptionalProviderFeatureException as e:
+        # When the provider class raises AirflowOptionalProviderFeatureException
+        # this is an expected case when only some classes in provider are
+        # available. We just log debug level here
+        log.debug(
+            "Optional feature disabled on exception when importing '%s' from '%s' package",
+            class_name,
+            provider_package,
+            exc_info=e,
+        )
+        return None
+    except ImportError as e:
+        # When there is an ImportError we turn it into debug warnings as this is
+        # an expected case when only some providers are installed
+        if provider_info.is_source:
+            log.debug(
+                "Exception when importing '%s' from '%s' package",
+                class_name,
+                provider_package,
+            )
+        else:
+            log.warning(
+                "Exception when importing '%s' from '%s' package",
+                class_name,
+                provider_package,
+                exc_info=e,
+            )
+        return None
+    except Exception as e:
+        log.warning(
+            "Exception when importing '%s' from '%s' package",
+            class_name,
+            provider_package,
+            exc_info=e,
+        )
+        return None
+    return imported_class
 
 
 # We want to have better control over initialization of parameters and be able to debug and test it
@@ -379,7 +399,7 @@ class ProvidersManager(LoggingMixin):
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'package')
             else:
                 log.warning(
                     "The provider for package '%s' could not be registered from because providers for that "
@@ -435,7 +455,7 @@ class ProvidersManager(LoggingMixin):
 
             version = provider_info['versions'][0]
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'source')
             else:
                 log.warning(
                     "The providers for package '%s' could not be registered because providers for that "
@@ -481,7 +501,9 @@ class ProvidersManager(LoggingMixin):
                     )
                     # Defer importing hook to access time by setting import hook method as dict value
                     self._hooks_lazy_dict[connection_type] = functools.partial(
-                        self._import_hook, connection_type
+                        self._import_hook,
+                        connection_type=connection_type,
+                        provider_info=provider,
                     )
             provider_uses_connection_types = True
         return provider_uses_connection_types
@@ -515,7 +537,10 @@ class ProvidersManager(LoggingMixin):
                     # connection-types discovery
                     continue
                 hook_info = self._import_hook(
-                    connection_type=None, hook_class_name=hook_class_name, package_name=package_name
+                    connection_type=None,
+                    provider_info=provider,
+                    hook_class_name=hook_class_name,
+                    package_name=package_name,
                 )
                 if not hook_info:
                     # Problem why importing class - we ignore it. Log is written at import time
@@ -621,6 +646,7 @@ class ProvidersManager(LoggingMixin):
     def _import_hook(
         self,
         connection_type: Optional[str],
+        provider_info: ProviderInfo,
         hook_class_name: Optional[str] = None,
         package_name: Optional[str] = None,
     ) -> Optional[HookInfo]:
@@ -656,7 +682,7 @@ class ProvidersManager(LoggingMixin):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        hook_class = _sanity_check(package_name, hook_class_name)
+        hook_class = _sanity_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
         try:
@@ -773,7 +799,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, (_, provider) in self._provider_dict.items():
             if provider.get("extra-links"):
                 for extra_link_class_name in provider["extra-links"]:
-                    if _sanity_check(provider_package, extra_link_class_name):
+                    if _sanity_check(provider_package, extra_link_class_name, provider):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
@@ -781,7 +807,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, (_, provider) in self._provider_dict.items():
             if provider.get("logging"):
                 for logging_class_name in provider["logging"]:
-                    if _sanity_check(provider_package, logging_class_name):
+                    if _sanity_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
@@ -789,7 +815,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, (_, provider) in self._provider_dict.items():
             if provider.get("secrets-backends"):
                 for secrets_backends_class_name in provider["secrets-backends"]:
-                    if _sanity_check(provider_package, secrets_backends_class_name):
+                    if _sanity_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
@@ -797,7 +823,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, (_, provider) in self._provider_dict.items():
             if provider.get("auth-backends"):
                 for auth_backend_module_name in provider["auth-backends"]:
-                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app"):
+                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app", provider):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     @property
