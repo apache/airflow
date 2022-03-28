@@ -28,6 +28,8 @@ import sqlalchemy as sa
 from alembic import op
 from alembic.operations.ops import CreateForeignKeyOp
 
+from airflow.models.base import naming_convention
+
 # revision identifiers, used by Alembic.
 revision = '2ea0d2ae850d'
 down_revision = '0152485aedf5'
@@ -50,30 +52,23 @@ TABLES_WITH_UNNAMED_UNIQUES = [
 ]
 
 
-def _drop_and_recreate_uniques(constraints, table_name, convention):
+def _drop_and_recreate(constraints, table_name, convention):
     for unique_cons in constraints:
         op.drop_constraint(unique_cons['name'], table_name, type_='unique')
         with op.batch_alter_table(table_name, naming_convention=convention) as batch_op:
             batch_op.create_unique_constraint(None, unique_cons['column_names'])
 
 
-def _drop_and_recreate_indexes(constraints, table_name, convention):
-    for index in constraints:
-        op.drop_index(index['name'], table_name)
-        with op.batch_alter_table(table_name) as batch_op:
-            batch_op.create_index(None, index['column_names'])
-
-
-def drop_and_recreate_unique_key(insp, table_name, dialect='mysql', convention=None):
-    fks = insp.get_foreign_keys(table_name)
+def drop_and_recreate_unique_key(insp, table, table_name, dialect='mysql', convention=None):
+    fks = table.foreign_key_constraints
     for constraint in fks:
         op.drop_constraint(constraint.name, table_name, type_='foreignkey')
     if dialect == 'mysql':
         constraints = insp.get_unique_constraints(table_name)
-        _drop_and_recreate_uniques(constraints, table_name, convention)
+        _drop_and_recreate(constraints, table_name, convention)
     elif dialect == 'mssql':
         constraints = insp.get_indexes(table_name)
-        _drop_and_recreate_uniques(constraints, table_name, convention)
+        _drop_and_recreate(constraints, table_name, convention)
     for constraint in fks:
         op.invoke(CreateForeignKeyOp.from_constraint(constraint))
 
@@ -84,11 +79,12 @@ def upgrade():
     dialect_name = conn.engine.dialect.name
     if dialect_name not in ['mysql', 'mssql']:
         return
+    meta = sa.MetaData(naming_convention=naming_convention)
     insp = sa.inspect(conn)
 
     for table_name in TABLES_WITH_UNNAMED_UNIQUES:
-        print(table_name)
-        drop_and_recreate_unique_key(insp, table_name, dialect_name)
+        t = sa.Table(table_name, meta, autoload_with=conn)
+        drop_and_recreate_unique_key(insp, t, table_name, dialect=dialect_name, convention=naming_convention)
 
 
 def downgrade():

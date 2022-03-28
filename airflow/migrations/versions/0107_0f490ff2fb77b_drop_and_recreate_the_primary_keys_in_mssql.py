@@ -60,6 +60,7 @@ def drop_and_create_taskinstance_pkey(table):
     op.drop_constraint('task_map_task_instance_fkey', 'task_map', type_='foreignkey')
     op.drop_constraint('task_reschedule_ti_fkey', 'task_reschedule', type_='foreignkey')
     op.drop_constraint('xcom_task_instance_fkey', 'xcom', type_='foreignkey')
+    op.drop_constraint('task_fail_ti_fkey', 'task_fail', type_='foreignkey')
     # drop and recreate the primary key
     _recreate_primary_key(table)
     op.create_foreign_key(
@@ -92,6 +93,14 @@ def drop_and_create_taskinstance_pkey(table):
         'task_instance',
         ["dag_id", "task_id", "run_id", "map_index"],
         ["dag_id", "task_id", "run_id", "map_index"],
+        ondelete='CASCADE',
+    )
+    op.create_foreign_key(
+        'task_fail_ti_fkey',
+        'task_fail',
+        'task_instance',
+        ['dag_id', 'task_id', 'run_id', 'map_index'],
+        ['dag_id', 'task_id', 'run_id', 'map_index'],
         ondelete='CASCADE',
     )
 
