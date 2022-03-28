@@ -38,9 +38,13 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
 
+from airflow.models.base import Base
+
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
+# Use airflow metadata to create the tables
+Model.metadata = Base.metadata
 
 if TYPE_CHECKING:
     try:
@@ -53,7 +57,7 @@ def get_sequence_or_identity(sequence_name: str) -> Union[Sequence, 'Identity']:
     """
     Depending on the engine it either returns Sequence, or Identity (in case of MSSQL in SQLAlchemy 1.4).
     In SQLAlchemy 1.4 using sequence is not allowed for primary key columns in MsSQL.
-    Primary columns in MsSQL use IDENTITY keyword to autoincrement.
+    Primary columns in MsSQL use IDENTITY keyword to auto increment.
     Using Sequence for those fields used to be allowed in SQLAlchemy 1.3 (and essentially ignored
     if only name was specified).
 

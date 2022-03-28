@@ -19,11 +19,11 @@
 
 import pytest
 
-from airflow.providers.amazon.aws.example_dags.example_google_api_to_s3_transfer_advanced import (
-    S3_DESTINATION_KEY as ADVANCED_S3_DESTINATION_KEY,
+from airflow.providers.amazon.aws.example_dags.example_google_api_sheets_to_s3 import (
+    S3_DESTINATION_KEY as SHEETS_S3_DESTINATION_KEY,
 )
-from airflow.providers.amazon.aws.example_dags.example_google_api_to_s3_transfer_basic import (
-    S3_DESTINATION_KEY as BASIC_S3_DESTINATION_KEY,
+from airflow.providers.amazon.aws.example_dags.example_google_api_youtube_to_s3 import (
+    S3_BUCKET_NAME as YOUTUBE_S3_BUCKET_NAME,
 )
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
@@ -35,32 +35,31 @@ from tests.test_utils.amazon_system_helpers import (
 )
 from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
-BASIC_BUCKET, _ = S3Hook.parse_s3_url(BASIC_S3_DESTINATION_KEY)
-ADVANCED_BUCKET, _ = S3Hook.parse_s3_url(ADVANCED_S3_DESTINATION_KEY)
+SHEETS_BUCKET, _ = S3Hook.parse_s3_url(SHEETS_S3_DESTINATION_KEY)
 
 
 @pytest.fixture
-def provide_s3_bucket_basic():
-    with provide_aws_s3_bucket(BASIC_BUCKET):
+def provide_s3_bucket_sheets():
+    with provide_aws_s3_bucket(SHEETS_BUCKET):
         yield
 
 
 @pytest.fixture
-def provide_s3_bucket_advanced():
-    with provide_aws_s3_bucket(ADVANCED_BUCKET):
+def provide_s3_bucket_youtube():
+    with provide_aws_s3_bucket(YOUTUBE_S3_BUCKET_NAME):
         yield
 
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GMP_KEY)
 class GoogleApiToS3TransferExampleDagsSystemTest(GoogleSystemTest, AmazonSystemTest):
-    @pytest.mark.usefixtures("provide_s3_bucket_basic")
+    @pytest.mark.usefixtures("provide_s3_bucket_sheets")
     @provide_aws_context()
     @provide_gcp_context(GMP_KEY, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])
     def test_run_example_dag_google_api_to_s3_transfer_basic(self):
         self.run_dag('example_google_api_to_s3_transfer_basic', AWS_DAG_FOLDER)
 
-    @pytest.mark.usefixtures("provide_s3_bucket_advanced")
+    @pytest.mark.usefixtures("provide_s3_bucket_youtube")
     @provide_aws_context()
     @provide_gcp_context(GMP_KEY, scopes=['https://www.googleapis.com/auth/youtube.readonly'])
     def test_run_example_dag_google_api_to_s3_transfer_advanced(self):

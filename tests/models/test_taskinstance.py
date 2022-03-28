@@ -1345,7 +1345,7 @@ class TestTaskInstance:
         callback_wrapper = CallbackWrapper()
         ti = create_task_instance(
             on_success_callback=callback_wrapper.success_handler,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             execution_date=timezone.utcnow(),
             state=State.RUNNING,
         )
@@ -1718,7 +1718,7 @@ class TestTaskInstance:
             completed = True
 
         ti = create_task_instance(
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             on_success_callback=on_finish_callable,
             on_retry_callback=on_finish_callable,
             on_failure_callback=on_finish_callable,
@@ -1913,7 +1913,7 @@ class TestTaskInstance:
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
             dag_id='test_task_start_end_stats',
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             state=State.RUNNING,
         )
         stats_mock.reset_mock()

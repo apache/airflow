@@ -333,12 +333,33 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
         """
+        Updates given Databricks Repos
 
-        :param repo_id:
-        :param json:
-        :return:
+        :param repo_id: ID of Databricks Repos
+        :param json: payload
+        :return: metadata from update
         """
         repos_endpoint = ('PATCH', f'api/2.0/repos/{repo_id}')
+        return self._do_api_call(repos_endpoint, json)
+
+    def delete_repo(self, repo_id: str):
+        """
+        Deletes given Databricks Repos
+
+        :param repo_id: ID of Databricks Repos
+        :return:
+        """
+        repos_endpoint = ('DELETE', f'api/2.0/repos/{repo_id}')
+        self._do_api_call(repos_endpoint)
+
+    def create_repo(self, json: Dict[str, Any]) -> dict:
+        """
+        Creates a Databricks Repos
+
+        :param json: payload
+        :return:
+        """
+        repos_endpoint = ('POST', 'api/2.0/repos')
         return self._do_api_call(repos_endpoint, json)
 
     def get_repo_by_path(self, path: str) -> Optional[str]:

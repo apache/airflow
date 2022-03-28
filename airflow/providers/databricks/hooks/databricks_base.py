@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 import requests
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
+from requests.exceptions import JSONDecodeError
 from tenacity import RetryError, Retrying, retry_if_exception, stop_after_attempt, wait_exponential
 
 from airflow import __version__
@@ -340,6 +341,8 @@ class BaseDatabricksHook(BaseHook):
             request_func = requests.post
         elif method == 'PATCH':
             request_func = requests.patch
+        elif method == 'DELETE':
+            request_func = requests.delete
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 
@@ -362,12 +365,30 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(f'Response: {e.response.content}, Status Code: {e.response.status_code}')
 
     @staticmethod
+    def _get_error_code(exception: BaseException) -> str:
+        if isinstance(exception, requests_exceptions.HTTPError):
+            try:
+                jsn = exception.response.json()
+                return jsn.get('error_code', '')
+            except JSONDecodeError:
+                pass
+
+        return ""
+
+    @staticmethod
     def _retryable_error(exception: BaseException) -> bool:
         if not isinstance(exception, requests_exceptions.RequestException):
             return False
         return isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
             exception.response is not None
-            and (exception.response.status_code >= 500 or exception.response.status_code == 429)
+            and (
+                exception.response.status_code >= 500
+                or exception.response.status_code == 429
+                or (
+                    exception.response.status_code == 400
+                    and BaseDatabricksHook._get_error_code(exception) == 'COULD_NOT_ACQUIRE_LOCK'
+                )
+            )
         )
 
 
