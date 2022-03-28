@@ -46,7 +46,6 @@ TABLES_WITH_UNNAMED_UNIQUES = [
     'ab_user',
     'ab_user_role',
     'ab_view_menu',
-    'connection',
     'slot_pool',
     'variable',
 ]
@@ -77,6 +76,9 @@ def upgrade():
     """Apply rename unnamed unique keys"""
     conn = op.get_bind()
     dialect_name = conn.engine.dialect.name
+    with op.batch_alter_table('connection', naming_convention=naming_convention) as batch_op:
+        batch_op.drop_constraint('unique_conn_id', type_='unique')
+        batch_op.create_unique_constraint(None, ['conn_id'])
     if dialect_name not in ['mysql', 'mssql']:
         return
     meta = sa.MetaData(naming_convention=naming_convention)
