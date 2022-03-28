@@ -518,11 +518,3 @@ class SchedulerTest(unittest.TestCase):
                 "memory": "2Gi",
             },
         } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
-
-    def test_dags_persistence_subpath(self):
-        docs = render_chart(
-            values={"dags": {"persistence": {"enabled": True, "subPath": "test/dags"}}},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert "dags" in jmespath.search("spec.template.spec.containers[0].volumeMounts[*].name", docs[0])
