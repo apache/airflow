@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-28T16:53:13Z
+# This constraints file was automatically generated on 2022-03-28T19:16:37Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -120,7 +120,7 @@ charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.0.4
+click==8.1.0
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.0.0
@@ -225,7 +225,7 @@ grpcio==1.45.0
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
-hdfs==2.6.0
+hdfs==2.7.0
 hmsclient==0.1.1
 httpcore==0.14.7
 httplib2==0.19.1

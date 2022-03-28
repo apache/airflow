@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-28T16:52:40Z
+# This constraints file was automatically generated on 2022-03-28T19:16:18Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -150,9 +150,9 @@ azure-core==1.23.0
 azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
 azure-identity==1.8.0
-azure-keyvault-certificates==4.3.0
-azure-keyvault-keys==4.4.0
-azure-keyvault-secrets==4.3.0
+azure-keyvault-certificates==4.4.0
+azure-keyvault-keys==4.5.0
+azure-keyvault-secrets==4.4.0
 azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -171,12 +171,12 @@ backoff==1.10.0
 bcrypt==3.2.0
 beautifulsoup4==4.10.0
 billiard==3.6.4.0
-black==22.1.0
+black==22.3.0
 bleach==4.1.0
 blinker==1.4
 boto3==1.21.27
 boto==2.49.0
-botocore==1.24.27
+botocore==1.24.28
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -192,7 +192,7 @@ charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.0.4
+click==8.1.0
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.0.0
