@@ -91,3 +91,6 @@ def upgrade():
 
 def downgrade():
     """Unapply rename unnamed unique keys"""
+    with op.batch_alter_table('connection', naming_convention=naming_convention) as batch_op:
+        batch_op.drop_constraint('connection_conn_id_key', type_='unique')
+        batch_op.create_unique_constraint('unique_conn_id', ['conn_id'])

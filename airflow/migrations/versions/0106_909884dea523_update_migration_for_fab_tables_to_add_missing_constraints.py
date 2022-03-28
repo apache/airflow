@@ -44,7 +44,7 @@ def upgrade():
     if conn.dialect.name == 'sqlite':
         op.execute('PRAGMA foreign_keys=OFF')
         with op.batch_alter_table('ab_view_menu', schema=None) as batch_op:
-            batch_op.create_unique_constraint(batch_op.f('ab_view_menu_name_uq'), ['name'])
+            batch_op.create_unique_constraint(batch_op.f('ab_view_menu_name_key'), ['name'])
         op.execute('PRAGMA foreign_keys=ON')
     elif conn.dialect.name == 'mysql':
         with op.batch_alter_table('ab_register_user', schema=None) as batch_op:
@@ -79,7 +79,7 @@ def downgrade():
     if conn.dialect.name == 'sqlite':
         op.execute('PRAGMA foreign_keys=OFF')
         with op.batch_alter_table('ab_view_menu', schema=None) as batch_op:
-            batch_op.drop_constraint('ab_view_menu_name_uq', type_='unique')
+            batch_op.drop_constraint('ab_view_menu_name_key', type_='unique')
         op.execute('PRAGMA foreign_keys=ON')
     elif conn.dialect.name == 'mysql':
         with op.batch_alter_table('ab_user', schema=None) as batch_op:
