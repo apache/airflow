@@ -45,34 +45,17 @@ TABLES_WITH_UNNAMED_FOREIGN_KEYS = [
     'dag_tag',
 ]
 
-TABLES_WITH_UNNAMED_UNIQUES = [
-    'ab_permission',
-    'ab_permission_view',
-    'ab_permission_view_role',
-    'ab_register_user',
-    'ab_role',
-    'ab_user',
-    'ab_user_role',
-    'ab_view_menu',
-    'connection',
-    'slot_pool',
-    'variable',
-]
-
 
 def upgrade():
     """Apply rename unnamed foreign keys"""
     conn = op.get_bind()
-    engine = conn.engine
     dialect_name = conn.engine.dialect.name
     if dialect_name not in ['mysql', 'mssql']:
         return
     meta = MetaData(naming_convention=naming_convention)
 
     # recreate foreign keys so they are similar to postgresql foreign keys
-    for table_name in engine.table_names():
-        if table_name not in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
-            continue
+    for table_name in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
         t = Table(table_name, meta, autoload_with=conn)
         for constraint in t.foreign_key_constraints:
             op.drop_constraint(constraint.name, table_name, type_='foreignkey')
@@ -83,15 +66,12 @@ def upgrade():
 def downgrade():
     """Unapply rename unnamed unique and foreign keys"""
     conn = op.get_bind()
-    engine = conn.engine
     dialect_name = conn.engine.dialect.name
     if dialect_name not in ['mysql', 'mssql']:
         return
     meta = MetaData()
     # recreate foreign keys
-    for table_name in engine.table_names():
-        if table_name not in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
-            continue
+    for table_name in TABLES_WITH_UNNAMED_FOREIGN_KEYS:
         t = Table(table_name, meta, autoload_with=conn)
         for constraint in t.foreign_key_constraints:
             op.drop_constraint(constraint.name, table_name, type_='foreignkey')

@@ -134,97 +134,53 @@ def upgrade():
     conn = op.get_bind()
     meta = MetaData(naming_convention=naming_convention)
     engine = conn.engine
-    if conn.dialect.name == 'mssql':
-        # unnamed Primary keys are automatically named
-        # by MSSQL. Here we give all the names explicitly following the naming convention
-        # at airflow/models/base.py
-        # For more information about what the tokens in the convention mean, see
-        # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
+    if conn.dialect.name != 'mssql':
+        return
+    # unnamed Primary keys are automatically named
+    # by MSSQL. Here we give all the names explicitly following the naming convention
+    # at airflow/models/base.py
+    # For more information about what the tokens in the convention mean, see
+    # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
 
-        for table_name in engine.table_names():
+    for table_name in engine.table_names():
 
-            if exclude_table(table_name) or table_name == 'alembic_version':
-                continue
-            t = Table(table_name, meta, autoload_with=conn)
-            if table_name == 'task_instance':
-                drop_and_create_taskinstance_pkey(t)
-            elif table_name == 'log_template':
-                drop_and_create_pkey(
-                    t,
-                    meta,
-                    conn,
-                    'dag_run',
-                )
-            elif table_name == 'trigger':
-                drop_and_create_pkey(
-                    t,
-                    meta,
-                    conn,
-                    'task_instance',
-                )
-            elif table_name == 'dag':
-                drop_and_create_pkey(t, meta, conn, 'dag_tag')
-            elif table_name == 'ab_role':
-                drop_and_create_ab_role_pkey(t, meta, conn)
-            elif table_name == 'ab_user':
-                drop_and_create_ab_user_pkey(t, meta, conn)
-            elif table_name == 'ab_permission_view':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view_role')
-            elif table_name == 'ab_view_menu':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
-            elif table_name == 'ab_permission':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
-            else:
-                # drop and recreate the primary key
-                _recreate_primary_key(t)
+        if exclude_table(table_name) or table_name == 'alembic_version':
+            continue
+        t = Table(table_name, meta, autoload_with=conn)
+        if table_name == 'task_instance':
+            drop_and_create_taskinstance_pkey(t)
+        elif table_name == 'log_template':
+            drop_and_create_pkey(
+                t,
+                meta,
+                conn,
+                'dag_run',
+            )
+        elif table_name == 'trigger':
+            drop_and_create_pkey(
+                t,
+                meta,
+                conn,
+                'task_instance',
+            )
+        elif table_name == 'dag':
+            drop_and_create_pkey(t, meta, conn, 'dag_tag')
+        elif table_name == 'ab_role':
+            drop_and_create_ab_role_pkey(t, meta, conn)
+        elif table_name == 'ab_user':
+            drop_and_create_ab_user_pkey(t, meta, conn)
+        elif table_name == 'ab_permission_view':
+            drop_and_create_pkey(t, meta, conn, 'ab_permission_view_role')
+        elif table_name == 'ab_view_menu':
+            drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
+        elif table_name == 'ab_permission':
+            drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
+        else:
+            # drop and recreate the primary key
+            _recreate_primary_key(t)
 
 
 def downgrade():
     """Unapply drop and recreate the primary keys in mssql"""
-    conn = op.get_bind()
-    meta = MetaData()
-    engine = conn.engine
-    if conn.dialect.name == 'mssql':
-        # unnamed Primary keys are automatically named
-        # by MSSQL. Here we give all the names explicitly following the naming convention
-        # at airflow/models/base.py
-        # For more information about what the tokens in the convention mean, see
-        # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
-
-        for table_name in engine.table_names():
-
-            if exclude_table(table_name) or table_name == 'alembic_version':
-                continue
-            t = Table(table_name, meta, autoload_with=conn)
-            if table_name == 'task_instance':
-
-                drop_and_create_taskinstance_pkey(t)
-            elif table_name == 'log_template':
-                drop_and_create_pkey(
-                    t,
-                    meta,
-                    conn,
-                    'dag_run',
-                )
-            elif table_name == 'trigger':
-                drop_and_create_pkey(
-                    t,
-                    meta,
-                    conn,
-                    'task_instance',
-                )
-            elif table_name == 'dag':
-                drop_and_create_pkey(t, meta, conn, 'dag_tag')
-            elif table_name == 'ab_role':
-                drop_and_create_ab_role_pkey(t, meta, conn)
-            elif table_name == 'ab_user':
-                drop_and_create_ab_user_pkey(t, meta, conn)
-            elif table_name == 'ab_permission_view':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view_role')
-            elif table_name == 'ab_view_menu':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
-            elif table_name == 'ab_permission':
-                drop_and_create_pkey(t, meta, conn, 'ab_permission_view')
-            else:
-                # drop and recreate the primary key
-                _recreate_primary_key(t)
+    # unnamed primary keys are randomly named by MSSQL so there's
+    # no need to do anything here
