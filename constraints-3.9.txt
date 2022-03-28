@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-26T21:21:57Z
+# This constraints file was automatically generated on 2022-03-28T16:52:40Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -43,7 +43,7 @@ SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.2
 SQLAlchemy==1.3.24
 SecretStorage==3.3.1
-Sphinx==4.4.0
+Sphinx==4.5.0
 Unidecode==1.3.4
 WTForms==2.3.3
 Werkzeug==1.0.1
@@ -209,7 +209,7 @@ cx-Oracle==8.3.0
 dask==2022.3.0
 databricks-sql-connector==1.0.1
 datadog==0.44.0
-db-dtypes==0.4.0
+db-dtypes==1.0.0
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -298,7 +298,7 @@ grpcio==1.45.0
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
-hdfs==2.6.0
+hdfs==2.7.0
 hmsclient==0.1.1
 httpcore==0.14.7
 httplib2==0.19.1
@@ -314,7 +314,7 @@ inflection==0.5.1
 influxdb-client==1.27.0
 iniconfig==1.1.1
 ipdb==0.13.9
-ipython==8.1.1
+ipython==8.2.0
 iso8601==1.0.2
 isodate==0.6.1
 itsdangerous==1.1.0
@@ -357,8 +357,8 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.21.23.post1
-mypy-boto3-redshift-data==1.21.23.post1
+mypy-boto3-rds==1.21.27
+mypy-boto3-redshift-data==1.21.27
 mypy-extensions==0.4.3
 mypy==0.770
 mysql-connector-python==8.0.28
@@ -514,7 +514,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.3.2
-spython==0.1.18
+spython==0.2.0
 sqlalchemy-bigquery==1.4.3
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.9
@@ -559,7 +559,7 @@ websocket-client==1.3.1
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.150.0
+yandexcloud==0.151.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
