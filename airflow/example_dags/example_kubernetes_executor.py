@@ -42,6 +42,7 @@ except ImportError:
     )
     k8s = None
 
+
 if k8s:
     with DAG(
         dag_id='example_kubernetes_executor',
