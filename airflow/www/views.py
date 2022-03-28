@@ -533,7 +533,7 @@ def redirect_or_json(origin, msg, status=""):
     Some endpoints are called by javascript,
     returning json will allow us to more elegantly handle side-effects in-page
     """
-    if request.headers['Accept'] == 'application/json':
+    if request.headers.get('Accept') == 'application/json':
         return {'status': status, 'message': msg}
     else:
         if status:
@@ -1989,7 +1989,7 @@ class Airflow(AirflowBaseView):
         if not tis:
             msg = "No task instances to clear"
             return redirect_or_json(origin, msg, status="error")
-        elif request.headers['Accept'] == 'application/json':
+        elif request.headers.get('Accept') == 'application/json':
             details = [str(t) for t in tis]
 
             return htmlsafe_json_dumps(details, separators=(',', ':'))
@@ -2362,7 +2362,7 @@ class Airflow(AirflowBaseView):
             commit=False,
         )
 
-        if request.headers['Accept'] == 'application/json':
+        if request.headers.get('Accept') == 'application/json':
             details = [str(t) for t in to_be_altered]
             return htmlsafe_json_dumps(details, separators=(',', ':'))
 
