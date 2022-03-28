@@ -76,7 +76,7 @@ apache-airflow-providers-apache-sqoop==2.1.1
 apache-airflow-providers-asana==1.1.1
 apache-airflow-providers-celery==2.1.0
 apache-airflow-providers-cloudant==2.0.2
-apache-airflow-providers-cncf-kubernetes==3.1.0
+apache-airflow-providers-cncf-kubernetes==3.0.0
 apache-airflow-providers-databricks==2.3.0
 apache-airflow-providers-datadog==2.0.2
 apache-airflow-providers-dbt-cloud==1.0.0rc1
@@ -338,7 +338,7 @@ jwcrypto==1.0
 keyring==23.4.1
 kombu==5.1.0
 krb5==0.3.0
-kubernetes==23.3.0
+kubernetes==11.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9.1
