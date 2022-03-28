@@ -46,10 +46,6 @@ Doc only changes
 
 Misc
 """"
-<<<<<<< HEAD
-- Update Kubernetes library version (#18797)
-=======
->>>>>>> Add 2.2.5 to CHANGELOG.txt and UPDATING.md
 - Add the new Airflow Trove Classifier to setup.cfg (#22241)
 - Rename ``to_delete`` to ``to_cancel`` in TriggerRunner (#20658)
 
