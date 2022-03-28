@@ -810,4 +810,4 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
 def test_fab_models_use_airflow_base_meta():
     # TODO: move this test to appropriate place when we have more tests for FAB models
     user = User()
-    assert user.metadata == Base.metadata
+    assert user.metadata is Base.metadata
