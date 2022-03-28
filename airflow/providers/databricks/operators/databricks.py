@@ -267,8 +267,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
-        token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
+        token based authentication, put the personal access token in the password field for the
+        connection and put an URL of Databricks workspace in the ``host`` field.
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
@@ -549,8 +549,8 @@ class DatabricksRunNowOperator(BaseOperator):
         returns the ID of the existing run instead.  This token must have at most 64 characters.
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
-        token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
+        token based authentication, put the personal access token in the password field for the
+        connection and put an URL of Databricks workspace in the ``host`` field.
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default, the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is

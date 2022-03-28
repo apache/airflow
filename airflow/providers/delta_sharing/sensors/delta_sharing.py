@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 import re
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingHook
-from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -29,6 +28,24 @@ if TYPE_CHECKING:
 
 class DeltaSharingSensor(BaseSensorOperator):
     """
+    Sensor for checking updates to an existing Delta Sharing table.
+
+    :param share: name of the share in which check will be performed
+    :param schema: name of the schema (database) in which check will be performed
+    :param table: name of the table to check
+    :param delta_sharing_conn_id: Reference to the
+        :ref:`Databricks connection <howto/connection:delta_sharing>`.
+        By default and in the common case this will be ``delta_sharing_default``. To use
+        token based authentication, provide the bearer token in the password field for the
+        connection and put the base URL in the ``host`` field.
+    :param timeout_seconds: The timeout for this run. By default a value of 0 is used
+        which means to have no timeout.
+        This field will be templated.
+    :param databricks_retry_limit: Amount of times retry if the Databricks backend is
+        unreachable. Its value must be greater than or equal to 1.
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
     template_fields: Sequence[str] = ('share', 'schema', 'table')
@@ -40,6 +57,10 @@ class DeltaSharingSensor(BaseSensorOperator):
         schema: str,
         table: str,
         delta_sharing_conn_id: str = 'delta_sharing_default',
+        timeout_seconds: int = 180,
+        retry_limit: int = 3,
+        retry_delay: float = 2.0,
+        retry_args: Optional[Dict[Any, Any]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -47,18 +68,26 @@ class DeltaSharingSensor(BaseSensorOperator):
         self.schema = schema
         self.table = table
 
-        self.hook = DeltaSharingHook(delta_sharing_conn_id = delta_sharing_conn_id)
+        self.hook = DeltaSharingHook(
+            delta_sharing_conn_id=delta_sharing_conn_id,
+            retry_args=retry_args,
+            retry_delay=retry_delay,
+            retry_limit=retry_limit,
+            timeout_seconds=timeout_seconds,
+        )
 
     def poke(self, context: 'Context') -> bool:
         table_full_name = f'{self.share}.{self.schema}.{self.table}'
-        self.log.info('Poking Delta Sharing server for %s at %s', table_full_name, self.hook.delta_sharing_endpoint)
+        self.log.info(
+            'Poking Delta Sharing server for %s at %s', table_full_name, self.hook.delta_sharing_endpoint
+        )
         try:
             version = self.hook.get_table_version(self.share, self.schema, self.table)
             self.log.info("Version for %s is '%s'", table_full_name, version)
             prev_version = ""
             if context is not None:
                 lookup_key = re.sub("[^[a-zA-Z0-9]+", "_", self.hook.delta_sharing_endpoint + table_full_name)
-                prev_data = context['ti'].xcom_pull(key=lookup_key, include_prior_dates = True)
+                prev_data = context['ti'].xcom_pull(key=lookup_key, include_prior_dates=True)
                 self.log.info("prev_data: %s, type=%s", str(prev_data), type(prev_data))
                 if isinstance(prev_data, str):
                     prev_version = prev_data

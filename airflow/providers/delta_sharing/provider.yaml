@@ -32,7 +32,7 @@ integrations:
     logo: /integration-logos/delta-sharing/delta-sharing.png
     tags: [protocol]
 
-#operators:
+# operators:
 #  - integration-name: Delta Sharing
 #    python-modules:
 #      - airflow.providers.delta_sharing.operators.delta_sharing

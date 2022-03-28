@@ -15,24 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional, Union
-
-import requests
-import tenacity
-import sys
 import copy
 import sys
-import time
-from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urlparse
-from requests import PreparedRequest, exceptions as requests_exceptions
+from typing import Any, Dict, Optional
 
+import requests
+from requests import exceptions as requests_exceptions
 from tenacity import RetryError, Retrying, retry_if_exception, stop_after_attempt, wait_exponential
 
+from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow import __version__
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -45,15 +39,20 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
 class DeltaSharingHook(BaseHook):
     """
-    Interacts with Delta Sharing endpoint.
+    Hook to interaction with Delta Sharing endpoint.
 
-    :param delta_sharing_conn_id: ...
-    :param timeout_seconds: The amount of time in seconds the requests library
-        will wait before timing-out.
-    :param retry_limit: The number of times to retry the connection in case of
-        service outages.
-    :param retry_delay: The number of seconds to wait between retries (it
-        might be a floating point number).
+    :param delta_sharing_conn_id: Reference to the
+        :ref:`Databricks connection <howto/connection:delta_sharing>`.
+        By default and in the common case this will be ``delta_sharing_default``. To use
+        token based authentication, provide the bearer token in the password field for the
+        connection and put the base URL in the ``host`` field.
+    :param timeout_seconds: The timeout for this run. By default a value of 0 is used
+        which means to have no timeout.
+        This field will be templated.
+    :param retry_limit: Amount of times retry if the Databricks backend is
+        unreachable. Its value must be greater than or equal to 1.
+    :param retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
@@ -67,7 +66,7 @@ class DeltaSharingHook(BaseHook):
         delta_sharing_conn_id: str = default_conn_name,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
-        retry_delay: float = 1.0,
+        retry_delay: float = 2.0,
         retry_args: Optional[Dict[Any, Any]] = None,
     ) -> None:
         super().__init__()
@@ -101,7 +100,9 @@ class DeltaSharingHook(BaseHook):
         return self.delta_sharing_conn
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
-        self.log.error('Attempt %s API Request to Delta Sharing server failed with reason: %s', attempt_num, error)
+        self.log.error(
+            'Attempt %s API Request to Delta Sharing server failed with reason: %s', attempt_num, error
+        )
 
     def _get_retry_object(self) -> Retrying:
         """
@@ -120,7 +121,7 @@ class DeltaSharingHook(BaseHook):
 
         return endpoint
 
-    def _do_api_call(self, endpoint: str, json: Optional[Dict[str, Any]] = None, http_method = 'GET'):
+    def _do_api_call(self, endpoint: str, json: Optional[Dict[str, Any]] = None, http_method='GET'):
         url = self.delta_sharing_endpoint + endpoint
         headers = USER_AGENT_HEADER.copy()
         token = self.delta_sharing_conn.password
@@ -152,7 +153,9 @@ class DeltaSharingHook(BaseHook):
                     response.raise_for_status()
                     return response
         except RetryError:
-            raise AirflowException(f'API requests to Delta Sharing failed {self.retry_limit} times. Giving up.')
+            raise AirflowException(
+                f'API requests to Delta Sharing failed {self.retry_limit} times. Giving up.'
+            )
         except requests_exceptions.HTTPError as e:
             raise AirflowException(f'Response: {e.response.content}, Status Code: {e.response.status_code}')
 
@@ -175,7 +178,9 @@ class DeltaSharingHook(BaseHook):
             if k == 'delta-table-version':
                 version = v
         if version is None:
-            raise AirflowException("No delta-table-version header in response from Delta Sharing server"
-                               f"for item {share}.{schema}.{table}")
+            raise AirflowException(
+                "No delta-table-version header in response from Delta Sharing server"
+                f"for item {share}.{schema}.{table}"
+            )
 
         return version
