@@ -25,6 +25,7 @@ import subprocess
 import sys
 from typing import Optional
 
+from datetime import datetime
 from graphviz.dot import Dot
 from sqlalchemy.sql.functions import func
 
@@ -276,6 +277,10 @@ def dag_next_execution(args):
 
     if dag.get_is_paused():
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
+        dag_run=DagRun(execution_date=datetime.utcnow())
+        next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
+        print(next_info.logical_date.isoformat())
+        return
 
     with create_session() as session:
         max_date_subq = (
