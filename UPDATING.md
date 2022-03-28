@@ -84,9 +84,7 @@ https://developers.google.com/style/inclusive-documentation
 
 ## Airflow 2.2.5
 
-### Minimum kubernetes version bumped from 3.0.0 to  21.7.0
-
-No change in behavior is expected.  This was necessary in order to take advantage of a [bugfix](https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4) concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some [workaround code](https://github.com/apache/airflow/pull/20759).
+No breaking changes.
 
 ## Airflow 2.2.4
 
@@ -1381,7 +1379,7 @@ delete this option.
 
 #### `airflow.models.dagbag.DagBag`
 
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+Passing `store_serialized_dags` argument to `DagBag.__init__` and accessing `DagBag.store_serialized_dags` property
 are deprecated and will be removed in future versions.
 
 
