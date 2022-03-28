@@ -22,13 +22,13 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-from airflow.models import Connection
-from airflow.utils.types import DagRunType
+from kubernetes.client import models as k8s
+
+from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.utils import db, timezone
-from airflow.models import DAG, DagRun, TaskInstance
 from airflow.utils.state import State
-from kubernetes.client import models as k8s
+from airflow.utils.types import DagRunType
 
 TEST_VALID_APPLICATION_YAML = """
 apiVersion: "sparkoperator.k8s.io/v1beta2"
@@ -337,7 +337,9 @@ class TestSparkKubernetesOperator:
         self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-        self.client_patch_pod_launcher = mock.patch("airflow.kubernetes.pod_launcher_deprecated.get_kube_client")
+        self.client_patch_pod_launcher = mock.patch(
+            "airflow.kubernetes.pod_launcher_deprecated.get_kube_client"
+        )
 
         self.delete_spark_job_patch = mock.patch(f"{SPARK_CLASS}.delete_spark_job")
         self.create_custom_obj_patch = mock.patch(f"{SPARK_CLASS}.create_new_custom_obj_for_operator")
@@ -381,7 +383,7 @@ class TestSparkKubernetesOperator:
     def test_env_vars(self):
         env_from = [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret'))
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret')),
         ]
         from_env_config_map = ['env-from-configmap']
         from_env_secret = ['env-from-secret']
@@ -399,13 +401,19 @@ class TestSparkKubernetesOperator:
         )
         context = self.create_context(op)
         op.execute(context)
-        assert op.launcher.body['spec']['driver']['env'] == [k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'), k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2')]
-        assert op.launcher.body['spec']['executor']['env'] == [k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'), k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2')]
+        assert op.launcher.body['spec']['driver']['env'] == [
+            k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'),
+            k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2'),
+        ]
+        assert op.launcher.body['spec']['executor']['env'] == [
+            k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'),
+            k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2'),
+        ]
         exp_env_from = [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret')),
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-from-configmap')),
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-from-secret'))
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-from-secret')),
         ]
         assert op.launcher.body['spec']['driver']['envFrom'] == exp_env_from
         assert op.launcher.body['spec']['executor']['envFrom'] == exp_env_from

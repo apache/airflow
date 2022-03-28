@@ -1,15 +1,32 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """Launches Custom object"""
 import time
 from datetime import datetime as dt
 
 import tenacity
 import yaml
-from airflow.kubernetes.pod_launcher import PodLauncher
 from kubernetes import client, watch
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.pod_launcher import PodLauncher
 
 
 def should_retry_start_spark_job(exception: Exception):
@@ -29,9 +46,7 @@ class CustomObjectStatus:
     INITIAL_SPEC = {
         'metadata': {},
         'spec': {
-            'dynamicAllocation': {
-                'enabled': False
-            },
+            'dynamicAllocation': {'enabled': False},
             'driver': {
                 'cores': 1,
                 'coreLimit': '1',
@@ -42,8 +57,8 @@ class CustomObjectStatus:
                 'coreLimit': '1',
                 'memory': '512m',
                 'instances': 1,
-            }
-        }
+            },
+        },
     }
 
 
@@ -96,7 +111,9 @@ class CustomObjectLauncher(PodLauncher):
         if self.application_file:
             self.body = self._load_body(self.application_file)
         else:
-            self.body = self.get_body(f'{self.api_group}/{self.api_version}', self.kind, CustomObjectStatus.INITIAL_SPEC, **kwargs)
+            self.body = self.get_body(
+                f'{self.api_group}/{self.api_version}', self.kind, CustomObjectStatus.INITIAL_SPEC, **kwargs
+            )
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -126,14 +143,18 @@ class CustomObjectLauncher(PodLauncher):
             self.log.exception('Exception when attempting to create spark job: %s', self.body)
             raise e
 
-        self.pod_spec = k8s.V1Pod(metadata=k8s.V1ObjectMeta(
-            labels=self.spark_obj_spec['spec']['driver']['labels'],
-            name=self.spark_obj_spec['metadata']['name'] + '-driver',
-            namespace=self.namespace
-        ))
+        self.pod_spec = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels=self.spark_obj_spec['spec']['driver']['labels'],
+                name=self.spark_obj_spec['metadata']['name'] + '-driver',
+                namespace=self.namespace,
+            )
+        )
         curr_time = dt.now()
         while self.spark_job_not_running(self.spark_obj_spec):
-            self.log.warning("Spark job submitted but not yet started: %s", self.spark_obj_spec['metadata']['name'])
+            self.log.warning(
+                "Spark job submitted but not yet started: %s", self.spark_obj_spec['metadata']['name']
+            )
             delta = dt.now() - curr_time
             if delta.total_seconds() >= startup_timeout:
                 pod_status = self.read_pod(self.pod_spec).status.container_statuses
@@ -144,7 +165,13 @@ class CustomObjectLauncher(PodLauncher):
 
     def spark_job_not_running(self, spark_obj_spec):
         """Tests if spark_obj_spec has not started"""
-        spark_job_info = self.custom_obj_api.get_namespaced_custom_object_status(group=self.api_group, version=self.api_version, namespace=self.namespace, name=spark_obj_spec['metadata']['name'], plural=self.plural)
+        spark_job_info = self.custom_obj_api.get_namespaced_custom_object_status(
+            group=self.api_group,
+            version=self.api_version,
+            namespace=self.namespace,
+            name=spark_obj_spec['metadata']['name'],
+            plural=self.plural,
+        )
         driver_state = spark_job_info.get('status', {}).get('applicationState', {}).get('state', 'SUBMITTED')
         if driver_state == CustomObjectStatus.FAILED:
             err = spark_job_info.get('status', {}).get('applicationState', {}).get('errorMessage')
@@ -196,7 +223,9 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['executor']['instances'] = int(kwargs['number_workers'])
         body_template['spec']['executor']['labels'] = kwargs['labels']
         body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
-        body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs['dynamic_alloc_initial_executors']
+        body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs[
+            'dynamic_alloc_initial_executors'
+        ]
         body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
         body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
 

@@ -15,33 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from airflow import AirflowException
-from airflow.kubernetes import kube_client, pod_generator
-from airflow.kubernetes.pod_generator import PodGenerator, MAX_LABEL_LEN
-from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
-    convert_affinity,
-    convert_configmap,
-    convert_env_vars,
-    convert_image_pull_secrets,
-    convert_pod_runtime_info_env,
-    convert_port,
-    convert_resources,
-    convert_toleration,
-    convert_volume,
-    convert_volume_mount, convert_configmap_to_volume, convert_secret,
-)
-from airflow.utils.state import State
 from kubernetes import client
 from kubernetes.client import models as k8s
 
-
+from airflow import AirflowException
+from airflow.kubernetes import kube_client, pod_generator
+from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher
+from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.models import BaseOperator
+from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
+    convert_affinity,
+    convert_configmap,
+    convert_configmap_to_volume,
+    convert_env_vars,
+    convert_secret,
+    convert_toleration,
+    convert_volume,
+    convert_volume_mount,
+)
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils.decorators import apply_defaults
-from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher
+from airflow.utils.state import State
 
 
 class SparkKubernetesOperator(BaseOperator):
@@ -53,18 +49,13 @@ class SparkKubernetesOperator(BaseOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
-    :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication
-    :type namespace: str
     :param kubernetes_conn_id: the connection to Kubernetes cluster
-    :type kubernetes_conn_id: str
     :param hadoop_config: hadoop base config
         example: AWS s3 config
         {'fs.s3n.impl': 'org.apache.hadoop.fs.s3native.NativeS3FileSystem',
          'fs.s3a.enable-server-side-encryption': 'true',
          'fs.s3a.server-side-encryption-algorithm': 'AES256'}
-    :type hadoop_config: dict
-
     """
 
     template_fields = ['application_file', 'namespace']
@@ -132,8 +123,9 @@ class SparkKubernetesOperator(BaseOperator):
         self.env_from = env_from or []
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
-        self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
-            if tolerations else []
+        self.tolerations = (
+            [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
+        )
         self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
         self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.startup_timeout_seconds = startup_timeout_seconds
@@ -183,18 +175,24 @@ class SparkKubernetesOperator(BaseOperator):
             'driver_limit_cpu': '1',
             'executor_limit_cpu': '1',
             'driver_limit_memory': '1Gi',
-            'executor_limit_memory': '1Gi'
+            'executor_limit_memory': '1Gi',
         }
         if not resources or not isinstance(resources, dict):
             resources = {}
         self.resources['driver_limit_cpu'] = resources.get('driver_limit_cpu', '1')
         self.resources['executor_limit_cpu'] = resources.get('executor_limit_cpu', '1')
 
-        self.resources['driver_limit_memory'] = float(resources.get('driver_limit_memory', '1').rstrip('Gi')) * 1024
-        self.resources['executor_limit_memory'] = float(resources.get('executor_limit_memory', '1').rstrip('Gi')) * 1024
+        self.resources['driver_limit_memory'] = (
+            float(resources.get('driver_limit_memory', '1').rstrip('Gi')) * 1024
+        )
+        self.resources['executor_limit_memory'] = (
+            float(resources.get('executor_limit_memory', '1').rstrip('Gi')) * 1024
+        )
         # Adjusting the memory value as operator add 40% to the given value
-        self.resources['driver_limit_memory'] = str(int(self.resources['driver_limit_memory']/1.4)) + 'm'
-        self.resources['executor_limit_memory'] = str(int(self.resources['executor_limit_memory']/1.4)) + 'm'
+        self.resources['driver_limit_memory'] = str(int(self.resources['driver_limit_memory'] / 1.4)) + 'm'
+        self.resources['executor_limit_memory'] = (
+            str(int(self.resources['executor_limit_memory'] / 1.4)) + 'm'
+        )
 
     def get_kube_client(self):
         if self.in_cluster is not None:
@@ -260,9 +258,7 @@ class SparkKubernetesOperator(BaseOperator):
         label_selector = self._get_pod_identifying_label_string(labels) + ',spark-role=driver'
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector)
         if len(pod_list.items) > 1 and self.reattach_on_restart:
-            raise AirflowException(
-                f'More than one pod running with labels: {label_selector}'
-            )
+            raise AirflowException(f'More than one pod running with labels: {label_selector}')
         self.launcher = CustomObjectLauncher(
             namespace=self.namespace,
             kube_client=self.client,
@@ -272,7 +268,7 @@ class SparkKubernetesOperator(BaseOperator):
             plural=self.api_plural,
             api_version=self.api_version,
             extract_xcom=self.do_xcom_push,
-            application_file=self.application_file
+            application_file=self.application_file,
         )
         self.launcher.set_body(
             name=self.name,
@@ -303,7 +299,7 @@ class SparkKubernetesOperator(BaseOperator):
             affinity=self.affinity,
             tolerations=self.tolerations,
             volumes=self.volumes,
-            volume_mounts=self.volume_mounts
+            volume_mounts=self.volume_mounts,
         )
 
         if len(pod_list.items) == 1:
@@ -318,7 +314,9 @@ class SparkKubernetesOperator(BaseOperator):
         if final_state != State.SUCCESS:
             status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace).status
             self.delete_spark_job(self.launcher)
-            raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status.container_statuses}')
+            raise AirflowException(
+                f'Pod {self.pod.metadata.name} returned a failure: {status.container_statuses}'
+            )
 
         self.delete_spark_job(self.launcher)
         return result
@@ -395,7 +393,9 @@ class SparkKubernetesOperator(BaseOperator):
         :return:
         """
         try:
-            self.pod, self.spark_obj_spec = launcher.start_spark_job(startup_timeout=self.startup_timeout_seconds)
+            self.pod, self.spark_obj_spec = launcher.start_spark_job(
+                startup_timeout=self.startup_timeout_seconds
+            )
             final_state, result = launcher.monitor_pod(pod=launcher.pod_spec, get_logs=self.get_logs)
         except AirflowException:
             if self.log_events_on_failure:

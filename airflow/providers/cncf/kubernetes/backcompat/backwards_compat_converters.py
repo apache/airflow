@@ -16,7 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 
-from typing import List, Dict
+from typing import Dict, List
 
 from kubernetes.client import ApiClient, models as k8s
 
@@ -159,13 +159,13 @@ def convert_configmap_to_volume(configmap_info: Dict[str, str]) -> ([k8s.V1Volum
     volume_mounts = []
     volumes = []
     for config_name, mount_path in configmap_info.items():
-        volume_mounts.append(k8s.V1VolumeMount(
-            mount_path=mount_path, name=config_name, read_only=True)
+        volume_mounts.append(k8s.V1VolumeMount(mount_path=mount_path, name=config_name, read_only=True))
+        volumes.append(
+            k8s.V1Volume(
+                name=config_name,
+                config_map=k8s.V1ConfigMapVolumeSource(name=config_name),
+            )
         )
-        volumes.append(k8s.V1Volume(
-            name=config_name,
-            config_map=k8s.V1ConfigMapVolumeSource(name=config_name),
-        ))
 
     return volumes, volume_mounts
 
