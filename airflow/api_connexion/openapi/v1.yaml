@@ -2618,6 +2618,8 @@ components:
       properties:
         key:
           type: string
+        description:
+          type: string
 
     VariableCollection:
       type: object
@@ -2642,6 +2644,8 @@ components:
           properties:
             value:
               type: string
+            description:
+              type: string  
 
     XComCollectionItem:
       # Divided into two schemas for sensitive data protection

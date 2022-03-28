@@ -52,11 +52,12 @@ class TestVariable(unittest.TestCase):
         """
         Test variables without encryption
         """
-        Variable.set('key', 'value')
+        Variable.set('key', 'value','description')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         assert not test_var.is_encrypted
         assert test_var.val == 'value'
+        assert test_var.description == 'description'
         # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
         # should mask anything. That logic is tested in test_secrets_masker.py
         self.mask_secret.assert_called_once_with('value', 'key')
@@ -66,14 +67,15 @@ class TestVariable(unittest.TestCase):
         """
         Test variables with encryption
         """
-        Variable.set('key', 'value')
+        Variable.set('key', 'value','description')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         assert test_var.is_encrypted
         assert test_var.val == 'value'
+        assert test_var.description == 'description'
 
     @parameterized.expand(['value', ''])
-    def test_var_with_encryption_rotate_fernet_key(self, test_value):
+    def test_var_with_encryption_rotate_fernet_key(self, test_value,test_description):
         """
         Tests rotating encrypted variables.
         """
@@ -86,28 +88,33 @@ class TestVariable(unittest.TestCase):
             test_var = session.query(Variable).filter(Variable.key == 'key').one()
             assert test_var.is_encrypted
             assert test_var.val == test_value
+            assert test_var.description == test_description
             assert Fernet(key1).decrypt(test_var._val.encode()) == test_value.encode()
+            assert Fernet(key1).decrypt(test_var._description.encode()) == test_description.encode()
 
         # Test decrypt of old value with new key
         with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
             crypto._fernet = None
             assert test_var.val == test_value
+            assert test_var.description == test_description
 
             # Test decrypt of new value with new key
             test_var.rotate_fernet_key()
             assert test_var.is_encrypted
             assert test_var.val == test_value
+            assert test_var.description == test_description
             assert Fernet(key2).decrypt(test_var._val.encode()) == test_value.encode()
+            assert Fernet(key2).decrypt(test_var._description.encode()) == test_description.encode()
 
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
     def test_variable_set_with_env_variable(self):
-        Variable.set("key", "db-value")
+        Variable.set("key", "db-value","description")
         with self.assertLogs(variable.log) as log_context:
             with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
-                Variable.set("key", "new-db-value")
+                Variable.set("key", "new-db-value","description")
                 assert "env-value" == Variable.get("key")
             assert "new-db-value" == Variable.get("key")
 

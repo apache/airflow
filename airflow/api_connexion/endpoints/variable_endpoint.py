@@ -46,7 +46,7 @@ def get_variable(*, variable_key: str) -> Response:
         var = Variable.get(variable_key)
     except KeyError:
         raise NotFound("Variable not found")
-    return variable_schema.dump({"key": variable_key, "val": var})
+    return variable_schema.dump({"key": variable_key, "val": var, "description": description})
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
@@ -62,7 +62,7 @@ def get_variables(
     """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
     to_replace = {"value": "val"}
-    allowed_filter_attrs = ['value', 'key', 'id']
+    allowed_filter_attrs = ['value', 'key', 'id','description']
     query = session.query(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     variables = query.offset(offset).limit(limit).all()
@@ -91,7 +91,7 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
         if "value" not in update_mask:
             raise BadRequest("No field to update")
 
-    Variable.set(data["key"], data["val"])
+    Variable.set(data["key"], data["val"],data["description"])
     return variable_schema.dump(data)
 
 
@@ -103,5 +103,5 @@ def post_variables() -> Response:
 
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
-    Variable.set(data["key"], data["val"])
+    Variable.set(data["key"], data["val"],data["description"])
     return variable_schema.dump(data)
