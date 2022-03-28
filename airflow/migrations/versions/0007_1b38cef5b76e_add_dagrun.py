@@ -38,6 +38,11 @@ airflow_version = '1.6.0'
 
 
 def upgrade():
+    # We use empty naming convention here because of how the
+    # unique constraints are created for mysql
+    target_metadata = op.get_context().opts['target_metadata']
+    new_convetion = target_metadata.naming_convention
+    target_metadata.naming_convention = {}
     op.create_table(
         'dag_run',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -50,6 +55,7 @@ def upgrade():
         sa.UniqueConstraint('dag_id', 'execution_date'),
         sa.UniqueConstraint('dag_id', 'run_id'),
     )
+    target_metadata.naming_convention = new_convetion
 
 
 def downgrade():
