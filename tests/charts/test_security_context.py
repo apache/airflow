@@ -33,6 +33,7 @@ class TestSCBackwardsCompatibility:
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
