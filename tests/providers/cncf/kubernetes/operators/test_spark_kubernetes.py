@@ -178,7 +178,9 @@ class TestSparkKubernetesOperator(unittest.TestCase):
 
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-    def test_create_application_from_yaml(self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook):
+    def test_create_application_from_yaml(
+        self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
+    ):
         op = SparkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_YAML,
             dag=self.dag,
@@ -188,11 +190,11 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-                group='sparkoperator.k8s.io',
-                namespace='default',
-                plural='sparkapplications',
-                version='v1beta2',
-                name=TEST_APPLICATION_DICT["metadata"]["name"],
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+            name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
@@ -204,7 +206,9 @@ class TestSparkKubernetesOperator(unittest.TestCase):
 
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-    def test_create_application_from_json(self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook):
+    def test_create_application_from_json(
+        self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
+    ):
         op = SparkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
@@ -214,11 +218,11 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-                group='sparkoperator.k8s.io',
-                namespace='default',
-                plural='sparkapplications',
-                version='v1beta2',
-                name=TEST_APPLICATION_DICT["metadata"]["name"],
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+            name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
@@ -246,11 +250,11 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-                group='sparkoperator.k8s.io',
-                namespace='default',
-                plural='sparkapplications',
-                version='v1beta2',
-                name=TEST_APPLICATION_DICT["metadata"]["name"],
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+            name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
@@ -262,7 +266,9 @@ class TestSparkKubernetesOperator(unittest.TestCase):
 
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-    def test_namespace_from_operator(self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook):
+    def test_namespace_from_operator(
+        self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
+    ):
         op = SparkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
@@ -273,11 +279,11 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-                group='sparkoperator.k8s.io',
-                namespace='default',
-                plural='sparkapplications',
-                version='v1beta2',
-                name=TEST_APPLICATION_DICT["metadata"]["name"],
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+            name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
@@ -289,7 +295,9 @@ class TestSparkKubernetesOperator(unittest.TestCase):
 
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
     @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-    def test_namespace_from_connection(self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook):
+    def test_namespace_from_connection(
+        self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
+    ):
         op = SparkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
@@ -299,11 +307,11 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-                group='sparkoperator.k8s.io',
-                namespace='default',
-                plural='sparkapplications',
-                version='v1beta2',
-                name=TEST_APPLICATION_DICT["metadata"]["name"],
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+            name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
