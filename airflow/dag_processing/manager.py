@@ -420,9 +420,12 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
         self.last_stat_print_time = 0
+        # Last time we cleaned up DAGs which are no longer in files
+        self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
+        # How often to check for DAGs which are no longer in files
+        self.deactivate_stale_dags_interval = conf.getint('scheduler', 'deactivate_stale_dags_interval')
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
-
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
 
@@ -470,6 +473,43 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         return self._run_parsing_loop()
+
+    @provide_session
+    def _deactivate_stale_dags(self, session=None):
+        """Detects DAGs which are no longer present in files and deactivate them."""
+        now = timezone.utcnow()
+        elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
+        if elapsed_time_since_refresh > self.deactivate_stale_dags_interval:
+            last_parsed = {
+                fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
+            }
+            to_deactivate = set()
+            dags_parsed = (
+                session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time)
+                .filter(DagModel.is_active)
+                .all()
+            )
+            for dag in dags_parsed:
+                # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
+                # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
+                # no longer present in the file.
+                if (
+                    dag.fileloc in last_parsed
+                    and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
+                ):
+                    self.log.info(f"DAG {dag.dag_id} is missing and will be deactivated.")
+                    to_deactivate.add(dag.dag_id)
+
+            if to_deactivate:
+                deactivated = (
+                    session.query(DagModel)
+                    .filter(DagModel.dag_id.in_(to_deactivate))
+                    .update({DagModel.is_active: False}, synchronize_session="fetch")
+                )
+                if deactivated:
+                    self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+
+            self.last_deactivate_stale_dags_time = timezone.utcnow()
 
     def _run_parsing_loop(self):
 
@@ -536,6 +576,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
+            self._deactivate_stale_dags()
             self._refresh_dag_dir()
 
             self._kill_timed_out_processors()

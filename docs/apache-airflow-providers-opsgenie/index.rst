@@ -58,7 +58,7 @@ Package apache-airflow-providers-opsgenie
 `Opsgenie <https://www.opsgenie.com/>`__
 
 
-Release: 3.0.2
+Release: 3.0.3
 
 Provider package
 ----------------

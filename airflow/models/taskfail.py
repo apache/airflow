@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Taskfail tracks the failed run durations of each task instance"""
-from sqlalchemy import Column, Index, Integer, String
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from sqlalchemy import Column, ForeignKeyConstraint, Integer
+
+from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -28,22 +29,42 @@ class TaskFail(Base):
     __tablename__ = "task_fail"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
 
-    __table_args__ = (Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date, unique=False),)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name='task_fail_ti_fkey',
+            ondelete="CASCADE",
+        ),
+    )
 
-    def __init__(self, task, execution_date, start_date, end_date):
+    def __init__(self, task, run_id, start_date, end_date, map_index):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.execution_date = execution_date
+        self.run_id = run_id
+        self.map_index = map_index
         self.start_date = start_date
         self.end_date = end_date
         if self.end_date and self.start_date:
             self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
             self.duration = None
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + '>'

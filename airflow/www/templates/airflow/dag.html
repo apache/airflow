@@ -180,6 +180,7 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <h4 class="modal-title" id="taskInstanceModalLabel">
             <span class="text-muted">Task Instance:</span> <span id="task_id"></span>
+            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span> <span class="value"></span></span>
             <br><span class="text-muted">at:</span> <span id="execution_date"></span>
           </h4>
         </div>
@@ -232,6 +233,7 @@
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
+            <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">

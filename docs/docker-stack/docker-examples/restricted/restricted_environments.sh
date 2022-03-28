@@ -19,22 +19,32 @@
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+TEMP_DOCKER_DIR=$(mktemp -d)
+pushd "${TEMP_DOCKER_DIR}"
+
+cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START download]
-export AIRFLOW_VERSION="2.2.2"
+mkdir -p docker-context-files
+export AIRFLOW_VERSION="2.2.4"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.7.txt" \
     "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.7.txt"
 
+echo
+echo "Make sure you use the right python version here (should be same as in constraints)!"
+echo
+python --version
+
 pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-3.7.txt  \
-    "apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,postgres,redis,slack,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
+    "apache-airflow[async,celery,elasticsearch,kubernetes,postgres,redis,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
 # [END download]
 
 # [START build]
 export DEBIAN_VERSION="bullseye"
+export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
@@ -45,7 +55,12 @@ docker build . \
     --build-arg INSTALL_MSSQL_CLIENT="false" \
     --build-arg INSTALL_POSTGRES_CLIENT="true" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
+    --build-arg DOCKER_CONTEXT_FILES="docker-context-files" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
     --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt" \
     --tag airflow-my-restricted-environment:0.0.1
 # [END build]
+
+docker rmi --force "airflow-my-restricted-environment"
+popd
+rm -rf "${TEMP_DOCKER_DIR}"

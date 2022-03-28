@@ -63,3 +63,5 @@ github:
     - paolaperaza
     - petedejoy
     - gmcdonald
+  notifications:
+    jobs: jobs@airflow.apache.org

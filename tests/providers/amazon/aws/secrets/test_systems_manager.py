@@ -27,10 +27,10 @@ from tests.test_utils.config import conf_vars
 class TestSsmSecrets(TestCase):
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend.get_conn_uri"
+        "SystemsManagerParameterStoreBackend.get_conn_value"
     )
-    def test_aws_ssm_get_connections(self, mock_get_uri):
-        mock_get_uri.return_value = "scheme://user:pass@host:100"
+    def test_aws_ssm_get_connections(self, mock_get_value):
+        mock_get_value.return_value = "scheme://user:pass@host:100"
         conn_list = SystemsManagerParameterStoreBackend().get_connections("fake_conn")
         conn = conn_list[0]
         assert conn.host == 'host'

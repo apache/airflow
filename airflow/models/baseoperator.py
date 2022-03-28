@@ -217,6 +217,7 @@ def partial(
     from airflow.utils.task_group import TaskGroupContext
 
     validate_mapping_kwargs(operator_class, "partial", kwargs)
+    user_supplied_task_id = task_id
 
     dag = dag or DagContext.get_current_dag()
     if dag:
@@ -281,7 +282,11 @@ def partial(
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
-    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
+    return OperatorPartial(
+        operator_class=operator_class,
+        user_supplied_task_id=user_supplied_task_id,
+        kwargs=partial_kwargs,
+    )
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -709,6 +714,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
+        ignore_first_depends_on_past: bool = conf.getboolean(
+            'scheduler', 'ignore_first_depends_on_past_by_default'
+        ),
         wait_for_downstream: bool = False,
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
@@ -831,6 +839,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.trigger_rule = trigger_rule
         self.depends_on_past: bool = depends_on_past
+        self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True

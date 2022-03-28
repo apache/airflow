@@ -28,6 +28,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.0
+.....
+
+Latest change: 2022-03-15
+
+=================================================================================================  ===========  ===================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================
+`cc920963a6 <https://github.com/apache/airflow/commit/cc920963a69aca840394c3c9e60e0c53235a6fe6>`_  2022-03-15   ``Operator for updating Databricks Repos (#22278)``
+=================================================================================================  ===========  ===================================================
+
 2.4.0
 .....
 
@@ -36,6 +47,7 @@ Latest change: 2022-03-14
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
 `12e9e2c695 <https://github.com/apache/airflow/commit/12e9e2c695f9ebb9d3dde9c0f7dfaa112654f0d6>`_  2022-03-14   ``Databricks hook - retry on HTTP Status 429 as well (#21852)``
 `af9d85ccd8 <https://github.com/apache/airflow/commit/af9d85ccd8abdc3c252c19764d3ea16970ae0f20>`_  2022-03-13   ``Skip some tests for Databricks from running on Python 3.10 (#22221)``
 `4014194320 <https://github.com/apache/airflow/commit/401419432082d222b823e4f2a66f21e5cc3ab28d>`_  2022-03-08   ``Add new options to DatabricksCopyIntoOperator (#22076)``

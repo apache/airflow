@@ -17,6 +17,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
@@ -167,6 +168,6 @@ class XComArg(DependencyMixin):
         elif isinstance(arg, dict):
             for elem in arg.values():
                 XComArg.apply_upstream_relationship(op, elem)
-        elif hasattr(arg, "template_fields"):
+        elif isinstance(arg, AbstractOperator):
             for elem in arg.template_fields:
                 XComArg.apply_upstream_relationship(op, elem)

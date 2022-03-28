@@ -155,6 +155,18 @@ class WebserverDeploymentTest(unittest.TestCase):
         actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
         assert expected_arg == actual[: len(expected_arg)]
 
+    def test_disable_wait_for_migration(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "waitForMigrations": {"enabled": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        assert actual is None
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={

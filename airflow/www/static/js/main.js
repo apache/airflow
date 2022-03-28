@@ -41,7 +41,7 @@ function displayTime() {
     .html(`${now.format('HH:mm')} <strong>${formatTimezone(now)}</strong>`);
 }
 
-function changDisplayedTimezone(tz) {
+function changeDisplayedTimezone(tz) {
   localStorage.setItem('selected-timezone', tz);
   setDisplayedTimezone(tz);
   displayTime();
@@ -147,7 +147,7 @@ function initializeUITimezone() {
     setManualTimezone(manualTz);
   }
 
-  changDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
+  changeDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
 
   if (Airflow.serverTimezone !== 'UTC') {
     $('#timezone-server a').html(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
@@ -163,7 +163,7 @@ function initializeUITimezone() {
   }
 
   $('a[data-timezone]').click((evt) => {
-    changDisplayedTimezone($(evt.target).data('timezone'));
+    changeDisplayedTimezone($(evt.currentTarget).data('timezone'));
   });
 
   $('#timezone-other').typeahead({
@@ -179,7 +179,7 @@ function initializeUITimezone() {
       this.$element.val('');
 
       setManualTimezone(data.tzName);
-      changDisplayedTimezone(data.tzName);
+      changeDisplayedTimezone(data.tzName);
 
       // We need to delay the close event to not be in the form handler,
       // otherwise bootstrap ignores it, thinking it's caused by interaction on

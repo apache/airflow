@@ -57,7 +57,7 @@ Package apache-airflow-providers-oracle
 `Oracle <https://www.oracle.com/en/database/>`__
 
 
-Release: 2.2.2
+Release: 2.2.3
 
 Provider package
 ----------------

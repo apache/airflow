@@ -28,6 +28,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ================================================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================================================================
+`4de9d6622c <https://github.com/apache/airflow/commit/4de9d6622c0cb5899a286f4ec8f131b625eb1d44>`_  2022-03-22   ``ImapAttachmentToS3Operator: fix it, update sample dag and update doc (#22351)``
+`e972b6a48d <https://github.com/apache/airflow/commit/e972b6a48d45581e30424a43e612d70dae55f8b7>`_  2022-03-21   ``Add docs and example dag for AWS Glue (#22295)``
+`dd0cbaad3f <https://github.com/apache/airflow/commit/dd0cbaad3f91922860bebb0c4ff6e2065893e9d1>`_  2022-03-21   ``Update doc and sample dag for S3ToSFTPOperator and SFTPToS3Operator (#22313)``
+`5eb6335742 <https://github.com/apache/airflow/commit/5eb63357426598f99ed50b002b72aebdf8790f73>`_  2022-03-19   ``Update sample dag and doc for S3CreateBucketOperator, S3PutBucketTaggingOperator, S3GetBucketTaggingOperator, S3DeleteBucketTaggingOperator, S3DeleteBucketOperator (#22312)``
+`926f6d1894 <https://github.com/apache/airflow/commit/926f6d1894ce9d097ef2256d14a99968638da9c0>`_  2022-03-15   ``Add arguments to filter list: start_after_key, from_datetime, to_datetime, object_filter callable (#22231)``
+=================================================================================================  ===========  ================================================================================================================================================================================
+
 3.1.1
 .....
 
@@ -36,6 +51,7 @@ Latest change: 2022-03-14
 =================================================================================================  ===========  =====================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
 `46c61ed3e9 <https://github.com/apache/airflow/commit/46c61ed3e94de1484f5f8f3f2fa74e522d67ba9d>`_  2022-03-14   ``EMR Sample DAG and Docs Update (#22189)``
 `c1ab8e2d7b <https://github.com/apache/airflow/commit/c1ab8e2d7b68a31408e750129592e16432474512>`_  2022-03-14   ``Protect against accidental misuse of XCom.get_value() (#22244)``
 `4f6d24f865 <https://github.com/apache/airflow/commit/4f6d24f8658e0896c46e613aa656a853b358c321>`_  2022-03-14   ``use different logger to avoid duplicate log entry (#22256)``

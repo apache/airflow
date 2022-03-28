@@ -28,7 +28,31 @@ from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.models import Connection
-from airflow.providers.presto.hooks.presto import PrestoHook
+from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
+
+
+def test_generate_airflow_presto_client_info_header():
+    env_vars = {
+        'AIRFLOW_CTX_DAG_ID': 'dag_id',
+        'AIRFLOW_CTX_EXECUTION_DATE': '2022-01-01T00:00:00',
+        'AIRFLOW_CTX_TASK_ID': 'task_id',
+        'AIRFLOW_CTX_TRY_NUMBER': '1',
+        'AIRFLOW_CTX_DAG_RUN_ID': 'dag_run_id',
+        'AIRFLOW_CTX_DAG_OWNER': 'dag_owner',
+    }
+    expected = json.dumps(
+        {
+            "dag_id": "dag_id",
+            "execution_date": "2022-01-01T00:00:00",
+            "task_id": "task_id",
+            "try_number": "1",
+            "dag_run_id": "dag_run_id",
+            "dag_owner": "dag_owner",
+        },
+        sort_keys=True,
+    )
+    with patch.dict('os.environ', env_vars):
+        assert generate_presto_client_info() == expected
 
 
 class TestPrestoHookConn(unittest.TestCase):
@@ -45,6 +69,7 @@ class TestPrestoHookConn(unittest.TestCase):
             catalog='hive',
             host='host',
             port=None,
+            http_headers=mock.ANY,
             http_scheme='http',
             schema='hive',
             source='airflow',
@@ -98,6 +123,7 @@ class TestPrestoHookConn(unittest.TestCase):
             catalog='hive',
             host='host',
             port=None,
+            http_headers=mock.ANY,
             http_scheme='http',
             schema='hive',
             source='airflow',
@@ -116,6 +142,51 @@ class TestPrestoHookConn(unittest.TestCase):
             sanitize_mutual_error_response=True,
             service_name='TEST_SERVICE_NAME',
         )
+        assert mock_connect.return_value == conn
+
+    @patch('airflow.providers.presto.hooks.presto.generate_presto_client_info')
+    @patch('airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication')
+    @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
+    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    def test_http_headers(
+        self,
+        mock_get_connection,
+        mock_connect,
+        mock_basic_auth,
+        mocked_generate_airflow_presto_client_info_header,
+    ):
+        mock_get_connection.return_value = Connection(
+            login='login', password='password', host='host', schema='hive'
+        )
+        client = json.dumps(
+            {
+                "dag_id": "dag-id",
+                "execution_date": "2022-01-01T00:00:00",
+                "task_id": "task-id",
+                "try_number": "1",
+                "dag_run_id": "dag-run-id",
+                "dag_owner": "dag-owner",
+            },
+            sort_keys=True,
+        )
+        http_headers = {'X-Presto-Client-Info': client}
+
+        mocked_generate_airflow_presto_client_info_header.return_value = http_headers['X-Presto-Client-Info']
+
+        conn = PrestoHook().get_conn()
+        mock_connect.assert_called_once_with(
+            catalog='hive',
+            host='host',
+            port=None,
+            http_headers=http_headers,
+            http_scheme='http',
+            schema='hive',
+            source='airflow',
+            user='login',
+            isolation_level=0,
+            auth=mock_basic_auth.return_value,
+        )
+        mock_basic_auth.assert_called_once_with('login', 'password')
         assert mock_connect.return_value == conn
 
     @parameterized.expand(

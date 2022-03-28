@@ -152,7 +152,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
             dag_ids=[],
             pickle_dags=False,
@@ -187,7 +187,7 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(
                 dag_directory=dags_folder,
                 max_runs=1,
-                processor_timeout=timedelta.max,
+                processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
@@ -207,7 +207,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -238,7 +238,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -259,7 +259,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -290,7 +290,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -317,7 +317,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -355,7 +355,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -384,7 +384,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -416,7 +416,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=3,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -452,6 +452,54 @@ class TestDagFileProcessorManager:
                 manager._file_process_interval
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
+
+    def test_deactivate_stale_dags(self):
+        """
+        Ensure that DAGs are marked inactive when the file is parsed but the
+        DagModel.last_parsed_time is not updated.
+        """
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_timeout=timedelta(minutes=10),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_example_bash_operator.py')
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+
+        with create_session() as session:
+            # Add stale DAG to the DB
+            dag = dagbag.get_dag('test_example_bash_operator')
+            dag.last_parsed_time = timezone.utcnow()
+            dag.sync_to_db()
+
+            # Add DAG to the file_parsing_stats
+            stat = DagFileStat(
+                num_dags=1,
+                import_errors=0,
+                last_finish_time=timezone.utcnow() + timedelta(hours=1),
+                last_duration=1,
+                run_count=1,
+            )
+            manager._file_paths = [test_dag_path]
+            manager._file_stats[test_dag_path] = stat
+
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+            assert len(active_dags) == 1
+
+            manager._file_stats[test_dag_path] = stat
+            manager._deactivate_stale_dags()
+            active_dags = (
+                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            )
+
+            assert len(active_dags) == 0
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.kill")
@@ -626,7 +674,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
             dag_ids=[],
             pickle_dags=False,
@@ -646,7 +694,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=TEST_DAG_FOLDER,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
@@ -701,7 +749,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
             dag_ids=[],
             pickle_dags=False,
@@ -742,7 +790,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
             dag_ids=[],
             pickle_dags=False,
@@ -781,7 +829,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
-            processor_timeout=timedelta.max,
+            processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
             dag_ids=[],
             pickle_dags=False,
@@ -836,7 +884,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta.max, [], False, async_mode)
+            processor_agent = DagFileProcessorAgent(
+                test_dag_path, 0, timedelta(days=365), [], False, async_mode
+            )
             processor_agent.start()
             if not async_mode:
                 processor_agent.run_single_parsing_loop()
@@ -854,7 +904,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
         async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
-        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta.max, [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [], False, async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -884,7 +934,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta.max, [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()

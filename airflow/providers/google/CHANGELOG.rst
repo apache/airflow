@@ -18,6 +18,23 @@
 Changelog
 ---------
 
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add dataflow_default_options to templated_fields (#22367)``
+* ``Add 'LocalFilesystemToGoogleDriveOperator' (#22219)``
+* ``Add timeout and retry to the BigQueryInsertJobOperator (#22395)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix skipping non-GCS located jars (#22302)``
+* ``[FIX] typo doc of gcs operator (#22290)``
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 6.6.0
 .....
 

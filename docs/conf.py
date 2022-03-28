@@ -284,6 +284,7 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
     # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
@@ -604,7 +605,7 @@ intersphinx_mapping = {
     pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
     for pkg_name in [
         'boto3',
-        # 'celery', # Temporarily remove celery as it disappeared from Internet
+        'celery',
         'docker',
         'hdfs',
         'jinja2',

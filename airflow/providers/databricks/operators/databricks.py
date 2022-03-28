@@ -22,7 +22,7 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 
 if TYPE_CHECKING:
@@ -70,11 +70,11 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     :param operator: Databricks operator being handled
     :param context: Airflow context
     """
-    if operator.do_xcom_push:
+    if operator.do_xcom_push and context is not None:
         context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
     log.info('Run submitted with run_id: %s', operator.run_id)
     run_page_url = hook.get_run_page_url(operator.run_id)
-    if operator.do_xcom_push:
+    if operator.do_xcom_push and context is not None:
         context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
 
     if operator.wait_for_termination:
@@ -100,6 +100,18 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                 time.sleep(operator.polling_period_seconds)
     else:
         log.info('View run status, Spark UI, and logs at %s', run_page_url)
+
+
+class DatabricksJobRunLink(BaseOperatorLink):
+    """Constructs a link to monitor a Databricks Job Run."""
+
+    name = "See Databricks Job Run"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        run_page_url = ti.xcom_pull(task_ids=operator.task_id, key=XCOM_RUN_PAGE_URL_KEY)
+
+        return run_page_url
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -255,6 +267,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
+    operator_extra_links = (DatabricksJobRunLink(),)
 
     def __init__(
         self,
@@ -276,7 +289,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: Optional[Dict[Any, Any]] = None,
-        do_xcom_push: bool = False,
+        do_xcom_push: bool = True,
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
         wait_for_termination: bool = True,
@@ -498,6 +511,7 @@ class DatabricksRunNowOperator(BaseOperator):
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
+    operator_extra_links = (DatabricksJobRunLink(),)
 
     def __init__(
         self,
@@ -514,7 +528,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: Optional[Dict[Any, Any]] = None,
-        do_xcom_push: bool = False,
+        do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         **kwargs,
     ) -> None:

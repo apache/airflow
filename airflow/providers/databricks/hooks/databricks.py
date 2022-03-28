@@ -45,6 +45,8 @@ UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
 
+WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
+
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 
@@ -328,3 +330,46 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: json dictionary containing cluster_id and an array of library
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
+
+    def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
+        """
+        Updates given Databricks Repos
+
+        :param repo_id: ID of Databricks Repos
+        :param json: payload
+        :return: metadata from update
+        """
+        repos_endpoint = ('PATCH', f'api/2.0/repos/{repo_id}')
+        return self._do_api_call(repos_endpoint, json)
+
+    def delete_repo(self, repo_id: str):
+        """
+        Deletes given Databricks Repos
+
+        :param repo_id: ID of Databricks Repos
+        :return:
+        """
+        repos_endpoint = ('DELETE', f'api/2.0/repos/{repo_id}')
+        self._do_api_call(repos_endpoint)
+
+    def create_repo(self, json: Dict[str, Any]) -> dict:
+        """
+        Creates a Databricks Repos
+
+        :param json: payload
+        :return:
+        """
+        repos_endpoint = ('POST', 'api/2.0/repos')
+        return self._do_api_call(repos_endpoint, json)
+
+    def get_repo_by_path(self, path: str) -> Optional[str]:
+        """
+
+        :param path:
+        :return:
+        """
+        result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path})
+        if result.get('object_type', '') == 'REPO':
+            return str(result['object_id'])
+
+        return None

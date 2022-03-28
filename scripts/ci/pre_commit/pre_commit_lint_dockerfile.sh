@@ -23,7 +23,7 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_docker_lint() {
-    IMAGE_NAME="hadolint/hadolint:2.3.0-alpine"
+    IMAGE_NAME="hadolint/hadolint:2.9.2-alpine"
     if [[ "${#@}" == "0" ]]; then
         echo
         echo "Running docker lint for all Dockerfiles"
@@ -52,9 +52,16 @@ function run_docker_lint() {
     fi
 }
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    # See https://github.com/hadolint/hadolint/issues/411
-    echo "Skip Hadolint check on ARM devices as they do not provide multiplatform images"
+if true; then
+    # We can bring back hadolint when those two issues are solved:
+    # https://github.com/hadolint/language-docker/issues/81
+    # https://github.com/hadolint/language-docker/issues/83
+    echo "Skip Hadolint check until dockerfile 1.4 syntax is supported by Hadolint"
 else
-    run_docker_lint "$@"
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        # See https://github.com/hadolint/hadolint/issues/411
+        echo "Skip Hadolint check on ARM devices as they do not provide multiplatform images"
+    else
+        run_docker_lint "$@"
+    fi
 fi

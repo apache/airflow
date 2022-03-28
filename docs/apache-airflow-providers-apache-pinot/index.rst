@@ -45,7 +45,7 @@ Package apache-airflow-providers-apache-pinot
 `Apache Pinot <https://pinot.apache.org/>`__
 
 
-Release: 2.0.3
+Release: 2.0.4
 
 Provider package
 ----------------

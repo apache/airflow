@@ -19,11 +19,16 @@
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+
+TEMP_DOCKER_DIR=$(mktemp -d)
+pushd "${TEMP_DOCKER_DIR}"
+
+cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
 export AIRFLOW_VERSION=2.2.2
 export DEBIAN_VERSION="bullseye"
+export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
@@ -34,3 +39,5 @@ docker build . \
     --tag "my-pypi-extras-and-deps:0.0.1"
 # [END build]
 docker rmi --force "my-pypi-extras-and-deps:0.0.1"
+popd
+rm -rf "${TEMP_DOCKER_DIR}"

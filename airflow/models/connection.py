@@ -179,14 +179,18 @@ class Connection(Base, LoggingMixin):
         )
         self._parse_from_uri(**uri)
 
-    def _parse_from_uri(self, uri: str):
-        uri_parts = urlparse(uri)
-        conn_type = uri_parts.scheme
+    @staticmethod
+    def _normalize_conn_type(conn_type):
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         elif '-' in conn_type:
             conn_type = conn_type.replace('-', '_')
-        self.conn_type = conn_type
+        return conn_type
+
+    def _parse_from_uri(self, uri: str):
+        uri_parts = urlparse(uri)
+        conn_type = uri_parts.scheme
+        self.conn_type = self._normalize_conn_type(conn_type)
         self.host = _parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
@@ -335,7 +339,7 @@ class Connection(Base, LoggingMixin):
         return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
-        return self.conn_id
+        return self.conn_id or ''
 
     def log_info(self):
         """
@@ -424,3 +428,20 @@ class Connection(Base, LoggingMixin):
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    @classmethod
+    def from_json(cls, value, conn_id=None) -> 'Connection':
+        kwargs = json.loads(value)
+        extra = kwargs.pop('extra', None)
+        if extra:
+            kwargs['extra'] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop('conn_type', None)
+        if conn_type:
+            kwargs['conn_type'] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop('port', None)
+        if port:
+            try:
+                kwargs['port'] = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        return Connection(conn_id=conn_id, **kwargs)

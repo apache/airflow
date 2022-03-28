@@ -1786,6 +1786,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2023,6 +2035,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2206,6 +2230,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable migrate database job.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "command": {
                     "description": "Command to use when running migrate database job (templated).",
                     "type": [
@@ -2807,6 +2836,18 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -3058,6 +3099,14 @@
                     "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
                     }
                 },
                 "nodeSelector": {
@@ -3385,6 +3434,16 @@
                     "description": "Increase PgBouncer verbosity.",
                     "type": "integer",
                     "default": 0
+                },
+                "auth_type": {
+                    "description": "Method of authenticating users",
+                    "type": "string",
+                    "default": "md5"
+                },
+                "auth_file": {
+                    "description": "The name of the file to load user names and passwords from",
+                    "type": "string",
+                    "default": "/etc/pgbouncer/users.txt"
                 },
                 "logDisconnections": {
                     "description": "Log disconnections with reasons.",
