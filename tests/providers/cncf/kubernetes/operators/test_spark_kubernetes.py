@@ -417,3 +417,39 @@ class TestSparkKubernetesOperator:
         ]
         assert op.launcher.body['spec']['driver']['envFrom'] == exp_env_from
         assert op.launcher.body['spec']['executor']['envFrom'] == exp_env_from
+
+    def test_volume_mount(self):
+        volumes = [
+            k8s.V1Volume(
+                name='test-pvc',
+                persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-pvc'),
+            )
+        ]
+        volume_mount = [k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc')]
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            namespace='mock_namespace',
+            service_account_name='mock_sa',
+            code_path='/code/path',
+            image='mock_image_tag',
+            volumes=volumes,
+            volume_mounts=volume_mount,
+            config_map_mounts={'test-configmap-mount': '/configmap-path'},
+            dag=self.dag,
+        )
+        context = self.create_context(op)
+        op.execute(context)
+        exp_vols = volumes + [
+            k8s.V1Volume(
+                name='test-configmap-mount',
+                config_map=k8s.V1ConfigMapVolumeSource(name='test-configmap-mount'),
+            )
+        ]
+        exp_vol_mounts = [
+            k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc'),
+            k8s.V1VolumeMount(mount_path='/configmap-path', name='test-configmap-mount'),
+        ]
+
+        assert op.launcher.body['spec']['volumes'] == exp_vols
+        assert op.launcher.body['spec']['driver']['volumeMounts'] == exp_vol_mounts
+        assert op.launcher.body['spec']['executor']['volumeMounts'] == exp_vol_mounts

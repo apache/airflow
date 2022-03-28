@@ -159,7 +159,7 @@ def convert_configmap_to_volume(configmap_info: Dict[str, str]) -> ([k8s.V1Volum
     volume_mounts = []
     volumes = []
     for config_name, mount_path in configmap_info.items():
-        volume_mounts.append(k8s.V1VolumeMount(mount_path=mount_path, name=config_name, read_only=True))
+        volume_mounts.append(k8s.V1VolumeMount(mount_path=mount_path, name=config_name))
         volumes.append(
             k8s.V1Volume(
                 name=config_name,
