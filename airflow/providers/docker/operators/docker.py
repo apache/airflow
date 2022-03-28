@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 from docker import APIClient, tls
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import Mount
 
@@ -181,6 +182,7 @@ class DockerOperator(BaseOperator):
         extra_hosts: Optional[Dict[str, str]] = None,
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -224,6 +226,7 @@ class DockerOperator(BaseOperator):
         self.container = None
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
+        self.timeout = timeout
 
     def get_hook(self) -> DockerHook:
         """
@@ -236,6 +239,7 @@ class DockerOperator(BaseOperator):
             base_url=self.docker_url,
             version=self.api_version,
             tls=self.__get_tls_config(),
+            timeout=self.timeout,
         )
 
     def _run_image(self) -> Optional[Union[List[str], str]]:
@@ -387,7 +391,9 @@ class DockerOperator(BaseOperator):
             return self.get_hook().get_conn()
         else:
             tls_config = self.__get_tls_config()
-            return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+            return APIClient(
+                base_url=self.docker_url, version=self.api_version, tls=tls_config, timeout=self.timeout
+            )
 
     @staticmethod
     def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
