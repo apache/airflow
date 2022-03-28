@@ -16,6 +16,7 @@
 # under the License.
 
 """Scheduler command"""
+import io
 import signal
 from multiprocessing import Process
 from typing import Optional
@@ -24,6 +25,7 @@ import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
+from airflow.configuration import AirflowConfigParser, conf
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
@@ -36,6 +38,16 @@ def _create_scheduler_job(args):
         do_pickle=args.do_pickle,
     )
     return job
+
+
+def _get_masked_config():
+    parser = AirflowConfigParser(strict=False, interpolation=None)
+    config_dict = conf.as_dict()
+    parser.read_dict(config_dict)
+
+    with io.StringIO() as output:
+        parser.write(output)
+        return output.getvalue()
 
 
 def _run_scheduler_job(args):
@@ -53,6 +65,7 @@ def _run_scheduler_job(args):
 def scheduler(args):
     """Starts Airflow Scheduler"""
     print(settings.HEADER)
+    print(_get_masked_config())
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
