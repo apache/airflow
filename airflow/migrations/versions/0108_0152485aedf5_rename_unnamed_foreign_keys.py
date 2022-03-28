@@ -60,27 +60,6 @@ TABLES_WITH_UNNAMED_UNIQUES = [
 ]
 
 
-def _drop_and_recreate(constraints, table_name, convention):
-    for unique_cons in constraints:
-        op.drop_constraint(unique_cons['name'], table_name, type_='unique')
-        with op.batch_alter_table(table_name, naming_convention=convention) as batch_op:
-            batch_op.create_unique_constraint(None, unique_cons['column_names'])
-
-
-def drop_and_recreate_unique_key(insp, table, table_name, dialect='mysql', convention=None):
-    fks = table.foreign_key_constraints
-    for constraint in fks:
-        op.drop_constraint(constraint.name, table_name, type_='foreignkey')
-    if dialect == 'mysql':
-        constraints = insp.get_unique_constraints(table_name)
-        _drop_and_recreate(constraints, table_name, convention)
-    elif dialect == 'mssql':
-        constraints = insp.get_indexes(table_name)
-        _drop_and_recreate(constraints, table_name, convention)
-    for constraint in fks:
-        op.invoke(CreateForeignKeyOp.from_constraint(constraint))
-
-
 def upgrade():
     """Apply rename unnamed foreign keys"""
     conn = op.get_bind()
