@@ -1502,7 +1502,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
-        task_copy = self.task
+        task_to_execute = self.task
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
@@ -1516,23 +1516,23 @@ class TaskInstance(Base, LoggingMixin):
                     self.log.error("Trigger failed:\n%s", "\n".join(traceback))
                 raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
             # Grab the callable off the Operator/Task and add in any kwargs
-            execute_callable = getattr(task_copy, self.next_method)
+            execute_callable = getattr(task_to_execute, self.next_method)
             if self.next_kwargs:
                 execute_callable = partial(execute_callable, **self.next_kwargs)
         else:
-            execute_callable = task_copy.execute
+            execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
         try:
-            if task_copy.execution_timeout:
+            if task_to_execute.execution_timeout:
                 # If we are coming in with a next_method (i.e. from a deferral),
                 # calculate the timeout from our start_date.
                 if self.next_method:
                     timeout_seconds = (
-                        task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
+                        task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
                     ).total_seconds()
                 else:
-                    timeout_seconds = task_copy.execution_timeout.total_seconds()
+                    timeout_seconds = task_to_execute.execution_timeout.total_seconds()
                 try:
                     # It's possible we're already timed out, so fast-fail if true
                     if timeout_seconds <= 0:
@@ -1541,7 +1541,7 @@ class TaskInstance(Base, LoggingMixin):
                     with timeout(timeout_seconds):
                         result = execute_callable(context=context)
                 except AirflowTaskTimeout:
-                    task_copy.on_kill()
+                    task_to_execute.on_kill()
                     raise
             else:
                 result = execute_callable(context=context)
@@ -1549,7 +1549,7 @@ class TaskInstance(Base, LoggingMixin):
             _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
             raise
         # If the task returns a result, push an XCom containing it
-        if task_copy.do_xcom_push and result is not None:
+        if task_to_execute.do_xcom_push and result is not None:
             with create_session() as session:
                 self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
                 self._record_task_map_for_downstreams(task_orig, result, session=session)
