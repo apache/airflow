@@ -60,13 +60,20 @@ class TestPsrpOperator(TestCase):
                     ExecuteParameter("powershell", call.add_script("foo"), None),
                     ExecuteParameter("cmdlet", call.add_cmdlet("foo"), {"bar": "baz"}),
                 ],
-                [False, True],
+                [
+                    (False, 0),
+                    (False, None),
+                    (True, None),
+                    (False, 1),
+                    (True, 1),
+                ],
                 [False, True],
             )
         )
     )
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
-    def test_execute(self, parameter, had_errors, do_xcom_push, hook_impl):
+    def test_execute(self, parameter, result, do_xcom_push, hook_impl):
+        had_errors, rc = result
         kwargs = {parameter.name: "foo"}
         if parameter.expected_parameters:
             kwargs["parameters"] = parameter.expected_parameters
@@ -78,12 +85,19 @@ class TestPsrpOperator(TestCase):
             do_xcom_push=do_xcom_push,
             **kwargs,
         )
-        ps = Mock(spec=PowerShell, output=[json.dumps("<output>")], had_errors=had_errors)
+        runspace_pool = Mock()
+        runspace_pool.host.rc = rc
+        ps = Mock(
+            spec=PowerShell,
+            output=[json.dumps("<output>")],
+            had_errors=had_errors,
+            runspace_pool=runspace_pool,
+        )
         hook_impl.configure_mock(
             **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
         )
-        if had_errors:
-            exception_msg = "Process failed"
+        if had_errors or rc:
+            exception_msg = "Process failed" if had_errors else "Process exited with non-zero status code: 1"
             with pytest.raises(AirflowException, match=exception_msg):
                 op.execute(None)
         else:

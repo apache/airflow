@@ -51,6 +51,8 @@ integrations:
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
     logo: /integration-logos/aws/AWS-CloudFormation_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/cloudformation.rst
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
@@ -459,7 +461,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.glacier_to_gcs
   - source-integration-name: Google
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/google_api_to_s3_transfer.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/google_api_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB

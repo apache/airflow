@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-operators/s3_to_redshift.rst operators/transfer/s3_to_redshift.rst
-operators/google_api_to_s3_transfer.rst operators/transfer/google_api_to_s3.rst
-operators/imap_attachment_to_s3.rst operators/transfer/imap_attachment_to_s3.rst
-operators/salesforce_to_s3.rst operators/transfer/salesforce_to_s3.rst
+# This instance will run for maximum 50 minutes and
+# It will terminate itself after that (it can also
+# be terminated immediately when the job finishes)
+echo "sudo shutdown -h now" | at now +50 min
