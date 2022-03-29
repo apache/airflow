@@ -73,6 +73,7 @@ FROM scratch as scripts
 
 # The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
 COPY --link <<"EOF" determine_debian_version_specific_variables.sh
+# At 75th line it's throwing error like [Error response from daemon: dockerfile parse error line 75: Unknown flag: link]
 function determine_debian_version_specific_variables() {
     local color_red
     color_red=$'\e[31m'
