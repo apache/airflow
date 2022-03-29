@@ -16,12 +16,10 @@
 # under the License.
 
 import unittest
-from unittest import mock
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
-
 from airflow.utils import db
 
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
@@ -37,18 +35,18 @@ class TestArangoDBHook(unittest.TestCase):
                 host='http://127.0.0.1:8529',
                 login='root',
                 password='password',
-                schema='_system'
+                schema='_system',
             )
         )
 
     @patch(
-        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient", autospec=True, return_value=arangodb_client_mock
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
     )
     def test_query(self, arango_mock):
         arangodb_hook = ArangoDBHook()
-        arangodb_query = "FOR doc IN students " \
-                         "RETURN doc",
-
+        arangodb_query = "FOR doc IN students RETURN doc"
         arangodb_hook.query(arangodb_query)
 
         assert arangodb_hook.hosts == ['http://127.0.0.1:8529']
@@ -58,4 +56,3 @@ class TestArangoDBHook(unittest.TestCase):
         assert arangodb_hook.client is not None
         assert arango_mock.called
         assert isinstance(arangodb_hook.client, Mock)
-

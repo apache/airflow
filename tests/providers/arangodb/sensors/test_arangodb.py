@@ -41,17 +41,17 @@ class TestAQLSensor(unittest.TestCase):
                 host='http://127.0.0.1:8529',
                 login='root',
                 password='password',
-                schema='_system'
+                schema='_system',
             )
         )
 
     @patch(
-        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient", autospec=True, return_value=arangodb_client_mock
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
     )
     def test_arangodb_document_created(self, arangodb_mock):
-        query = "FOR doc IN students " \
-              "FILTER doc.name == 'judy' " \
-              "RETURN doc"
+        query = "FOR doc IN students FILTER doc.name == 'judy' RETURN doc"
 
         arangodb_tag_sensor = AQLSensor(
             task_id='aql_search_document',
@@ -63,4 +63,3 @@ class TestAQLSensor(unittest.TestCase):
 
         arangodb_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert arangodb_mock.return_value.db.called
-

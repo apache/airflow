@@ -14,13 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import logging
 from datetime import datetime
-from typing import Any, Optional
 
-from github import GithubException
-
-from airflow import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.arangodb.operators.arangodb import AQLOperator
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
@@ -36,9 +31,7 @@ dag = DAG(
 
 sensor = AQLSensor(
     task_id="aql_sensor",
-    query="FOR doc IN students " \
-          "FILTER doc.name == 'judy' " \
-          "RETURN doc",
+    query="FOR doc IN students FILTER doc.name == 'judy' RETURN doc",
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -59,13 +52,11 @@ sensor = AQLSensor(
 # [END howto_aql_sensor_template_file_arangodb]
 
 
-
 # [START howto_aql_operator_arangodb]
 
 operator = AQLOperator(
     task_id='aql_operator',
-    query="FOR doc IN students " \
-          "RETURN doc",
+    query="FOR doc IN students RETURN doc",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor]),
 )
