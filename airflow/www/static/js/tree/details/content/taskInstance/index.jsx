@@ -19,11 +19,7 @@
 
 import React from 'react';
 import {
-  Text,
   Box,
-  Button,
-  Flex,
-  Link,
   VStack,
   Divider,
   StackDivider,
@@ -35,25 +31,10 @@ import MarkFailedAction from './taskActions/MarkFailed';
 import MarkSuccessAction from './taskActions/MarkSuccess';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
+import TaskNav from './Nav';
+import Details from './Details';
 
-import { finalStatesMap, getMetaValue } from '../../../../utils';
-import { getDuration, formatDuration } from '../../../../datetime_utils';
-import { SimpleStatus } from '../../../StatusBox';
-import Time from '../../../Time';
 import { useTreeData } from '../../../api';
-
-const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
-const numRuns = getMetaValue('num_runs');
-const baseDate = getMetaValue('base_date');
-const taskInstancesUrl = getMetaValue('task_instances_url');
-const renderedK8sUrl = getMetaValue('rendered_k8s_url');
-const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
-const logUrl = getMetaValue('log_url');
-const taskUrl = getMetaValue('task_url');
-const gridUrl = getMetaValue('grid_url');
-const gridUrlNoRoot = getMetaValue('grid_url_no_root');
-
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
 const getTask = ({ taskId, runId, task }) => {
   if (task.id === taskId) return task;
@@ -74,121 +55,19 @@ const TaskInstance = ({ taskId, runId }) => {
   if (!task) return null;
 
   const isGroup = !!task.children;
-  const groupSummary = [];
-  const mapSummary = [];
 
   const instance = task.instances.find((ti) => ti.runId === runId);
 
   const {
     dagId,
-    duration,
-    operator,
-    startDate,
-    endDate,
-    state,
-    mappedStates,
     executionDate,
     tryNumber,
   } = instance;
 
-  if (isGroup) {
-    const numMap = finalStatesMap();
-    task.children.forEach((child) => {
-      const taskInstance = child.instances.find((ti) => ti.runId === runId);
-      if (taskInstance) {
-        const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
-      }
-    });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        groupSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
-  }
-
-  if (task.isMapped && mappedStates) {
-    const numMap = finalStatesMap();
-    mappedStates.forEach((s) => {
-      const stateKey = s || 'no_status';
-      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
-    });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        mapSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
-  }
-
-  const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
-
-  const params = new URLSearchParams({
-    task_id: task.id,
-    execution_date: executionDate,
-  }).toString();
-  const detailsLink = `${taskUrl}&${params}`;
-  const renderedLink = `${renderedTemplatesUrl}&${params}`;
-  const logLink = `${logUrl}&${params}`;
-  const k8sLink = `${renderedK8sUrl}&${params}`;
-  const listParams = new URLSearchParams({
-    _flt_3_dag_id: dagId,
-    _flt_3_task_id: taskId,
-    _oc_TaskInstanceModelView: executionDate,
-  });
-  const subDagParams = new URLSearchParams({
-    execution_date: executionDate,
-  }).toString();
-
-  const filterParams = new URLSearchParams({
-    base_date: baseDate,
-    num_runs: numRuns,
-    root: taskId,
-  }).toString();
-
-  const allInstancesLink = `${taskInstancesUrl}?${listParams}`;
-  const filterUpstreamLink = `${gridUrlNoRoot}&${filterParams}`;
-  const subDagLink = `${gridUrl.replace(dagId, `${dagId}.${taskId}`)}?${subDagParams}`;
-
-  // TODO: base subdag zooming as its own attribute instead of via operator name
-  const isSubDag = operator === 'SubDagOperator';
-
   return (
     <Box fontSize="12px" py="4px">
       {!isGroup && (
-        <>
-          <Flex flexWrap="wrap">
-            {!task.isMapped && (
-              <>
-                <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
-                <LinkButton href={renderedLink}>Rendered Template</LinkButton>
-                {isK8sExecutor && (
-                <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
-                )}
-                {isSubDag && (
-                <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
-                )}
-                <LinkButton href={logLink}>Log</LinkButton>
-              </>
-            )}
-            <LinkButton href={allInstancesLink}>All Instances</LinkButton>
-            <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
-          </Flex>
-          <Divider mt={3} />
-        </>
+        <TaskNav instance={instance} isMapped={task.isMapped} />
       )}
       {!isGroup && !task.isMapped && (
         <>
@@ -214,71 +93,7 @@ const TaskInstance = ({ taskId, runId }) => {
           tryNumber={tryNumber}
         />
       )}
-      <Flex flexWrap="wrap" justifyContent="space-between">
-        <Box>
-          {task.tooltip && (
-          <Text>{task.tooltip}</Text>
-          )}
-          <Flex alignItems="center">
-            <Text as="strong">Status:</Text>
-            <SimpleStatus state={state} mx={2} />
-            {state || 'no status'}
-          </Flex>
-          {isGroup && (
-          <>
-            <br />
-            <Text as="strong">Task Group Summary</Text>
-            {groupSummary}
-          </>
-          )}
-          {task.isMapped && (
-          <>
-            <br />
-            <Text as="strong">
-              {mappedStates.length}
-              {' '}
-              {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
-              Mapped
-            </Text>
-            {mapSummary}
-          </>
-          )}
-          <br />
-          <Text>
-            {taskIdTitle}
-            {taskId}
-          </Text>
-          <Text whiteSpace="nowrap">
-            Run Id:
-            {' '}
-            {runId}
-          </Text>
-          {operator && (
-          <Text>
-            Operator:
-            {' '}
-            {operator}
-          </Text>
-          )}
-          <Text>
-            Duration:
-            {' '}
-            {formatDuration(duration || getDuration(startDate, endDate))}
-          </Text>
-        </Box>
-        <Box>
-          <Text>
-            Started:
-            {' '}
-            <Time dateTime={startDate} />
-          </Text>
-          <Text>
-            Ended:
-            {' '}
-            <Time dateTime={endDate} />
-          </Text>
-        </Box>
-      </Flex>
+      <Details instance={instance} task={task} />
       <ExtraLinks
         taskId={taskId}
         dagId={dagId}
