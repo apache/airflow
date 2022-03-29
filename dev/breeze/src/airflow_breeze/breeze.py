@@ -120,7 +120,6 @@ option_upgrade_to_newer_dependencies = click.option(
     '--upgrade-to-newer-dependencies',
     help='Upgrades PIP packages to latest versions available without looking at the constraints.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
-    is_flag=True,
 )
 option_additional_extras = click.option(
     '--additional-extras',
@@ -303,7 +302,7 @@ def build_ci_image(
     build_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
-    upgrade_to_newer_dependencies: bool,
+    upgrade_to_newer_dependencies: Optional[str],
 ):
     """Builds docker CI image without entering the container."""
 
