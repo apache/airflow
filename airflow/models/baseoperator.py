@@ -837,7 +837,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
-        self.trigger_rule = trigger_rule
+        self.trigger_rule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.wait_for_downstream = wait_for_downstream
