@@ -15,163 +15,219 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import io
+import os
 from datetime import datetime
-from os import environ
+
+import numpy as np
+import pandas as pd
+import requests
 
 from airflow import DAG
+from airflow.decorators import task
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
-    SageMakerProcessingOperator,
     SageMakerTrainingOperator,
     SageMakerTransformOperator,
 )
+from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerTrainingSensor, SageMakerTransformSensor
 
-MODEL_NAME = "sample_model"
-TRAINING_JOB_NAME = "sample_training"
-IMAGE_URI = environ.get("ECR_IMAGE_URI", "123456789012.dkr.ecr.us-east-1.amazonaws.com/repo_name")
-S3_BUCKET = environ.get("BUCKET_NAME", "test-airflow-12345")
-ROLE = environ.get("SAGEMAKER_ROLE_ARN", "arn:aws:iam::123456789012:role/role_name")
+# This Sample DAG demonstrates using SageMaker to identify various species of Iris flower.
+# The Project Name variable below will be used to name various tasks and the required S3 keys.
+PROJECT_NAME = 'iris'
+TIMESTAMP = '{{ ts_nodash }}'
 
-SAGEMAKER_PROCESSING_JOB_CONFIG = {
-    "ProcessingJobName": "sample_processing_job",
-    "ProcessingInputs": [
-        {
-            "InputName": "input",
-            "AppManaged": False,
-            "S3Input": {
-                "S3Uri": f"s3://{S3_BUCKET}/preprocessing/input/",
-                "LocalPath": "/opt/ml/processing/input/",
-                "S3DataType": "S3Prefix",
-                "S3InputMode": "File",
-                "S3DataDistributionType": "FullyReplicated",
-                "S3CompressionType": "None",
-            },
-        },
-    ],
-    "ProcessingOutputConfig": {
-        "Outputs": [
-            {
-                "OutputName": "output",
-                "S3Output": {
-                    "S3Uri": f"s3://{S3_BUCKET}/preprocessing/output/",
-                    "LocalPath": "/opt/ml/processing/output/",
-                    "S3UploadMode": "EndOfJob",
-                },
-                "AppManaged": False,
-            }
-        ]
-    },
-    "ProcessingResources": {
-        "ClusterConfig": {
-            "InstanceCount": 1,
-            "InstanceType": "ml.m5.large",
-            "VolumeSizeInGB": 5,
-        }
-    },
-    "StoppingCondition": {"MaxRuntimeInSeconds": 3600},
-    "AppSpecification": {
-        "ImageUri": f"{IMAGE_URI}",
-        "ContainerEntrypoint": ["python3", "./preprocessing.py"],
-    },
-    "RoleArn": f"{ROLE}",
-}
+S3_BUCKET = os.getenv('S3_BUCKET', 'S3_bucket')
+INPUT_S3_KEY = f'{PROJECT_NAME}/processed-input-data'
+OUTPUT_S3_KEY = f'{PROJECT_NAME}/results'
+MODEL_NAME = f'{PROJECT_NAME}-KNN-model'
+TRAINING_JOB_NAME = f'{PROJECT_NAME}-train-{TIMESTAMP}'
 
-SAGEMAKER_TRAINING_JOB_CONFIG = {
+ROLE_ARN = os.getenv(
+    'SAGEMAKER_ROLE_ARN',
+    'arn:aws:iam::1234567890:role/service-role/AmazonSageMaker-ExecutionRole',
+)
+
+# A Sample dataset hosted by UC Irvine's machine learning repository
+DATA_URL = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+
+# The URI of an Amazon-provided docker image for handling KNN model training.  This is a public ECR
+# repo cited in public SageMaker documentation, so the account number does not need to be redacted.
+# For more info see: https://docs.aws.amazon.com/sagemaker/latest/dg/ecr-us-west-2.html#knn-us-west-2.title
+KNN_IMAGE_URI = '174872318107.dkr.ecr.us-west-2.amazonaws.com/knn'
+
+# Define configs for training, model creation, and batch transform jobs
+TRAINING_CONFIG = {
     "AlgorithmSpecification": {
-        "TrainingImage": f"{IMAGE_URI}",
+        "TrainingImage": KNN_IMAGE_URI,
         "TrainingInputMode": "File",
+    },
+    "HyperParameters": {
+        "predictor_type": "classifier",
+        "feature_dim": "4",
+        "k": "3",
+        "sample_size": "150",
     },
     "InputDataConfig": [
         {
-            "ChannelName": "config",
+            "ChannelName": "train",
             "DataSource": {
                 "S3DataSource": {
                     "S3DataType": "S3Prefix",
-                    "S3Uri": f"s3://{S3_BUCKET}/config/",
-                    "S3DataDistributionType": "FullyReplicated",
+                    "S3Uri": f"s3://{S3_BUCKET}/{INPUT_S3_KEY}/train.csv",
                 }
             },
-            "CompressionType": "None",
-            "RecordWrapperType": "None",
-        },
+            "ContentType": "text/csv",
+            "InputMode": "File",
+        }
     ],
-    "OutputDataConfig": {
-        "KmsKeyId": "",
-        "S3OutputPath": f"s3://{S3_BUCKET}/training/",
-    },
+    "OutputDataConfig": {"S3OutputPath": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}/"},
     "ResourceConfig": {
-        "InstanceType": "ml.m5.large",
         "InstanceCount": 1,
-        "VolumeSizeInGB": 5,
+        "InstanceType": "ml.m5.large",
+        "VolumeSizeInGB": 1,
     },
+    "RoleArn": ROLE_ARN,
     "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
-    "RoleArn": f"{ROLE}",
-    "EnableNetworkIsolation": False,
-    "EnableInterContainerTrafficEncryption": False,
-    "EnableManagedSpotTraining": False,
     "TrainingJobName": TRAINING_JOB_NAME,
 }
 
-SAGEMAKER_CREATE_MODEL_CONFIG = {
+MODEL_CONFIG = {
+    "ExecutionRoleArn": ROLE_ARN,
     "ModelName": MODEL_NAME,
-    "Containers": [
-        {
-            "Image": f"{IMAGE_URI}",
-            "Mode": "SingleModel",
-            "ModelDataUrl": f"s3://{S3_BUCKET}/training/{TRAINING_JOB_NAME}/output/model.tar.gz",
-        }
-    ],
-    "ExecutionRoleArn": f"{ROLE}",
-    "EnableNetworkIsolation": False,
+    "PrimaryContainer": {
+        "Mode": "SingleModel",
+        "Image": KNN_IMAGE_URI,
+        "ModelDataUrl": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}/{TRAINING_JOB_NAME}/output/model.tar.gz",
+    },
 }
 
-SAGEMAKER_INFERENCE_CONFIG = {
-    "TransformJobName": "sample_transform_job",
-    "ModelName": MODEL_NAME,
+TRANSFORM_CONFIG = {
+    # Transform job names can't be reused, so appending a full timestamp tp ensure it is unique.
+    "TransformJobName": f"test-{PROJECT_NAME}-knn-{TIMESTAMP}",
     "TransformInput": {
         "DataSource": {
             "S3DataSource": {
                 "S3DataType": "S3Prefix",
-                "S3Uri": f"s3://{S3_BUCKET}/config/config_date.yml",
+                "S3Uri": f"s3://{S3_BUCKET}/{INPUT_S3_KEY}/test.csv",
             }
         },
-        "ContentType": "application/x-yaml",
-        "CompressionType": "None",
-        "SplitType": "None",
+        "SplitType": "Line",
+        "ContentType": "text/csv",
     },
-    "TransformOutput": {"S3OutputPath": f"s3://{S3_BUCKET}/inferencing/output/"},
-    "TransformResources": {"InstanceType": "ml.m5.large", "InstanceCount": 1},
+    "TransformOutput": {"S3OutputPath": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}"},
+    "TransformResources": {
+        "InstanceCount": 1,
+        "InstanceType": "ml.m5.large",
+    },
+    "ModelName": MODEL_NAME,
 }
 
-# [START howto_operator_sagemaker]
+
+@task
+def data_prep(data_url, s3_bucket, input_s3_key):
+    """
+    Grabs the Iris dataset from API, splits into train/test splits, and saves CSV's to S3 using S3 Hook
+    """
+    # Get data from API
+    iris_response = requests.get(data_url).content
+    columns = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species']
+    iris = pd.read_csv(io.StringIO(iris_response.decode('utf-8')), names=columns)
+
+    # Process data
+    iris['species'] = iris['species'].replace({'Iris-virginica': 0, 'Iris-versicolor': 1, 'Iris-setosa': 2})
+    iris = iris[['species', 'sepal_length', 'sepal_width', 'petal_length', 'petal_width']]
+
+    # Split into test and train data
+    iris_train, iris_test = np.split(
+        iris.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(iris))]
+    )
+    iris_test.drop(['species'], axis=1, inplace=True)
+
+    # Save files to S3
+    iris_train.to_csv('iris_train.csv', index=False, header=False)
+    iris_test.to_csv('iris_test.csv', index=False, header=False)
+    s3_hook = S3Hook(aws_conn_id='aws-sagemaker')
+    s3_hook.load_file(
+        'iris_train.csv',
+        f'{input_s3_key}/train.csv',
+        bucket_name=s3_bucket,
+        replace=True,
+    )
+    s3_hook.load_file(
+        'iris_test.csv',
+        f'{input_s3_key}/test.csv',
+        bucket_name=s3_bucket,
+        replace=True,
+    )
+
+
 with DAG(
-    "sample_sagemaker_dag",
+    dag_id='example_sagemaker',
     schedule_interval=None,
-    start_date=datetime(2022, 2, 21),
+    start_date=datetime(2021, 1, 1),
+    tags=['example'],
     catchup=False,
 ) as dag:
-    sagemaker_processing_task = SageMakerProcessingOperator(
-        config=SAGEMAKER_PROCESSING_JOB_CONFIG,
-        aws_conn_id="aws_default",
-        task_id="sagemaker_preprocessing_task",
-    )
 
-    training_task = SageMakerTrainingOperator(
-        config=SAGEMAKER_TRAINING_JOB_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_training_task"
+    # [START howto_operator_sagemaker_training]
+    train_model = SageMakerTrainingOperator(
+        task_id='train_model',
+        config=TRAINING_CONFIG,
+        # Waits by default, setting as False to demonstrate the Sensor below.
+        wait_for_completion=False,
+        do_xcom_push=False,
     )
+    # [END howto_operator_sagemaker_training]
 
-    model_create_task = SageMakerModelOperator(
-        config=SAGEMAKER_CREATE_MODEL_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_create_model_task"
+    # [START howto_operator_sagemaker_training_sensor]
+    await_training = SageMakerTrainingSensor(
+        task_id="await_training",
+        job_name=TRAINING_JOB_NAME,
     )
+    # [END howto_operator_sagemaker_training_sensor]
 
-    inference_task = SageMakerTransformOperator(
-        config=SAGEMAKER_INFERENCE_CONFIG, aws_conn_id="aws_default", task_id="sagemaker_inference_task"
+    # [START howto_operator_sagemaker_model]
+    create_model = SageMakerModelOperator(
+        task_id='create_model',
+        config=MODEL_CONFIG,
+        do_xcom_push=False,
     )
+    # [END howto_operator_sagemaker_model]
 
-    model_delete_task = SageMakerDeleteModelOperator(
-        task_id="sagemaker_delete_model_task", config={'ModelName': MODEL_NAME}, aws_conn_id="aws_default"
+    # [START howto_operator_sagemaker_transform]
+    test_model = SageMakerTransformOperator(
+        task_id='test_model',
+        config=TRANSFORM_CONFIG,
+        # Waits by default, setting as False to demonstrate the Sensor below.
+        wait_for_completion=False,
+        do_xcom_push=False,
     )
+    # [END howto_operator_sagemaker_transform]
 
-    sagemaker_processing_task >> training_task >> model_create_task >> inference_task >> model_delete_task
-    # [END howto_operator_sagemaker]
+    # [START howto_operator_sagemaker_transform_sensor]
+    await_transform = SageMakerTransformSensor(
+        task_id="await_transform",
+        job_name=f"test-{PROJECT_NAME}-knn-{TIMESTAMP}",
+    )
+    # [END howto_operator_sagemaker_transform_sensor]
+
+    # [START howto_operator_sagemaker_delete_model]
+    delete_model = SageMakerDeleteModelOperator(
+        task_id="delete_model",
+        config={'ModelName': MODEL_NAME},
+        trigger_rule='all_done',
+    )
+    # [END howto_operator_sagemaker_delete_model]
+
+    (
+        data_prep(DATA_URL, S3_BUCKET, INPUT_S3_KEY)
+        >> train_model
+        >> await_training
+        >> create_model
+        >> test_model
+        >> await_transform
+        >> delete_model
+    )

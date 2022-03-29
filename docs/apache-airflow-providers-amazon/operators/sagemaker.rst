@@ -15,52 +15,116 @@
     specific language governing permissions and limitations
     under the License.
 
-
 Amazon SageMaker Operators
-========================================
+==========================
+
+`Amazon SageMaker <https://docs.aws.amazon.com/sagemaker>`__ is a fully managed
+machine learning service. With Amazon SageMaker, data scientists and developers
+can quickly build and train machine learning models, and then deploy them into a
+production-ready hosted environment.
+
+Airflow provides operators to create and interact with SageMaker Jobs.
 
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Overview
---------
+Manage Amazon SageMaker Jobs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow to Amazon SageMaker integration provides several operators to create and interact with
-SageMaker Jobs.
+.. _howto/operator:SageMakerTrainingOperator:
 
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteModelOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator`
+Create an Amazon SageMaker Training Job
+"""""""""""""""""""""""""""""""""""""""
 
-Purpose
-"""""""
-
-This example DAG ``example_sagemaker.py`` uses ``SageMakerProcessingOperator``, ``SageMakerTrainingOperator``,
-``SageMakerModelOperator``, ``SageMakerDeleteModelOperator`` and ``SageMakerTransformOperator`` to
-create SageMaker processing job, run the training job,
-generate the models artifact in s3, create the model,
-, run SageMaker Batch inference and delete the model from SageMaker.
-
-Defining tasks
-""""""""""""""
-
-In the following code we create a SageMaker processing,
-training, Sagemaker Model, batch transform job and
-then delete the model.
+To create an Amazon Sagemaker training job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
     :language: python
-    :start-after: [START howto_operator_sagemaker]
-    :end-before: [END howto_operator_sagemaker]
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_training]
+    :end-before: [END howto_operator_sagemaker_training]
+
+.. _howto/operator:SageMakerModelOperator:
+
+Create an Amazon SageMaker Model
+""""""""""""""""""""""""""""""""
+
+To create an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_model]
+    :end-before: [END howto_operator_sagemaker_model]
+
+.. _howto/operator:SageMakerDeleteModelOperator:
+
+Delete an Amazon SageMaker Model
+""""""""""""""""""""""""""""""""
+
+To delete an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_delete_model]
+    :end-before: [END howto_operator_sagemaker_delete_model]
+
+.. _howto/operator:SageMakerTransformOperator:
+
+Create an Amazon SageMaker Transform Job
+""""""""""""""""""""""""""""""""""""""""
+
+To create an Amazon Sagemaker transform job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_transform]
+    :end-before: [END howto_operator_sagemaker_transform]
+
+
+Amazon SageMaker Sensors
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/sensor:SageMakerTrainingSensor:
+
+Amazon SageMaker Training Sensor
+""""""""""""""""""""""""""""""""
+
+To check the state of an Amazon Sagemaker training job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTrainingSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_training_sensor]
+    :end-before: [END howto_operator_sagemaker_training_sensor]
+
+.. _howto/sensor:SageMakerTransformSensor:
+
+Amazon SageMaker Transform Sensor
+"""""""""""""""""""""""""""""""""""
+
+To check the state of an Amazon Sagemaker transform job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_transform_sensor]
+    :end-before: [END howto_operator_sagemaker_transform_sensor]
 
 Reference
----------
+^^^^^^^^^
 
 For further information, look at:
 
 * `Boto3 Library Documentation for Sagemaker <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html>`__
+* `Amazon SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html>`__
