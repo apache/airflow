@@ -39,9 +39,7 @@ with models.DAG(
         mongo_collection=MONGO_COLLECTION,
         # Mongo query by matching values
         # Here returns all documents which have "OK" as value for the key "status"
-        mongo_query={
-            "status": "OK"
-        },
+        mongo_query={"status": "OK"},
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,
         mongo_db=MONGO_DATABASE,
