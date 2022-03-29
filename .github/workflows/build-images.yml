@@ -166,7 +166,7 @@ jobs:
       fail-fast: true
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.repo.head.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
@@ -254,7 +254,7 @@ jobs:
       fail-fast: true
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.repo.head.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
