@@ -4027,11 +4027,6 @@ class ConnectionModelView(AirflowModelView):
             if key in form.data and key.startswith(f"extra__"):
                 value = form.data[key]
 
-                # when updating, if the raw `extra` field already contains the prefixed version,
-                # we "upgrade" it by replacing with non-prefixed field name
-                if value and key in extra:
-                    del extra[key]
-
                 if value:
                     field_name = self.extra_field_name_mapping[key]
                     extra[field_name] = value
