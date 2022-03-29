@@ -28,6 +28,13 @@
 {% endblock %}
 
 {% set dag_is_paused = dag.get_is_paused() %}
+{% set base_date_arg = request.args.get('base_date') %}
+{% set num_runs_arg = request.args.get('num_runs') %}
+{% if execution_date is defined %}
+  {% set execution_date_arg = execution_date %}
+{% else %}
+  {% set execution_date_arg = request.args.get('execution_date') %}
+{% endif %}
 
 {% block head_meta %}
   {{ super() }}
@@ -50,8 +57,6 @@
   <meta name="run_url" content="{{ url_for('Airflow.run') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
-  <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
   <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="dagrun_details_url" content="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url, dag_id=dag.dag_id) }}">
@@ -78,13 +83,6 @@
 {% endblock %}
 
 {% block content %}
-  {% set base_date_arg = request.args.get('base_date') %}
-  {% set num_runs_arg = request.args.get('num_runs') %}
-  {% if execution_date is defined %}
-    {% set execution_date_arg = execution_date %}
-  {% else %}
-    {% set execution_date_arg = request.args.get('execution_date') %}
-  {% endif %}
   {% if dag.parent_dag is defined and dag.parent_dag %}
     <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
