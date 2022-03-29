@@ -250,10 +250,10 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-            group='sparkoperator.k8s.io',
+            group=api_group,
             namespace='default',
             plural='sparkapplications',
-            version='v1beta2',
+            version=api_version,
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
@@ -280,7 +280,7 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
             group='sparkoperator.k8s.io',
-            namespace='default',
+            namespace='operator_namespace',
             plural='sparkapplications',
             version='v1beta2',
             name=TEST_APPLICATION_DICT["metadata"]["name"],
@@ -308,7 +308,7 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
             group='sparkoperator.k8s.io',
-            namespace='default',
+            namespace='mock_namespace',
             plural='sparkapplications',
             version='v1beta2',
             name=TEST_APPLICATION_DICT["metadata"]["name"],
