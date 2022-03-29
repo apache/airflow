@@ -32,6 +32,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     MutableMapping,
     NamedTuple,
     Optional,
@@ -141,11 +142,18 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
 
 @dataclass
 class ProviderInfo:
-    """Provider information"""
+    """
+    Provider information
+
+    :param version: version string
+    :param provider_info: information about the provider
+    :param source_or_package: whether the provider is source files or PyPI package. When installed from
+        sources we suppress provider import errors.
+    """
 
     version: str
     provider_info: Dict
-    package_or_source: str
+    package_or_source: Union[Literal['source'], Literal['package']]
 
     def __post_init__(self):
         if not self.package_or_source in ('source', 'package'):

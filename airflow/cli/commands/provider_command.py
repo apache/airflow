@@ -55,9 +55,9 @@ def providers_list(args):
         data=list(ProvidersManager().providers.values()),
         output=args.output,
         mapper=lambda x: {
-            "package_name": x[1]["package-name"],
-            "description": _remove_rst_syntax(x[1]["description"]),
-            "version": x[0],
+            "package_name": x.provider_info["package-name"],
+            "description": _remove_rst_syntax(x.provider_info["description"]),
+            "version": x.version,
         },
     )
 
