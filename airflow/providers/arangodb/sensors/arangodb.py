@@ -30,13 +30,18 @@ class AQLSensor(BaseSensorOperator):
     matches the given query in ArangoDB. Example:
 
     :param collection: Target DB collection.
-    :param query: The query to find the target document.
+    :param query: The query to poke, or you can provide .sql file having the query
     :param arangodb_conn_id: The :ref:`ArangoDB connection id <howto/connection:arangodb>` to use
         when connecting to ArangoDB.
     :param arangodb_db: Target ArangoDB name.
     """
 
     template_fields: Sequence[str] = ('query',)
+
+    template_ext: Sequence[str] = (
+        ".sql",
+    )
+    template_fields_renderers = {"query": "sql"}
 
     def __init__(self, *, query: str, arangodb_conn_id: str = "arangodb_default", **kwargs) -> None:
         super().__init__(**kwargs)

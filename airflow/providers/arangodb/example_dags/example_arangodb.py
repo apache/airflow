@@ -46,6 +46,20 @@ sensor = AQLSensor(
 
 # [END howto_aql_sensor_arangodb]
 
+# [START howto_aql_sensor_template_file_arangodb]
+
+sensor = AQLSensor(
+    task_id="aql_sensor",
+    query="search_judy.sql",
+    timeout=60,
+    poke_interval=10,
+    dag=dag,
+)
+
+# [END howto_aql_sensor_template_file_arangodb]
+
+
+
 # [START howto_aql_operator_arangodb]
 
 operator = AQLOperator(
@@ -57,3 +71,14 @@ operator = AQLOperator(
 )
 
 # [END howto_aql_operator_arangodb]
+
+# [START howto_aql_operator_template_file_arangodb]
+
+operator = AQLOperator(
+    task_id='aql_operator',
+    query="search_all.sql"
+    dag=dag,
+    result_processor=lambda cursor: print([document["name"] for document in cursor])
+)
+
+# [END howto_aql_operator_template_file_arangodb]
