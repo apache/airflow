@@ -188,6 +188,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
     hook_class_name: str
     package_name: str
     field: Any
+    field_name: str
 
 
 T = TypeVar("T", bound=Callable)
@@ -798,21 +799,21 @@ class ProvidersManager(LoggingMixin):
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
         conn_type = hook_class.conn_type
-        for field_name, field in widgets.items():
-            if field_name.startswith('extra__'):
-                namespaced_field_name = field_name
+        for field_identifier, field in widgets.items():
+            if field_identifier.startswith('extra__'):
+                prefixed_field_name = field_identifier
             else:
-                namespaced_field_name = f"extra__{conn_type}__{field_name}"
-            if namespaced_field_name in self._connection_form_widgets:
+                prefixed_field_name = f"extra__{conn_type}__{field_identifier}"
+            if prefixed_field_name in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
-                    field_name,
+                    field_identifier,
                     hook_class.__name__,
                 )
                 # In case of inherited hooks this might be happening several times
                 continue
-            self._connection_form_widgets[namespaced_field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__, package_name, field, field_name
+            self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
+                hook_class.__name__, package_name, field, field_identifier
             )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):
