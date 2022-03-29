@@ -4094,12 +4094,12 @@ class ProviderView(AirflowBaseView):
 
         providers = []
         for pi in providers_manager.providers.values():
-            provider_info = pi[1]
+            provider_info = pi.data
             provider_data = {
                 "package_name": provider_info["package-name"],
                 "description": self._clean_description(provider_info["description"]),
-                "version": pi[0],
-                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi[0]),
+                "version": pi.version,
+                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi.version),
             }
             providers.append(provider_data)
 
