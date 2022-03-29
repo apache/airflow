@@ -45,6 +45,12 @@ import { useTreeData } from '../../../api';
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
+const taskInstancesUrl = getMetaValue('task_instances_url');
+const renderedK8sUrl = getMetaValue('rendered_k8s_url');
+const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
+const logUrl = getMetaValue('log_url');
+const taskUrl = getMetaValue('task_url');
+const gridUrl = getMetaValue('grid_url');
 
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
@@ -130,20 +136,19 @@ const TaskInstance = ({ taskId, runId }) => {
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
 
   const params = new URLSearchParams({
-    dag_id: dagId,
     task_id: task.id,
     execution_date: executionDate,
   }).toString();
-  const detailsLink = `/task?${params}`;
-  const renderedLink = `/rendered-templates?${params}`;
-  const logLink = `/log?${params}`;
-  const k8sLink = `/rendered-k8s?${params}`;
+  const detailsLink = `${taskUrl}&${params}`;
+  const renderedLink = `${renderedTemplatesUrl}&${params}`;
+  const logLink = `${logUrl}&${params}`;
+  const k8sLink = `${renderedK8sUrl}&${params}`;
   const listParams = new URLSearchParams({
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: executionDate,
   });
-  const allInstancesLink = `/taskinstance/list?${listParams}`;
+  const allInstancesLink = `${taskInstancesUrl}?${listParams}`;
   // TODO: base subdag zooming as its own attribute instead of via operator name
 
   const subDagParams = new URLSearchParams({
@@ -156,7 +161,7 @@ const TaskInstance = ({ taskId, runId }) => {
     root: taskId,
   }).toString();
 
-  const subDagLink = `/dags/${dagId}.${taskId}/grid?${subDagParams}`;
+  const subDagLink = `${gridUrl.replace(dagId, `${dagId}.${taskId}`)}?${subDagParams}`;
   const isSubDag = operator === 'SubDagOperator';
 
   return (

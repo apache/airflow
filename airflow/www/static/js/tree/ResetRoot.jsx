@@ -22,34 +22,24 @@ import { Button, Link } from '@chakra-ui/react';
 
 import { getMetaValue } from '../utils';
 
-const dagId = getMetaValue('dag_id');
-const numRuns = getMetaValue('num_runs');
-const urlRoot = getMetaValue('root');
-const baseDate = getMetaValue('base_date');
+const root = getMetaValue('root');
+const url = getMetaValue('grid_url_no_root');
 
-const ResetRoot = () => {
-  let rootLink;
-  if (urlRoot) {
-    const params = new URLSearchParams();
-    if (numRuns) params.set('num_runs', numRuns);
-    if (baseDate) params.set('base_date', baseDate);
-    rootLink = `/dags/${dagId}/grid?${params.toString()}`;
-  }
-
-  if (!rootLink) return null;
-
-  return (
-    <Button
-      as={Link}
-      variant="outline"
-      href={rootLink}
-      colorScheme="blue"
-      mr={2}
-      title="Reset root to show the whole DAG"
-    >
-      Reset Root
-    </Button>
-  );
-};
+const ResetRoot = () => (
+  root
+    ? (
+      <Button
+        as={Link}
+        variant="outline"
+        href={url}
+        colorScheme="blue"
+        mr={2}
+        title="Reset root to show the whole DAG"
+      >
+        Reset Root
+      </Button>
+    )
+    : null
+);
 
 export default ResetRoot;

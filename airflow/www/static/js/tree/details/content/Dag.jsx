@@ -39,6 +39,7 @@ import { useDag, useTasks } from '../../api';
 import Time from '../../Time';
 
 const dagId = getMetaValue('dag_id');
+const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
   const { data: dag } = useDag(dagId);
@@ -61,7 +62,7 @@ const Dag = () => {
 
   return (
     <>
-      <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={`/dags/${dagId}/details`}>
+      <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
       <Table variant="striped">

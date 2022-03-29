@@ -35,6 +35,10 @@ import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
 import { useTreeData } from '../../../api';
+import { getMetaValue } from '../../../../utils';
+
+const graphUrl = getMetaValue('graph_url');
+const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
 const DagRun = ({ runId }) => {
   const { data: { dagRuns = [] } } = useTreeData();
@@ -53,14 +57,14 @@ const DagRun = ({ runId }) => {
     endDate,
   } = run;
   const params = new URLSearchParams({
-    dag_id: dagId,
     run_id: runId,
   }).toString();
-  const detailsLink = `/dagrun_details?${params}`;
+  const detailsLink = `${dagRunDetailsUrl}&${params}`;
   const graphParams = new URLSearchParams({
     execution_date: executionDate,
   }).toString();
-  const graphLink = `/dags/${dagId}/graph?${graphParams}`;
+  const paramSeparator = graphUrl.includes('?') ? '&' : '?';
+  const graphLink = `${graphUrl}${paramSeparator}${graphParams}`;
 
   return (
     <Box fontSize="12px" py="4px">

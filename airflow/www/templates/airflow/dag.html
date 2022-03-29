@@ -48,8 +48,18 @@
   <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
   <meta name="tree_data_url" content="{{ url_for('Airflow.tree_data') }}">
   <meta name="run_url" content="{{ url_for('Airflow.run') }}">
+  <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
+  <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
   <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
+  <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
+  <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
+  <meta name="dagrun_details_url" content="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url, dag_id=dag.dag_id) }}">
+  <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
+  <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
+  <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
+  <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
+  <meta name="task_instances_url" content="{{ url_for('TaskInstanceModelView.list') }}">
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">
   <meta name="csrf_token" content="{{ csrf_token() }}">
