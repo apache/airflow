@@ -1055,12 +1055,12 @@ def replace_extra_requirement_with_provider_packages(extra: str, providers: List
     In the constraint mechanism we save both - provider versions and it's dependencies
     version, which means that installation using constraints is repeatable.
 
-    For K8s, Celery which are both "Core executors" and "Providers" we have to
-    add the base dependencies to the core as well - in order to mitigate problems where
+    For K8s and Celery which are both "Core executors" and "Providers" we have to
+    add the base dependencies to core as well, in order to mitigate problems where
     newer version of provider will have less strict limits. This should be done for both
     extras and their deprecated aliases. This is not a full protection however, the way
     extras work, this will not add "hard" limits for Airflow and the user who does not use
-    constraints
+    constraints.
 
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
