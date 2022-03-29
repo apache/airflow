@@ -75,8 +75,13 @@ class ArangoDBHook(BaseHook):
         :return: Result
         """
         try:
-            result = self.db_conn.aql.execute(query, **kwargs)
-            return result
+            if self.db_conn:
+                result = self.db_conn.aql.execute(query, **kwargs)
+                return result
+            else:
+                raise AirflowException(
+                    f"Failed to execute AQLQuery, error connecting to database: {self.database}"
+                )
         except AQLQueryExecuteError as error:
             raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
 
