@@ -32,7 +32,6 @@ from typing import (
     Callable,
     Dict,
     List,
-    Literal,
     MutableMapping,
     NamedTuple,
     Optional,
@@ -48,6 +47,7 @@ from packaging import version as packaging_version
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
+from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -146,17 +146,17 @@ class ProviderInfo:
     Provider information
 
     :param version: version string
-    :param provider_info: information about the provider
+    :param data: dictionary with information about the provider
     :param source_or_package: whether the provider is source files or PyPI package. When installed from
         sources we suppress provider import errors.
     """
 
     version: str
-    provider_info: Dict
+    data: Dict
     package_or_source: Union[Literal['source'], Literal['package']]
 
     def __post_init__(self):
-        if not self.package_or_source in ('source', 'package'):
+        if self.package_or_source not in ('source', 'package'):
             raise ValueError(
                 f"Received {self.package_or_source!r} for `package_or_source`. "
                 "Must be either 'package' or 'source'."
@@ -493,7 +493,7 @@ class ProvidersManager(LoggingMixin):
         :return:
         """
         provider_uses_connection_types = False
-        connection_types = provider.provider_info.get("connection-types")
+        connection_types = provider.data.get("connection-types")
         if connection_types:
             for connection_type_dict in connection_types:
                 connection_type = connection_type_dict['connection-type']
@@ -537,7 +537,7 @@ class ProvidersManager(LoggingMixin):
            form of passing connection types
         :return:
         """
-        hook_class_names = provider.provider_info.get("hook-class-names")
+        hook_class_names = provider.data.get("hook-class-names")
         if hook_class_names:
             for hook_class_name in hook_class_names:
                 if hook_class_name in hook_class_names_registered:
@@ -617,7 +617,7 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
-            for taskflow_decorator in info.provider_info.get("task-decorators", []):
+            for taskflow_decorator in info.data.get("task-decorators", []):
                 self._add_taskflow_decorator(
                     taskflow_decorator["name"], taskflow_decorator["class-name"], name
                 )
@@ -804,33 +804,33 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("extra-links"):
-                for extra_link_class_name in provider["extra-links"]:
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("extra-links"):
+                for extra_link_class_name in provider.data["extra-links"]:
                     if _sanity_check(provider_package, extra_link_class_name, provider):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
         """Retrieves all logging defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("logging"):
-                for logging_class_name in provider["logging"]:
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("logging"):
+                for logging_class_name in provider.data["logging"]:
                     if _sanity_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
         """Retrieves all secrets backends defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("secrets-backends"):
-                for secrets_backends_class_name in provider["secrets-backends"]:
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("secrets-backends"):
+                for secrets_backends_class_name in provider.data["secrets-backends"]:
                     if _sanity_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
         """Retrieves all API auth backends defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("auth-backends"):
-                for auth_backend_module_name in provider["auth-backends"]:
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("auth-backends"):
+                for auth_backend_module_name in provider.data["auth-backends"]:
                     if _sanity_check(provider_package, auth_backend_module_name + ".init_app", provider):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
