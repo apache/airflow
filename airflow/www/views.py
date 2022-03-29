@@ -4024,7 +4024,7 @@ class ConnectionModelView(AirflowModelView):
         del extra_json
 
         for key in self.extra_fields:
-            if key in form.data and key.startswith(f"extra__"):
+            if key in form.data and key.startswith("extra__"):
                 value = form.data[key]
 
                 if value:

@@ -798,7 +798,7 @@ class ProvidersManager(LoggingMixin):
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
-        conn_type = hook_class.conn_type
+        conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
             if field_identifier.startswith('extra__'):
                 prefixed_field_name = field_identifier
