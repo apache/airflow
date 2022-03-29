@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/arangodb>
-    Operators <operators/arangodb>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

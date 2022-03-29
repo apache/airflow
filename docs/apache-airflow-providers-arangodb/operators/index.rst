@@ -24,9 +24,6 @@ Operators
 You can build your own Operator hook in :class:`~airflow.providers.arangodb.hooks.ArangoDBHook`,
 
 
-AQLOperator
-===========
-
 Use the :class:`~airflow.providers.arangodb.operators.AQLOperator` to execute
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
 
