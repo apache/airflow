@@ -235,7 +235,16 @@ cassandra = [
     'cassandra-driver>=3.13.0',
 ]
 celery = [
-    'celery>=5.2.3',
+    # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+    # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
+    # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
+    # This is a crucial component of Airflow, so we should limit it to the next MAJOR version and only
+    # deliberately bump the version when we tested it, and we know it can be bumped.
+    # Bumping this version should also be connected with
+    # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+    # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
+    # core is not hard-limited via install-requirements, only by extra).
+    'celery>=5.2.3,<6',
     'flower>=1.0.0',
 ]
 cgroups = [  # type:ignore
@@ -419,7 +428,15 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=21.7.0',
+    # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+    # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
+    # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
+    # So we should limit it to the next MAJOR version and only deliberately bump the version when we
+    # tested it, and we know it can be bumped. Bumping this version should also be connected with
+    # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+    # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
+    # core is not hard-limited via install-requirements, only by extra).
+    'kubernetes>=21.7.0,<24',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -745,7 +762,7 @@ ADDITIONAL_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'async': async_packages,
-    'celery': celery,  # also has provider, but it extends the core with the Celery executor
+    'celery': celery,  # also has provider, but it extends the core with the CeleryExecutor
     'cgroups': cgroups,
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
@@ -1033,17 +1050,29 @@ def replace_extra_requirement_with_provider_packages(extra: str, providers: List
             ['simple-salesforce>=1.0.0', 'tableauserverclient']
 
     So transitively 'salesforce' extra has all the requirements it needs and in case the provider
-    changes it's dependencies, they will transitively change as well.
+    changes its dependencies, they will transitively change as well.
 
     In the constraint mechanism we save both - provider versions and it's dependencies
     version, which means that installation using constraints is repeatable.
 
+    For K8s, Celery which are both "Core executors" and "Providers" we have to
+    add the base dependencies to the core as well - in order to mitigate problems where
+    newer version of provider will have less strict limits. This should be done for both
+    extras and their deprecated aliases. This is not a full protection however, the way
+    extras work, this will not add "hard" limits for Airflow and the user who does not use
+    constraints
+
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    EXTRAS_REQUIREMENTS[extra] = [
-        get_provider_package_from_package_id(package_name) for package_name in providers
-    ]
+    if extra in ['cncf.kubernetes', 'kubernetes', 'celery']:
+        EXTRAS_REQUIREMENTS[extra].extend(
+            [get_provider_package_from_package_id(package_name) for package_name in providers]
+        )
+    else:
+        EXTRAS_REQUIREMENTS[extra] = [
+            get_provider_package_from_package_id(package_name) for package_name in providers
+        ]
 
 
 def add_provider_packages_to_extra_requirements(extra: str, providers: List[str]) -> None:
