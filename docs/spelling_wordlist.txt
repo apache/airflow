@@ -367,7 +367,6 @@ Standarization
 StatefulSet
 StatefulSets
 StatsD
-Statsd
 StorageClass
 StoredInfoType
 Stringified

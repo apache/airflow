@@ -15,7 +15,7 @@
         "Triggerer",
         "Flower",
         "Redis",
-        "Statsd",
+        "StatsD",
         "Jobs",
         "Kubernetes",
         "Ingress",
@@ -531,21 +531,21 @@
                     }
                 },
                 "statsd": {
-                    "description": "Configuration of the statsd image.",
+                    "description": "Configuration of the StatsD image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The statsd image repository.",
+                            "description": "The StatsD image repository.",
                             "type": "string",
                             "default": "apache/airflow"
                         },
                         "tag": {
-                            "description": "The statsd image tag.",
+                            "description": "The StatsD image tag.",
                             "type": "string",
                             "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
                         },
                         "pullPolicy": {
-                            "description": "The statsd image pull policy.",
+                            "description": "The StatsD image pull policy.",
                             "type": "string",
                             "enum": [
                                 "Always",
@@ -3166,7 +3166,7 @@
         "statsd": {
             "description": "StatsD settings.",
             "type": "object",
-            "x-docsSection": "Statsd",
+            "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -3285,7 +3285,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the statsd pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
