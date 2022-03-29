@@ -1274,14 +1274,19 @@ class TaskInstance(Base, LoggingMixin):
         return result.strftime('%Y%m%dT%H%M%S') if result else ''
 
     def _log_state(self, lead_msg: str = ''):
-        self.log.info(
-            '%sMarking task as %s.'
-            ' dag_id=%s, task_id=%s,'
-            ' execution_date=%s, start_date=%s, end_date=%s',
+        params = [
             lead_msg,
             str(self.state).upper(),
             self.dag_id,
             self.task_id,
+        ]
+        message = '%sMarking task as %s. dag_id=%s, task_id=%s, '
+        if self.map_index >= 0:
+            params.append(self.map_index)
+            message += 'map_index=%d, '
+        self.log.info(
+            message + 'execution_date=%s, start_date=%s, end_date=%s',
+            *params,
             self._date_or_empty('execution_date'),
             self._date_or_empty('start_date'),
             self._date_or_empty('end_date'),
@@ -1434,7 +1439,7 @@ class TaskInstance(Base, LoggingMixin):
             # Set the validated/merged params on the task object.
             self.task.params = context['params']
 
-            self.render_templates(context=context)
+            task_orig = self.render_templates(context=context)
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
                 RenderedTaskInstanceFields.write(rtif)
@@ -1477,7 +1482,7 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                result = self._execute_task(context, self.task)
+                result = self._execute_task(context, task_orig)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
@@ -1495,8 +1500,9 @@ class TaskInstance(Base, LoggingMixin):
         # Raise exception for sensing state
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
-    def _execute_task(self, context, task_copy):
+    def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
+        task_copy = self.task
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
@@ -1546,7 +1552,7 @@ class TaskInstance(Base, LoggingMixin):
         if task_copy.do_xcom_push and result is not None:
             with create_session() as session:
                 self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
-                self._record_task_map_for_downstreams(result, session=session)
+                self._record_task_map_for_downstreams(task_orig, result, session=session)
         return result
 
     @provide_session
@@ -2081,17 +2087,20 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Optional[Context] = None) -> None:
+    def render_templates(self, context: Optional[Context] = None) -> "Operator":
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
-        the unmapped, fully rendered BaseOperator.
+        the unmapped, fully rendered BaseOperator. The original ``self.task``
+        before replacement is returned.
         """
         if not context:
             context = self.get_template_context()
-        task = self.task.render_template_fields(context)
-        if task is not None:
-            self.task = task
+        rendered_task = self.task.render_template_fields(context)
+        if rendered_task is None:  # Compatibility -- custom renderer, assume unmapped.
+            return self.task
+        original_task, self.task = self.task, rendered_task
+        return original_task
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
@@ -2201,8 +2210,8 @@ class TaskInstance(Base, LoggingMixin):
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
 
-    def _record_task_map_for_downstreams(self, value: Any, *, session: Session) -> None:
-        if not self.task.has_mapped_dependants():
+    def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
+        if not task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
