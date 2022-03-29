@@ -113,6 +113,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -2621,6 +2622,8 @@ class Airflow(AirflowBaseView):
             session.query(
                 (_convert_to_date(session, DagRun.execution_date)).label('date'),
                 DagRun.state,
+                func.max(DagRun.data_interval_start).label('data_interval_start'),
+                func.max(DagRun.data_interval_end).label('data_interval_end'),
                 func.count('*').label('count'),
             )
             .filter(DagRun.dag_id == dag.dag_id)
@@ -2629,7 +2632,7 @@ class Airflow(AirflowBaseView):
             .all()
         )
 
-        dag_states = [
+        data_dag_states = [
             {
                 # DATE() in SQLite and MySQL behave differently:
                 # SQLite returns a string, MySQL returns a date.
@@ -2640,10 +2643,39 @@ class Airflow(AirflowBaseView):
             for dr in dag_states
         ]
 
+        if dag_states:
+            last_automated_data_interval = DataInterval(
+                dag_states[-1].data_interval_start, dag_states[-1].data_interval_end
+            )
+
+            year = last_automated_data_interval.end.year
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            dates = collections.Counter()
+
+            while True:
+                info = dag.timetable.next_dagrun_info(
+                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                )
+                if info is None:
+                    break
+
+                if info.logical_date.year != year:
+                    break
+
+                last_automated_data_interval = info.data_interval
+                dates[info.logical_date] += 1
+
+            data_dag_states.extend(
+                {'date': date.isoformat(), 'state': 'planned', 'count': count}
+                for (date, count) in dates.items()
+            )
+
+        now = DateTime.utcnow()
+
         data = {
-            'dag_states': dag_states,
+            'dag_states': data_dag_states,
             'start_date': (dag.start_date or DateTime.utcnow()).date().isoformat(),
-            'end_date': (dag.end_date or DateTime.utcnow()).date().isoformat(),
+            'end_date': (dag.end_date or now).date().isoformat(),
         }
 
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
