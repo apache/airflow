@@ -54,7 +54,6 @@ let executionDate = '';
 let subdagId = '';
 let dagRunId = '';
 let mapIndex;
-let runId;
 let showBack = false;
 let mapLength = 0;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
@@ -115,7 +114,7 @@ function updateModalUrls() {
   updateButtonUrl(buttons.mapped, {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
-    _flt_3_run_id: runId,
+    _flt_3_run_id: dagRunId,
     _oc_TaskInstanceModelView: executionDate,
   });
 
@@ -155,9 +154,6 @@ export function callModal({
   mapIndex = mi;
   if (isMapped) {
     mapLength = mappedLength;
-    runId = drID;
-  } else {
-    runId = undefined;
   }
   if (showBack) {
     $('#btn_back').show();
