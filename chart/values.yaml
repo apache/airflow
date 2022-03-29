@@ -1297,6 +1297,13 @@ redis:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
+  uid: 999
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  fsGroup: 0
+  #  runAsGroup: 0
+
   persistence:
     # Enable persistent volumes
     enabled: true
