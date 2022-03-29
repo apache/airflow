@@ -33,18 +33,45 @@ class TestAirflowCommon:
 
     @parameterized.expand(
         [
-            ({"gitSync": {"enabled": True}}, True),
-            ({"persistence": {"enabled": True}}, False),
+            (
+                {"gitSync": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": False,
+                },
+            ),
             (
                 {
                     "gitSync": {"enabled": True},
                     "persistence": {"enabled": True},
                 },
-                True,
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"persistence": {"enabled": True, "subPath": "test/dags"}},
+                {
+                    "subPath": "test/dags",
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": False,
+                },
             ),
         ]
     )
-    def test_dags_mount(self, dag_values, expected_read_only):
+    def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(
             values={
                 "dags": dag_values,
@@ -59,11 +86,6 @@ class TestAirflowCommon:
 
         assert 3 == len(docs)
         for doc in docs:
-            expected_mount = {
-                "mountPath": "/opt/airflow/dags",
-                "name": "dags",
-                "readOnly": expected_read_only,
-            }
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
     def test_annotations(self):

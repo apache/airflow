@@ -80,4 +80,3 @@ def downgrade():
             batch_op.alter_column('username', type_=sa.String(64))
             batch_op.create_unique_constraint(None, ['username'])
             batch_op.alter_column('email', type_=sa.String(64))
-            batch_op.create_unique_constraint(None, ['email'])
