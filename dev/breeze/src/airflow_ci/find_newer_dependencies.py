@@ -139,4 +139,4 @@ def main(constraints_branch: str, python: str, timezone: str, updated_on_or_afte
 
 
 if __name__ == '__main__':
-    main()
+    main()  # type: ignore[misc]
