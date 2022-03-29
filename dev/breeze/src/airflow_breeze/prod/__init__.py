@@ -14,32 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-celery
-name: Celery
-description: |
-    `Celery <http://www.celeryproject.org/>`__
-
-versions:
-  - 2.1.3
-  - 2.1.2
-  - 2.1.1
-  - 2.1.0
-  - 2.0.0
-  - 1.0.1
-  - 1.0.0
-
-additional-dependencies:
-  - apache-airflow>=2.2.0
-
-integrations:
-  - integration-name: Celery
-    external-doc-url: http://www.celeryproject.org/
-    logo: /integration-logos/celery/Celery.png
-    tags: [software]
-
-sensors:
-  - integration-name: Celery
-    python-modules:
-      - airflow.providers.celery.sensors.celery_queue

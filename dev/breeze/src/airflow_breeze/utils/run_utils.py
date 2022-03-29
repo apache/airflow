@@ -18,6 +18,7 @@
 import contextlib
 import hashlib
 import os
+import re
 import shlex
 import shutil
 import stat
@@ -205,3 +206,12 @@ def is_repo_rebased(latest_sha: str):
     if latest_sha in output:
         rebased = True
     return rebased
+
+
+def is_multi_platform(value: str) -> bool:
+    is_multi_platform = False
+    platform_pattern = re.compile('^[0-9a-zA-Z]+,[0-9a-zA-Z]+$')
+    platform_found = platform_pattern.search(value)
+    if platform_found is not None:
+        is_multi_platform = True
+    return is_multi_platform

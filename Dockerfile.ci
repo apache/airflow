@@ -31,7 +31,7 @@ FROM scratch as scripts
 ##############################################################################################
 
 # The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
-COPY --link <<"EOF" determine_debian_version_specific_variables.sh
+COPY <<"EOF" determine_debian_version_specific_variables.sh
 function determine_debian_version_specific_variables() {
     local color_red
     color_red=$'\e[31m'
@@ -66,7 +66,7 @@ determine_debian_version_specific_variables
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
-COPY --link <<"EOF" install_mysql.sh
+COPY <<"EOF" install_mysql.sh
 set -euo pipefail
 declare -a packages
 
@@ -130,7 +130,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
-COPY --link <<"EOF" install_mssql.sh
+COPY <<"EOF" install_mssql.sh
 set -euo pipefail
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -189,7 +189,7 @@ install_mssql_client "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
-COPY --link <<"EOF" install_postgres.sh
+COPY <<"EOF" install_postgres.sh
 set -euo pipefail
 declare -a packages
 
@@ -230,7 +230,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
-COPY --link <<"EOF" install_pip_version.sh
+COPY <<"EOF" install_pip_version.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -252,7 +252,7 @@ install_pip_version
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
-COPY --link <<"EOF" install_airflow_dependencies_from_branch_tip.sh
+COPY <<"EOF" install_airflow_dependencies_from_branch_tip.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -296,7 +296,7 @@ install_airflow_dependencies_from_branch_tip
 EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
-COPY --link <<"EOF" common.sh
+COPY <<"EOF" common.sh
 set -euo pipefail
 
 function common::get_colors() {
@@ -355,7 +355,7 @@ function common::show_pip_version_and_location() {
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pipx_tools.sh
-COPY --link <<"EOF" install_pipx_tools.sh
+COPY <<"EOF" install_pipx_tools.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_pipx_tools() {
@@ -382,7 +382,7 @@ install_pipx_tools
 EOF
 
 # The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY --link <<"EOF" prepare_node_modules.sh
+COPY <<"EOF" prepare_node_modules.sh
 set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
@@ -420,7 +420,7 @@ prepare_node_modules
 EOF
 
 # The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY --link <<"EOF" compile_www_assets.sh
+COPY <<"EOF" compile_www_assets.sh
 set -euo pipefail
 
 BUILD_TYPE=${BUILD_TYPE="prod"}
@@ -477,7 +477,7 @@ compile_www_assets
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
-COPY --link <<"EOF" install_airflow.sh
+COPY <<"EOF" install_airflow.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -557,7 +557,7 @@ install_airflow
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
-COPY --link <<"EOF" install_additional_dependencies.sh
+COPY <<"EOF" install_additional_dependencies.sh
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -608,7 +608,7 @@ install_additional_dependencies
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
-COPY --link <<"EOF" entrypoint_ci.sh
+COPY <<"EOF" entrypoint_ci.sh
 #!/usr/bin/env bash
 if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
@@ -966,7 +966,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
-COPY --link <<"EOF" entrypoint_ci.sh
+COPY <<"EOF" entrypoint_ci.sh
 #!/usr/bin/env bash
 if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
@@ -1324,7 +1324,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_exec.sh
-COPY --link <<"EOF" entrypoint_exec.sh
+COPY <<"EOF" entrypoint_exec.sh
 #!/usr/bin/env bash
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -1341,8 +1341,8 @@ EOF
 # file permissions
 ##############################################################################################
 FROM scratch as www
-COPY --link airflow/www/package.json airflow/www/yarn.lock airflow/www/webpack.config.js /
-COPY --link airflow/www/static/ /static
+COPY airflow/www/package.json airflow/www/yarn.lock airflow/www/webpack.config.js /
+COPY airflow/www/static/ /static
 
 FROM ${PYTHON_BASE_IMAGE} as main
 
@@ -1379,7 +1379,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-COPY --link --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
 
 # Install basic and additional apt dependencies
 RUN apt-get update \
@@ -1427,7 +1427,7 @@ RUN apt-get update \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY --link --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
 
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
@@ -1592,7 +1592,7 @@ ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENT
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
-COPY --link --from=scripts install_pip_version.sh install_airflow_dependencies_from_branch_tip.sh \
+COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_branch_tip.sh \
     common.sh /scripts/docker/
 
 # We are first creating a venv where all python packages and .so binaries needed by those are
@@ -1615,7 +1615,7 @@ RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not v
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"
 
-COPY --link --from=scripts install_pipx_tools.sh /scripts/docker/
+COPY --from=scripts install_pipx_tools.sh /scripts/docker/
 
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow
@@ -1624,17 +1624,17 @@ RUN bash /scripts/docker/install_pipx_tools.sh
 # Copy package.json and yarn.lock to install node modules
 # this way even if other static check files change, node modules will not need to be installed
 # we want to keep node_modules so we can do this step separately from compiling assets
-COPY --link --from=www package.json yarn.lock ${AIRFLOW_SOURCES}/airflow/www/
-COPY --link --from=scripts prepare_node_modules.sh /scripts/docker/
+COPY --from=www package.json yarn.lock ${AIRFLOW_SOURCES}/airflow/www/
+COPY --from=scripts prepare_node_modules.sh /scripts/docker/
 
 # Package JS/css for production
 RUN bash /scripts/docker/prepare_node_modules.sh
 
 # Copy all the needed www/ for assets compilation. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
-COPY --link --from=www webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
-COPY --link --from=www static ${AIRFLOW_SOURCES}/airflow/www/static/
-COPY --link --from=scripts compile_www_assets.sh /scripts/docker/
+COPY --from=www webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
+COPY --from=www static ${AIRFLOW_SOURCES}/airflow/www/static/
+COPY --from=scripts compile_www_assets.sh /scripts/docker/
 
 # Build artifacts without removing temporary artifacts (we will need them for incremental changes)
 # in build  mode
@@ -1643,12 +1643,12 @@ RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" bash /scripts/docker/compile_www
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
 # So in case setup.py changes we can install latest dependencies required.
-COPY --link setup.py ${AIRFLOW_SOURCES}/setup.py
-COPY --link setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
+COPY setup.py ${AIRFLOW_SOURCES}/setup.py
+COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY --link airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 
-COPY --link --from=scripts install_airflow.sh /scripts/docker/
+COPY --from=scripts install_airflow.sh /scripts/docker/
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -1660,11 +1660,11 @@ RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
     fi
 
-COPY --link --from=scripts entrypoint_ci.sh /entrypoint
-COPY --link --from=scripts entrypoint_exec.sh /entrypoint-exec
+COPY --from=scripts entrypoint_ci.sh /entrypoint
+COPY --from=scripts entrypoint_exec.sh /entrypoint-exec
 RUN chmod a+x /entrypoint /entrypoint-exec
 
-COPY --link --from=scripts install_pip_version.sh install_additional_dependencies.sh /scripts/docker/
+COPY --from=scripts install_pip_version.sh install_additional_dependencies.sh /scripts/docker/
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -1686,7 +1686,7 @@ RUN echo "source /etc/bash_completion" >> ~/.bashrc
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)
 # if you want to add something that is missing and you expect to see it in the image you can
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
-COPY --link . ${AIRFLOW_SOURCES}/
+COPY . ${AIRFLOW_SOURCES}/
 
 WORKDIR ${AIRFLOW_SOURCES}
 
