@@ -228,6 +228,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
 
+                if self.export_format == 'parquet':
+                    parquet_writer.close()
                 yield file_to_upload
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 file_to_upload = {
@@ -239,6 +241,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                 if self.export_format == 'parquet':
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+        if self.export_format == 'parquet':
+            parquet_writer.close()
         yield file_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
