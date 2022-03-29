@@ -18,6 +18,8 @@ Ansible
 AppBuilder
 Arg
 Args
+AQL
+ArangoDB
 Asana
 Async
 AsyncResult
@@ -477,6 +479,8 @@ apikey
 apis
 appbuilder
 approle
+arango
+arangodb
 aren
 arg
 args

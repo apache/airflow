@@ -67,4 +67,3 @@ Similar to **AQLOperator**, You can also provide file template to load query -
     :language: python
     :start-after: [START howto_aql_sensor_template_file_arangodb]
     :end-before: [END howto_aql_sensor_template_file_arangodb]
-

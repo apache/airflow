@@ -33,18 +33,15 @@ class AQLOperator(BaseOperator):
         :ref:`howto/operator:AQLOperator`
 
     :param query: the AQL query to be executed. Can receive a str representing a
-        Aql statement, or you can provide .sql file having the query
+        AQL statement, or you can provide .sql file having the query
     :param result_processor: function to further process the Result from ArangoDB
     :param arangodb_conn_id: Reference to :ref:`ArangoDB connection id <howto/connection:arangodb>`.
     """
 
     template_fields: Sequence[str] = ('query',)
 
-    template_ext: Sequence[str] = (
-        ".sql",
-    )
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
-
 
     def __init__(
         self,

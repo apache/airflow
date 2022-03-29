@@ -18,7 +18,7 @@
 .. _howto/connection:arangodb:
 
 ArangoDB Connection
-================
+====================
 The ArangoDB connection provides credentials for accessing the ArangoDB.
 
 Configuring the Connection

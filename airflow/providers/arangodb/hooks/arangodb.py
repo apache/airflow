@@ -82,24 +82,26 @@ class ArangoDBHook(BaseHook):
 
     def create_collection(self, name):
         if not self.db_conn.has_collection(name):
-            sys_db.create_collection(name)
+            self.db_conn.create_collection(name)
             return True
         else:
+            self.log.info('Collection already exists: %s', name)
             return False
-
 
     def create_database(self, name):
         if not self.db_conn.has_database(name):
-            sys_db.create_database(name)
+            self.db_conn.create_database(name)
             return True
         else:
+            self.log.info('Database already exists: %s', name)
             return False
 
     def create_graph(self, name):
         if not self.db_conn.has_graph(name):
-            sys_db.create_graph(name)
+            self.db_conn.create_graph(name)
             return True
         else:
+            self.log.info('Graph already exists: %s', name)
             return False
 
     @staticmethod
