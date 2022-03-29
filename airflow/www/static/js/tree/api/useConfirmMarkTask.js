@@ -19,6 +19,9 @@
 
 import axios from 'axios';
 import { useMutation } from 'react-query';
+import { getMetaValue } from '../../utils';
+
+const confirmUrl = getMetaValue('confirm_url');
 
 export default function useConfirmMarkTask({
   dagId, runId, taskId, state,
@@ -27,7 +30,7 @@ export default function useConfirmMarkTask({
     ['confirmStateChange', dagId, runId, taskId, state],
     ({
       past, future, upstream, downstream,
-    }) => axios.get('/confirm', {
+    }) => axios.get(confirmUrl, {
       params: {
         dag_id: dagId,
         dag_run_id: runId,

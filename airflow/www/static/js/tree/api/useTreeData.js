@@ -27,7 +27,7 @@ import { formatData, areActiveRuns } from '../treeDataUtils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
-const treeDataUrl = getMetaValue('tree_data');
+const treeDataUrl = getMetaValue('tree_data_url');
 const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');

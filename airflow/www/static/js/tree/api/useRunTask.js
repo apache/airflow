@@ -23,6 +23,9 @@ import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../providers/autorefresh';
 
+const csrfToken = getMetaValue('csrf_token');
+const runUrl = getMetaValue('run_url');
+
 export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -34,7 +37,6 @@ export default function useRunTask(dagId, runId, taskId) {
       ignoreTaskState,
       ignoreTaskDeps,
     }) => {
-      const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         dag_id: dagId,
@@ -45,7 +47,7 @@ export default function useRunTask(dagId, runId, taskId) {
         ignore_ti_state: ignoreTaskState,
       }).toString();
 
-      return axios.post('/run', params, {
+      return axios.post(runUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

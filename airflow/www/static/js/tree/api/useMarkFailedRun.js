@@ -22,13 +22,15 @@ import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../providers/autorefresh';
 
+const csrfToken = getMetaValue('csrf_token');
+const markFailedUrl = getMetaValue('dagrun_failed_url');
+
 export default function useMarkFailedRun(dagId, runId) {
   const queryClient = useQueryClient();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['dagRunFailed', dagId, runId],
     ({ confirmed = false }) => {
-      const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         confirmed,
@@ -36,7 +38,7 @@ export default function useMarkFailedRun(dagId, runId) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post('/dagrun_failed', params, {
+      return axios.post(markFailedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

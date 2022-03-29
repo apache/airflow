@@ -33,11 +33,24 @@
   {{ super() }}
   <meta name="dag_id" content="{{ dag.dag_id }}">
   <meta name="dag_timezone" content="{{ dag.timezone.name }}">
+  <!-- Urls -->
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   <meta name="external_log_url" content="{{ url_for('Airflow.redirect_to_external_log') }}">
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
-  <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
+  <meta name="dagrun_clear_url" content="{{ url_for('Airflow.dagrun_clear') }}">
+  <meta name="dagrun_failed_url" content="{{ url_for('Airflow.dagrun_failed') }}">
+  <meta name="dagrun_success_url" content="{{ url_for('Airflow.dagrun_success') }}">
+  <meta name="dagrun_queued_url" content="{{ url_for('Airflow.dagrun_queued') }}">
+  <meta name="clear_url" content="{{ url_for('Airflow.clear') }}">
+  <meta name="failed_url" content="{{ url_for('Airflow.failed') }}">
+  <meta name="success_url" content="{{ url_for('Airflow.success') }}">
+  <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
+  <meta name="tree_data_url" content="{{ url_for('Airflow.tree_data') }}">
+  <meta name="run_url" content="{{ url_for('Airflow.run') }}">
+  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
+  <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
+  <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">
   <meta name="csrf_token" content="{{ csrf_token() }}">
   <meta name="k8s_or_k8scelery_executor" content="{{ k8s_or_k8scelery_executor }}">

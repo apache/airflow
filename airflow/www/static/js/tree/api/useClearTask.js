@@ -23,6 +23,9 @@ import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../providers/autorefresh';
 
+const csrfToken = getMetaValue('csrf_token');
+const clearUrl = getMetaValue('clear_url');
+
 export default function useClearTask({
   dagId, runId, taskId, executionDate,
 }) {
@@ -35,7 +38,6 @@ export default function useClearTask({
     ({
       past, future, upstream, downstream, recursive, failed, confirmed,
     }) => {
-      const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         dag_id: dagId,
@@ -51,7 +53,7 @@ export default function useClearTask({
         only_failed: failed,
       }).toString();
 
-      return axios.post('/clear', params, {
+      return axios.post(clearUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

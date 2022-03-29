@@ -19,10 +19,13 @@
 
 import axios from 'axios';
 import { useQuery } from 'react-query';
+import { getMetaValue } from '../../utils';
+
+const tasksUrl = getMetaValue('tasks_api');
 
 export default function useTasks(dagId) {
   return useQuery(
     ['tasks', dagId],
-    () => axios.get(`/api/v1/dags/${dagId}/tasks`),
+    () => axios.get(tasksUrl),
   );
 }

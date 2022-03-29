@@ -23,6 +23,9 @@ import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../providers/autorefresh';
 
+const csrfToken = getMetaValue('csrf_token');
+const clearRunUrl = getMetaValue('dagrun_clear_url');
+
 export default function useClearRun(dagId, runId) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -30,7 +33,6 @@ export default function useClearRun(dagId, runId) {
   return useMutation(
     ['dagRunClear', dagId, runId],
     ({ confirmed = false }) => {
-      const csrfToken = getMetaValue('csrf_token');
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         confirmed,
@@ -38,7 +40,7 @@ export default function useClearRun(dagId, runId) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post('/dagrun_clear', params, {
+      return axios.post(clearRunUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
