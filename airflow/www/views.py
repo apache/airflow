@@ -3820,6 +3820,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
+        ConnectionModelView.extra_field_name_mapping[key] = value.field_name
         ConnectionModelView.add_columns.append(key)
         ConnectionModelView.edit_columns.append(key)
         ConnectionModelView.extra_fields.append(key)
@@ -3908,6 +3909,8 @@ class ConnectionModelView(AirflowModelView):
     edit_widget = ConnectionFormWidget
 
     base_order = ('conn_id', 'asc')
+
+    extra_field_name_mapping: Dict[str, str] = {}
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
@@ -4020,13 +4023,17 @@ class ConnectionModelView(AirflowModelView):
                     category="error",
                 )
 
-        custom_fields = {
-            key: form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
-        }
+        for key in self.extra_fields:
+            if key in form.data and key.startswith(f"extra__{conn_type}__"):
+                value = form.data[key]
 
-        extra.update(custom_fields)
+                # purge the prefixed key if the hook now uses non-prefixed key
+                if value and key in extra:
+                    del extra[key]
+
+                if value:
+                    field_name = self.extra_field_name_mapping[key]
+                    extra[field_name] = value
 
         if extra.keys():
             form.extra.data = json.dumps(extra)
@@ -4046,10 +4053,13 @@ class ConnectionModelView(AirflowModelView):
             logging.warning('extra field for %s is not a dictionary', form.data.get('conn_id', '<unknown>'))
             return
 
-        for field in self.extra_fields:
-            value = extra_dictionary.get(field, '')
+        for field_key in self.extra_fields:
+            field_name = self.extra_field_name_mapping[field_key]
+            value = extra_dictionary.get(field_name, '')
+            if not value:
+                value = extra_dictionary.get(field_key, '')
             if value:
-                field = getattr(form, field)
+                field = getattr(form, field_key)
                 field.data = value
 
 
