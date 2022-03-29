@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery Data Transfer links."""
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
@@ -38,9 +38,9 @@ class BigQueryDataTransferConfigLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance,
-        region: Optional[str],
-        config_id: Optional[str],
-        project_id: Optional[str],
+        region: str,
+        config_id: str,
+        project_id: str,
     ):
         task_instance.xcom_push(
             context,
