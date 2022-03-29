@@ -64,6 +64,7 @@ MYPY_CACHE_DIR = Path(AIRFLOW_SOURCE, '.mypy_cache')
 LOGS_DIR = Path(AIRFLOW_SOURCE, 'logs')
 DIST_DIR = Path(AIRFLOW_SOURCE, 'dist')
 SCRIPTS_CI_DIR = Path(AIRFLOW_SOURCE, 'scripts', 'ci')
+DOCKER_CONTEXT_DIR = Path(AIRFLOW_SOURCE, 'docker-context-files')
 
 
 def create_directories():
@@ -74,6 +75,5 @@ def create_directories():
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
-    # add trap to this cache_tmp_file_dir
     OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)
