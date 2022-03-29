@@ -226,7 +226,13 @@ class OperatorPartial:
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
+    # This attribute serves double purpose. For a "normal" operator instance
+    # loaded from DAG, this holds the underlying non-mapped operator class that
+    # can be used to create an unmapped operator for execution. For an operator
+    # recreated from a serialized DAG, however, this holds the serialized data
+    # that can be used to unmap this into a SerializedBaseOperator.
     operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
+
     user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
