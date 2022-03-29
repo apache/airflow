@@ -596,8 +596,8 @@ function get_count_cli_files() {
 function get_count_providers_files() {
     start_end::group_start "Count providers files"
     local pattern_array=(
-        "^airflow/providers"
-        "^tests/providers"
+        "^airflow/providers/"
+        "^tests/providers/"
     )
     show_changed_files
     COUNT_PROVIDERS_CHANGED_FILES=$(count_changed_files)
