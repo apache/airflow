@@ -3997,7 +3997,6 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
 
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
@@ -4005,11 +4004,11 @@ class ConnectionModelView(AirflowModelView):
         # so we start with those values, and override them with anything in the custom fields.
         extra = {}
 
-        extra_field = form.data.get("extra")
+        extra_json = form.data.get("extra")
 
-        if extra_field:
+        if extra_json:
             try:
-                extra.update(json.loads(extra_field))
+                extra.update(json.loads(extra_json))
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -4018,16 +4017,18 @@ class ConnectionModelView(AirflowModelView):
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_field}",
+                        f"{extra_json}",
                     ),
                     category="error",
                 )
+        del extra_json
 
         for key in self.extra_fields:
-            if key in form.data and key.startswith(f"extra__{conn_type}__"):
+            if key in form.data and key.startswith(f"extra__"):
                 value = form.data[key]
 
-                # purge the prefixed key if the hook now uses non-prefixed key
+                # when updating, if the raw `extra` field already contains the prefixed version,
+                # we "upgrade" it by replacing with non-prefixed field name
                 if value and key in extra:
                     del extra[key]
 
@@ -4056,8 +4057,11 @@ class ConnectionModelView(AirflowModelView):
         for field_key in self.extra_fields:
             field_name = self.extra_field_name_mapping[field_key]
             value = extra_dictionary.get(field_name, '')
+
             if not value:
+                # check if connection `extra` json is using old prefixed field name style
                 value = extra_dictionary.get(field_key, '')
+
             if value:
                 field = getattr(form, field_key)
                 field.data = value
