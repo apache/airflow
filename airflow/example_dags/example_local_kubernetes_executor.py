@@ -51,7 +51,6 @@ if k8s:
             "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
         }
 
-
         @task(
             executor_config=start_task_executor_config,
             queue='kubernetes',
@@ -60,13 +59,11 @@ if k8s:
         def task_with_template():
             print_stuff()
 
-
         @task(task_id='task_with_local_executor')
         def task_with_local(ds=None, **kwargs):
             """Print the Airflow context and ds variable from the context."""
             print(kwargs)
             print(ds)
             return 'Whatever you return gets printed in the logs'
-
 
         task_with_local() >> task_with_template()
