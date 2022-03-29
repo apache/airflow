@@ -51,6 +51,7 @@ const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
 const gridUrl = getMetaValue('grid_url');
+const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
@@ -148,9 +149,6 @@ const TaskInstance = ({ taskId, runId }) => {
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: executionDate,
   });
-  const allInstancesLink = `${taskInstancesUrl}?${listParams}`;
-  // TODO: base subdag zooming as its own attribute instead of via operator name
-
   const subDagParams = new URLSearchParams({
     execution_date: executionDate,
   }).toString();
@@ -161,7 +159,11 @@ const TaskInstance = ({ taskId, runId }) => {
     root: taskId,
   }).toString();
 
+  const allInstancesLink = `${taskInstancesUrl}?${listParams}`;
+  const filterUpstreamLink = `${gridUrlNoRoot}&${filterParams}`;
   const subDagLink = `${gridUrl.replace(dagId, `${dagId}.${taskId}`)}?${subDagParams}`;
+
+  // TODO: base subdag zooming as its own attribute instead of via operator name
   const isSubDag = operator === 'SubDagOperator';
 
   return (
@@ -183,7 +185,7 @@ const TaskInstance = ({ taskId, runId }) => {
               </>
             )}
             <LinkButton href={allInstancesLink}>All Instances</LinkButton>
-            <LinkButton href={`?${filterParams}`}>Filter Upstream</LinkButton>
+            <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
           </Flex>
           <Divider mt={3} />
         </>
