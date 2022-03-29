@@ -80,6 +80,28 @@ class ArangoDBHook(BaseHook):
         except AQLQueryExecuteError as error:
             raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
 
+    def create_collection(self, name):
+        if not self.db_conn.has_collection(name):
+            sys_db.create_collection(name)
+            return True
+        else:
+            return False
+
+
+    def create_database(self, name):
+        if not self.db_conn.has_database(name):
+            sys_db.create_database(name)
+            return True
+        else:
+            return False
+
+    def create_graph(self, name):
+        if not self.db_conn.has_graph(name):
+            sys_db.create_graph(name)
+            return True
+        else:
+            return False
+
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         return {
