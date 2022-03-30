@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-29T20:04:04Z
+# This constraints file was automatically generated on 2022-03-30T15:44:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -99,7 +99,7 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.28
+boto3==1.21.29
 boto==2.49.0
 botocore==1.24.29
 bowler==0.9.0
@@ -181,7 +181,7 @@ google-cloud-audit-log==0.2.0
 google-cloud-automl==2.7.2
 google-cloud-bigquery-datatransfer==3.6.1
 google-cloud-bigquery-storage==2.13.0
-google-cloud-bigquery==2.34.2
+google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.0
 google-cloud-build==3.8.1
 google-cloud-container==1.0.1
@@ -461,7 +461,7 @@ toolz==0.11.2
 tornado==6.1
 tqdm==4.63.1
 traitlets==5.1.1
-trino==0.311.0
+trino==0.312.0
 twine==3.8.0
 typed-ast==1.4.3
 types-Deprecated==1.2.5
