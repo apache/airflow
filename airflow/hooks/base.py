@@ -68,14 +68,13 @@ class BaseHook(LoggingMixin):
         conn = Connection.get_connection_from_secrets(conn_id)
         log.info("Using connection ID '%s' for task execution.", conn.conn_id)
         log.debug(
-            "Connection details for '%s':: Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
+            "Connection details for '%s':: Host: %s, Port: %s, Schema: %s, Login: %s, "
             "Extra: %s",
             conn.conn_id,
             conn.host,
             conn.port,
             conn.schema,
             conn.login,
-            redact(conn.password),
             redact(conn.extra_dejson),
         )
         return conn
