@@ -984,6 +984,8 @@ def test_mapped_task_upstream_failed(dag_maker, session):
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):
+    result = None
+
     with dag_maker(session=session) as dag:
 
         @dag.task
@@ -996,7 +998,8 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
 
         @dag.task
         def consumer(value):
-            print(value)
+            nonlocal result
+            result = list(value)
 
         consumer(value=double.expand(value=make_list()))
 
@@ -1023,3 +1026,9 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     decision.schedulable_tis[0].run(verbose=False, session=session)
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["consumer"]
+
+    # We should be able to get all values aggregated from mapped upstreams.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis == []
+    assert result == [2, 4]
