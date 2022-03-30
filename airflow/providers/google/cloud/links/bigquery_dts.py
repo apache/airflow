@@ -18,6 +18,7 @@
 """This module contains Google BigQuery Data Transfer links."""
 from typing import TYPE_CHECKING
 
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ class BigQueryDataTransferConfigLink(BaseGoogleLink):
     @staticmethod
     def persist(
         context: "Context",
-        task_instance,
+        task_instance: BaseOperator,
         region: str,
         config_id: str,
         project_id: str,
