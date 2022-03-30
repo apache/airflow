@@ -242,9 +242,9 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             dag_directory=dag_directory,
             max_runs=max_runs,
             processor_timeout=processor_timeout,
-            signal_conn=signal_conn,
             dag_ids=dag_ids,
             pickle_dags=pickle_dags,
+            signal_conn=signal_conn,
             async_mode=async_mode,
         )
 
