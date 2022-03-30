@@ -117,7 +117,7 @@ class TestStats(unittest.TestCase):
         ), pytest.raises(
             AirflowConfigException,
             match=re.escape(
-                'Your custom Statsd client must extend the statsd.'
+                'Your custom StatsD client must extend the statsd.'
                 'StatsClient in order to ensure backwards compatibility.'
             ),
         ):
