@@ -224,16 +224,14 @@ class ProdParams:
         docker_cache_prod_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_prod_image_name}:cache")
+            docker_cache_prod_directive.append(f"--cache-from={self.airflow_prod_image_name}")
         elif self.docker_cache == "disabled":
             docker_cache_prod_directive.append("--no-cache")
         else:
             docker_cache_prod_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(
-                [f"--cache-to=type=registry,ref={self.airflow_prod_image_name}:cache,mode=max", "--push"]
-            )
+            docker_cache_prod_directive.extend([f"--cache-to=type=inline,mode=max", "--push"])
             if is_multi_platform(self.platform):
                 console.print("\nSkip loading docker image on multi-platform build")
             else:
