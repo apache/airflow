@@ -37,48 +37,42 @@ from datetime import datetime
 from os import getenv
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import BranchPythonOperator
+from airflow.decorators import task
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
-# [START howto_operator_google_api_to_s3_transfer_advanced_env_variables]
-YOUTUBE_CONN_ID = getenv("YOUTUBE_CONN_ID", "google_cloud_default")
-YOUTUBE_CHANNEL_ID = getenv("YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA")  # "Apache Airflow"
+YOUTUBE_CHANNEL_ID = getenv(
+    "YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA"
+)  # Youtube channel "Apache Airflow"
 YOUTUBE_VIDEO_PUBLISHED_AFTER = getenv("YOUTUBE_VIDEO_PUBLISHED_AFTER", "2019-09-25T00:00:00Z")
 YOUTUBE_VIDEO_PUBLISHED_BEFORE = getenv("YOUTUBE_VIDEO_PUBLISHED_BEFORE", "2019-10-18T00:00:00Z")
-S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://bucket/key.json")
+S3_BUCKET_NAME = getenv("S3_DESTINATION_KEY", "s3://bucket-test")
 YOUTUBE_VIDEO_PARTS = getenv("YOUTUBE_VIDEO_PARTS", "snippet")
 YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(description,publishedAt,tags,title))")
-# [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 
 
-# [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-def _check_and_transform_video_ids(task_output, task_instance):
-    video_ids_response = task_output
-    video_ids = [item['id']['videoId'] for item in video_ids_response['items']]
+@task(task_id='transform_video_ids')
+def transform_video_ids(**kwargs):
+    task_instance = kwargs['task_instance']
+    output = task_instance.xcom_pull(task_ids="video_ids_to_s3", key="video_ids_response")
+    video_ids = [item['id']['videoId'] for item in output['items']]
 
-    if video_ids:
-        task_instance.xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
-        return 'video_data_to_s3'
-    return 'no_video_ids'
+    if not video_ids:
+        video_ids = []
 
+    kwargs['task_instance'].xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
 
-# [END howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-
-
-s3_directory, s3_file = S3_DESTINATION_KEY.rsplit('/', 1)
-s3_file_name, _ = s3_file.rsplit('.', 1)
 
 with DAG(
-    dag_id="example_google_api_to_s3_transfer_advanced",
+    dag_id="example_google_api_youtube_to_s3",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_operator_google_api_to_s3_transfer_advanced_task_1]
+    # [START howto_transfer_google_api_youtube_search_to_s3]
     task_video_ids_to_s3 = GoogleApiToS3Operator(
-        gcp_conn_id=YOUTUBE_CONN_ID,
+        task_id='video_ids_to_s3',
         google_api_service_name='youtube',
         google_api_service_version='v3',
         google_api_endpoint_path='youtube.search.list',
@@ -92,20 +86,16 @@ with DAG(
             'fields': 'items/id/videoId',
         },
         google_api_response_via_xcom='video_ids_response',
-        s3_destination_key=f'{s3_directory}/youtube_search_{s3_file_name}.json',
-        task_id='video_ids_to_s3',
+        s3_destination_key=f'{S3_BUCKET_NAME}/youtube_search.json',
+        s3_overwrite=True,
     )
-    # [END howto_operator_google_api_to_s3_transfer_advanced_task_1]
-    # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
-    task_check_and_transform_video_ids = BranchPythonOperator(
-        python_callable=_check_and_transform_video_ids,
-        op_args=[task_video_ids_to_s3.output[task_video_ids_to_s3.google_api_response_via_xcom]],
-        task_id='check_and_transform_video_ids',
-    )
-    # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
-    # [START howto_operator_google_api_to_s3_transfer_advanced_task_2]
+    # [END howto_transfer_google_api_youtube_search_to_s3]
+
+    task_transform_video_ids = transform_video_ids()
+
+    # [START howto_transfer_google_api_youtube_list_to_s3]
     task_video_data_to_s3 = GoogleApiToS3Operator(
-        gcp_conn_id=YOUTUBE_CONN_ID,
+        task_id='video_data_to_s3',
         google_api_service_name='youtube',
         google_api_service_version='v3',
         google_api_endpoint_path='youtube.videos.list',
@@ -115,14 +105,9 @@ with DAG(
             'fields': YOUTUBE_VIDEO_FIELDS,
         },
         google_api_endpoint_params_via_xcom='video_ids',
-        s3_destination_key=f'{s3_directory}/youtube_videos_{s3_file_name}.json',
-        task_id='video_data_to_s3',
+        s3_destination_key=f'{S3_BUCKET_NAME}/youtube_videos.json',
+        s3_overwrite=True,
     )
-    # [END howto_operator_google_api_to_s3_transfer_advanced_task_2]
-    # [START howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
-    task_no_video_ids = DummyOperator(task_id='no_video_ids')
-    # [END howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
-    task_check_and_transform_video_ids >> [task_video_data_to_s3, task_no_video_ids]
+    # [END howto_transfer_google_api_youtube_list_to_s3]
 
-    # Task dependency created via `XComArgs`:
-    #   task_video_ids_to_s3 >> task_check_and_transform_video_ids
+    chain(task_video_ids_to_s3, task_transform_video_ids, task_video_data_to_s3)

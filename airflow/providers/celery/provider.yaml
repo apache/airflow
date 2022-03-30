@@ -31,8 +31,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
-  - celery~=5.1,>=5.1.2
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Celery

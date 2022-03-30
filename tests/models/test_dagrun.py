@@ -878,15 +878,16 @@ class TestDagRun:
     ('run_type', 'expected_tis'),
     [
         pytest.param(DagRunType.MANUAL, 1, id='manual'),
-        pytest.param(DagRunType.BACKFILL_JOB, 2, id='backfill'),
+        pytest.param(DagRunType.BACKFILL_JOB, 3, id='backfill'),
     ],
 )
 @mock.patch.object(Stats, 'incr')
-def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expected_tis):
-    """Test that tasks with specific start dates are only created for backfill runs"""
+def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
+    """Test that tasks with specific dates are only created for backfill runs"""
     with DAG('test', start_date=DEFAULT_DATE) as dag:
         DummyOperator(task_id='without')
-        DummyOperator(task_id='with_startdate', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_start_date', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_end_date', end_date=DEFAULT_DATE - datetime.timedelta(1))
 
     dag_run = DagRun(
         dag_id=dag.dag_id,

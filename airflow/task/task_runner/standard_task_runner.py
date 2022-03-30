@@ -83,10 +83,9 @@ class StandardTaskRunner(BaseTaskRunner):
             if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
-
+            return_code = 0
             try:
                 args.func(args, dag=self.dag)
-                return_code = 0
             except Exception as exc:
                 return_code = 1
 
@@ -97,11 +96,33 @@ class StandardTaskRunner(BaseTaskRunner):
                     exc,
                     os.getpid(),
                 )
+            except SystemExit as sys_ex:
+                # Someone called sys.exit() in the fork - mistakenly. You should not run sys.exit() in
+                # the fork because you can mistakenly execute atexit that were set by the parent process
+                # before fork happened
+                return_code = sys_ex.code
+            except BaseException:
+                # while we want to handle Also Base exceptions here - we do not want to log them (this
+                # is the default behaviour anyway. Setting the return code here to 2 to indicate that
+                # this had happened.
+                return_code = 2
             finally:
-                # Explicitly flush any pending exception to Sentry if enabled
-                Sentry.flush()
-                logging.shutdown()
-                os._exit(return_code)
+                try:
+                    # Explicitly flush any pending exception to Sentry and logging if enabled
+                    Sentry.flush()
+                    logging.shutdown()
+                except BaseException:
+                    # also make sure to silently ignore ALL POSSIBLE exceptions thrown in the flush/shutdown,
+                    # otherwise os._exit() might never be called. We could have used `except:` but
+                    # except BaseException is more explicit (and linters do not comply).
+                    pass
+            # We run os._exit() making sure it is not run within the `finally` clause.
+            # We cannot run os._exit() in finally clause, because during finally clause processing, the
+            # Exception handled is held in memory as well as stack trace and possibly some objects that
+            # might need to be finalized. Running os._exit() inside the `finally` clause might cause effects
+            # similar to https://github.com/apache/airflow/issues/22404. There Temporary file has not been
+            # deleted at os._exit()
+            os._exit(return_code)
 
     def return_code(self, timeout: int = 0) -> Optional[int]:
         # We call this multiple times, but we can only wait on the process once

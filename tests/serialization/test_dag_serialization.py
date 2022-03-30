@@ -1080,6 +1080,7 @@ class TestStringifiedDAGs:
             '_pre_execute_hook': None,
             '_post_execute_hook': None,
             'depends_on_past': False,
+            'ignore_first_depends_on_past': True,
             'downstream_task_ids': set(),
             'do_xcom_push': True,
             'doc': None,

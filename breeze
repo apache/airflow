@@ -3526,7 +3526,7 @@ function breeze::run_breeze_command() {
         : "${airflow_testing_container:?"ERROR! Breeze must be running in order to exec into running container"}"
         set -e
         docker exec -it "${airflow_testing_container}" \
-            "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
+            "/opt/airflow/scripts/docker/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
         docker_engine_resources::check_all_resources

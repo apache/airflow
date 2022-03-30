@@ -37,8 +37,8 @@ class TestProviderManager(unittest.TestCase):
             provider_list = list(provider_manager.providers.keys())
             # No need to sort the list - it should be sorted alphabetically !
             for provider in provider_list:
-                package_name = provider_manager.providers[provider][1]['package-name']
-                version = provider_manager.providers[provider][0]
+                package_name = provider_manager.providers[provider].data['package-name']
+                version = provider_manager.providers[provider].version
                 assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
                 assert package_name == provider
             # just a coherence check - no exact number as otherwise we would have to update
@@ -51,7 +51,8 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['test-package'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
+                data={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
         assert warning_records
@@ -61,7 +62,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -70,6 +71,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
@@ -79,7 +81,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -88,6 +90,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict['wrong-connection-type']
@@ -100,7 +103,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -109,6 +112,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict['sftp']
@@ -172,7 +176,7 @@ class TestProviderManager(unittest.TestCase):
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [] == self._caplog.messages
 
@@ -185,7 +189,7 @@ class TestProviderManager(unittest.TestCase):
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [
                 "Optional feature disabled on exception when importing 'HookClass' from "

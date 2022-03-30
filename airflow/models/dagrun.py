@@ -827,7 +827,9 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill or task.start_date <= self.execution_date
+                self.is_backfill
+                or task.start_date <= self.execution_date
+                and (task.end_date is None or self.execution_date <= task.end_date)
             )
 
         created_counts: Dict[str, int] = defaultdict(int)
