@@ -192,6 +192,22 @@ def change_directory_permission(directory_to_fix: Path):
         os.chmod(directory_to_fix, new)
 
 
+@working_directory(AIRFLOW_SOURCE)
+def fix_group_permissions():
+    files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
+    if files_to_fix_result.returncode == 0:
+        files_to_fix = files_to_fix_result.stdout.strip().split('\n')
+        for file_to_fix in files_to_fix:
+            change_file_permission(Path(file_to_fix))
+    directories_to_fix_result = run_command(
+        ['git', 'ls-tree', '-r', '-d', '--name-only', 'HEAD'], capture_output=True, text=True
+    )
+    if directories_to_fix_result.returncode == 0:
+        directories_to_fix = directories_to_fix_result.stdout.strip().split('\n')
+        for directory_to_fix in directories_to_fix:
+            change_directory_permission(Path(directory_to_fix))
+
+
 def get_latest_sha(repo: str, branch: str):
     gh_url = f"https://api.github.com/repos/{repo}/commits/{branch}"
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
