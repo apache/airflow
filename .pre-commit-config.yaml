@@ -144,7 +144,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
   - repo: https://github.com/psf/black
-    rev: 21.12b0
+    rev: 22.3.0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -311,12 +311,13 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
-      - id: forbidden-xcom-get-value
-        name: Check if XCom.get_value is used in backwards-compatible way
+        # This check might be removed when min-airflow-version in providers is 2.2
+      - id: check-2-1-compatibility
+        name: Check that providers are 2.1 compatible.
+        entry: ./scripts/ci/pre_commit/pre_commit_check_2_1_compatibility.py
         language: python
-        files: ^airflow/providers/.*\.py$
         pass_filenames: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_xcom_get_value.py
+        files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich']
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
@@ -571,7 +572,7 @@ repos:
           - --max-length=70
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.1.0']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -581,6 +582,14 @@ repos:
         files: setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
+        additional_dependencies: ['rich']
+      - id: check-system-tests
+        name: Check if system tests have required segments of code
+        entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
+        language: python
+        files: ^tests/system/.*/example_[^/]*.py$
+        exclude: ^tests/system/providers/google/bigquery/example_bigquery_queries\.py$
+        pass_filenames: true
         additional_dependencies: ['rich']
       - id: markdownlint
         name: Run markdownlint
@@ -687,6 +696,13 @@ repos:
         language: python
         pass_filenames: false
         files: ^chart/values\.schema\.json$
+        require_serial: true
+      - id: inline-dockerfile-scripts
+        name: Inline Dockerfile and Dockerfile.ci scripts
+        entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
+        language: python
+        pass_filenames: false
+        files: ^Dockerfile$|^Dockerfile.ci|scripts/ci/docker/.*$
         require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui

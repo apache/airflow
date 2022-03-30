@@ -221,18 +221,20 @@ class TestFlowerDeployment:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
-    def test_should_add_extra_volumes(self):
+    def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
                 "flower": {
                     "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "myvolume", "mountPath": "/opt/test"}],
                 },
             },
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
-            "spec.template.spec.volumes[-1]", docs[0]
+        assert {"name": "myvolume", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "myvolume", "mountPath": "/opt/test"} in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
 

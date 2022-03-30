@@ -27,6 +27,7 @@ from airflow_breeze.utils.run_utils import run_command
 @dataclass
 class BuildParams:
     # To construct ci_image_name
+    upgrade_newer_dependencies: bool = False
     python_version: str = "3.7"
     airflow_branch: str = AIRFLOW_BRANCH
     build_id: int = 0
@@ -58,7 +59,6 @@ class BuildParams:
     additional_runtime_apt_env: str = ""
     platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
-    upgrade_to_newer_dependencies: str = "true"
 
     @property
     def airflow_image_name(self):
@@ -69,12 +69,6 @@ class BuildParams:
     def airflow_ci_image_name(self):
         """Construct CI image link"""
         image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
-        return image
-
-    @property
-    def airflow_ci_image_name_with_cache(self):
-        """Construct CI image link"""
-        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}:cache'
         return image
 
     @property
@@ -104,8 +98,6 @@ class BuildParams:
 
     @property
     def airflow_image_date_created(self):
-        # 2021-12-18T15:19:25Z '%Y-%m-%dT%H:%M:%SZ'
-        # Set date in above format and return
         now = datetime.now()
         return now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -119,7 +111,7 @@ class BuildParams:
         docker_cache_ci_directive = []
         if self.docker_cache == "pulled":
             docker_cache_ci_directive.append("--cache-from")
-            docker_cache_ci_directive.append(self.airflow_ci_image_name_with_cache)
+            docker_cache_ci_directive.append(self.airflow_ci_image_name)
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:
@@ -129,3 +121,10 @@ class BuildParams:
     @property
     def airflow_version(self):
         return get_airflow_version()
+
+    @property
+    def upgrade_to_newer_dependencies(self) -> str:
+        upgrade_to_newer_dependencies = 'false'
+        if self.upgrade_newer_dependencies:
+            upgrade_to_newer_dependencies = 'true'
+        return upgrade_to_newer_dependencies

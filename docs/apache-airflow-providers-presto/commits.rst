@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
+=================================================================================================  ===========  ====================================================================
+
 2.1.0
 .....
 
-Latest change: 2022-02-28
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `64423563bc <https://github.com/apache/airflow/commit/64423563bcdf876ee0f94eafbaac7177e773e5c6>`_  2022-02-28   ``Quick Update GCS Presto (#21855)``
 `2807193594 <https://github.com/apache/airflow/commit/2807193594ed4e1f3acbe8da7dd372fe1c2fff94>`_  2022-02-22   ``Replaced hql references to sql in TrinoHook and PrestoHook (#21630)``
 `aab11890db <https://github.com/apache/airflow/commit/aab11890dbae5dab7ec5df89e79bc8e27f451ce7>`_  2022-02-17   ``Add GCSToPrestoOperator (#21084)``

@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.1
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
+`c1ab8e2d7b <https://github.com/apache/airflow/commit/c1ab8e2d7b68a31408e750129592e16432474512>`_  2022-03-14   ``Protect against accidental misuse of XCom.get_value() (#22244)``
+`d08284ed25 <https://github.com/apache/airflow/commit/d08284ed251b7c5712190181623b500a38cd640d>`_  2022-03-11   `` Add map_index to XCom model and interface (#22112)``
+=================================================================================================  ===========  ====================================================================
+
 3.7.0
 .....
 
-Latest change: 2022-03-02
+Latest change: 2022-03-07
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `ba79adb631 <https://github.com/apache/airflow/commit/ba79adb6318d783807dead86cf209f5f7d6f0452>`_  2022-03-02   ``Make container creation configurable when uploading files via WasbHook (#20510)``
 `f42559a773 <https://github.com/apache/airflow/commit/f42559a773ed51c96ce27bad1d87c4d49bb40d4b>`_  2022-03-02   ``Add 'test_connection' method to 'AzureDataFactoryHook' (#21924)``
 `08575ddd8a <https://github.com/apache/airflow/commit/08575ddd8a72f96a3439f73e973ee9958188eb83>`_  2022-03-01   ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``

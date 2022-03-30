@@ -271,7 +271,7 @@ Branching
 
 You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the branching Operators come in.
 
-The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped.
+The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped. It can also return None to skip all downstream task.
 
 The task_id returned by the Python function has to reference a task directly downstream from the BranchPythonOperator task.
 
@@ -290,8 +290,10 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
             return "continue_task"
-        else:
+        elif xcom_value >= 3:
             return "stop_task"
+        else:
+            return None
 
 
     start_op = BashOperator(
@@ -314,7 +316,7 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
 
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``BranchPythonOperator`` but expects you to provide an implementation of the method ``choose_branch``.
 
-As with the callable for ``BranchPythonOperator``, this method should return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped::
+As with the callable for ``BranchPythonOperator``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
     class MyBranchOperator(BaseBranchOperator):
         def choose_branch(self, context):
@@ -323,8 +325,10 @@ As with the callable for ``BranchPythonOperator``, this method should return the
             """
             if context['data_interval_start'].day == 1:
                 return ['daily_task_id', 'monthly_task_id']
-            else:
+            elif context['data_interval_start'].day == 2:
                 return 'daily_task_id'
+            else:
+                return None
 
 
 .. _concepts:latest-only:

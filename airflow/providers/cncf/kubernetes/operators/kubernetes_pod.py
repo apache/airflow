@@ -283,7 +283,7 @@ class KubernetesPodOperator(BaseOperator):
             return {}
 
         ti = context['ti']
-        run_id = getattr(ti, 'run_id') or context['run_id']
+        run_id = context['run_id']
 
         labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
 
@@ -373,9 +373,10 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.pod_manager.follow_container_logs(
+                self.pod_manager.fetch_container_logs(
                     pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
+                    follow=True,
                 )
             else:
                 self.pod_manager.await_container_completion(

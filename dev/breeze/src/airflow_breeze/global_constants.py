@@ -128,8 +128,8 @@ ALLOWED_INTEGRATIONS = [
     'all',
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.21.1', 'v1.20.2']
-ALLOWED_KIND_VERSIONS = ['v0.11.1']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
+ALLOWED_KIND_VERSIONS = ['v0.12.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
@@ -241,6 +241,15 @@ def get_airflow_version():
                 return line.split()[2][1:-1]
 
 
+def get_airflow_extras():
+    airflow_dockerfile = Path(get_airflow_sources_root()) / 'Dockerfile'
+    with open(airflow_dockerfile) as dockerfile:
+        for line in dockerfile.readlines():
+            if "ARG AIRFLOW_EXTRAS=" in line:
+                line = line.split('=')[1].strip()
+                return line.replace('"', '')
+
+
 # Initialize integrations
 AVAILABLE_INTEGRATIONS = [
     'cassandra',
@@ -282,8 +291,8 @@ ENABLED_SYSTEMS = ""
 
 
 CURRENT_KUBERNETES_MODES = ['image']
-CURRENT_KUBERNETES_VERSIONS = ['v1.21.1', 'v1.20.2']
-CURRENT_KIND_VERSIONS = ['v0.11.1']
+CURRENT_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
+CURRENT_KIND_VERSIONS = ['v0.12.0']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
@@ -308,3 +317,8 @@ VERSION_SUFFIX_FOR_PYPI = ""
 
 MIN_DOCKER_VERSION = "20.10.0"
 MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
+
+AIRFLOW_SOURCES_FROM = "."
+AIRFLOW_SOURCES_TO = "/opt/airflow"
+AIRFLOW_SOURCES_WWW_FROM = "./airflow/www"
+AIRFLOW_SOURCES_WWW_TO = "/opt/airflow/airflow/www"

@@ -257,7 +257,7 @@ function parallel::get_maximum_parallel_k8s_jobs() {
             echo "${COLOR_YELLOW}Maximum parallel k8s jobs forced vi MAX_PARALLEL_K8S_JOBS = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
             echo
         else
-            MAX_PARALLEL_K8S_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
+            MAX_PARALLEL_K8S_JOBS=$((CPUS_AVAILABLE_FOR_DOCKER / 4))
             echo
             echo "${COLOR_YELLOW}Maximum parallel k8s jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
             echo

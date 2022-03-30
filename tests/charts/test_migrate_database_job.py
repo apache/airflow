@@ -29,6 +29,23 @@ class TestMigrateDatabaseJob:
         assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
         assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
 
+    @pytest.mark.parametrize(
+        "migrate_database_job_enabled,created",
+        [
+            (False, False),
+            (True, True),
+        ],
+    )
+    def test_enable_migrate_database_job(self, migrate_database_job_enabled, created):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {"enabled": migrate_database_job_enabled},
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert bool(docs) is created
+
     def test_should_support_annotations(self):
         docs = render_chart(
             values={"migrateDatabaseJob": {"annotations": {"foo": "bar"}, "jobAnnotations": {"fiz": "fuz"}}},

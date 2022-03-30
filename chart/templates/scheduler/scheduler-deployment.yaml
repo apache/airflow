@@ -119,6 +119,7 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
+        {{- if .Values.scheduler.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
@@ -136,6 +137,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- end }}
         {{- if .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}

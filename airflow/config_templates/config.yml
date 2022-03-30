@@ -1870,6 +1870,14 @@
       type: string
       example: ~
       default: "30"
+    - name: deactivate_stale_dags_interval
+      description: |
+        How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
+        the expected files) which should be deactivated.
+      version_added: 2.2.5
+      type: integer
+      example: ~
+      default: "60"
     - name: dag_dir_list_interval
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
@@ -1938,6 +1946,17 @@
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
+      type: string
+      example: ~
+      default: "True"
+    - name: ignore_first_depends_on_past_by_default
+      description: |
+        Setting this to True will make first task instance of a task
+        ignore depends_on_past setting. A task instance will be considered
+        as the first task instance of a task when there is no task instance
+        in the DB with an execution_date earlier than it., i.e. no manual marking
+        success will be needed for a newly added task to be scheduled.
+      version_added: 2.3.0
       type: string
       example: ~
       default: "True"

@@ -31,6 +31,10 @@ class GlueJobSensor(BaseSensorOperator):
     Waits for an AWS Glue Job to reach any of the status below
     'FAILED', 'STOPPED', 'SUCCEEDED'
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:GlueJobSensor`
+
     :param job_name: The AWS Glue Job unique name
     :param run_id: The AWS Glue current running job identifier
     """

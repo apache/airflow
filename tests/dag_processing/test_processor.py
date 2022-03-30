@@ -707,31 +707,6 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
 
-    def test_process_file_should_deactivate_missing_dags(self):
-
-        dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
-        )
-
-        # write a DAG into the DB which is not present in its specified file
-        with create_session() as session:
-            orm_dag = DagModel(dag_id='missing_dag', is_active=True, fileloc=dag_file)
-            session.merge(orm_dag)
-            session.commit()
-
-        session = settings.Session()
-
-        dags = session.query(DagModel).all()
-        assert [dag.dag_id for dag in dags if dag.is_active] == ['missing_dag']
-
-        # re-parse the file and see that the DAG is no longer there
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_file_processor.process_file(dag_file, [])
-
-        dags = session.query(DagModel).all()
-        assert [dag.dag_id for dag in dags if dag.is_active] == ['test_only_dummy_tasks']
-        assert [dag.dag_id for dag in dags if not dag.is_active] == ['missing_dag']
-
 
 class TestProcessorAgent:
     @pytest.fixture(autouse=True)

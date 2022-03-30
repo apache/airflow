@@ -389,6 +389,46 @@ this (note the ``if ti_key is not None:`` condition).
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
+Having sensors return XOM values
+--------------------------------
+In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
+
+  .. code-block:: python
+
+    from airflow.sensors.base import PokeReturnValue
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            return PokeReturnValue(is_done, xcom_value)
+
+
+To implement a sensor operator that pushes a XCOM value and supports both version 2.3 and pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
+
+  .. code-block:: python
+
+    try:
+        from airflow.sensors.base import PokeReturnValue
+    except ImportError:
+        PokeReturnValue = None
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> bool:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            if PokeReturnValue is not None:
+                return PokeReturnValue(is_done, xcom_value)
+            else:
+                if is_done:
+                    context["ti"].xcom_push(key="xcom_key", value=xcom_value)
+                return is_done
+
+
 How-to Update a community provider
 ----------------------------------
 

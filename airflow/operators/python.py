@@ -210,8 +210,10 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
             branches = {branch}
         elif isinstance(branch, list):
             branches = set(branch)
+        elif branch is None:
+            branches = set()
         else:
-            raise AirflowException("Branch callable must return either a task ID or a list of IDs")
+            raise AirflowException("Branch callable must return either None, a task ID, or a list of IDs")
         valid_task_ids = set(context["dag"].task_ids)
         invalid_task_ids = branches - valid_task_ids
         if invalid_task_ids:

@@ -309,7 +309,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
         dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
         task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
-        task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+        user_supplied_task_id = partial_kwargs.pop("task_id")
+        task_id = get_unique_task_id(user_supplied_task_id, dag, task_group)
         params = partial_kwargs.pop("params", None)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
@@ -334,6 +335,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
+            user_supplied_task_id=user_supplied_task_id,
             mapped_kwargs={},
             partial_kwargs=partial_kwargs,
             task_id=task_id,
@@ -420,7 +422,7 @@ class DecoratedMappedOperator(MappedOperator):
         return {
             "dag": self.dag,
             "task_group": self.task_group,
-            "task_id": self.task_id,
+            "task_id": self.user_supplied_task_id,
             "op_kwargs": op_kwargs,
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,

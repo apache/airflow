@@ -85,15 +85,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)  | Stable version (2.2.4)   |
-|---------------------|---------------------|--------------------------|
-| Python              | 3.7, 3.8, 3.9       | 3.6, 3.7, 3.8, 3.9       |
-| Platform            | AMD64/ARM64(\*)     | AMD64                    |
-| Kubernetes          | 1.20, 1.21          | 1.18, 1.19, 1.20         |
-| PostgreSQL          | 10, 11, 12, 13      | 9.6, 10, 11, 12, 13      |
-| MySQL               | 5.7, 8              | 5.7, 8                   |
-| SQLite              | 3.15.0+             | 3.15.0+                  |
-| MSSQL               | 2017(\*), 2019 (\*) |                          |
+|                     | Main version (dev)      | Stable version (2.2.4)   |
+|---------------------|-------------------------|--------------------------|
+| Python              | 3.7, 3.8, 3.9, 3.10     | 3.6, 3.7, 3.8, 3.9       |
+| Platform            | AMD64/ARM64(\*)         | AMD64                    |
+| Kubernetes          | 1.20, 1.21, 1.22, 1.23  | 1.18, 1.19, 1.20         |
+| PostgreSQL          | 10, 11, 12, 13          | 9.6, 10, 11, 12, 13      |
+| MySQL               | 5.7, 8                  | 5.7, 8                   |
+| SQLite              | 3.15.0+                 | 3.15.0+                  |
+| MSSQL               | 2017(\*), 2019 (\*)     |                          |
 
 \* Experimental
 
@@ -104,7 +104,8 @@ MariaDB is not tested/recommended.
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-**Note**: Python v3.10 is not supported yet. For details, see [#19059](https://github.com/apache/airflow/issues/19059).
+**Note**: Support for Python v3.10 will be available from Airflow 2.3.0. The `main` (development) branch
+already supports Python 3.10.
 
 **Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
 tested on fairly modern Linux Distros and recent versions of MacOS.
@@ -292,11 +293,12 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 [Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
 [Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
 
-1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
-   EOL versions in main right after EOL date, and it is effectively removed when we release the
-   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example, for Python 3.7 it means that we will drop support in main right after 27.06.2023, and
-   the first MAJOR or MINOR version of Airflow released after will not have it.
+1. We drop support for Python and Kubernetes versions when they reach EOL. Except for kubernetes, a
+   version stay supported by Airflow if two major cloud provider still provide support for it. We drop
+   support for those EOL versions in main right after EOL date, and it is effectively removed when we release
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow For example, for Python 3.7 it
+   means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
+   Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
@@ -305,7 +307,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
-4. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 
@@ -378,6 +380,14 @@ The important dependencies are:
    are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
 * `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
    libraries, and we should update them together
+* `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
+   [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
+   we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
+   we should make sure Celery Provider minimum Airflow version is updated).
+* `kubernetes`: Kubernetes is a crucial component of Airflow as it is used for the KubernetesExecutor
+   (and similar). Kubernetes Python library [follows SemVer](https://github.com/kubernetes-client/python#compatibility),
+   so we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
+   we should make sure Kubernetes Provider minimum Airflow version is updated.
 
 ### Approach for dependencies in Airflow Providers and extras
 
