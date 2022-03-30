@@ -463,3 +463,8 @@ label[for="timezone-other"],
 .tooltip.d3-tip {
   z-index: 1070;
 }
+
+.menu-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+}
