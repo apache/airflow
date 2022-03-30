@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.secrets_masker import redact
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
