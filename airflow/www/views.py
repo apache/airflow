@@ -1245,19 +1245,20 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = dag.get_task(task_id).prepare_for_execution()
+        raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
             # DAG has never been run. Task instance rendering does not really
             # make sense in this situation, but "works" prior to AIP-39. This
             # "fakes" a temporary DagRun-TaskInstance association (not saved to
             # database) for presentation only.
-            ti = TaskInstance(task, map_index=map_index)
+            ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
-            ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(task)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
+            ti.refresh_from_task(raw_task)
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1268,8 +1269,13 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
-        else:
-            task = ti.task
+
+        # Ensure we are rendering the unmapped operator. Unmapping should be
+        # done automatically if template fields are rendered successfully; this
+        # only matters if get_rendered_template_fields() raised an exception.
+        # The following rendering won't show useful values in this case anyway,
+        # but we'll display some quasi-meaingful field names.
+        task = ti.task.unmap()
 
         title = "Rendered Template"
         html_dict = {}

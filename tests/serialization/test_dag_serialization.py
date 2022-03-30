@@ -1588,6 +1588,7 @@ def test_mapped_operator_serde():
         'operator_extra_links': [],
         'template_fields': ['bash_command', 'env'],
         'template_ext': ['.sh', '.bash'],
+        'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
         'user_supplied_task_id': 'a',
@@ -1597,7 +1598,16 @@ def test_mapped_operator_serde():
     assert isinstance(op, MappedOperator)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
 
-    assert op.operator_class == "airflow.operators.bash.BashOperator"
+    assert op.operator_class == {
+        '_task_type': 'BashOperator',
+        'downstream_task_ids': [],
+        'task_id': 'a',
+        'template_ext': ['.sh', '.bash'],
+        'template_fields': ['bash_command', 'env'],
+        'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
+        'ui_color': '#f0ede4',
+        'ui_fgcolor': '#000',
+    }
     assert op.mapped_kwargs['bash_command'] == literal
     assert op.partial_kwargs['executor_config'] == {'dict': {'sub': 'value'}}
 
@@ -1621,6 +1631,7 @@ def test_mapped_operator_xcomarg_serde():
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
         'template_ext': [],
+        'template_fields_renderers': {},
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
@@ -1639,6 +1650,16 @@ def test_mapped_operator_xcomarg_serde():
     xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
+def test_mapped_operator_deserialized_unmap():
+    """Unmap a deserialized mapped operator should be similar to deserializing an non-mapped operator."""
+    normal = BashOperator(task_id='a', bash_command=[1, 2], executor_config={"a": "b"})
+    mapped = BashOperator.partial(task_id='a', executor_config={"a": "b"}).expand(bash_command=[1, 2])
+
+    serialize = SerializedBaseOperator._serialize
+    deserialize = SerializedBaseOperator.deserialize_operator
+    assert deserialize(serialize(mapped)).unmap() == deserialize(serialize(normal))
 
 
 def test_task_resources_serde():
@@ -1700,6 +1721,7 @@ def test_mapped_decorator_serde():
         'task_id': 'x',
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
+        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
         'user_supplied_task_id': 'x',
     }
 
