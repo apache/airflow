@@ -49,7 +49,7 @@ if __name__ == '__main__':
             no_comments_script_content = [
                 line for line in script_content if not line.startswith("#") or line.startswith("#!")
             ]
-            no_comments_script_content.insert(0, f'COPY --link <<"EOF" {script}\n')
+            no_comments_script_content.insert(0, f'COPY <<"EOF" {script}\n')
             insert_content(
                 file_path=file,
                 content=no_comments_script_content,

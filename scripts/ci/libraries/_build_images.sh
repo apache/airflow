@@ -449,15 +449,6 @@ function build_images::build_ci_image() {
             "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache,mode=max"
             "--push"
         )
-        if [[ ${PLATFORM} =~ .*,.* ]]; then
-            echo
-            echo "Skip loading docker image on multi-platform build"
-            echo
-        else
-            docker_ci_directive+=(
-                "--load"
-            )
-        fi
     fi
     local extra_docker_ci_flags=()
     if [[ ${CI} == "true" ]]; then

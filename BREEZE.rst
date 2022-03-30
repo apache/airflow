@@ -803,8 +803,8 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
-multiple processors on your local machine to generate such constraints faster.
+the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff

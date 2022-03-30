@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,32 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
----
-package-name: apache-airflow-providers-celery
-name: Celery
-description: |
-    `Celery <http://www.celeryproject.org/>`__
+# Some of our provider sources are not Airflow 2.1 compliant any more
+# We replace them with 2.1 compliant versions from PyPI to run the checks
 
-versions:
-  - 2.1.3
-  - 2.1.2
-  - 2.1.1
-  - 2.1.0
-  - 2.0.0
-  - 1.0.1
-  - 1.0.0
-
-additional-dependencies:
-  - apache-airflow>=2.2.0
-
-integrations:
-  - integration-name: Celery
-    external-doc-url: http://www.celeryproject.org/
-    logo: /integration-logos/celery/Celery.png
-    tags: [software]
-
-sensors:
-  - integration-name: Celery
-    python-modules:
-      - airflow.providers.celery.sensors.celery_queue
+cd "${AIRFLOW_SOURCES}" || exit 1
+rm -rvf dist/apache_airflow_providers_cncf_kubernetes* dist/apache_airflow_providers_celery*
+pip download --no-deps --dest dist apache-airflow-providers-cncf-kubernetes==3.0.0 \
+    apache-airflow-providers-celery==2.1.3
