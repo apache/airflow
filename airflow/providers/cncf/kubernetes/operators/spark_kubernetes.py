@@ -30,10 +30,11 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_configmap,
     convert_configmap_to_volume,
     convert_env_vars,
+    convert_image_pull_secrets,
     convert_secret,
     convert_toleration,
     convert_volume,
-    convert_volume_mount, convert_image_pull_secrets,
+    convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils.decorators import apply_defaults

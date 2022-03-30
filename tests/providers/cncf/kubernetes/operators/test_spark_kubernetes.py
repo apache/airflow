@@ -471,3 +471,52 @@ class TestSparkKubernetesOperator:
         op.execute(context)
         exp_secrets = [k8s.V1LocalObjectReference(name=secret) for secret in ['secret1', 'secret2']]
         assert op.launcher.body['spec']['imagePullSecrets'] == exp_secrets
+
+    def test_affinity(self):
+        affinity = k8s.V1Affinity(
+            node_affinity=k8s.V1NodeAffinity(
+                required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
+                    node_selector_terms=[
+                        k8s.V1NodeSelectorTerm(
+                            match_expressions=[
+                                k8s.V1NodeSelectorRequirement(
+                                    key='beta.kubernetes.io/instance-type',
+                                    operator='In',
+                                    values=['test'],
+                                )
+                            ]
+                        )
+                    ]
+                )
+            )
+        )
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            code_path='/code/path',
+            image='mock_image_tag',
+            affinity=affinity,
+            dag=self.dag,
+        )
+        context = self.create_context(op)
+        op.execute(context)
+        assert op.launcher.body['spec']['driver']['affinity'] == affinity
+        assert op.launcher.body['spec']['executor']['affinity'] == affinity
+
+    def test_toleration(self):
+        toleration = k8s.V1Toleration(
+            key='dedicated',
+            operator='Equal',
+            value='test',
+            effect='NoSchedule',
+        )
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            code_path='/code/path',
+            image='mock_image_tag',
+            tolerations=[toleration],
+            dag=self.dag,
+        )
+        context = self.create_context(op)
+        op.execute(context)
+        assert op.launcher.body['spec']['driver']['tolerations'] == [toleration]
+        assert op.launcher.body['spec']['executor']['tolerations'] == [toleration]
