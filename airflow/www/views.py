@@ -5319,7 +5319,7 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
-    
+
     _class_permission_name = permissions.RESOURCE_USER
 
     class_permission_name_mapping = {
@@ -5344,6 +5344,7 @@ class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
