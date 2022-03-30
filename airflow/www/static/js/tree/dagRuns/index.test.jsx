@@ -26,10 +26,10 @@ import moment from 'moment-timezone';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import DagRuns from './index';
-import { ContainerRefProvider } from '../providers/containerRef';
-import { SelectionProvider } from '../providers/selection';
-import { TimezoneProvider } from '../providers/timezone';
-import { AutoRefreshProvider } from '../providers/autorefresh';
+import { ContainerRefProvider } from '../context/containerRef';
+import { SelectionProvider } from '../context/selection';
+import { TimezoneProvider } from '../context/timezone';
+import { AutoRefreshProvider } from '../context/autorefresh';
 
 global.moment = moment;
 

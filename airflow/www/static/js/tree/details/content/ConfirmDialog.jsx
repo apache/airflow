@@ -30,7 +30,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 
-import { useContainerRef } from '../../providers/containerRef';
+import { useContainerRef } from '../../context/containerRef';
 
 const ConfirmDialog = ({
   isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,

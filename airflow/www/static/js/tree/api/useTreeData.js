@@ -22,7 +22,7 @@
 import { useQuery } from 'react-query';
 
 import { getMetaValue } from '../../utils';
-import { useAutoRefresh } from '../providers/autorefresh';
+import { useAutoRefresh } from '../context/autorefresh';
 import { formatData, areActiveRuns } from '../treeDataUtils';
 
 // dagId comes from dag.html

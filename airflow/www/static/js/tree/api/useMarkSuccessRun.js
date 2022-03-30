@@ -20,7 +20,7 @@
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
-import { useAutoRefresh } from '../providers/autorefresh';
+import { useAutoRefresh } from '../context/autorefresh';
 
 const markSuccessUrl = getMetaValue('dagrun_success_url');
 const csrfToken = getMetaValue('csrf_token');

@@ -2559,20 +2559,6 @@ class Airflow(AirflowBaseView):
             'dag_runs': encoded_runs,
         }
 
-        dag_details_url = ''
-        tasks_url = ''
-        # This is a workround to use try/except if url_for() throws an error
-        try:
-            dag_details_url = url_for(
-                '/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id
-            )
-            tasks_url = url_for(
-                '/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id
-            )
-        except (KeyError, ValueError):
-            dag_details_url = ''
-            tasks_url = ''
-
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
@@ -2589,8 +2575,6 @@ class Airflow(AirflowBaseView):
             external_log_name=external_log_name,
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
-            dag_details_api=dag_details_url,
-            tasks_api=tasks_url,
         )
 
     @expose('/calendar')

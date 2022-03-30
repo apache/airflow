@@ -27,10 +27,10 @@ import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import Tree from './Tree';
-import { SelectionProvider } from './providers/selection';
-import { ContainerRefProvider } from './providers/containerRef';
-import { TimezoneProvider } from './providers/timezone';
-import { AutoRefreshProvider } from './providers/autorefresh';
+import { SelectionProvider } from './context/selection';
+import { ContainerRefProvider } from './context/containerRef';
+import { TimezoneProvider } from './context/timezone';
+import { AutoRefreshProvider } from './context/autorefresh';
 
 // create shadowRoot
 const root = document.querySelector('#root');

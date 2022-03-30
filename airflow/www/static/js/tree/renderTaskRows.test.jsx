@@ -26,8 +26,8 @@ import moment from 'moment';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import renderTaskRows from './renderTaskRows';
-import { ContainerRefProvider } from './providers/containerRef';
-import { SelectionProvider } from './providers/selection';
+import { ContainerRefProvider } from './context/containerRef';
+import { SelectionProvider } from './context/selection';
 
 global.moment = moment;
 

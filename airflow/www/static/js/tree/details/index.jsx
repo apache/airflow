@@ -28,7 +28,7 @@ import Header from './Header';
 import TaskInstanceContent from './content/taskInstance';
 import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
-import { useSelection } from '../providers/selection';
+import { useSelection } from '../context/selection';
 
 const Details = ({ isRefreshOn, onToggleRefresh }) => {
   const { selected } = useSelection();

@@ -28,7 +28,7 @@ import {
 import { MdPlayArrow } from 'react-icons/md';
 
 import { getMetaValue } from '../../utils';
-import { useSelection } from '../providers/selection';
+import { useSelection } from '../context/selection';
 import Time from '../Time';
 import { useTreeData } from '../api';
 

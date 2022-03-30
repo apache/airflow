@@ -20,7 +20,7 @@ import React from 'react';
 import { renderHook } from '@testing-library/react-hooks';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import useTreeData from './useTreeData';
-import { AutoRefreshProvider } from '../providers/autorefresh';
+import { AutoRefreshProvider } from '../context/autorefresh';
 
 /* global describe, test, expect, jest, beforeAll */
 

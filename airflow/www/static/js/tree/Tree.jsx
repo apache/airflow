@@ -40,8 +40,8 @@ import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import Details from './details';
-import { useSelection } from './providers/selection';
-import { useAutoRefresh } from './providers/autorefresh';
+import { useSelection } from './context/selection';
+import { useAutoRefresh } from './context/autorefresh';
 
 const isPaused = getMetaValue('is_paused') === 'True';
 const sidePanelKey = 'showSidePanel';

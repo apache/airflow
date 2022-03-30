@@ -20,7 +20,7 @@
 /* global moment */
 
 import React from 'react';
-import { useTimezone } from './providers/timezone';
+import { useTimezone } from './context/timezone';
 import { defaultFormatWithTZ } from '../datetime_utils';
 
 const Time = ({ dateTime, format = defaultFormatWithTZ }) => {

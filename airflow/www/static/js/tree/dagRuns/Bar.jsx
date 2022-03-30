@@ -32,8 +32,8 @@ import {
 import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
-import { useContainerRef } from '../providers/containerRef';
-import { useSelection } from '../providers/selection';
+import { useContainerRef } from '../context/containerRef';
+import { useSelection } from '../context/selection';
 import Time from '../Time';
 
 const BAR_HEIGHT = 100;
