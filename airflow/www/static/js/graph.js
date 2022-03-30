@@ -177,16 +177,20 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
+      let mappedLength = 0;
+      if (task.is_mapped) mappedLength = taskInstances[nodeId].mapped_states.length;
 
-      callModal(
-        nodeId,
+      callModal({
+        taskId: nodeId,
         executionDate,
-        task.extra_links,
+        extraLinks: task.extra_links,
         tryNumber,
-        task.task_tupe === 'SubDagOperator',
+        isSubDag: task.task_type === 'SubDagOperator',
         dagRunId,
-        task.map_index,
-      );
+        mapIndex: task.map_index,
+        isMapped: task.is_mapped,
+        mappedLength,
+      });
     }
   });
 

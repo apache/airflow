@@ -54,6 +54,8 @@ let executionDate = '';
 let subdagId = '';
 let dagRunId = '';
 let mapIndex;
+let showBack = false;
+let mapLength = 0;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -109,6 +111,13 @@ function updateModalUrls() {
     _oc_TaskInstanceModelView: executionDate,
   });
 
+  updateButtonUrl(buttons.mapped, {
+    _flt_3_dag_id: dagId,
+    _flt_3_task_id: taskId,
+    _flt_3_run_id: dagRunId,
+    _oc_TaskInstanceModelView: executionDate,
+  });
+
   updateButtonUrl(buttons.log, {
     dag_id: dagId,
     task_id: taskId,
@@ -124,7 +133,17 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
+export function callModal({
+  taskId: t,
+  executionDate: d,
+  extraLinks,
+  tryNumber,
+  isSubDag,
+  dagRunId: drID,
+  mapIndex: mi,
+  isMapped = false,
+  mappedLength = 0,
+}) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
@@ -133,6 +152,14 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   executionDate = d;
   dagRunId = drID;
   mapIndex = mi;
+  if (isMapped) {
+    mapLength = mappedLength;
+  }
+  if (showBack) {
+    $('#btn_back').show();
+  } else {
+    $('#btn_back').hide();
+  }
   $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
@@ -147,7 +174,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
     $('#modal_map_index').hide();
     $('#modal_map_index .value').text('');
   }
-  if (sd) {
+  if (isSubDag) {
     $('#div_btn_subdag').show();
     subdagId = `${dagId}.${t}`;
   } else {
@@ -155,9 +182,30 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
     subdagId = undefined;
   }
 
+  if (isMapped || mapIndex >= 0) {
+    $('#btn_rendered').hide();
+    $('#mapped_instances').show();
+  } else {
+    $('#btn_rendered').show();
+    $('#mapped_instances').hide();
+  }
+
+  if (isMapped) {
+    $('#mapped_dropdown #dropdown-label').text(`Mapped Instances [${mappedLength}]`);
+    $('#mapped_dropdown .dropdown-menu').empty();
+    [...Array(mappedLength)].forEach((_, i) => {
+      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i}</a></li>`);
+    });
+    $('#btn_mapped').show();
+    $('#mapped_dropdown').css('display', 'inline-block');
+  } else {
+    $('#btn_mapped').hide();
+    $('#mapped_dropdown').hide();
+  }
+
   $('#dag_dl_logs').hide();
   $('#dag_redir_logs').hide();
-  if (tryNumbers > 0) {
+  if (tryNumber > 0 && !isMapped) {
     $('#dag_dl_logs').show();
     if (showExternalLogRedirect) {
       $('#dag_redir_logs').show();
@@ -168,7 +216,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
 
   $('#try_index > li').remove();
   $('#redir_log_try_index > li').remove();
-  const startIndex = (tryNumbers > 2 ? 0 : 1);
+  const startIndex = (tryNumber > 2 ? 0 : 1);
 
   const query = new URLSearchParams({
     dag_id: dagId,
@@ -179,7 +227,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
   if (mi !== undefined) {
     query.set('map_index', mi);
   }
-  for (let index = startIndex; index < tryNumbers; index += 1) {
+  for (let index = startIndex; index < tryNumber; index += 1) {
     let showLabel = index;
     if (index !== 0) {
       query.set('try_number', index);
@@ -239,6 +287,31 @@ export function callModal(t, d, extraLinks, tryNumbers, sd, drID, mi) {
     extraLinksSpan.find('[data-toggle="tooltip"]').tooltip();
   }
 }
+
+// Switch the modal from a mapped task summary to a specific mapped task instance
+$(document).on('click', '.map_index_item', function mapItem() {
+  const mi = $(this).attr('data-mapIndex');
+  showBack = true;
+  callModal({
+    taskId,
+    executionDate,
+    dagRunId,
+    mapIndex: mi,
+  });
+});
+
+// Switch from a mapped task instance back to a mapped task summary
+$(document).on('click', '#btn_back', () => {
+  showBack = false;
+  callModal({
+    taskId,
+    executionDate,
+    dagRunId,
+    mapIndex: -1,
+    isMapped: true,
+    mappedLength: mapLength,
+  });
+});
 
 export function callModalDag(dag) {
   $('#dagModal').modal({});
