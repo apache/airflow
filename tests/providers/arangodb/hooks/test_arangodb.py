@@ -44,10 +44,8 @@ class TestArangoDBHook(unittest.TestCase):
         autospec=True,
         return_value=arangodb_client_mock,
     )
-    def test_query(self, arango_mock):
+    def test_get_conn(self, arango_mock):
         arangodb_hook = ArangoDBHook()
-        arangodb_query = "FOR doc IN students RETURN doc"
-        arangodb_hook.query(arangodb_query)
 
         assert arangodb_hook.hosts == ['http://127.0.0.1:8529']
         assert arangodb_hook.username == 'root'
@@ -56,3 +54,67 @@ class TestArangoDBHook(unittest.TestCase):
         assert arangodb_hook.client is not None
         assert arango_mock.called
         assert isinstance(arangodb_hook.client, Mock)
+
+    @patch(
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
+    )
+    def test_query(self, arango_mock):
+        arangodb_hook = ArangoDBHook()
+        arangodb_hook.db_conn = Mock(name="arangodb_database_for_test")
+
+        arangodb_query = "FOR doc IN students RETURN doc"
+        arangodb_hook.query(arangodb_query)
+
+        assert arango_mock.called
+        assert isinstance(arangodb_hook.client, Mock)
+        assert arango_mock.return_value.db.called
+
+    @patch(
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
+    )
+    def test_create_database(self, arango_mock):
+        arangodb_hook = ArangoDBHook()
+        arangodb_hook.create_database(name="_system")
+
+        arango_mock.return_value.db.return_value.has_database.return_value = False
+
+        assert arango_mock.called
+        assert isinstance(arangodb_hook.client, Mock)
+        assert arango_mock.return_value.db.called
+        assert arango_mock.return_value.db.return_value.has_database.called
+
+    @patch(
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
+    )
+    def test_create_collection(self, arango_mock):
+        arangodb_hook = ArangoDBHook()
+        arangodb_hook.create_collection(name="student")
+
+        arango_mock.return_value.db.return_value.has_collection.return_value = False
+
+        assert arango_mock.called
+        assert isinstance(arangodb_hook.client, Mock)
+        assert arango_mock.return_value.db.called
+        assert arango_mock.return_value.db.return_value.has_collection.called
+
+    @patch(
+        "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",
+        autospec=True,
+        return_value=arangodb_client_mock,
+    )
+    def test_create_graph(self, arango_mock):
+        arangodb_hook = ArangoDBHook()
+        arangodb_hook.create_graph(name="student_network")
+
+        arango_mock.return_value.db.return_value.has_graph.return_value = False
+
+        assert arango_mock.called
+        assert isinstance(arangodb_hook.client, Mock)
+        assert arango_mock.return_value.db.called
+        assert arango_mock.return_value.db.return_value.has_graph.called
