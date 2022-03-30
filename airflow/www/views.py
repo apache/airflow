@@ -113,6 +113,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -1244,19 +1245,20 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = dag.get_task(task_id).prepare_for_execution()
+        raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
             # DAG has never been run. Task instance rendering does not really
             # make sense in this situation, but "works" prior to AIP-39. This
             # "fakes" a temporary DagRun-TaskInstance association (not saved to
             # database) for presentation only.
-            ti = TaskInstance(task, map_index=map_index)
+            ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
-            ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(task)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
+            ti.refresh_from_task(raw_task)
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1267,8 +1269,13 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
-        else:
-            task = ti.task
+
+        # Ensure we are rendering the unmapped operator. Unmapping should be
+        # done automatically if template fields are rendered successfully; this
+        # only matters if get_rendered_template_fields() raised an exception.
+        # The following rendering won't show useful values in this case anyway,
+        # but we'll display some quasi-meaingful field names.
+        task = ti.task.unmap()
 
         title = "Rendered Template"
         html_dict = {}
@@ -2621,6 +2628,8 @@ class Airflow(AirflowBaseView):
             session.query(
                 (_convert_to_date(session, DagRun.execution_date)).label('date'),
                 DagRun.state,
+                func.max(DagRun.data_interval_start).label('data_interval_start'),
+                func.max(DagRun.data_interval_end).label('data_interval_end'),
                 func.count('*').label('count'),
             )
             .filter(DagRun.dag_id == dag.dag_id)
@@ -2629,7 +2638,7 @@ class Airflow(AirflowBaseView):
             .all()
         )
 
-        dag_states = [
+        data_dag_states = [
             {
                 # DATE() in SQLite and MySQL behave differently:
                 # SQLite returns a string, MySQL returns a date.
@@ -2640,10 +2649,39 @@ class Airflow(AirflowBaseView):
             for dr in dag_states
         ]
 
+        if dag_states:
+            last_automated_data_interval = DataInterval(
+                dag_states[-1].data_interval_start, dag_states[-1].data_interval_end
+            )
+
+            year = last_automated_data_interval.end.year
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            dates = collections.Counter()
+
+            while True:
+                info = dag.timetable.next_dagrun_info(
+                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                )
+                if info is None:
+                    break
+
+                if info.logical_date.year != year:
+                    break
+
+                last_automated_data_interval = info.data_interval
+                dates[info.logical_date] += 1
+
+            data_dag_states.extend(
+                {'date': date.isoformat(), 'state': 'planned', 'count': count}
+                for (date, count) in dates.items()
+            )
+
+        now = DateTime.utcnow()
+
         data = {
-            'dag_states': dag_states,
+            'dag_states': data_dag_states,
             'start_date': (dag.start_date or DateTime.utcnow()).date().isoformat(),
-            'end_date': (dag.end_date or DateTime.utcnow()).date().isoformat(),
+            'end_date': (dag.end_date or now).date().isoformat(),
         }
 
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
@@ -4062,12 +4100,12 @@ class ProviderView(AirflowBaseView):
 
         providers = []
         for pi in providers_manager.providers.values():
-            provider_info = pi[1]
+            provider_info = pi.data
             provider_data = {
                 "package_name": provider_info["package-name"],
                 "description": self._clean_description(provider_info["description"]),
-                "version": pi[0],
-                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi[0]),
+                "version": pi.version,
+                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi.version),
             }
             providers.append(provider_data)
 

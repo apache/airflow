@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. /opt/airflow/scripts/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# shellcheck source=scripts/in_container/configure_environment.sh
-. /opt/airflow/scripts/in_container/configure_environment.sh
+# Some of our provider sources are not Airflow 2.1 compliant any more
+# We replace them with 2.1 compliant versions from PyPI to run the checks
 
-# shellcheck source=scripts/in_container/run_init_script.sh
-. /opt/airflow/scripts/in_container/run_init_script.sh
-
-exec /bin/bash "${@}"
+cd "${AIRFLOW_SOURCES}" || exit 1
+rm -rvf dist/apache_airflow_providers_cncf_kubernetes* dist/apache_airflow_providers_celery*
+pip download --no-deps --dest dist apache-airflow-providers-cncf-kubernetes==3.0.0 \
+    apache-airflow-providers-celery==2.1.3
