@@ -702,7 +702,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
         language: python
         pass_filenames: false
-        files: ^Dockerfile$|^Dockerfile.ci|scripts/ci/docker/.*$
+        files: ^Dockerfile$|^Dockerfile.ci|^scripts/docker/.*$
         require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
