@@ -469,11 +469,9 @@ def set_dag_run_state_to_failed(
         tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
-    task_ids = [task.task_id for task in dag.tasks]
     tis = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
-        TaskInstance.task_id.in_(task_ids),
         TaskInstance.state.not_in(State.finished),
         TaskInstance.state.not_in(State.running),
     )
