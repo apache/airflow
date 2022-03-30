@@ -72,12 +72,6 @@ class BuildParams:
         return image
 
     @property
-    def airflow_ci_image_name_with_cache(self):
-        """Construct CI image link"""
-        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}:cache'
-        return image
-
-    @property
     def airflow_ci_image_name_with_tag(self):
         """Construct CI image link"""
         image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
@@ -117,7 +111,7 @@ class BuildParams:
         docker_cache_ci_directive = []
         if self.docker_cache == "pulled":
             docker_cache_ci_directive.append("--cache-from")
-            docker_cache_ci_directive.append(self.airflow_ci_image_name_with_cache)
+            docker_cache_ci_directive.append(self.airflow_ci_image_name)
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:

@@ -214,9 +214,14 @@ class PodManager(LoggingMixin):
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
-            except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
+            except BaseHTTPError as e:
                 self.log.warning(
-                    'Failed to read logs for pod %s',
+                    "Reading of logs interrupted with error %r; will retry. "
+                    "Set log level to DEBUG for traceback.",
+                    e,
+                )
+                self.log.debug(
+                    "Traceback for interrupted logs read for pod %r",
                     pod.metadata.name,
                     exc_info=True,
                 )

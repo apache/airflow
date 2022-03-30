@@ -1,6 +1,6 @@
 ---
 name: Airflow Providers Bug report
-description: Problems and issues with code of Apache Airflow Provider
+description: Problems and issues with code in Apache Airflow Providers
 labels: ["kind:bug", "area:providers"]
 body:
   - type: markdown
@@ -10,11 +10,11 @@ body:
         <img src='https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
         Thank you for finding the time to report a problem!
 
-        We really appreciate the community efforts to improve Airflow.
+        We really appreciate the community's efforts to improve Airflow.
 
-        Note, that you do not need to create an issue if you have a change ready to submit!
+        Note, you do not need to create an issue if you have a change ready to submit!
 
-        You can open [Pull Request](https://github.com/apache/airflow/pulls) immediately instead.
+        You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: dropdown
@@ -108,7 +108,7 @@ body:
       label: Apache Airflow version
       description: >
         What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
-        discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
+        discuss Airflow 1.10, open a [discussion](https://github.com/apache/airflow/discussions) instead!
       multiple: false
       options:
         - "2.2.4 (latest released)"
@@ -138,7 +138,7 @@ body:
     attributes:
       label: Deployment
       description: >
-        What kind of deployment do you have? If you use Managed Service, consider first using regular
+        What kind of deployment do you have? If you use a Managed Service, consider first using regular
         channels of reporting issues for the service.
       multiple: false
       options:
@@ -208,7 +208,8 @@ body:
   - type: checkboxes
     attributes:
       label: Code of Conduct
-      description: The Code of Conduct helps create a safe space for everyone. We require
+      description: >
+        The Code of Conduct helps create a safe space for everyone. We require
         that everyone agrees to it.
       options:
         - label: >
