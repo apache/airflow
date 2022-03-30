@@ -453,3 +453,21 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body['spec']['volumes'] == exp_vols
         assert op.launcher.body['spec']['driver']['volumeMounts'] == exp_vol_mounts
         assert op.launcher.body['spec']['executor']['volumeMounts'] == exp_vol_mounts
+
+    def test_pull_secret(self):
+        volume_mount = [k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc')]
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            namespace='mock_namespace',
+            service_account_name='mock_sa',
+            code_path='/code/path',
+            image='mock_image_tag',
+            image_pull_secrets='secret1,secret2',
+            volume_mounts=volume_mount,
+            config_map_mounts={'test-configmap-mount': '/configmap-path'},
+            dag=self.dag,
+        )
+        context = self.create_context(op)
+        op.execute(context)
+        exp_secrets = [k8s.V1LocalObjectReference(name=secret) for secret in ['secret1', 'secret2']]
+        assert op.launcher.body['spec']['imagePullSecrets'] == exp_secrets

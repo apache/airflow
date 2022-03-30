@@ -33,7 +33,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_secret,
     convert_toleration,
     convert_volume,
-    convert_volume_mount,
+    convert_volume_mount, convert_image_pull_secrets,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils.decorators import apply_defaults
@@ -84,6 +84,7 @@ class SparkKubernetesOperator(BaseOperator):
         from_env_secret: Optional[List[str]] = None,
         hadoop_config: Optional[dict] = None,
         application_file: Optional[str] = None,
+        image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
         get_logs: bool = True,
         number_workers: int = 1,
         do_xcom_push: bool = False,
@@ -132,6 +133,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.reattach_on_restart = reattach_on_restart
         self.delete_on_termination = delete_on_termination
         self.application_file = application_file
+        self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.do_xcom_push = do_xcom_push
         self.name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
         self.cluster_context = cluster_context
@@ -294,6 +296,7 @@ class SparkKubernetesOperator(BaseOperator):
             executor_memory=self.resources['executor_limit_memory'],
             number_workers=self.number_workers,
             hadoop_config=self.hadoop_config,
+            image_pull_secrets=self.image_pull_secrets,
             env=self.env_vars,
             env_from=self.env_from,
             affinity=self.affinity,

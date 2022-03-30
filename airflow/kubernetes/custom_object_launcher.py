@@ -228,6 +228,7 @@ class CustomObjectLauncher(PodLauncher):
         ]
         body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
         body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
+        body_template['spec']['imagePullSecrets'] = kwargs['image_pull_secrets']
 
         body_template['spec']['volumes'] = kwargs['volumes']
         for item in ['driver', 'executor']:
