@@ -2273,32 +2273,37 @@ class TaskInstance(Base, LoggingMixin):
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
+        *,
+        map_indexes: Optional[Union[int, Iterable[int]]] = None,
     ) -> Any:
-        """
-        Pull XComs that optionally meet certain criteria.
-
-        The default value for `key` limits the search to XComs
-        that were returned by other tasks (as opposed to those that were pushed
-        manually). To remove this filter, pass key=None (or any desired value).
-
-        If a single task_id string is provided, the result is the value of the
-        most recent matching XCom from that task_id. If multiple task_ids are
-        provided, a tuple of matching values is returned. None is returned
-        whenever no matches are found.
+        """Pull XComs that optionally meet certain criteria.
 
         :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. The default key is 'return_value', also
-            available as a constant XCOM_RETURN_KEY. This key is automatically
+            keys will be returned. The default key is ``'return_value'``, also
+            available as constant ``XCOM_RETURN_KEY``. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass key=None.
+            manually). To remove the filter, pass *None*.
         :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Can pass None to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG.
-            If None (default), the DAG of the calling task is used.
+            pulled. Pass *None* to remove the filter.
+        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
+            (default), the DAG of the calling task is used.
+        :param map_indexes: If provided, only pull XComs with matching indexes.
+            If *None* (default), this is inferred from the task(s) being pulled
+            (see below for details).
         :param include_prior_dates: If False, only XComs from the current
-            execution_date are returned. If True, XComs from previous dates
+            execution_date are returned. If *True*, XComs from previous dates
             are returned as well.
-        :param session: Sqlalchemy ORM Session
+
+        When pulling one single task (``task_id`` is *None* or a str) without
+        specifying ``map_indexes``, the return value is inferred from whether
+        the specified task is mapped. If not, value from the one single task
+        instance is returned. If the task to pull is mapped, an iterator (not a
+        list) yielding XComs from mapped task instances is returned. In either
+        case, *None* is returned if no matching XComs are found.
+
+        When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
+        a non-str iterable), a list of matching XComs is returned. Elements in
+        the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
         if dag_id is None:
             dag_id = self.dag_id
@@ -2308,25 +2313,60 @@ class TaskInstance(Base, LoggingMixin):
             run_id=self.run_id,
             dag_ids=dag_id,
             task_ids=task_ids,
+            map_indexes=map_indexes,
             include_prior_dates=include_prior_dates,
             session=session,
         )
 
-        # Since we're only fetching the values field, and not the
-        # whole class, the @recreate annotation does not kick in.
-        # Therefore we need to deserialize the fields by ourselves.
-        if task_ids is None or isinstance(task_ids, str):
-            xcom = query.with_entities(XCom.value).first()
-            if xcom:
-                return XCom.deserialize_value(xcom)
-        else:
-            vals_kv = {
-                result.task_id: XCom.deserialize_value(result)
-                for result in query.with_entities(XCom.task_id, XCom.value)
-            }
+        # NOTE: Since we're only fetching the value field and not the whole
+        # class, the @recreate annotation does not kick in. Therefore we need to
+        # call XCom.deserialize_value() manually.
 
-            values_ordered_by_id = [vals_kv.get(task_id) for task_id in task_ids]
-            return values_ordered_by_id
+        # We are only pulling one single task.
+        if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
+            first = query.with_entities(XCom.run_id, XCom.task_id, XCom.map_index, XCom.value).first()
+            if first is None:  # No matching XCom at all.
+                return None
+            if map_indexes is not None or first.map_index < 0:
+                return XCom.deserialize_value(first)
+            # We're pulling one specific mapped task. Add additional filters to
+            # make sure all XComs come from one task and run (for task_ids=None
+            # and include_prior_dates=True), and re-order by map index (reset
+            # needed because XCom.get_many() orders by XCom timestamp).
+            query = (
+                query.with_entities(XCom.value)
+                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id)
+                .order_by(None)
+                .order_by(XCom.map_index.asc())
+            )
+            return (XCom.deserialize_value(r) for r in query)
+
+        # At this point either task_ids or map_indexes is explicitly multi-value.
+
+        results = (
+            (r.task_id, r.map_index, XCom.deserialize_value(r))
+            for r in query.with_entities(XCom.task_id, XCom.map_index, XCom.value)
+        )
+
+        if task_ids is None:
+            task_id_pos: Dict[str, int] = defaultdict(int)
+        elif isinstance(task_ids, str):
+            task_id_pos = {task_ids: 0}
+        else:
+            task_id_pos = {task_id: i for i, task_id in enumerate(task_ids)}
+        if map_indexes is None:
+            map_index_pos: Dict[int, int] = defaultdict(int)
+        elif isinstance(map_indexes, int):
+            map_index_pos = {map_indexes: 0}
+        else:
+            map_index_pos = {map_index: i for i, map_index in enumerate(map_indexes)}
+
+        def _arg_pos(item: Tuple[str, int, Any]) -> Tuple[int, int]:
+            task_id, map_index, _ = item
+            return task_id_pos[task_id], map_index_pos[map_index]
+
+        results_sorted_by_arg_pos = sorted(results, key=_arg_pos)
+        return [value for _, _, value in results_sorted_by_arg_pos]
 
     @provide_session
     def get_num_running_task_instances(self, session):
