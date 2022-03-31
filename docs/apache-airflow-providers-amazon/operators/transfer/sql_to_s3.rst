@@ -19,7 +19,9 @@ SQL to Amazon S3 Transfer Operator
 ==================================
 
 Use SqlToS3Operator to copy data from a SQL server to an Amazon Simple Storage Service (S3) file.
-SqlToS3Operator is compatible with any SQL connection as long as it is defined in Connections.
+SqlToS3Operator is compatible with any SQL connection as long as the SQL hook has function that
+converts the SQL result to `pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`__
+(e.g. MySQL, Hive, ...).
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
