@@ -3520,7 +3520,7 @@ components:
         Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
         execution_date to figure out the next schedule.
       readOnly: true
-      oneOf:
+      anyOf:
         - $ref: '#/components/schemas/TimeDelta'
         - $ref: '#/components/schemas/RelativeDelta'
         - $ref: '#/components/schemas/CronExpression'
