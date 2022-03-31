@@ -205,10 +205,10 @@
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
             Log
           </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="View all instances across all DAG runs">
             All Instances
           </a>
-          <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream ">
+          <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream">
             Filter Upstream
           </button>
           <hr>
@@ -217,6 +217,22 @@
             <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
             </ul>
             <hr>
+          </div>
+          <div id="mapped_instances">
+            <button id="btn_back" style="display: none;" type="button" class="btn btn-sm" title="Go back to the mapped task summary page">
+              Back to Mapped Summary
+            </button>
+            <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
+              All Mapped Instances
+            </a>
+            <div class="dropdown" id="mapped_dropdown">
+              <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                <span id="dropdown-label" title="Select Mapped Instance"></span>
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu menu-scroll"></ul>
+            </div>
+            <hr style="margin-bottom: 8px;">
           </div>
           {% if external_log_name is defined %}
             <div id="dag_redir_logs">
