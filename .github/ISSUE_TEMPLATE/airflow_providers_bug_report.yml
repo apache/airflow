@@ -51,6 +51,7 @@ body:
         - elasticsearch
         - exasol
         - facebook
+        - flyte
         - ftp
         - github
         - google
