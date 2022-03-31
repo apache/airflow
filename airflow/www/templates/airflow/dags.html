@@ -22,9 +22,6 @@
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(display_name, attribute_name) -%}
-
-{%- endmacro -%}
-{%- macro sortable_column(display_name, attribute_name) -%}
    {% set curr_ordering_direction = (request.args.get('sorting_direction', 'desc')) %}
    {% set new_ordering_direction = ('asc' if (request.args.get('sorting_key') != attribute_name or curr_ordering_direction == 'desc') else 'desc') %}
    <a href="{{ url_for('Airflow.index',

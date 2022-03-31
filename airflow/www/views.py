@@ -86,7 +86,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql.expression import nullslast
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
@@ -761,7 +760,7 @@ class Airflow(AirflowBaseView):
 
             sort_column = DagModel.__table__.c[arg_sorting_key]
             current_dags = current_dags.order_by(
-                nullslast(desc(sort_column)) if arg_sorting_direction == "desc" else nullslast(sort_column)
+                sort_column.is_(None), desc(sort_column) if arg_sorting_direction == "desc" else sort_column
             )
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
