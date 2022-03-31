@@ -4209,6 +4209,7 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
                         "subPath": {
                             "description": "Subpath within the PVC where dags are located.",
                             "type": [
