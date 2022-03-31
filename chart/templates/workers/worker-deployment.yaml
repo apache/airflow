@@ -27,7 +27,7 @@
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
     component: worker
@@ -39,7 +39,7 @@ metadata:
 {{- end }}
 spec:
 {{- if $persistence }}
-  serviceName: {{ .Release.Name }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker
 {{- end }}
   replicas: {{ .Values.workers.replicas }}
   selector:

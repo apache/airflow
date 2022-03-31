@@ -26,7 +26,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-run-airflow-migrations
+  name: {{ include "airflow.fullname" . }}-run-airflow-migrations
   labels:
     tier: airflow
     component: run-airflow-migrations

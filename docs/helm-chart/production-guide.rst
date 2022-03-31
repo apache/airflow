@@ -216,7 +216,7 @@ The chart can support sending metrics to an existing StatsD instance or provide 
 Prometheus
 ^^^^^^^^^^
 
-The metrics endpoint is available at ``svc/{{ .Release.Name }}-statsd:9102/metrics``.
+The metrics endpoint is available at ``svc/{{ include "airflow.fullname" . }}-statsd:9102/metrics``.
 
 External StatsD
 ^^^^^^^^^^^^^^^

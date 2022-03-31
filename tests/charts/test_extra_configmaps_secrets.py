@@ -32,11 +32,11 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         values_str = textwrap.dedent(
             """
             extraConfigMaps:
-              "{{ .Release.Name }}-airflow-variables":
+              "{{ include "airflow.fullname" . }}-airflow-variables":
                 data: |
                   AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
                   AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
-              "{{ .Release.Name }}-other-variables":
+              "{{ include "airflow.fullname" . }}-other-variables":
                 data: |
                   HELLO_WORLD: "Hi again!"
             """
@@ -65,19 +65,19 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         values_str = textwrap.dedent(
             """
             extraSecrets:
-              "{{ .Release.Name }}-airflow-connections":
+              "{{ include "airflow.fullname" . }}-airflow-connections":
                 data: |
                   AIRFLOW_CON_AWS: {{ printf "aws_connection_string" | b64enc }}
                 stringData: |
                   AIRFLOW_CON_GCP: "gcp_connection_string"
-              "{{ .Release.Name }}-other-secrets":
+              "{{ include "airflow.fullname" . }}-other-secrets":
                 data: |
                   MY_SECRET_1: {{ printf "MY_SECRET_1" | b64enc }}
                   MY_SECRET_2: {{ printf "MY_SECRET_2" | b64enc }}
                 stringData: |
                   MY_SECRET_3: "MY_SECRET_3"
                   MY_SECRET_4: "MY_SECRET_4"
-              "{{ .Release.Name }}-other-secrets-with-type":
+              "{{ include "airflow.fullname" . }}-other-secrets-with-type":
                 type: kubernetes.io/dockerconfigjson
                 data: |
                   MY_SECRET_5: {{ printf "MY_SECRET_5" | b64enc }}
@@ -134,8 +134,8 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             name=RELEASE_NAME,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "extraSecrets": {"{{ .Release.Name }}-extra-secret-1": {"stringData": "data: secretData"}},
-                "extraConfigMaps": {"{{ .Release.Name }}-extra-configmap-1": {"data": "data: configData"}},
+                "extraSecrets": {"{{ include "airflow.fullname" . }}-extra-secret-1": {"stringData": "data: secretData"}},
+                "extraConfigMaps": {"{{ include "airflow.fullname" . }}-extra-configmap-1": {"data": "data: configData"}},
             },
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )

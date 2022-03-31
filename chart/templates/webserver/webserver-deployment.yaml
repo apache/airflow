@@ -25,7 +25,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: {{ .Release.Name }}-webserver
+  name: {{ include "airflow.fullname" . }}-webserver
   labels:
     tier: airflow
     component: webserver
@@ -231,7 +231,7 @@ spec:
         {{- if .Values.webserver.webserverConfig }}
         - name: webserver-config
           configMap:
-            name: {{ .Release.Name }}-webserver-config
+            name: {{ include "airflow.fullname" . }}-webserver-config
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- if .Values.dags.persistence.enabled }}

@@ -30,7 +30,7 @@ apiVersion: batch/v1beta1
 {{- end }}
 kind: CronJob
 metadata:
-  name: {{ .Release.Name }}-cleanup
+  name: {{ include "airflow.fullname" . }}-cleanup
   labels:
     tier: airflow
     component: airflow-cleanup-pods

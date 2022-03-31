@@ -26,7 +26,7 @@ apiVersion: policy/v1
 apiVersion: policy/v1beta1
 {{- end }}
 metadata:
-  name: {{ .Release.Name }}-scheduler-pdb
+  name: {{ include "airflow.fullname" . }}-scheduler-pdb
   labels:
     tier: airflow
     component: scheduler

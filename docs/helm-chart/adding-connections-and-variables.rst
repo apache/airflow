@@ -77,9 +77,9 @@ You can also utilize ``extraEnv`` and ``extraEnvFrom`` if you need the name or v
 
    extraEnvFrom: |
      - configMapRef:
-         name: '{{ .Release.Name }}-airflow-variables'
+         name: '{{ include "airflow.fullname" . }}-airflow-variables'
 
    extraConfigMaps:
-     '{{ .Release.Name }}-airflow-variables':
+     '{{ include "airflow.fullname" . }}-airflow-variables':
        data: |
          AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"

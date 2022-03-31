@@ -22,21 +22,21 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
     component: worker-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    deploymentName: {{ .Release.Name }}-worker
+    deploymentName: {{ include "airflow.fullname" . }}-worker
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
-    name: {{ .Release.Name }}-worker
+    name: {{ include "airflow.fullname" . }}-worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}   # Optional. Default: 30 seconds
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
   minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}   # Optional. Default: 0

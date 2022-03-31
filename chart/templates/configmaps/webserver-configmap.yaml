@@ -22,7 +22,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-webserver-config
+  name: {{ include "airflow.fullname" . }}-webserver-config
   labels:
     tier: airflow
     component: config

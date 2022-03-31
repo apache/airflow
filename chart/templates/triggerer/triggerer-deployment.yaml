@@ -27,7 +27,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: {{ .Release.Name }}-triggerer
+  name: {{ include "airflow.fullname" . }}-triggerer
   labels:
     tier: airflow
     component: triggerer

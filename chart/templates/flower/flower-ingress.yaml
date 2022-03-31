@@ -28,7 +28,7 @@ apiVersion: networking.k8s.io/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-flower-ingress
+  name: {{ include "airflow.fullname" . }}-flower-ingress
   labels:
     tier: airflow
     component: flower-ingress

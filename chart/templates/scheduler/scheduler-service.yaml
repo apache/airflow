@@ -22,7 +22,7 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: {{ .Release.Name }}-scheduler
+  name: {{ include "airflow.fullname" . }}-scheduler
   labels:
     tier: airflow
     component: scheduler

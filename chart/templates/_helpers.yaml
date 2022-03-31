@@ -284,23 +284,23 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{ define "fernet_key_secret" -}}
-{{ default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+{{ default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{ define "webserver_secret_key_secret" -}}
-{{ default (printf "%s-webserver-secret-key" .Release.Name) .Values.webserverSecretKeySecretName }}
+{{ default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
 {{- end }}
 
 {{ define "redis_password_secret" -}}
-{{ default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
+{{ default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{ define "airflow_metadata_secret" -}}
-{{ default (printf "%s-airflow-metadata" .Release.Name) .Values.data.metadataSecretName }}
+{{ default (printf "%s-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
 {{- end }}
 
 {{ define "airflow_result_backend_secret" -}}
-{{ default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
+{{ default (printf "%s-airflow-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{ define "airflow_pod_template_file" -}}
@@ -308,31 +308,31 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{ define "pgbouncer_config_secret" -}}
-{{ default (printf "%s-pgbouncer-config" .Release.Name) .Values.pgbouncer.configSecretName }}
+{{ default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
 {{- end }}
 
 {{ define "pgbouncer_certificates_secret" -}}
-{{ .Release.Name }}-pgbouncer-certificates
+{{ include "airflow.fullname" . }}-pgbouncer-certificates
 {{- end }}
 
 {{ define "pgbouncer_stats_secret" -}}
-{{ .Release.Name }}-pgbouncer-stats
+{{ include "airflow.fullname" . }}-pgbouncer-stats
 {{- end }}
 
 {{ define "registry_secret" -}}
-{{ default (printf "%s-registry" .Release.Name) .Values.registry.secretName }}
+{{ default (printf "%s-registry" (include "airflow.fullname" .)) .Values.registry.secretName }}
 {{- end }}
 
 {{ define "elasticsearch_secret" -}}
-{{ default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
+{{ default (printf "%s-elasticsearch" (include "airflow.fullname" .)) .Values.elasticsearch.secretName }}
 {{- end }}
 
 {{ define "flower_secret" -}}
-{{ default (printf "%s-flower" .Release.Name) .Values.flower.secretName }}
+{{ default (printf "%s-flower" (include "airflow.fullname" .)) .Values.flower.secretName }}
 {{- end }}
 
 {{ define "kerberos_keytab_secret" -}}
-{{ .Release.Name }}-kerberos-keytab
+{{ include "airflow.fullname" . }}-kerberos-keytab
 {{- end }}
 
 {{ define "kerberos_ccache_path" -}}
@@ -341,11 +341,11 @@ If release name contains chart name it will be used as a full name.
 
 {{ define "pgbouncer_config" }}
 {{- $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
-{{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
-{{- $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
+{{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" (include "airflow.fullname" .) "postgresql" .Release.Namespace) }}
+{{- $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" (include "airflow.fullname" .) "postgresql" .Release.Namespace) }}
 [databases]
-{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
-{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
+{{ include "airflow.fullname" . }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
+{{ include "airflow.fullname" . }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -396,7 +396,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- if .Values.logs.persistence.existingClaim -}}
 {{ .Values.logs.persistence.existingClaim }}
 {{- else -}}
-{{ .Release.Name }}-logs
+{{ include "airflow.fullname" . }}-logs
 {{- end -}}
 {{- end -}}
 
@@ -412,7 +412,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- if .Values.dags.persistence.existingClaim -}}
 {{ .Values.dags.persistence.existingClaim }}
 {{- else -}}
-{{ .Release.Name }}-dags
+{{ include "airflow.fullname" . }}-dags
 {{- end -}}
 {{- end -}}
 

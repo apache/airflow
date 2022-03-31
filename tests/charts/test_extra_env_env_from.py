@@ -73,16 +73,16 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
             executor: "CeleryExecutor"
             extraEnvFrom: |
               - secretRef:
-                  name: '{{ .Release.Name }}-airflow-connections'
+                  name: '{{ include "airflow.fullname" . }}-airflow-connections'
               - configMapRef:
-                  name: '{{ .Release.Name }}-airflow-variables'
+                  name: '{{ include "airflow.fullname" . }}-airflow-variables'
             extraEnv: |
               - name: PLATFORM
                 value: FR
               - name: TEST
                 valueFrom:
                   secretKeyRef:
-                    name: '{{ .Release.Name }}-some-secret'
+                    name: '{{ include "airflow.fullname" . }}-some-secret'
                     key: connection
             """
         )

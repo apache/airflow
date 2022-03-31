@@ -22,7 +22,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-pgbouncer-policy
+  name: {{ include "airflow.fullname" . }}-pgbouncer-policy
   labels:
     tier: airflow
     component: airflow-pgbouncer-policy

@@ -799,8 +799,8 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "- secretRef:\n    name: '{{ .Release.Name }}-airflow-connections'",
-                "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
+                "- secretRef:\n    name: '{{ include 'airflow.fullname' . }}-airflow-connections'",
+                "- configMapRef:\n    name: '{{ include 'airflow.fullname' . }}-airflow-variables'"
             ]
         },
         "extraSecrets": {
@@ -830,7 +830,7 @@
             },
             "examples": [
                 {
-                    "{{ .Release.Name }}-airflow-connections": {
+                    "{{ include 'airflow.fullname' . }}-airflow-connections": {
                         "data": "AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'\nAIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'",
                         "stringData": "AIRFLOW_CONN_OTHER: 'other_conn'"
                     }
@@ -856,7 +856,7 @@
             },
             "examples": [
                 {
-                    "{{ .Release.Name }}-airflow-variables": {
+                    "{{ include 'airflow.fullname' . }}-airflow-variables": {
                         "data": "AIRFLOW_VAR_HELLO_MESSAGE: 'Hi!'\nAIRFLOW_VAR_KUBERNETES_NAMESPACE: '{{ .Release.Namespace }}'"
                     }
                 }
