@@ -389,7 +389,6 @@ class TestCliDags(unittest.TestCase):
                 out = temp_stdout.getvalue()
             assert expected_output[i] in out
 
-
         # Clean up before leaving
         with create_session() as session:
             dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
