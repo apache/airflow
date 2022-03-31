@@ -183,10 +183,8 @@ export function callModal({
   }
 
   if (isMapped || mapIndex >= 0) {
-    $('#btn_rendered').hide();
     $('#mapped_instances').show();
   } else {
-    $('#btn_rendered').show();
     $('#mapped_instances').hide();
   }
 
@@ -198,7 +196,9 @@ export function callModal({
     });
     $('#btn_mapped').show();
     $('#mapped_dropdown').css('display', 'inline-block');
+    $('#btn_rendered').hide();
   } else {
+    $('#btn_rendered').show();
     $('#btn_mapped').hide();
     $('#mapped_dropdown').hide();
   }
