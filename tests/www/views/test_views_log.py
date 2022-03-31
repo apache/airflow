@@ -56,7 +56,12 @@ def backup_modules():
 @pytest.fixture(scope="module")
 def log_app(backup_modules):
     @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
+        skip_all_except=[
+            "init_appbuilder",
+            "init_jinja_globals",
+            "init_appbuilder_views",
+            "init_api_connexion",
+        ]
     )
     @conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'})
     def factory():

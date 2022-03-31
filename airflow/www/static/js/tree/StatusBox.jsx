@@ -24,38 +24,51 @@ import { isEqual } from 'lodash';
 import {
   Box,
   Tooltip,
+  useTheme,
 } from '@chakra-ui/react';
 
-import { callModal } from '../dag';
 import InstanceTooltip from './InstanceTooltip';
+import { useContainerRef } from './context/containerRef';
+import { useSelection } from './context/selection';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
 
+export const SimpleStatus = ({ state, ...rest }) => (
+  <Box
+    width={boxSizePx}
+    height={boxSizePx}
+    backgroundColor={stateColors[state] || 'white'}
+    borderRadius="2px"
+    borderWidth={state ? 0 : 1}
+    {...rest}
+  />
+);
+
 const StatusBox = ({
-  group, instance, containerRef, extraLinks = [],
+  group, instance,
 }) => {
-  const {
-    executionDate, taskId, tryNumber = 0, operator, runId, mapIndex,
-  } = instance;
-  const onClick = () => executionDate && callModal({
-    taskId,
-    executionDate,
-    extraLinks,
-    tryNumber,
-    isSubDag: operator === 'SubDagOperator',
-    dagRunId: runId,
-    mapIndex,
-  });
+  const containerRef = useContainerRef();
+  const { selected, onSelect } = useSelection();
+  const { runId, taskId } = instance;
+  const { colors } = useTheme();
+  const hoverBlue = `${colors.blue[100]}50`;
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
-      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+    if (selected.runId !== runId) {
+      [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+        .forEach((e) => { e.style.backgroundColor = hoverBlue; });
+    }
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${runId}`)]
       .forEach((e) => { e.style.backgroundColor = null; });
+  };
+
+  const onClick = () => {
+    onMouseLeave();
+    onSelect({ taskId, runId });
   };
 
   return (
@@ -67,19 +80,17 @@ const StatusBox = ({
       placement="top"
       openDelay={400}
     >
-      <Box
-        width={boxSizePx}
-        height={boxSizePx}
-        backgroundColor={stateColors[instance.state] || 'white'}
-        borderRadius="2px"
-        borderWidth={instance.state ? 0 : 1}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onClick={onClick}
-        zIndex={1}
-        cursor={!group.children && 'pointer'}
-        data-testid="task-instance"
-      />
+      <Box>
+        <SimpleStatus
+          state={instance.state}
+          onClick={onClick}
+          cursor="pointer"
+          data-testid="task-instance"
+          zIndex={1}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      </Box>
     </Tooltip>
   );
 };
@@ -93,7 +104,6 @@ const compareProps = (
   isEqual(prevProps.group, nextProps.group)
   && isEqual(prevProps.instance, nextProps.instance)
   && prevProps.extraLinks === nextProps.extraLinks
-  && prevProps.containerRef === nextProps.containerRef
 );
 
 export default React.memo(StatusBox, compareProps);

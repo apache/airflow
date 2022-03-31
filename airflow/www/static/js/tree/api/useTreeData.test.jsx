@@ -17,9 +17,10 @@
  * under the License.
  */
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook } from '@testing-library/react-hooks';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import useTreeData from './useTreeData';
+import { AutoRefreshProvider } from '../context/autorefresh';
 
 /* global describe, test, expect, jest, beforeAll */
 
@@ -40,17 +41,14 @@ const pendingTreeData = {
   ],
 };
 
-const finalTreeData = {
-  groups: {},
-  dag_runs: [{ ...pendingTreeData.dag_runs[0], state: 'failed' }],
-};
-
-const QueryWrapper = ({ children }) => {
+const Wrapper = ({ children }) => {
   const queryClient = new QueryClient();
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <AutoRefreshProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </AutoRefreshProvider>
   );
 };
 
@@ -63,68 +61,31 @@ describe('Test useTreeData hook', () => {
   test('data is valid camelcase json', () => {
     global.treeData = JSON.stringify(pendingTreeData);
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
-    const { data, isRefreshOn, onToggleRefresh } = result.current;
+    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { data } = result.current;
 
     expect(typeof data === 'object').toBe(true);
     expect(data.dagRuns).toBeDefined();
     expect(data.dag_runs).toBeUndefined();
-    expect(isRefreshOn).toBe(false);
-    expect(typeof onToggleRefresh).toBe('function');
-  });
-
-  test('turn on autorefresh for a queued run and then auto-turn off when run fails', async () => {
-    // return a dag run of failed during refresh
-    const mockFetch = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue({ json: jest.fn().mockResolvedValue(finalTreeData) });
-
-    global.treeData = JSON.stringify(pendingTreeData);
-    global.autoRefreshInterval = 0.1;
-
-    const { result, waitFor } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
-
-    expect(result.current.isRefreshOn).toBe(false);
-
-    act(() => {
-      result.current.onToggleRefresh();
-    });
-
-    expect(result.current.isRefreshOn).toBe(true);
-
-    await waitFor(() => expect(mockFetch).toBeCalled());
-
-    await waitFor(() => expect(result.current.isRefreshOn).toBe(false));
-  });
-
-  test('data with a finished state should have refresh off by default', () => {
-    global.treeData = JSON.stringify(finalTreeData);
-
-    const { result } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
-    const { isRefreshOn } = result.current;
-
-    expect(isRefreshOn).toBe(false);
   });
 
   test('Can handle no treeData', () => {
     global.treeData = null;
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
-    const { data, isRefreshOn } = result.current;
+    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { data } = result.current;
 
     expect(data.dagRuns).toStrictEqual([]);
     expect(data.groups).toStrictEqual({});
-    expect(isRefreshOn).toBe(false);
   });
 
   test('Can handle empty treeData object', () => {
     global.treeData = {};
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: QueryWrapper });
-    const { data, isRefreshOn } = result.current;
+    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { data } = result.current;
 
     expect(data.dagRuns).toStrictEqual([]);
     expect(data.groups).toStrictEqual({});
-    expect(isRefreshOn).toBe(false);
   });
 });
