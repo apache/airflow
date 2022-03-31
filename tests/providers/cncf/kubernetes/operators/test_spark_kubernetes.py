@@ -520,3 +520,28 @@ class TestSparkKubernetesOperator:
         op.execute(context)
         assert op.launcher.body['spec']['driver']['tolerations'] == [toleration]
         assert op.launcher.body['spec']['executor']['tolerations'] == [toleration]
+
+    def test_resources(self):
+        op = SparkKubernetesOperator(
+            task_id='test-spark',
+            code_path='/code/path',
+            image='mock_image_tag',
+            resources={
+                'driver_limit_cpu': '1',
+                'executor_limit_cpu': '1',
+                'driver_limit_memory': '1Gi',
+                'executor_limit_memory': '1Gi',
+            },
+            dag=self.dag,
+        )
+        exp_resources = {
+            'driver': {
+                'coreLimit': '1',
+                'memory': '731m',
+            },
+            'executor': {
+                'coreLimit': '1',
+                'memory': '731m',
+            },
+        }
+        assert op.resources == exp_resources

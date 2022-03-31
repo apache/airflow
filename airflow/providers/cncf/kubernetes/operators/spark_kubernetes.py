@@ -22,7 +22,7 @@ from kubernetes.client import models as k8s
 
 from airflow import AirflowException
 from airflow.kubernetes import kube_client, pod_generator
-from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher
+from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher, SparkResources
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
@@ -72,8 +72,9 @@ class SparkKubernetesOperator(BaseOperator):
         namespace: Optional[str] = None,
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
-        resources: dict = None,
         labels: dict = None,
+        resources: dict = None,
+        number_workers: int = 1,
         env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
         env_from: Optional[List[k8s.V1EnvFromSource]] = None,
         affinity: Optional[k8s.V1Affinity] = None,
@@ -87,7 +88,6 @@ class SparkKubernetesOperator(BaseOperator):
         application_file: Optional[str] = None,
         image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
         get_logs: bool = True,
-        number_workers: int = 1,
         do_xcom_push: bool = False,
         restart_policy: [dict] = None,
         spark_version: str = '3.0.0',
@@ -174,28 +174,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.spark_obj_spec = None
         self.restart_policy = restart_policy or {'type': 'Never'}
         self.hadoop_config = hadoop_config
-        self.resources = {
-            'driver_limit_cpu': '1',
-            'executor_limit_cpu': '1',
-            'driver_limit_memory': '1Gi',
-            'executor_limit_memory': '1Gi',
-        }
-        if not resources or not isinstance(resources, dict):
-            resources = {}
-        self.resources['driver_limit_cpu'] = resources.get('driver_limit_cpu', '1')
-        self.resources['executor_limit_cpu'] = resources.get('executor_limit_cpu', '1')
-
-        self.resources['driver_limit_memory'] = (
-            float(resources.get('driver_limit_memory', '1').rstrip('Gi')) * 1024
-        )
-        self.resources['executor_limit_memory'] = (
-            float(resources.get('executor_limit_memory', '1').rstrip('Gi')) * 1024
-        )
-        # Adjusting the memory value as operator add 40% to the given value
-        self.resources['driver_limit_memory'] = str(int(self.resources['driver_limit_memory'] / 1.4)) + 'm'
-        self.resources['executor_limit_memory'] = (
-            str(int(self.resources['executor_limit_memory'] / 1.4)) + 'm'
-        )
+        self.resources = SparkResources(**resources).resources if resources else {}
 
     def get_kube_client(self):
         if self.in_cluster is not None:
@@ -291,10 +270,8 @@ class SparkKubernetesOperator(BaseOperator):
             dynamic_alloc_initial_executors=self.dynamic_alloc_initial_executors,
             dynamic_alloc_max_executors=self.dynamic_alloc_max_executors,
             dynamic_alloc_min_executors=self.dynamic_alloc_min_executors,
-            driver_cpu=self.resources['driver_limit_cpu'],
-            driver_memory=self.resources['driver_limit_memory'],
-            executor_cpu=self.resources['executor_limit_cpu'],
-            executor_memory=self.resources['executor_limit_memory'],
+            driver_resource=self.resources.get('driver', {}).get('driver_resource', {}),
+            executor_resource=self.resources.get('executor', {}).get('executor_resource', {}),
             number_workers=self.number_workers,
             hadoop_config=self.hadoop_config,
             image_pull_secrets=self.image_pull_secrets,

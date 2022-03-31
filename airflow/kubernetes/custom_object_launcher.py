@@ -36,6 +36,92 @@ def should_retry_start_spark_job(exception: Exception):
     return False
 
 
+class SparkResources:
+    """spark resources
+    :param request_memory: requested memory
+    :param request_cpu: requested CPU number
+    :param request_ephemeral_storage: requested ephemeral storage
+    :param limit_memory: limit for memory usage
+    :param limit_cpu: Limit for CPU used
+    :param limit_gpu: Limits for GPU used
+    :param limit_ephemeral_storage: Limit for ephemeral storage
+    """
+
+    def __init__(
+        self,
+        number_workers=1,
+        **kwargs,
+    ):
+        self.number_workers = number_workers
+        self.driver_request_cpu = kwargs.get('driver_request_cpu')
+        self.driver_limit_cpu = kwargs.get('driver_limit_cpu')
+        self.driver_limit_memory = kwargs.get('driver_limit_memory')
+        self.executor_request_cpu = kwargs.get('executor_request_cpu')
+        self.executor_limit_cpu = kwargs.get('executor_limit_cpu')
+        self.executor_limit_memory = kwargs.get('executor_limit_memory')
+        self.driver_gpu_name = kwargs.get('driver_gpu_name')
+        self.driver_gpu_quantity = kwargs.get('driver_gpu_quantity')
+        self.executor_gpu_name = kwargs.get('executor_gpu_name')
+        self.executor_gpu_quantity = kwargs.get('executor_gpu_quantity')
+        self.convert_resources()
+
+    @property
+    def resources(self):
+        """
+        return resources
+        """
+        return {'driver': self.driver_resources, 'executor': self.executor_resources}
+
+    @property
+    def driver_resources(self):
+        """
+        return resources to use
+        """
+        driver = {}
+        if self.driver_request_cpu:
+            driver['cores'] = int(float(self.driver_request_cpu))
+        if self.driver_limit_cpu:
+            driver['coreLimit'] = self.driver_limit_cpu
+        if self.driver_limit_memory:
+            driver['memory'] = self.driver_limit_memory
+        if self.driver_gpu_name and self.driver_gpu_quantity:
+            driver['gpu'] = {'name': self.driver_gpu_name, 'quantity': self.driver_gpu_quantity}
+        return driver
+
+    @property
+    def executor_resources(self):
+        """
+        return resources to use
+        """
+        executor = {}
+        if self.executor_request_cpu:
+            executor['cores'] = int(float(self.executor_request_cpu))
+        if self.executor_limit_cpu:
+            executor['coreLimit'] = self.executor_limit_cpu
+        if self.executor_limit_memory:
+            executor['memory'] = self.executor_limit_memory
+        if self.executor_gpu_name and self.executor_gpu_quantity:
+            executor['gpu'] = {'name': self.executor_gpu_name, 'quantity': self.executor_gpu_quantity}
+        return executor
+
+    def convert_resources(self):
+        if isinstance(self.driver_limit_memory, str):
+            if 'G' in self.driver_limit_memory or 'Gi' in self.driver_limit_memory:
+                self.driver_limit_memory = float(self.driver_limit_memory.rstrip('Gi G')) * 1024
+            elif 'm' in self.driver_limit_memory:
+                self.driver_limit_memory = float(self.driver_limit_memory.rstrip('m'))
+            # Adjusting the memory value as operator adds 40% to the given value
+            self.driver_limit_memory = str(int(self.driver_limit_memory / 1.4)) + 'm'
+
+        if isinstance(self.executor_limit_memory, str):
+            if 'G' in self.executor_limit_memory or 'Gi' in self.executor_limit_memory:
+                self.executor_limit_memory = float(self.executor_limit_memory.rstrip('Gi G')) * 1024
+            elif 'm' in self.executor_limit_memory:
+                self.executor_limit_memory = float(self.executor_limit_memory.rstrip('m'))
+            # Adjusting the memory value as operator adds 40% to the given value
+            self.executor_limit_memory = str(int(self.executor_limit_memory / 1.4)) + 'm'
+
+
 class CustomObjectStatus:
     """Status of the PODs"""
 
@@ -213,22 +299,19 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['hadoopConf'] = kwargs['hadoop_config'] or {}
         body_template['spec']['mainApplicationFile'] = f'local://{kwargs["code_path"]}'
         body_template['spec']['driver']['serviceAccount'] = kwargs['service_account_name']
-        body_template['spec']['driver']['coreLimit'] = kwargs['driver_cpu']
-        body_template['spec']['driver']['cores'] = int(float(kwargs['driver_cpu']))
-        body_template['spec']['driver']['memory'] = kwargs['driver_memory']
         body_template['spec']['driver']['labels'] = kwargs['labels']
-        body_template['spec']['executor']['coreLimit'] = kwargs['executor_cpu']
-        body_template['spec']['executor']['cores'] = int(float(kwargs['executor_cpu']))
-        body_template['spec']['executor']['memory'] = kwargs['executor_memory']
         body_template['spec']['executor']['instances'] = int(kwargs['number_workers'])
         body_template['spec']['executor']['labels'] = kwargs['labels']
+        body_template['spec']['imagePullSecrets'] = kwargs['image_pull_secrets']
         body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
         body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs[
             'dynamic_alloc_initial_executors'
         ]
         body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
         body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
-        body_template['spec']['imagePullSecrets'] = kwargs['image_pull_secrets']
+
+        body_template['spec']['driver'].update(kwargs['driver_resource'])
+        body_template['spec']['executor'].update(kwargs['executor_resource'])
 
         body_template['spec']['volumes'] = kwargs['volumes']
         for item in ['driver', 'executor']:
