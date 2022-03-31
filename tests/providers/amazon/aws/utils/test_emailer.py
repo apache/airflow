@@ -32,7 +32,7 @@ class TestSendEmailSes(TestCase):
             html_content="content",
             from_email="From Test <from@test.com>",
             custom_headers={
-                'X-Test-Header': 'test-val'
+                "X-Test-Header": "test-val"
             }
         )
 
@@ -47,7 +47,7 @@ class TestSendEmailSes(TestCase):
             mime_charset="utf-8",
             mime_subtype="mixed",
             custom_headers={
-                'X-Test-Header': 'test-val'
+                "X-Test-Header": "test-val"
             }
         )
 
