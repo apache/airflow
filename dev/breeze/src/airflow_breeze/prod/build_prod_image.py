@@ -171,16 +171,14 @@ def build_production_image(verbose, **kwargs):
         login_to_docker_registry(prod_params)
 
     cmd = construct_docker_command(prod_params)
-    output = run_command(
+    run_command(
         ["docker", "rmi", "--no-prune", "--force", prod_params.airflow_prod_image_name],
         verbose=verbose,
         cwd=AIRFLOW_SOURCE,
         text=True,
         suppress_raise_exception=True,
     )
-    console.print(f"[blue]{output}")
-    output = run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
-    console.print(f"[blue]{output}")
+    run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
     if prod_params.prepare_buildx_cache:
         run_command(['docker', 'push', prod_params.airflow_prod_image_name], verbose=True, text=True)
 
