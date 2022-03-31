@@ -102,11 +102,6 @@ class TestSchedulerCommand(unittest.TestCase):
                 scheduler_command.scheduler(args)
                 output = temp_stdout.getvalue()
 
-                # Filter out ansi escape
-                # https://stackoverflow.com/a/14693789/2610955
-                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-                output = ansi_escape.sub('', output)
-
                 assert "sql_alchemy_conn = < hidden > [cmd]" in output
                 assert "max_active_tasks_per_dag = 16 [airflow.cfg]" in output
                 assert "parallelism = < hidden > [env var]" in output

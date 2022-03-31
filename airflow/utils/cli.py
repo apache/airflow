@@ -282,7 +282,7 @@ def sigconf_handler(sig, frame):
     """
     Print configuration and source including default values.
     """
-    config = get_config_with_source(include_default=True, include_colors=False)
+    config = get_config_with_source(include_default=True)
     log = logging.getLogger(__name__)
     log.info(config)
 
@@ -346,7 +346,7 @@ def suppress_logs_and_warning(f: T) -> T:
     return cast(T, _wrapper)
 
 
-def get_config_with_source(include_default=False, include_colors=True):
+def get_config_with_source(include_default=False):
     """
     Return configuration along with source for each option.
     """
@@ -369,7 +369,7 @@ def get_config_with_source(include_default=False, include_colors=True):
                 print()
         code = buf.getvalue()
 
-        if include_colors:
+        if is_terminal_support_colors():
             code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
 
         return code
