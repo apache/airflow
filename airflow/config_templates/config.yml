@@ -2357,7 +2357,7 @@
       version_added: 2.3.0
       type: string
       example: ~
-      default: "utf-8"2
+      default: "utf-8"
     - name: sql_engine_collation_for_ids
       description: |
         Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
