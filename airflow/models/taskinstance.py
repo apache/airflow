@@ -340,6 +340,10 @@ class TaskInstance(Base, LoggingMixin):
     Database transactions on this table should insure double triggers and
     any confusion around what task instances are or aren't ready to run
     even while multiple schedulers may be firing task instances.
+
+    A value of -1 in map_index represents any of: a TI without mapped tasks;
+    a TI with mapped tasks that has yet to be expanded (state=pending);
+    a TI with mapped tasks that expanded to an empty list (state=skipped).
     """
 
     __tablename__ = "task_instance"
