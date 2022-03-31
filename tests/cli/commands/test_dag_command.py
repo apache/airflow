@@ -358,6 +358,7 @@ class TestCliDags(unittest.TestCase):
 
         for i, dag_id in enumerate(dag_ids):
             dag = self.dagbag.dags[dag_id]
+
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
@@ -379,6 +380,15 @@ class TestCliDags(unittest.TestCase):
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output_2[i] in out
+
+            # Test respect-catchup
+            args = self.parser.parse_args(['dags', 'next-execution', dag_id, '--respect-catchup'])
+            dag.is_paused
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+            assert expected_output[i] in out
+
 
         # Clean up before leaving
         with create_session() as session:
