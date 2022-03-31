@@ -273,6 +273,11 @@ ARG_NUM_EXECUTIONS = Arg(
     type=positive_int(allow_zero=False),
     help="The number of next execution datetimes to show",
 )
+ARG_RESPECT_CATCHUP= Arg(
+    ("-r", "--respect-catchup"),
+    action="store_true",
+    help="Respect catchup=False on a paused DAG",
+)
 
 # backfill
 ARG_MARK_SUCCESS = Arg(
@@ -1011,7 +1016,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS, ARG_RESPECT_CATCHUP),
     ),
     ActionCommand(
         name='pause',
