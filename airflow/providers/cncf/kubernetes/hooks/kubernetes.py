@@ -219,7 +219,6 @@ class KubernetesHook(BaseHook):
             self.log.info(f"SparkApp {body_dict['metadata']['name']} not found.")
 
         try:
-            # delete any previous app with the same name
             response = api.create_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, body=body_dict
             )
@@ -227,34 +226,6 @@ class KubernetesHook(BaseHook):
             return response
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
-
-    def get_custom_object(
-        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
-    ):
-        """
-        Delete custom object from Kubernetes
-
-        :param group: api group
-        :type group: str
-        :param version: api version
-        :type version: str
-        :param plural: api plural
-        :type plural: str
-        :param name: crd object name
-        :type name: str
-        :param namespace: kubernetes namespace
-        :type namespace: str
-        """
-        api = client.CustomObjectsApi(self.api_client)
-        if namespace is None:
-            namespace = self.get_namespace()
-        try:
-            api.delete_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, name=name
-                )
-        except client.rest.ApiException as e:
-            raise AirflowException(f"Exception when calling -> delete_namespaced_custom_object: {e}\n")
-        return None
 
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
