@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import json
+from dataclasses import dataclass
 import sys
-from typing import Any, Dict, Optional
+from collections import namedtuple
+from typing import Any, Dict, Optional, List
 
 import requests
 from requests import exceptions as requests_exceptions
@@ -35,6 +38,15 @@ else:
 
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
+
+# TODO: create separate data classes for protocol/metadata/files?
+@dataclass
+class DeltaSharingQueryResult:
+    version: str
+    protocol: Dict[str, Any]
+    metadata: Dict[str, Any]
+    files: List[Dict[str, Any]]
 
 
 class DeltaSharingHook(BaseHook):
@@ -184,3 +196,33 @@ class DeltaSharingHook(BaseHook):
             )
 
         return version
+
+    def query_table(self, share: str, schema: str, table: str, predicates: Optional[List[str]] = None,
+                    limit: Optional[int] = None) -> DeltaSharingQueryResult:
+        query_body = {}
+        if limit is not None:
+            query_body["limitHint"] = limit
+        if predicates is not None:
+            query_body["predicateHints"] = predicates
+        response = self._do_api_call(
+            f"shares/{share}/schemas/{schema}/tables/{table}/query",
+            json=query_body,  http_method='POST',
+        )
+        version = None
+        for k, v in response.headers.lower_items():
+            if k == 'delta-table-version':
+                version = v
+        if version is None:
+            raise AirflowException(
+                "No delta-table-version header in response from Delta Sharing server"
+                f"for item {share}.{schema}.{table}"
+            )
+        lines = response.text.splitlines()
+        if len(lines) < 2:
+            raise AirflowException("Content should have at least two lines (protocol and metadata),"
+                                   f" got {len(lines)}")
+        protocol = json.loads(lines[0])['protocol']
+        meta = json.loads(lines[1])['metaData']
+        files = [json.loads(line)['file'] for line in lines[2:]]
+
+        return DeltaSharingQueryResult(version, protocol, meta, files)
