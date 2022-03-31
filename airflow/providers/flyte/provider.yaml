@@ -28,7 +28,7 @@ additional-dependencies:
 
 integrations:
   - integration-name: Flyte
-    external-doc-url: https://flyte.org/
+    external-doc-url: https://docs.flyte.org/
     logo: /integration-logos/flyte/Flyte.png
     how-to-guide:
       - /docs/apache-airflow-providers-flyte/operators/flyte.rst

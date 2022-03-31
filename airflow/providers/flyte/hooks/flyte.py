@@ -21,7 +21,7 @@ from typing import Any, Dict, Optional
 
 from flytekit.configuration import AuthType, Config, PlatformConfig
 from flytekit.exceptions.user import FlyteEntityNotExistException
-from flytekit.models.common import AuthRole
+from flytekit.models.common import Annotations, AuthRole, Labels
 from flytekit.models.core import execution as core_execution_models
 from flytekit.models.core.identifier import WorkflowExecutionIdentifier
 from flytekit.remote.remote import FlyteRemote, Options
@@ -85,24 +85,30 @@ class AirflowFlyteHook(BaseHook):
 
     def trigger_execution(
         self,
+        execution_name: str,
         launchplan_name: Optional[str] = None,
         task_name: Optional[str] = None,
         max_parallelism: Optional[int] = None,
         raw_data_prefix: Optional[str] = None,
         assumable_iam_role: Optional[str] = None,
         kubernetes_service_account: Optional[str] = None,
+        labels: Optional[Dict[str, str]] = None,
+        annotations: Optional[Dict[str, str]] = None,
         version: Optional[str] = None,
         inputs: Dict[str, Any] = {},
-    ) -> str:
+    ) -> None:
         """
         Trigger an execution.
 
+        :param execution_name: Required. The name of the execution to trigger.
         :param launchplan_name: Optional. The name of the launchplan to trigger.
         :param task_name: Optional. The name of the task to trigger.
         :param max_parallelism: Optional. The maximum number of parallel executions to allow.
         :param raw_data_prefix: Optional. The prefix to use for raw data.
         :param assumable_iam_role: Optional. The assumable IAM role to use.
         :param kubernetes_service_account: Optional. The kubernetes service account to use.
+        :param labels: Optional. The labels to use.
+        :param annotations: Optional. The annotations to use.
         :param version: Optional. The version of the launchplan to trigger.
         :param inputs: Optional. The inputs to the launchplan.
         """
@@ -123,11 +129,12 @@ class AirflowFlyteHook(BaseHook):
             raise AirflowException(f"Failed to fetch entity: {e}")
 
         try:
-            execution = remote.execute(
+            remote.execute(
                 flyte_entity,
                 inputs=inputs,
                 project=self.project,
                 domain=self.domain,
+                execution_name=execution_name,
                 options=Options(
                     raw_data_prefix=raw_data_prefix,
                     max_parallelism=max_parallelism,
@@ -135,12 +142,26 @@ class AirflowFlyteHook(BaseHook):
                         assumable_iam_role=assumable_iam_role,
                         kubernetes_service_account=kubernetes_service_account,
                     ),
+                    labels=Labels(labels),
+                    annotations=Annotations(annotations),
                 ),
             )
         except Exception as e:
             raise AirflowException(f"Failed to trigger execution: {e}")
 
-        return execution.id.name
+    def execution_status(self, execution_name: str, remote: FlyteRemote):
+        phase = remote.client.get_execution(self.execution_id(execution_name)).closure.phase
+
+        if phase == self.SUCCEEDED:
+            return True
+        elif phase == self.FAILED:
+            raise AirflowException(f"Execution {execution_name} failed")
+        elif phase == self.TIMED_OUT:
+            raise AirflowException(f"Execution {execution_name} timedout")
+        elif phase == self.ABORTED:
+            raise AirflowException(f"Execution {execution_name} aborted")
+        else:
+            return False
 
     def wait_for_execution(
         self,
@@ -156,25 +177,15 @@ class AirflowFlyteHook(BaseHook):
         :param poll_interval: Optional. The interval between checks to poll the execution.
         """
         remote = self.create_flyte_remote()
-        execution_id = self.execution_id(execution_name)
 
         time_to_give_up = datetime.max if timeout is None else datetime.utcnow() + timeout
 
         while datetime.utcnow() < time_to_give_up:
             time.sleep(poll_interval.total_seconds())
 
-            phase = remote.client.get_execution(execution_id).closure.phase
-
-            if phase == self.SUCCEEDED:
+            if self.execution_status(execution_name, remote):
                 return
-            elif phase == self.FAILED:
-                raise AirflowException(f"Execution {execution_name} failed")
-            elif phase == self.TIMED_OUT:
-                raise AirflowException(f"Execution {execution_name} timedout")
-            elif phase == self.ABORTED:
-                raise AirflowException(f"Execution {execution_name} aborted")
-            else:
-                continue
+            continue
 
         raise AirflowException(f"Execution {execution_name} timedout")
 

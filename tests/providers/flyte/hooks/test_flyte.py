@@ -33,6 +33,7 @@ from airflow.providers.flyte.hooks.flyte import AirflowFlyteHook
 class TestAirflowFlyteHook(unittest.TestCase):
 
     flyte_conn_id = "flyte_default"
+    execution_name = "flyte20220330t133856"
     conn_type = "flyte"
     host = "localhost"
     port = "30081"
@@ -45,7 +46,6 @@ class TestAirflowFlyteHook(unittest.TestCase):
     version = "v1"
     inputs = {"name": "hello world"}
     timeout = timedelta(seconds=3600)
-    execution_name = "f6e973ed8ca08481292a"
 
     @classmethod
     def get_mock_connection(cls):
@@ -73,20 +73,18 @@ class TestAirflowFlyteHook(unittest.TestCase):
         mock_create_flyte_remote.return_value = mock_remote
         mock_remote.fetch_launch_plan = mock.MagicMock()
 
-        execution_output = mock.MagicMock()
-        type(execution_output().id).name = mock.PropertyMock(return_value=self.execution_name)
-        mock_remote.execute = execution_output
+        mock_remote.execute = mock.MagicMock()
 
-        response = test_hook.trigger_execution(
+        test_hook.trigger_execution(
             launchplan_name=self.launchplan_name,
             raw_data_prefix=self.raw_data_prefix,
             assumable_iam_role=self.assumable_iam_role,
             kubernetes_service_account=self.kubernetes_service_account,
             version=self.version,
             inputs=self.inputs,
+            execution_name=self.execution_name,
         )
         mock_create_flyte_remote.assert_called_once()
-        assert response == self.execution_name
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.create_flyte_remote")
@@ -100,20 +98,18 @@ class TestAirflowFlyteHook(unittest.TestCase):
         mock_create_flyte_remote.return_value = mock_remote
         mock_remote.fetch_task = mock.MagicMock()
 
-        execution_output = mock.MagicMock()
-        type(execution_output().id).name = mock.PropertyMock(return_value=self.execution_name)
-        mock_remote.execute = execution_output
+        mock_remote.execute = mock.MagicMock()
 
-        response = test_hook.trigger_execution(
+        test_hook.trigger_execution(
             task_name=self.task_name,
             raw_data_prefix=self.raw_data_prefix,
             assumable_iam_role=self.assumable_iam_role,
             kubernetes_service_account=self.kubernetes_service_account,
             version=self.version,
             inputs=self.inputs,
+            execution_name=self.execution_name,
         )
         mock_create_flyte_remote.assert_called_once()
-        assert response == self.execution_name
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.create_flyte_remote")
@@ -135,6 +131,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
                 kubernetes_service_account=self.kubernetes_service_account,
                 version=self.version,
                 inputs=self.inputs,
+                execution_name=self.execution_name,
             )
         mock_create_flyte_remote.assert_called_once()
 
@@ -159,6 +156,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
                 kubernetes_service_account=self.kubernetes_service_account,
                 version=self.version,
                 inputs=self.inputs,
+                execution_name=self.execution_name,
             )
         mock_create_flyte_remote.assert_called_once()
 
@@ -221,7 +219,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
             )
 
         mock_create_flyte_remote.assert_called_once()
-        mock_execution_id.assert_called_once_with(self.execution_name)
+        mock_execution_id.assert_has_calls([mock.call(self.execution_name)] * 2)
         assert mock_phase.call_count == 2
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
@@ -253,7 +251,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
         )
 
         mock_create_flyte_remote.assert_called_once()
-        mock_execution_id.assert_called_once_with(self.execution_name)
+        mock_execution_id.assert_has_calls([mock.call(self.execution_name)] * 2)
         assert mock_phase.call_count == 2
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
@@ -290,7 +288,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
             )
 
         mock_create_flyte_remote.assert_called_once()
-        mock_execution_id.assert_called_once_with(self.execution_name)
+        mock_execution_id.assert_has_calls([mock.call(self.execution_name)] * 3)
         assert mock_phase.call_count == 3
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
@@ -329,7 +327,7 @@ class TestAirflowFlyteHook(unittest.TestCase):
             )
 
         mock_create_flyte_remote.assert_called_once()
-        mock_execution_id.assert_called_once_with(self.execution_name)
+        mock_execution_id.assert_called()
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.create_flyte_remote")
@@ -366,5 +364,5 @@ class TestAirflowFlyteHook(unittest.TestCase):
             )
 
         mock_create_flyte_remote.assert_called_once()
-        mock_execution_id.assert_called_once_with(self.execution_name)
+        mock_execution_id.assert_has_calls([mock.call(self.execution_name)] * 2)
         assert mock_phase.call_count == 2

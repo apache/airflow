@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
@@ -43,6 +44,8 @@ class AirflowFlyteOperator(BaseOperator):
     :param raw_data_prefix: Optional. The prefix to use for raw data.
     :param assumable_iam_role: Optional. The IAM role to assume.
     :param kubernetes_service_account: Optional. The Kubernetes service account to use.
+    :param labels: Optional. Custom labels to be applied to the execution resource.
+    :param annotations: Optional. Custom annotations to be applied to the execution resource.
     :param version: Optional. The version of the launchplan/task to trigger.
     :param inputs: Optional. The inputs to the launchplan/task.
     :param timeout: Optional. The timeout to wait for the execution to finish.
@@ -63,6 +66,8 @@ class AirflowFlyteOperator(BaseOperator):
         raw_data_prefix: Optional[str] = None,
         assumable_iam_role: Optional[str] = None,
         kubernetes_service_account: Optional[str] = None,
+        labels: Dict[str, str] = {},
+        annotations: Dict[str, str] = {},
         version: Optional[str] = None,
         inputs: Dict[str, Any] = {},
         timeout: Optional[timedelta] = None,
@@ -80,28 +85,42 @@ class AirflowFlyteOperator(BaseOperator):
         self.raw_data_prefix = raw_data_prefix
         self.assumable_iam_role = assumable_iam_role
         self.kubernetes_service_account = kubernetes_service_account
+        self.labels = labels
+        self.annotations = annotations
         self.version = version
         self.inputs = inputs
         self.timeout = timeout
         self.poll_interval = poll_interval
         self.asynchronous = asynchronous
-        self.execution_name: Optional[str] = None
+        self.execution_name: str = ""
 
         if (not (self.task_name or self.launchplan_name)) or (self.task_name and self.launchplan_name):
             raise AirflowException("Either task_name or launchplan_name is required.")
 
     def execute(self, context: "Context") -> str:
         """Trigger an execution and wait for it to finish."""
+
+        # create a deterministic execution name
+        task_id = re.sub(r"[\W_]+", "", context["task"].task_id)[:5]
+        self.execution_name = task_id + re.sub(
+            r"[\W_]+",
+            "",
+            context["dag_run"].run_id.split("__")[-1].lower(),
+        )[: (20 - len(task_id))]
+
         hook = AirflowFlyteHook(flyte_conn_id=self.flyte_conn_id, project=self.project, domain=self.domain)
-        self.execution_name = hook.trigger_execution(
+        hook.trigger_execution(
             launchplan_name=self.launchplan_name,
             task_name=self.task_name,
             max_parallelism=self.max_parallelism,
             raw_data_prefix=self.raw_data_prefix,
             assumable_iam_role=self.assumable_iam_role,
             kubernetes_service_account=self.kubernetes_service_account,
+            labels=self.labels,
+            annotations=self.annotations,
             version=self.version,
             inputs=self.inputs,
+            execution_name=self.execution_name,
         )
         self.log.info("Execution %s submitted", self.execution_name)
 

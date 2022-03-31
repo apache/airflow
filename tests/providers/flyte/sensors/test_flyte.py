@@ -38,7 +38,7 @@ class TestAirflowFlyteSensor(unittest.TestCase):
     port = "30081"
     project = "flytesnacks"
     domain = "development"
-    execution_name = "f6e973ed8ca08481292a"
+    execution_name = "testf20220330t135508"
 
     @classmethod
     def get_connection(cls):
@@ -84,8 +84,10 @@ class TestAirflowFlyteSensor(unittest.TestCase):
         )
 
         return_value = sensor.poke({})
+
         assert return_value
         mock_create_flyte_remote.assert_called_once()
+        mock_execution_id.assert_called_with(self.execution_name)
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.create_flyte_remote")
@@ -96,27 +98,28 @@ class TestAirflowFlyteSensor(unittest.TestCase):
         mock_remote = self.create_remote()
         mock_create_flyte_remote.return_value = mock_remote
 
-        for phase in [AirflowFlyteHook.ABORTED, AirflowFlyteHook.FAILED, AirflowFlyteHook.TIMED_OUT]:
-            execution_id = mock.MagicMock()
-            mock_execution_id.return_value = execution_id
+        sensor = AirflowFlyteSensor(
+            task_id=self.task_id,
+            execution_name=self.execution_name,
+            project=self.project,
+            domain=self.domain,
+            flyte_conn_id=self.flyte_conn_id,
+        )
 
+        execution_id = mock.MagicMock()
+        mock_execution_id.return_value = execution_id
+
+        for phase in [AirflowFlyteHook.ABORTED, AirflowFlyteHook.FAILED, AirflowFlyteHook.TIMED_OUT]:
             mock_get_execution = mock.MagicMock()
             mock_remote.client.get_execution = mock_get_execution
             mock_phase = mock.PropertyMock(return_value=phase)
             type(mock_get_execution().closure).phase = mock_phase
 
-            sensor = AirflowFlyteSensor(
-                task_id=self.task_id,
-                execution_name=self.execution_name,
-                project=self.project,
-                domain=self.domain,
-                flyte_conn_id=self.flyte_conn_id,
-            )
-
             with pytest.raises(AirflowException):
                 sensor.poke({})
 
         mock_create_flyte_remote.has_calls([mock.call()] * 3)
+        mock_execution_id.has_calls([mock.call(self.execution_name)] * 3)
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.create_flyte_remote")
@@ -147,3 +150,4 @@ class TestAirflowFlyteSensor(unittest.TestCase):
         assert not return_value
 
         mock_create_flyte_remote.assert_called_once()
+        mock_execution_id.assert_called_with(self.execution_name)

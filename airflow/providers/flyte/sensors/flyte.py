@@ -17,7 +17,6 @@
 
 from typing import TYPE_CHECKING, Optional, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.providers.flyte.hooks.flyte import AirflowFlyteHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -56,18 +55,9 @@ class AirflowFlyteSensor(BaseSensorOperator):
         """Check for the status of a Flyte execution."""
         hook = AirflowFlyteHook(flyte_conn_id=self.flyte_conn_id, project=self.project, domain=self.domain)
         remote = hook.create_flyte_remote()
-        execution_id = hook.execution_id(self.execution_name)
 
-        phase = remote.client.get_execution(execution_id).closure.phase
-
-        if phase == hook.SUCCEEDED:
+        if hook.execution_status(self.execution_name, remote):
             return True
-        elif phase == hook.FAILED:
-            raise AirflowException(f"Execution {self.execution_name} failed")
-        elif phase == hook.TIMED_OUT:
-            raise AirflowException(f"Execution {self.execution_name} timedout")
-        elif phase == hook.ABORTED:
-            raise AirflowException(f"Execution {self.execution_name} aborted")
 
         self.log.info("Waiting for execution %s to complete", self.execution_name)
         return False

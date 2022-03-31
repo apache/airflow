@@ -44,7 +44,6 @@ with DAG(
         version="v1",
         inputs={"val": 19},
         timeout=timedelta(seconds=3600),
-        asynchronous=False,
     )
     # [END howto_operator_flyte_synchronous]
 

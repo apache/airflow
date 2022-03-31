@@ -20,6 +20,7 @@ from datetime import timedelta
 from unittest import mock
 
 from airflow.models import Connection
+from airflow.models.dagrun import DagRun
 from airflow.providers.flyte.operators.flyte import AirflowFlyteOperator
 
 
@@ -27,6 +28,7 @@ class TestAirflowFlyteOperator(unittest.TestCase):
 
     task_id = "test_flyte_operator"
     flyte_conn_id = "flyte_default"
+    run_id = "manual__2022-03-30T13:55:08.715694+00:00"
     conn_type = "flyte"
     host = "localhost"
     port = "30081"
@@ -36,10 +38,11 @@ class TestAirflowFlyteOperator(unittest.TestCase):
     raw_data_prefix = "s3://flyte-demo/raw_data"
     assumable_iam_role = "arn:aws:iam::123456789012:role/example-role"
     kubernetes_service_account = "default"
+    labels = {"key1": "value1"}
     version = "v1"
     inputs = {"name": "hello world"}
     timeout = timedelta(seconds=3600)
-    execution_name = "f6e973ed8ca08481292a"
+    execution_name = "testf20220330t135508"
 
     @classmethod
     def get_connection(cls):
@@ -59,7 +62,6 @@ class TestAirflowFlyteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
     def test_execute(self, mock_get_connection, mock_wait_for_execution, mock_trigger_execution):
         mock_get_connection.return_value = self.get_connection()
-        mock_trigger_execution.return_value = self.execution_name
 
         operator = AirflowFlyteOperator(
             task_id=self.task_id,
@@ -70,12 +72,14 @@ class TestAirflowFlyteOperator(unittest.TestCase):
             raw_data_prefix=self.raw_data_prefix,
             assumable_iam_role=self.assumable_iam_role,
             kubernetes_service_account=self.kubernetes_service_account,
+            labels=self.labels,
             version=self.version,
             inputs=self.inputs,
             timeout=self.timeout,
         )
-        result = operator.execute({})
+        result = operator.execute({"dag_run": DagRun(run_id=self.run_id), "task": operator})
 
+        assert result == self.execution_name
         mock_get_connection.assert_called_once_with(self.flyte_conn_id)
         mock_trigger_execution.assert_called_once_with(
             launchplan_name=self.launchplan_name,
@@ -84,14 +88,17 @@ class TestAirflowFlyteOperator(unittest.TestCase):
             raw_data_prefix=self.raw_data_prefix,
             assumable_iam_role=self.assumable_iam_role,
             kubernetes_service_account=self.kubernetes_service_account,
+            labels=self.labels,
+            annotations={},
             version=self.version,
             inputs=self.inputs,
+            execution_name=self.execution_name,
         )
         mock_wait_for_execution.assert_called_once_with(
-            execution_name=result, timeout=self.timeout, poll_interval=timedelta(seconds=30)
+            execution_name=self.execution_name, timeout=self.timeout, poll_interval=timedelta(seconds=30)
         )
 
-    @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.trigger_execution")
+    @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.trigger_execution", return_value=None)
     @mock.patch(
         "airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.wait_for_execution",
         return_value=None,
@@ -101,7 +108,6 @@ class TestAirflowFlyteOperator(unittest.TestCase):
     def test_on_kill_success(
         self, mock_get_connection, mock_terminate, mock_wait_for_execution, mock_trigger_execution
     ):
-        mock_trigger_execution.return_value = self.execution_name
         mock_get_connection.return_value = self.get_connection()
 
         operator = AirflowFlyteOperator(
@@ -113,14 +119,15 @@ class TestAirflowFlyteOperator(unittest.TestCase):
             inputs=self.inputs,
             timeout=self.timeout,
         )
-        result = operator.execute({})
+        operator.execute({"dag_run": DagRun(run_id=self.run_id), "task": operator})
         operator.on_kill()
 
         mock_get_connection.has_calls([mock.call(self.flyte_conn_id)] * 2)
+        mock_trigger_execution.assert_called()
         mock_wait_for_execution.assert_called_once_with(
-            execution_name=result, timeout=self.timeout, poll_interval=timedelta(seconds=30)
+            execution_name=self.execution_name, timeout=self.timeout, poll_interval=timedelta(seconds=30)
         )
-        mock_terminate.assert_called_once_with(execution_name=result, cause="Killed by Airflow")
+        mock_terminate.assert_called_once_with(execution_name=self.execution_name, cause="Killed by Airflow")
 
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.terminate")
     @mock.patch("airflow.providers.flyte.hooks.flyte.AirflowFlyteHook.get_connection")
@@ -137,5 +144,5 @@ class TestAirflowFlyteOperator(unittest.TestCase):
         )
         operator.on_kill()
 
-        assert not mock_get_connection.called
-        assert not mock_terminate.called
+        mock_get_connection.assert_not_called()
+        mock_terminate.assert_not_called()
