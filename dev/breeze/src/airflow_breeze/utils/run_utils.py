@@ -194,6 +194,7 @@ def change_directory_permission(directory_to_fix: Path):
 
 @working_directory(AIRFLOW_SOURCE)
 def fix_group_permissions():
+    console.print("[blue]Fixing group permissions[/]")
     files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().split('\n')

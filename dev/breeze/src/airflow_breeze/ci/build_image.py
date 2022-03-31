@@ -19,9 +19,8 @@ from typing import Dict, List
 
 from airflow_breeze.cache import check_cache_and_write_if_not_cached, touch_cache_file, write_to_cache_file
 from airflow_breeze.ci.build_params import BuildParams
-from airflow_breeze.console import console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCE, BUILD_CACHE_DIR
-from airflow_breeze.utils.run_utils import filter_out_none, run_command
+from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
 
 PARAMS_CI_IMAGE = [
     "python_base_image",
@@ -83,6 +82,7 @@ def construct_docker_command(ci_image: BuildParams) -> List[str]:
 
 
 def build_image(verbose, **kwargs):
+    fix_group_permissions()
     parameters_passed = filter_out_none(**kwargs)
     ci_image_params = get_image_build_params(parameters_passed)
     ci_image_cache_dir = Path(BUILD_CACHE_DIR, ci_image_params.airflow_branch)
@@ -91,17 +91,15 @@ def build_image(verbose, **kwargs):
         f"built_{ci_image_params.python_version}",
         root_dir=ci_image_cache_dir,
     )
-    output = run_command(
+    run_command(
         ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_ci_image_name],
         verbose=verbose,
         cwd=AIRFLOW_SOURCE,
         text=True,
         suppress_raise_exception=True,
     )
-    console.print(f"[blue]{output}")
     cmd = construct_docker_command(ci_image_params)
-    output = run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
-    console.print(f"[blue]{output}")
+    run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
 
 
 def get_image_build_params(parameters_passed: Dict[str, str]):
