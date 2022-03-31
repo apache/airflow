@@ -409,7 +409,6 @@ def build_prod_image(
     github_repository: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
-    upgrade_to_newer_dependencies: str,
     prepare_buildx_cache: bool,
     skip_installing_airflow_providers_from_sources: bool,
     disable_pypi_when_building: bool,
@@ -418,6 +417,7 @@ def build_prod_image(
     install_from_docker_context_files: bool,
     image_tag: Optional[str],
     github_token: Optional[str],
+    upgrade_to_newer_dependencies: str = "false",
 ):
     """Builds docker Production image without entering the container."""
     if verbose:
