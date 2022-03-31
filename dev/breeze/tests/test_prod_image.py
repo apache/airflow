@@ -32,7 +32,7 @@ default_params = {
     'install_docker_context_files': False,
     'disable_pypi_when_building': False,
     'disable_pip_cache': False,
-    'upgrade_newer_dependencies': False,
+    'upgrade_to_newer_dependencies': False,
     'skip_installing_airflow_providers_from_sources': False,
     'cleanup_docker_context_files': False,
     'prepare_buildx_cache': False,

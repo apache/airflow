@@ -55,6 +55,7 @@ ALLOWED_STATIC_CHECKS = [
     "check-integrations",
     "check-merge-conflict",
     "check-xml",
+    "check-system-tests",
     "daysago-import-check",
     "debug-statements",
     "detect-private-key",

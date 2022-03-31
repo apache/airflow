@@ -24,7 +24,7 @@ INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
 
 function stop_arm_instance() {
     INSTANCE_ID=$(jq < "${INSTANCE_INFO}" ".Instances[0].InstanceId" -r)
-    aws ec2 stop-instances --instance-ids "${INSTANCE_ID}"
+    aws ec2 terminate-instances --instance-ids "${INSTANCE_ID}"
 }
 
 stop_arm_instance

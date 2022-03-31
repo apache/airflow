@@ -15,33 +15,36 @@
     specific language governing permissions and limitations
     under the License.
 
-Salesforce to Amazon S3 Transfer Operator
-=========================================
+Local Filesystem to Amazon S3 Transfer Operator
+===============================================
 
-Use the
-:class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
-to execute a Salesforce query to fetch data and upload to an Amazon S3 bucket.
+Use the LocalFilesystemToS3Operator transfer to copy data from the Airflow local filesystem
+to an Amazon Simple Storage Service (S3) file.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
-.. _howto/operator:SalesforceToS3Operator:
+.. _howto/operator:LocalFilesystemToS3Operator:
 
-Extract Account data from Salesforce
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Local to Amazon S3
+^^^^^^^^^^^^^^^^^^
 
-The following example demonstrates a use case of extracting account data from a Salesforce
-instance and upload to an Amazon S3 bucket.
+This operator copies data from the local filesystem to an Amazon S3 file.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_salesforce_to_s3.py
+To get more information about this operator visit:
+:class:`~airflow.providers.amazon.aws.transfers.local_to_s3.LocalFilesystemToS3Operator`
+
+Example usage:
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_local_to_s3.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_salesforce_to_s3]
-    :end-before: [END howto_transfer_salesforce_to_s3]
+    :start-after: [START howto_transfer_local_to_s3]
+    :end-before: [END howto_transfer_local_to_s3]
 
 Reference
----------
+^^^^^^^^^
 
-* `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__
+* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
