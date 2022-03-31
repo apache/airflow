@@ -253,27 +253,18 @@ def test_audit_log_view(user_client, working_dags):
     check_content_in_response('Dag Audit Log', resp)
 
 
-def test_sorting_home_view(user_client, working_dags):
-    # No order specified should default to dag_id in ascending
-    url = "home?status=all"
+@pytest.mark.parametrize(
+    "url, lower_key, greater_key",
+    [
+        ("home?status=all", "a_first_dag_id_asc", "filter_test_1"),
+        ("home?status=all&sorting_key=dag_id&sorting_direction=asc", "filter_test_1", "filter_test_2"),
+        ("home?status=all&sorting_key=dag_id&sorting_direction=desc", "filter_test_2", "filter_test_1"),
+    ],
+    ids=["no_order_provided", "ascending_order_on_dag_id", "descending_order_on_dag_id"],
+)
+def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
     resp = user_client.get(url, follow_redirects=True)
     resp_html = resp.data.decode('utf-8')
-    first_index = resp_html.find('a_first_dag_id_asc')
-    second_index = resp_html.find('filter_test_1')
-    assert first_index < second_index
-
-    # Ascending order on dag_id
-    url = "home?status=all&sorting_key=dag_id&sorting_direction=asc"
-    resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode('utf-8')
-    first_index = resp_html.find('filter_test_1')
-    second_index = resp_html.find('filter_test_2')
-    assert first_index < second_index
-
-    # Descending order on dag_id
-    url = "home?status=all&sorting_key=dag_id&sorting_direction=desc"
-    resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode('utf-8')
-    first_index = resp_html.find('filter_test_1')
-    second_index = resp_html.find('filter_test_2')
-    assert first_index > second_index
+    lower_index = resp_html.find(lower_key)
+    greater_index = resp_html.find(greater_key)
+    assert lower_index < greater_index
