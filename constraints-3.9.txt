@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-31T04:02:51Z
+# This constraints file was automatically generated on 2022-03-31T14:37:40Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -532,7 +532,7 @@ tornado==6.1
 tqdm==4.63.1
 traitlets==5.1.1
 trino==0.312.0
-twine==3.8.0
+twine==4.0.0
 types-Deprecated==1.2.5
 types-Markdown==3.3.12
 types-PyMySQL==1.0.14
