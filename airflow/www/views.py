@@ -2119,7 +2119,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message="Here's the list of task instances you are about to mark as failed",
+                message="Here's the list of task instances you are about to mark as failed or skipped",
                 details=details,
             )
 
