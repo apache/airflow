@@ -27,7 +27,7 @@ from airflow_breeze.utils.run_utils import run_command
 @dataclass
 class BuildParams:
     # To construct ci_image_name
-    upgrade_newer_dependencies: bool = False
+    upgrade_to_newer_dependencies: str = "false"
     python_version: str = "3.7"
     airflow_branch: str = AIRFLOW_BRANCH
     build_id: int = 0
@@ -121,10 +121,3 @@ class BuildParams:
     @property
     def airflow_version(self):
         return get_airflow_version()
-
-    @property
-    def upgrade_to_newer_dependencies(self) -> str:
-        upgrade_to_newer_dependencies = 'false'
-        if self.upgrade_newer_dependencies:
-            upgrade_to_newer_dependencies = 'true'
-        return upgrade_to_newer_dependencies
