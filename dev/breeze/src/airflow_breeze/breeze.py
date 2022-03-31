@@ -302,7 +302,7 @@ def build_ci_image(
     build_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
-    upgrade_to_newer_dependencies: Optional[str],
+    upgrade_to_newer_dependencies: str = "false",
 ):
     """Builds docker CI image without entering the container."""
 
@@ -331,7 +331,7 @@ def build_ci_image(
         docker_cache=build_cache,
         platform=platform,
         debian_version=debian_version,
-        upgrade_newer_dependencies=upgrade_to_newer_dependencies,
+        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
 
@@ -409,7 +409,7 @@ def build_prod_image(
     github_repository: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
-    upgrade_to_newer_dependencies: bool,
+    upgrade_to_newer_dependencies: str,
     prepare_buildx_cache: bool,
     skip_installing_airflow_providers_from_sources: bool,
     disable_pypi_when_building: bool,
@@ -454,7 +454,7 @@ def build_prod_image(
         github_repository=github_repository,
         platform=platform,
         debian_version=debian_version,
-        upgrade_newer_dependencies=upgrade_to_newer_dependencies,
+        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         prepare_buildx_cache=prepare_buildx_cache,
         skip_installing_airflow_providers_from_sources=skip_installing_airflow_providers_from_sources,
         disable_pypi_when_building=disable_pypi_when_building,
