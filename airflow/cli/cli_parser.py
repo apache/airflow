@@ -524,18 +524,18 @@ ARG_MIGRATION_TIMEOUT = Arg(
     default=60,
 )
 ARG_DB_VERSION__UPGRADE = Arg(
-    ("-n", "--version"),
+    ("-n", "--to-version"),
     help=(
         "(Optional) The airflow version to upgrade to. Note: must provide either "
-        "`--revision` or `--version`."
+        "`--to-revision` or `--to-version`."
     ),
 )
 ARG_DB_REVISION__UPGRADE = Arg(
-    ("-r", "--revision"),
+    ("-r", "--to-revision"),
     help="(Optional) If provided, only run migrations up to and including this Alembic revision.",
 )
 ARG_DB_VERSION__DOWNGRADE = Arg(
-    ("-n", "--version"),
+    ("-n", "--to-version"),
     help="(Optional) If provided, only run migrations up to this version.",
 )
 ARG_DB_FROM_VERSION = Arg(
@@ -543,8 +543,8 @@ ARG_DB_FROM_VERSION = Arg(
     help="(Optional) If generating sql, may supply a *from* version",
 )
 ARG_DB_REVISION__DOWNGRADE = Arg(
-    ("-r", "--revision"),
-    help="The Alembic revision to downgrade to. Note: must provide either `--revision` or `--version`.",
+    ("-r", "--to-revision"),
+    help="The Alembic revision to downgrade to. Note: must provide either `--to-revision` or `--to-version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
@@ -1407,7 +1407,7 @@ DB_COMMANDS = (
         help="Downgrade the schema of the metadata database.",
         description=(
             "Downgrade the schema of the metadata database. "
-            "You must provide either `--revision` or `--version`. "
+            "You must provide either `--to-revision` or `--to-version`. "
             "To print but not execute commands, use option `--show-sql-only`. "
             "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
             "because if actually *running* migrations, we should only migrate from the *current* Alembic "
