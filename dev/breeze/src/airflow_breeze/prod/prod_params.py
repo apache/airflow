@@ -47,7 +47,7 @@ class ProdParams:
     install_docker_context_files: bool
     disable_pypi_when_building: bool
     disable_pip_cache: bool
-    upgrade_newer_dependencies: bool
+    upgrade_to_newer_dependencies: str
     skip_installing_airflow_providers_from_sources: bool
     cleanup_docker_context_files: bool
     prepare_buildx_cache: bool
@@ -224,16 +224,14 @@ class ProdParams:
         docker_cache_prod_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_prod_image_name}:cache")
+            docker_cache_prod_directive.append(f"--cache-from={self.airflow_prod_image_name}")
         elif self.docker_cache == "disabled":
             docker_cache_prod_directive.append("--no-cache")
         else:
             docker_cache_prod_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(
-                [f"--cache-to=type=registry,ref={self.airflow_prod_image_name}:cache,mode=max", "--push"]
-            )
+            docker_cache_prod_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
             if is_multi_platform(self.platform):
                 console.print("\nSkip loading docker image on multi-platform build")
             else:
@@ -365,13 +363,6 @@ class ProdParams:
         if self.install_docker_context_files:
             install_from_docker_context_files = 'true'
         return install_from_docker_context_files
-
-    @property
-    def upgrade_to_newer_dependencies(self) -> str:
-        upgrade_to_newer_dependencies = 'false'
-        if self.upgrade_newer_dependencies:
-            upgrade_to_newer_dependencies = 'true'
-        return upgrade_to_newer_dependencies
 
     @property
     def airflow_extras(self):

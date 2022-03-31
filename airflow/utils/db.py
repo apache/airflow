@@ -21,10 +21,10 @@ import logging
 import os
 import sys
 import time
+import warnings
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
 
-from bcrypt import warnings
 from sqlalchemy import Table, column, exc, func, inspect, literal, or_, table, text
 from sqlalchemy.orm.session import Session
 

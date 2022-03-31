@@ -112,9 +112,11 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
-|                                          |                                          | upgraded to newer versions matching      |
-|                                          |                                          | setup.py before installation.            |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
+|                                          |                                          | the dependencies are upgraded to newer   |
+|                                          |                                          | versions. In CI it is set to build id    |
+|                                          |                                          | to make sure subsequent builds are not   |
+|                                          |                                          | reusing cached images with same value.   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies.  |
