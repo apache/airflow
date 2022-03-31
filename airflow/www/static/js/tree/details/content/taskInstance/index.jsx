@@ -69,7 +69,7 @@ const TaskInstance = ({ taskId, runId }) => {
       {!isGroup && (
         <TaskNav instance={instance} isMapped={task.isMapped} />
       )}
-      {!isGroup && !task.isMapped && (
+      {!isGroup && (
         <>
           <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
             <RunAction runId={runId} taskId={task.id} dagId={dagId} />

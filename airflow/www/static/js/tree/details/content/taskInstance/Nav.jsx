@@ -25,7 +25,7 @@ import {
   Divider,
 } from '@chakra-ui/react';
 
-import { getMetaValue } from '../../../../utils';
+import { getMetaValue, appendSearchParams } from '../../../../utils';
 
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
@@ -44,6 +44,7 @@ const Nav = ({ instance, isMapped }) => {
   const {
     taskId,
     dagId,
+    runId,
     operator,
     executionDate,
   } = instance;
@@ -71,9 +72,12 @@ const Nav = ({ instance, isMapped }) => {
     root: taskId,
   }).toString();
 
-  const allInstancesLink = `${taskInstancesUrl}?${listParams}`;
-  const filterUpstreamLink = `${gridUrlNoRoot}&${filterParams}`;
-  const subDagLink = `${gridUrl.replace(dagId, `${dagId}.${taskId}`)}?${subDagParams}`;
+  const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
+  listParams.append('_flt_3_run_id', runId);
+  const mappedInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
+
+  const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams);
+  const subDagLink = appendSearchParams(gridUrl.replace(dagId, `${dagId}.${taskId}`), subDagParams);
 
   // TODO: base subdag zooming as its own attribute instead of via operator name
   const isSubDag = operator === 'SubDagOperator';
@@ -94,7 +98,10 @@ const Nav = ({ instance, isMapped }) => {
           <LinkButton href={logLink}>Log</LinkButton>
         </>
         )}
-        <LinkButton href={allInstancesLink}>All Instances</LinkButton>
+        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
+        {isMapped && (
+          <LinkButton href={mappedInstancesLink} title="Show the mapped instances for this DAG run">Run Instances</LinkButton>
+        )}
         <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
       <Divider mt={3} />

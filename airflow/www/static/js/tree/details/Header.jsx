@@ -67,23 +67,27 @@ const Header = () => {
   const lastIndex = taskId ? taskId.lastIndexOf('.') : null;
   const taskName = lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
+  const isDagDetails = !runId && !taskId;
+  const isRunDetails = runId && !taskId;
+  const isTaskDetails = runId && taskId;
+
   return (
     <Breadcrumb color="gray.300" mt={4}>
-      <BreadcrumbItem isCurrentPage={!runId && !taskId}>
-        <BreadcrumbLink onClick={clearSelection} color="black">
+      <BreadcrumbItem isCurrentPage={isDagDetails}>
+        <BreadcrumbLink onClick={clearSelection} color="black" _hover={isDagDetails ? { cursor: 'default' } : undefined}>
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
-        <BreadcrumbItem isCurrentPage={runId && !taskId}>
-          <BreadcrumbLink onClick={() => onSelect({ runId })} color="black">
+        <BreadcrumbItem isCurrentPage={isRunDetails}>
+          <BreadcrumbLink onClick={() => onSelect({ runId })} color="black" _hover={isRunDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
         <BreadcrumbItem isCurrentPage>
-          <BreadcrumbLink color="black">
+          <BreadcrumbLink color="black" _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>
         </BreadcrumbItem>
