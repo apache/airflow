@@ -108,14 +108,14 @@ function updateModalUrls() {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _flt_3_map_index: mapIndex,
-    _oc_TaskInstanceModelView: executionDate,
+    _oc_TaskInstanceModelView: 'dag_run.execution_date',
   });
 
   updateButtonUrl(buttons.mapped, {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _flt_3_run_id: dagRunId,
-    _oc_TaskInstanceModelView: executionDate,
+    _oc_TaskInstanceModelView: 'map_index',
   });
 
   updateButtonUrl(buttons.log, {

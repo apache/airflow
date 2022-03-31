@@ -60,7 +60,13 @@ const Nav = ({ instance, isMapped }) => {
   const listParams = new URLSearchParams({
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
-    _oc_TaskInstanceModelView: executionDate,
+    _oc_TaskInstanceModelView: 'dag_run.execution_date',
+  });
+  const mapParams = new URLSearchParams({
+    _flt_3_dag_id: dagId,
+    _flt_3_task_id: taskId,
+    _flt_3_run_id: runId,
+    _oc_TaskInstanceModelView: 'map_index',
   });
   const subDagParams = new URLSearchParams({
     execution_date: executionDate,
@@ -73,8 +79,7 @@ const Nav = ({ instance, isMapped }) => {
   }).toString();
 
   const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
-  listParams.append('_flt_3_run_id', runId);
-  const mappedInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
+  const mappedInstancesLink = `${taskInstancesUrl}?${mapParams.toString()}`;
 
   const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams);
   const subDagLink = appendSearchParams(gridUrl.replace(dagId, `${dagId}.${taskId}`), subDagParams);
@@ -98,10 +103,10 @@ const Nav = ({ instance, isMapped }) => {
           <LinkButton href={logLink}>Log</LinkButton>
         </>
         )}
-        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
         {isMapped && (
-          <LinkButton href={mappedInstancesLink} title="Show the mapped instances for this DAG run">Run Instances</LinkButton>
+        <LinkButton href={mappedInstancesLink} title="Show the mapped instances for this DAG run">Mapped Instances</LinkButton>
         )}
+        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
         <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
       <Divider mt={3} />
