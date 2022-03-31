@@ -29,7 +29,7 @@ Use the :class:``~airflow.providers.cloudera.operators.CdeRunJobOperator`` to su
 Using the Operator
 ------------------
 
-    Runs a job in a CDE Virtual Cluster. The ``CDEJobRunOperator`` runs the
+    Runs a job in a CDE Virtual Cluster. The ``CdeRunJobOperator`` runs the
     named job with optional variables and overrides. The job and its resources
     must have already been created via the specified virtual cluster jobs API.
 

@@ -30,7 +30,7 @@ Using the Sensor
 ----------------
 
 Check the existence of a Hive partition.
-CDWHivePartitionSensor is a subclass of HivePartitionSensor and supposed to implement the same logic by delegating the actual work to a CDWHiveMetastoreHook instance.
+CdwHivePartitionSensor is a subclass of HivePartitionSensor and supposed to implement the same logic by delegating the actual work to a CdwHiveMetastoreHook instance.
 
 
 .. list-table::
