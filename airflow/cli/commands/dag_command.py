@@ -23,9 +23,9 @@ import logging
 import signal
 import subprocess
 import sys
+from datetime import datetime
 from typing import Optional
 
-from datetime import datetime
 from graphviz.dot import Dot
 from sqlalchemy.sql.functions import func
 
@@ -278,14 +278,16 @@ def dag_next_execution(args):
     if dag.get_is_paused():
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
         if args.respect_catchup:
-            dag_run=DagRun(execution_date=datetime.utcnow())
+            dag_run = DagRun(execution_date=datetime.utcnow())
             next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
             print(next_info.logical_date.isoformat())
             return
         elif not dag.catchup and not args.respect_catchup:
-            print("[INFO] Please be reminded this DAG has catchup=False if you would like to base command off current "
-                  "time pass -r flag", file=sys.stderr)
-
+            print(
+                "[INFO] Please be reminded this DAG has catchup=False."
+                "if you would like to base command off current time pass -r flag",
+                file=sys.stderr,
+            )
 
     with create_session() as session:
         max_date_subq = (

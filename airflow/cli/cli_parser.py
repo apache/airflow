@@ -273,7 +273,7 @@ ARG_NUM_EXECUTIONS = Arg(
     type=positive_int(allow_zero=False),
     help="The number of next execution datetimes to show",
 )
-ARG_RESPECT_CATCHUP= Arg(
+ARG_RESPECT_CATCHUP = Arg(
     ("-r", "--respect-catchup"),
     action="store_true",
     help="Respect catchup=False on a paused DAG",
