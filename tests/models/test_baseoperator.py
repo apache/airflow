@@ -258,6 +258,46 @@ class TestBaseOperator:
         result = task.render_template(content, context)
         assert result == expected_output
 
+    def test_mapped_dag_slas_disabled_classic(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                class MyOp(BaseOperator):
+                    def __init__(self, x, **kwargs):
+                        self.x = x
+                        super().__init__(**kwargs)
+
+                    def execute(self, context):
+                        print(self.x)
+
+                MyOp.partial(task_id='hi').expand(x=task1)
+
+    def test_mapped_dag_slas_disabled_taskflow(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                @dag.task
+                def print_val(x):
+                    print(x)
+
+                print_val.expand(x=task1)
+
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
