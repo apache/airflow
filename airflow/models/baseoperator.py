@@ -347,9 +347,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
 
-            mapped_validation_only = kwargs.pop(
-                "_airflow_mapped_validation_only",
-                getattr(self, "_BaseOperator__mapped_validation", False),
+            instantiated_from_mapped = kwargs.pop(
+                "_airflow_from_mapped",
+                getattr(self, "_BaseOperator__from_mapped", False),
             )
 
             dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
@@ -386,14 +386,14 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             if not hasattr(self, '_BaseOperator__init_kwargs'):
                 self._BaseOperator__init_kwargs = {}
-            self._BaseOperator__mapped_validation = mapped_validation_only
+            self._BaseOperator__from_mapped = instantiated_from_mapped
 
             result = func(self, **kwargs, default_args=default_args)
 
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
-            if not mapped_validation_only:
+            if not instantiated_from_mapped:
                 # Set upstream task defined by XComArgs passed to template fields of the operator.
                 self.set_xcomargs_dependencies()
                 # Mark instance as instantiated.
@@ -678,14 +678,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # logic (default implementation is 'pass' i.e. no validation whatsoever).
     mapped_arguments_validated_by_init: ClassVar[bool] = False
 
-    # Set to True for an operator instantiated only for mapping validation.
-    __mapped_validation = False
+    # Set to True for an operator instantiated by a mapped operator.
+    __from_mapped = False
 
     def __new__(
         cls,
         dag: Optional['DAG'] = None,
         task_group: Optional["TaskGroup"] = None,
-        _airflow_mapped_validation_only: bool = False,  # Whether called to validate a MappedOperator.
+        _airflow_from_mapped: bool = False,  # Whether called from a MappedOperator.
         **kwargs,
     ):
         # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
@@ -696,7 +696,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if not _airflow_mapped_validation_only and isinstance(task_group, MappedTaskGroup):
+        if not _airflow_from_mapped and isinstance(task_group, MappedTaskGroup):
             return cls.partial(dag=dag, task_group=task_group, **kwargs).expand()
         return super().__new__(cls)
 
@@ -780,7 +780,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.task_id = task_group.child_id(task_id)
         else:
             self.task_id = task_id
-        if not self.__mapped_validation and task_group:
+        if not self.__from_mapped and task_group:
             task_group.add(self)
 
         self.owner = owner
@@ -1002,7 +1002,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __setattr__(self, key, value):
         super().__setattr__(key, value)
-        if self.__mapped_validation or self._lock_for_execution:
+        if self.__from_mapped or self._lock_for_execution:
             return  # Skip any custom behavior for validation and during execute.
         if key in self.__init_kwargs:
             self.__init_kwargs[key] = value
@@ -1056,8 +1056,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(f"The DAG assigned to {self} can not be changed.")
 
-        if self.__mapped_validation:
-            pass  # Don't add task to DAG for validation.
+        if self.__from_mapped:
+            pass  # Don't add to DAG -- the mapped task takes the place.
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
@@ -1449,7 +1449,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
-                    '_BaseOperator__mapped_validation',
+                    '_BaseOperator__from_mapped',
                 }
                 | {  # Class level defaults need to be added to this list
                     'start_date',
@@ -1507,7 +1507,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def validate_mapped_arguments(cls, **kwargs: Any) -> None:
         """Validate arguments when this operator is being mapped."""
         if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_mapped_validation_only=True)
+            cls(**kwargs, _airflow_from_mapped=True)
 
     def unmap(self) -> "BaseOperator":
         """:meta private:"""

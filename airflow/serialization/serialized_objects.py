@@ -671,35 +671,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
-        """Deserializes an operator from a JSON object."""
-        op: Union[BaseOperator, MappedOperator]
-        if encoded_op.get("_is_mapped", False):
-            # Most of these will be loaded later, these are just some stand-ins.
-            op = MappedOperator(
-                operator_class=f"{encoded_op['_task_module']}.{encoded_op['_task_type']}",
-                mapped_kwargs={},
-                partial_kwargs={},
-                task_id=encoded_op["task_id"],
-                user_supplied_task_id=encoded_op["user_supplied_task_id"],
-                params={},
-                deps=MappedOperator.deps_for(BaseOperator),
-                operator_extra_links=BaseOperator.operator_extra_links,
-                template_ext=BaseOperator.template_ext,
-                template_fields=BaseOperator.template_fields,
-                ui_color=BaseOperator.ui_color,
-                ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_dummy=False,
-                task_module=encoded_op["_task_module"],
-                task_type=encoded_op["_task_type"],
-                dag=None,
-                task_group=None,
-                start_date=None,
-                end_date=None,
-            )
-        else:
-            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
-
+    def populate_operator(cls, op: Operator, encoded_op: Dict[str, Any]) -> None:
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
@@ -796,6 +768,39 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from DummyOperator
         setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
+    @classmethod
+    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Operator:
+        """Deserializes an operator from a JSON object."""
+        op: Operator
+        if encoded_op.get("_is_mapped", False):
+            # Most of these will be loaded later, these are just some stand-ins.
+            op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
+            op = MappedOperator(
+                operator_class=op_data,
+                mapped_kwargs={},
+                partial_kwargs={},
+                task_id=encoded_op["task_id"],
+                user_supplied_task_id=encoded_op["user_supplied_task_id"],
+                params={},
+                deps=MappedOperator.deps_for(BaseOperator),
+                operator_extra_links=BaseOperator.operator_extra_links,
+                template_ext=BaseOperator.template_ext,
+                template_fields=BaseOperator.template_fields,
+                template_fields_renderers=BaseOperator.template_fields_renderers,
+                ui_color=BaseOperator.ui_color,
+                ui_fgcolor=BaseOperator.ui_fgcolor,
+                is_dummy=False,
+                task_module=encoded_op["_task_module"],
+                task_type=encoded_op["_task_type"],
+                dag=None,
+                task_group=None,
+                start_date=None,
+                end_date=None,
+            )
+        else:
+            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+
+        cls.populate_operator(op, encoded_op)
         return op
 
     @classmethod

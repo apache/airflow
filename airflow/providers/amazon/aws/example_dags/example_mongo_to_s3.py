@@ -19,24 +19,30 @@
 import os
 
 from airflow import models
-from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
+from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils.dates import datetime
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
 S3_KEY = os.environ.get("S3_KEY", "key")
+MONGO_DATABASE = os.environ.get("MONGO_DATABASE", "Test")
+MONGO_COLLECTION = os.environ.get("MONGO_COLLECTION", "Test")
 
 with models.DAG(
-    "example_local_to_s3",
+    "example_mongo_to_s3",
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    # [START howto_transfer_local_to_s3]
-    create_local_to_s3_job = LocalFilesystemToS3Operator(
-        task_id="create_local_to_s3_job",
-        filename="relative/path/to/file.csv",
-        dest_key=S3_KEY,
-        dest_bucket=S3_BUCKET,
+    # [START howto_transfer_mongo_to_s3]
+    create_local_to_s3_job = MongoToS3Operator(
+        task_id="create_mongo_to_s3_job",
+        mongo_collection=MONGO_COLLECTION,
+        # Mongo query by matching values
+        # Here returns all documents which have "OK" as value for the key "status"
+        mongo_query={"status": "OK"},
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
+        mongo_db=MONGO_DATABASE,
         replace=True,
     )
-    # [END howto_transfer_local_to_s3]
+    # [END howto_transfer_mongo_to_s3]

@@ -91,6 +91,14 @@ def build_image(verbose, **kwargs):
         f"built_{ci_image_params.python_version}",
         root_dir=ci_image_cache_dir,
     )
+    output = run_command(
+        ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_ci_image_name],
+        verbose=verbose,
+        cwd=AIRFLOW_SOURCE,
+        text=True,
+        suppress_raise_exception=True,
+    )
+    console.print(f"[blue]{output}")
     cmd = construct_docker_command(ci_image_params)
     output = run_command(cmd, verbose=verbose, cwd=AIRFLOW_SOURCE, text=True)
     console.print(f"[blue]{output}")

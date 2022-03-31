@@ -50,6 +50,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import (
     filter_out_none,
+    fix_group_permissions,
     get_latest_sha,
     instruct_build_image,
     instruct_for_setup,
@@ -180,6 +181,7 @@ def build_image_if_needed_steps(verbose: bool, shell_params: ShellBuilder):
 
 
 def build_image_checks(verbose: bool, shell_params: ShellBuilder):
+    fix_group_permissions()
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python_version}"
     )

@@ -422,9 +422,11 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
-|                                          |                                          | upgraded to newer versions matching      |
-|                                          |                                          | setup.py before installation.            |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
+|                                          |                                          | the dependencies are upgraded to newer   |
+|                                          |                                          | versions. In CI it is set to build id    |
+|                                          |                                          | to make sure subsequent builds are not   |
+|                                          |                                          | reusing cached images with same value.   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |

@@ -16,8 +16,8 @@
     under the License.
 
 
-Amazon DynamoDB to S3 Transfer Operator
-=======================================
+Amazon DynamoDB to Amazon S3 Transfer Operator
+==============================================
 
 Use the DynamoDBToS3Operator transfer to copy the contents of an existing Amazon DynamoDB table
 to an existing Amazon Simple Storage Service (S3) bucket.
