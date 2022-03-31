@@ -532,7 +532,7 @@ ARG_DB_VERSION__UPGRADE = Arg(
 )
 ARG_DB_REVISION__UPGRADE = Arg(
     ("-r", "--revision"),
-    help="(Optional) If provided, only run migrations up to and including this revision.",
+    help="(Optional) If provided, only run migrations up to and including this Alembic revision.",
 )
 ARG_DB_VERSION__DOWNGRADE = Arg(
     ("-n", "--version"),
@@ -544,11 +544,11 @@ ARG_DB_FROM_VERSION = Arg(
 )
 ARG_DB_REVISION__DOWNGRADE = Arg(
     ("-r", "--revision"),
-    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
+    help="The Alembic revision to downgrade to. Note: must provide either `--revision` or `--version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) If generating sql, may supply a *from* revision",
+    help="(Optional) If generating sql, may supply a *from* Alembic revision",
 )
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
@@ -1391,7 +1391,7 @@ DB_COMMANDS = (
             "To print but not execute commands, use option ``--show-sql-only``. "
             "If using options ``--from-revision`` or ``--from-version``, you must also use "
             "``--show-sql-only``, because if actually *running* migrations, we should only "
-            "migrate from the *current* revision."
+            "migrate from the *current* Alembic revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
         args=(
@@ -1410,7 +1410,8 @@ DB_COMMANDS = (
             "You must provide either `--revision` or `--version`. "
             "To print but not execute commands, use option `--show-sql-only`. "
             "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
-            "because if actually *running* migrations, we should only migrate from the *current* revision."
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(

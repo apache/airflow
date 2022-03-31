@@ -72,7 +72,7 @@ FROM scratch as scripts
 ##############################################################################################
 
 # The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
-COPY --link <<"EOF" determine_debian_version_specific_variables.sh
+COPY <<"EOF" determine_debian_version_specific_variables.sh
 function determine_debian_version_specific_variables() {
     local color_red
     color_red=$'\e[31m'
@@ -107,7 +107,7 @@ determine_debian_version_specific_variables
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
-COPY --link <<"EOF" install_mysql.sh
+COPY <<"EOF" install_mysql.sh
 set -euo pipefail
 declare -a packages
 
@@ -171,7 +171,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
-COPY --link <<"EOF" install_mssql.sh
+COPY <<"EOF" install_mssql.sh
 set -euo pipefail
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -230,7 +230,7 @@ install_mssql_client "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
-COPY --link <<"EOF" install_postgres.sh
+COPY <<"EOF" install_postgres.sh
 set -euo pipefail
 declare -a packages
 
@@ -271,7 +271,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
-COPY --link <<"EOF" install_pip_version.sh
+COPY <<"EOF" install_pip_version.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -293,7 +293,7 @@ install_pip_version
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
-COPY --link <<"EOF" install_airflow_dependencies_from_branch_tip.sh
+COPY <<"EOF" install_airflow_dependencies_from_branch_tip.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -337,7 +337,7 @@ install_airflow_dependencies_from_branch_tip
 EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
-COPY --link <<"EOF" common.sh
+COPY <<"EOF" common.sh
 set -euo pipefail
 
 function common::get_colors() {
@@ -396,7 +396,7 @@ function common::show_pip_version_and_location() {
 EOF
 
 # The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY --link <<"EOF" prepare_node_modules.sh
+COPY <<"EOF" prepare_node_modules.sh
 set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
@@ -434,7 +434,7 @@ prepare_node_modules
 EOF
 
 # The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY --link <<"EOF" compile_www_assets.sh
+COPY <<"EOF" compile_www_assets.sh
 set -euo pipefail
 
 BUILD_TYPE=${BUILD_TYPE="prod"}
@@ -491,7 +491,7 @@ compile_www_assets
 EOF
 
 # The content below is automatically copied from scripts/docker/pip
-COPY --link <<"EOF" pip
+COPY <<"EOF" pip
 #!/usr/bin/env bash
 COLOR_RED=$'\e[31m'
 COLOR_RESET=$'\e[0m'
@@ -509,7 +509,7 @@ exec "${HOME}"/.local/bin/pip "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_from_docker_context_files.sh
-COPY --link <<"EOF" install_from_docker_context_files.sh
+COPY <<"EOF" install_from_docker_context_files.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -628,7 +628,7 @@ install_all_other_packages_from_docker_context_files
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
-COPY --link <<"EOF" install_airflow.sh
+COPY <<"EOF" install_airflow.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -708,7 +708,7 @@ install_airflow
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
-COPY --link <<"EOF" install_additional_dependencies.sh
+COPY <<"EOF" install_additional_dependencies.sh
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -760,7 +760,7 @@ EOF
 
 
 # The content below is automatically copied from scripts/docker/entrypoint_prod.sh
-COPY --link <<"EOF" entrypoint_prod.sh
+COPY <<"EOF" entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
 
@@ -1051,7 +1051,7 @@ exec "airflow" "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/clean-logs.sh
-COPY --link <<"EOF" clean-logs.sh
+COPY <<"EOF" clean-logs.sh
 #!/usr/bin/env bash
 
 
@@ -1079,7 +1079,7 @@ done
 EOF
 
 # The content below is automatically copied from scripts/docker/airflow-scheduler-autorestart.sh
-COPY --link <<"EOF" airflow-scheduler-autorestart.sh
+COPY <<"EOF" airflow-scheduler-autorestart.sh
 #!/usr/bin/env bash
 
 while echo "Running"; do
@@ -1154,7 +1154,7 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
 
-COPY --link --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
 # Install basic and additional apt dependencies
 RUN apt-get update \
     && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
@@ -1236,7 +1236,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
-COPY --link --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
 
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh && \
@@ -1288,7 +1288,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
-COPY --link --from=scripts --chown=airflow:0 common.sh install_pip_version.sh \
+COPY --from=scripts common.sh install_pip_version.sh \
      install_airflow_dependencies_from_branch_tip.sh /scripts/docker/
 
 # In case of Production build image segment we want to pre-install main version of airflow
@@ -1304,7 +1304,7 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY --link --from=scripts --chown=airflow:0 compile_www_assets.sh prepare_node_modules.sh /scripts/docker/
+COPY --from=scripts compile_www_assets.sh prepare_node_modules.sh /scripts/docker/
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
 
 # hadolint ignore=SC2086, SC2010
@@ -1348,7 +1348,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR /opt/airflow
 
-COPY --link --from=scripts --chown=airflow:0 install_from_docker_context_files.sh install_airflow.sh \
+COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
 
 # hadolint ignore=SC2086, SC2010
@@ -1441,7 +1441,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-COPY --link --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
 
 # Install basic and additional apt dependencies
 RUN apt-get update \
@@ -1477,7 +1477,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
-COPY --link --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
@@ -1497,11 +1497,11 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x \
     && find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
 
-COPY --link --from=airflow-build-image --chown=airflow:0 \
+COPY --from=airflow-build-image --chown=airflow:0 \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
-COPY --link --from=scripts --chown=airflow:0 entrypoint_prod.sh /entrypoint
-COPY --link --from=scripts --chown=airflow:0 clean-logs.sh /clean-logs
-COPY --link --from=scripts --chown=airflow:0 airflow-scheduler-autorestart.sh /airflow-scheduler-autorestart
+COPY --from=scripts entrypoint_prod.sh /entrypoint
+COPY --from=scripts clean-logs.sh /clean-logs
+COPY --from=scripts airflow-scheduler-autorestart.sh /airflow-scheduler-autorestart
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
@@ -1530,7 +1530,7 @@ ENV DUMB_INIT_SETSID="1" \
 
 # Add protection against running pip as root user
 RUN mkdir -pv /root/bin
-COPY --link --from=scripts pip /root/bin/pip
+COPY --from=scripts pip /root/bin/pip
 RUN chmod u+x /root/bin/pip
 
 WORKDIR ${AIRFLOW_HOME}

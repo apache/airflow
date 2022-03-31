@@ -181,3 +181,18 @@ def check_docker_compose_version(verbose: bool):
             'Unknown docker-compose version. At least 1.29 is needed! \
         If Breeze fails upgrade to latest available docker-compose version'
         )
+
+
+def check_if_buildx_plugin_available(verbose: bool) -> bool:
+    is_buildx_available = False
+    check_buildx = ['docker', 'buildx', 'version']
+    docker_buildx_version_output = run_command(
+        check_buildx,
+        verbose=verbose,
+        suppress_console_print=True,
+        capture_output=True,
+        text=True,
+    )
+    if docker_buildx_version_output.returncode == 0 and docker_buildx_version_output.stdout != '':
+        is_buildx_available = True
+    return is_buildx_available

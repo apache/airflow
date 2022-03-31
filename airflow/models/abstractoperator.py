@@ -68,7 +68,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
-    operator_class: Union[str, Type["BaseOperator"]]
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
     weight_rule: str
     priority_weight: int

@@ -241,6 +241,15 @@ def get_airflow_version():
                 return line.split()[2][1:-1]
 
 
+def get_airflow_extras():
+    airflow_dockerfile = Path(get_airflow_sources_root()) / 'Dockerfile'
+    with open(airflow_dockerfile) as dockerfile:
+        for line in dockerfile.readlines():
+            if "ARG AIRFLOW_EXTRAS=" in line:
+                line = line.split('=')[1].strip()
+                return line.replace('"', '')
+
+
 # Initialize integrations
 AVAILABLE_INTEGRATIONS = [
     'cassandra',
@@ -308,3 +317,8 @@ VERSION_SUFFIX_FOR_PYPI = ""
 
 MIN_DOCKER_VERSION = "20.10.0"
 MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
+
+AIRFLOW_SOURCES_FROM = "."
+AIRFLOW_SOURCES_TO = "/opt/airflow"
+AIRFLOW_SOURCES_WWW_FROM = "./airflow/www"
+AIRFLOW_SOURCES_WWW_TO = "/opt/airflow/airflow/www"
