@@ -15,41 +15,40 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon Redshift to Amazon S3 Transfer Operator
-==============================================
+MongoDB to Amazon S3 Transfer Operator
+======================================
 
-Use the RedshiftToS3Operator transfer to copy the data from an Amazon Redshift table into an Amazon Simple Storage
-Service (S3) file.
+Use the MongoToS3Operator transfer to copy data from a MongoDB collection into an Amazon Simple Storage Service (S3) file.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
-.. _howto/operator:RedshiftToS3Operator:
+.. _howto/operator:MongoToS3Operator:
 
-Amazon Redshift To Amazon S3
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+MongoDB To Amazon S3
+^^^^^^^^^^^^^^^^^^^^
 
-This operator loads data from an Amazon Redshift table to an existing Amazon S3 bucket.
+This operator copies a set of data from a MongoDB collection to an Amazon S3 files.
+In order to select the data you want to copy, you need to use the ``mongo_query`` parameter.
 
 To get more information about this operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator`
+:class:`~airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoToS3Operator`
 
 Example usage:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_to_s3.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_mongo_to_s3.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_redshift_to_s3]
-    :end-before: [END howto_transfer_redshift_to_s3]
+    :start-after: [START howto_transfer_mongo_to_s3]
+    :end-before: [END howto_transfer_mongo_to_s3]
 
-You can find more information to the ``UNLOAD`` command used
-`here <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__.
+You can find more information about ``PyMongo`` used by Airflow to communicate with MongoDB
+`here <https://pymongo.readthedocs.io/en/stable/tutorial.html>`__.
 
 Reference
 ^^^^^^^^^
 
-* `AWS UNLOAD from Amazon Redshift Documentation <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__
-* `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
+* `PyMongo <https://pymongo.readthedocs.io/en/stable/tutorial.html>`__
 * `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

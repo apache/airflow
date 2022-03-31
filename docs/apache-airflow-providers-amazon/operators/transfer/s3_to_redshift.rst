@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon S3 to Redshift Transfer Operator
-=======================================
+Amazon S3 to Amazon Redshift Transfer Operator
+==============================================
 
 Use the S3ToRedshiftOperator transfer to copy the data from an Amazon Simple Storage Service (S3) file into an
 Amazon Redshift table.

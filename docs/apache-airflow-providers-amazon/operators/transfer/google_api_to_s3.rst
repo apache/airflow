@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Google API To Amazon S3 Operator
-================================
+Google API to Amazon S3 Transfer Operator
+=========================================
 
 Use the GoogleApiToS3Transfer transfer to call requests to any Google API which supports discovery and save its response
 on Amazon S3.

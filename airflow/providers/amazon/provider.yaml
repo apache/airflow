@@ -472,6 +472,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.imap_attachment_to_s3
   - source-integration-name: MongoDB
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/mongo_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.mongo_to_s3
   - source-integration-name: MySQL
     target-integration-name: Amazon Simple Storage Service (S3)
