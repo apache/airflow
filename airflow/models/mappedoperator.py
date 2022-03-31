@@ -207,6 +207,7 @@ class OperatorPartial:
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_dummy=issubclass(self.operator_class, DummyOperator),
@@ -225,7 +226,13 @@ class OperatorPartial:
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
-    operator_class: Union[Type["BaseOperator"], str]
+    # This attribute serves double purpose. For a "normal" operator instance
+    # loaded from DAG, this holds the underlying non-mapped operator class that
+    # can be used to create an unmapped operator for execution. For an operator
+    # recreated from a serialized DAG, however, this holds the serialized data
+    # that can be used to unmap this into a SerializedBaseOperator.
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
+
     user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
@@ -237,6 +244,7 @@ class MappedOperator(AbstractOperator):
     operator_extra_links: Collection["BaseOperatorLink"]
     template_ext: Collection[str]
     template_fields: Collection[str]
+    template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
     _is_dummy: bool
@@ -303,7 +311,7 @@ class MappedOperator(AbstractOperator):
         arguments are *valid* (that depends on the actual mapping values), but
         makes sure there are *enough* of them.
         """
-        if isinstance(self.operator_class, str):
+        if not isinstance(self.operator_class, type):
             return  # No need to validate deserialized operator.
         self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
 
@@ -449,13 +457,18 @@ class MappedOperator(AbstractOperator):
 
     def unmap(self) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping."""
-        dag = self.dag
-        if not dag:
-            raise RuntimeError("Cannot unmap a task without a DAG")
-        if isinstance(self.operator_class, str):
-            raise RuntimeError("Cannot unmap a deserialized operator")
-        dag._remove_task(self.task_id)
-        return self.operator_class(**self._get_unmap_kwargs())
+        if isinstance(self.operator_class, type):
+            return self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
+
+        # After a mapped operator is serialized, there's no real way to actually
+        # unmap it since we've lost access to the underlying operator class.
+        # This tries its best to simply "forward" all the attributes on this
+        # mapped operator to a new SerializedBaseOperator instance.
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        op = SerializedBaseOperator(task_id=self.task_id, _airflow_from_mapped=True)
+        SerializedBaseOperator.populate_operator(op, self.operator_class)
+        return op
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.

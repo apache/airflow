@@ -144,17 +144,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
   - repo: https://github.com/psf/black
-    rev: 22.1.0
+    rev: 22.3.0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.0
+    rev: v1.12.1
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.12b0]
+        additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
@@ -572,7 +572,7 @@ repos:
           - --max-length=70
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.1.0']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
@@ -702,7 +702,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
         language: python
         pass_filenames: false
-        files: ^Dockerfile$|^Dockerfile.ci|scripts/ci/docker/.*$
+        files: ^Dockerfile$|^Dockerfile.ci|^scripts/docker/.*$
         require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui

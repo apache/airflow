@@ -434,7 +434,7 @@ function build_images::build_ci_image() {
         docker_ci_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         docker_ci_directive=(
-            "--cache-from=${AIRFLOW_CI_IMAGE}:cache"
+            "--cache-from=${AIRFLOW_CI_IMAGE}"
         )
     else
         echo
@@ -446,18 +446,9 @@ function build_images::build_ci_image() {
         # we need to login to docker registry so that we can push cache there
         build_images::login_to_docker_registry
         docker_ci_directive+=(
-            "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache,mode=max"
+            "--cache-to=type=inline,mode=max"
             "--push"
         )
-        if [[ ${PLATFORM} =~ .*,.* ]]; then
-            echo
-            echo "Skip loading docker image on multi-platform build"
-            echo
-        else
-            docker_ci_directive+=(
-                "--load"
-            )
-        fi
     fi
     local extra_docker_ci_flags=()
     if [[ ${CI} == "true" ]]; then
@@ -599,7 +590,7 @@ function build_images::build_prod_images() {
         docker_prod_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         docker_prod_directive=(
-            "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
+            "--cache-from=${AIRFLOW_PROD_IMAGE}"
         )
     else
         echo
@@ -613,7 +604,7 @@ function build_images::build_prod_images() {
         build_images::login_to_docker_registry
         # Cache for prod image contains also build stage for buildx when mode=max specified!
         docker_prod_directive+=(
-            "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
+            "--cache-to=type=inline,mode=max"
             "--push"
         )
         if [[ ${PLATFORM} =~ .*,.* ]]; then
