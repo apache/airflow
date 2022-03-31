@@ -47,10 +47,10 @@ class ProdParams:
     install_docker_context_files: bool
     disable_pypi_when_building: bool
     disable_pip_cache: bool
-    upgrade_to_newer_dependencies: str
-    skip_installing_airflow_providers_from_sources: bool
-    cleanup_docker_context_files: bool
-    prepare_buildx_cache: bool
+    upgrade_to_newer_dependencies: str = "false"
+    skip_installing_airflow_providers_from_sources: bool = False
+    cleanup_docker_context_files: bool = False
+    prepare_buildx_cache: bool = False
     airflow_version: str = get_airflow_version()
     python_version: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
