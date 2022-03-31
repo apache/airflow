@@ -20,6 +20,7 @@
 import functools
 import json
 import logging
+import io
 import os
 import re
 import socket
@@ -28,10 +29,12 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
+from contextlib import redirect_stdout
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
 from airflow import settings
+from airflow.configuration import AirflowConfigParser, conf
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -271,6 +274,14 @@ def sigint_handler(sig, frame):
     sys.exit(0)
 
 
+def sigconf_handler(sig, frame):
+    """
+    Print configuration and source including default values.
+    """
+    config = get_config_with_source(include_default=True)
+    print(config)
+
+
 def sigquit_handler(sig, frame):
     """
     Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
@@ -328,3 +339,21 @@ def suppress_logs_and_warning(f: T) -> T:
                     logging.disable(logging.NOTSET)
 
     return cast(T, _wrapper)
+
+
+def get_config_with_source(include_default=False):
+    """
+    Return configuration along with source for each option.
+    """
+    parser = AirflowConfigParser(strict=False, interpolation=None)
+    config_dict = conf.as_dict(display_source=True)
+
+    with io.StringIO() as buf, redirect_stdout(buf):
+        for section, options in config_dict.items():
+            print(f"[{section}]")
+            for key, (value, source) in options.items():
+                if not include_default and source == "default":
+                    continue
+                print(f"{key} = {value} [{source}]")
+            print()
+        return buf.getvalue()
