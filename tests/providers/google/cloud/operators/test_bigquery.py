@@ -205,6 +205,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             schema_fields=[],
             source_uris=[f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA],
             source_format=TEST_SOURCE_FORMAT,
+            autodetect=False,
             compression='NONE',
             skip_leading_rows=0,
             field_delimiter=',',
