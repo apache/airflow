@@ -162,6 +162,8 @@ Those are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| cloudera            | ``pip install 'apache-airflow[cloudera]'``          | Cloudera hooks and operators                        |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | databricks          | ``pip install 'apache-airflow[databricks]'``        | Databricks hooks and operators                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |

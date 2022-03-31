@@ -67,6 +67,7 @@ Cinimex
 ClassifyTextResponse
 CloudTasksClient
 Cloudant
+Cloudera
 Cloudwatch
 ClusterManagerClient
 Codecov
@@ -333,6 +334,7 @@ RefreshError
 ReidentifyContentResponse
 Reinitialising
 Remoting
+RequestException
 Reserialize
 ResourceRequirements
 Roadmap
@@ -463,6 +465,7 @@ alibaba
 allAuthenticatedUsers
 allUsers
 allowinsert
+altus
 amazonaws
 amqp
 analyse
@@ -499,6 +502,7 @@ attrs
 auth
 authMechanism
 authenticator
+authn
 authorised
 autoclass
 autocommit
@@ -570,6 +574,9 @@ catchup
 cattrs
 ccache
 cdc
+cde
+cdpcurl
+cdw
 celeryd
 celltags
 cfg
@@ -590,9 +597,11 @@ classable
 classname
 classpath
 classpaths
+cldr
 cli
 clientId
 cloudant
+cloudera
 cloudml
 cloudsqldatabehook
 cloudwatch
@@ -747,6 +756,7 @@ dsn
 dttm
 dtypes
 durations
+dwx
 dylib
 dynamodb
 dynload
@@ -886,6 +896,7 @@ hostnames
 hotfix
 howto
 hql
+hs
 html
 htmlcontent
 http
@@ -985,6 +996,7 @@ kylin
 lastname
 latencies
 latin
+lbodor
 ldap
 ldaps
 leveldb
@@ -1482,6 +1494,7 @@ uris
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
@@ -1497,6 +1510,7 @@ utils
 uuid
 validator
 vals
+vcluster
 ve
 vendored
 venvs
@@ -1530,6 +1544,7 @@ www
 xcom
 xcomarg
 xcomresult
+xkg
 xml
 xpath
 xyz

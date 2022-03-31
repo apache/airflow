@@ -258,6 +258,14 @@ cgroups = [  # type:ignore
 cloudant = [
     'cloudant>=2.0',
 ]
+cloudera = [
+    'pure25519',
+    # Minimum crypto version for handling CVE-2020-36242
+    'cryptography>=3.3.2',
+    'tenacity',
+    'requests',
+    'pathlib',
+]
 dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
@@ -691,6 +699,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
+    'cloudera': cloudera,
     'cncf.kubernetes': kubernetes,
     'databricks': databricks,
     'datadog': datadog,

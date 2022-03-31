@@ -30,6 +30,10 @@
   "apache.livy": [
     "http"
   ],
+  "cloudera": [
+    "apache.hive",
+    "http"
+  ],
   "dbt.cloud": [
     "http"
   ],
