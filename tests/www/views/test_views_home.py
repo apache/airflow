@@ -117,7 +117,7 @@ def client_single_dag(app, user_single_dag):
     )
 
 
-TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2']
+TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2', 'a_first_dag_id_asc']
 
 
 def _process_file(file_path, session):
@@ -251,3 +251,29 @@ def test_audit_log_view(user_client, working_dags):
     url = 'audit_log?dag_id=filter_test_1'
     resp = user_client.get(url, follow_redirects=True)
     check_content_in_response('Dag Audit Log', resp)
+
+
+def test_sorting_home_view(user_client, working_dags):
+    # No order specified should default to dag_id in ascending
+    url = "home?status=all"
+    resp = user_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode('utf-8')
+    first_index = resp_html.find('a_first_dag_id_asc')
+    second_index = resp_html.find('filter_test_1')
+    assert first_index < second_index
+
+    # Ascending order on dag_id
+    url = "home?status=all&sorting_key=dag_id&sorting_direction=asc"
+    resp = user_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode('utf-8')
+    first_index = resp_html.find('filter_test_1')
+    second_index = resp_html.find('filter_test_2')
+    assert first_index < second_index
+
+    # Descending order on dag_id
+    url = "home?status=all&sorting_key=dag_id&sorting_direction=desc"
+    resp = user_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode('utf-8')
+    first_index = resp_html.find('filter_test_1')
+    second_index = resp_html.find('filter_test_2')
+    assert first_index > second_index
