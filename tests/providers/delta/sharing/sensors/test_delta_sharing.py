@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.delta_sharing.sensors.delta_sharing import DeltaSharingSensor
+from airflow.providers.delta.sharing.sensors.delta_sharing import DeltaSharingSensor
 
 TASK_ID = 'delta-sharing-sensor'
 DEFAULT_CONN_ID = 'delta_sharing_default'
@@ -30,7 +30,7 @@ DEFAULT_RETRY_LIMIT = 3
 
 
 class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.delta_sharing.sensors.delta_sharing.DeltaSharingHook')
+    @mock.patch('airflow.providers.delta.sharing.sensors.delta_sharing.DeltaSharingHook')
     def test_poke_success(self, ds_mock_class):
         """
         Test the poke function in case where the run is successful.
@@ -44,7 +44,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
         ds_mock.get_table_version.return_value = 123
 
         with mock.patch(
-            'airflow.providers.delta_sharing.sensors.delta_sharing.DeltaSharingSensor'
+            'airflow.providers.delta.sharing.sensors.delta_sharing.DeltaSharingSensor'
         ) as mock_sensor:
             mock_sensor.get_previous_version.return_value = 122
             mock_sensor.set_version.return_value = None

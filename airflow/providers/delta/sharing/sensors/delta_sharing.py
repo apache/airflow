@@ -19,7 +19,7 @@ import re
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingHook
+from airflow.providers.delta.sharing.hooks.delta_sharing import DeltaSharingHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:

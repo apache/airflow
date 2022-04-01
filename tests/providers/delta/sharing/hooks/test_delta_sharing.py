@@ -29,7 +29,7 @@ from requests import exceptions as requests_exceptions
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingHook
+from airflow.providers.delta.sharing.hooks.delta_sharing import DeltaSharingHook
 from airflow.utils import db
 from airflow.utils.session import provide_session
 
@@ -117,7 +117,7 @@ class TestDeltaSharingHook(unittest.TestCase):
             requests_exceptions.ConnectTimeout,
             requests_exceptions.HTTPError,
         ]:
-            with mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests') as mock_requests:
+            with mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests') as mock_requests:
                 with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception)
 
@@ -129,7 +129,7 @@ class TestDeltaSharingHook(unittest.TestCase):
     def test_do_api_call_retries_with_too_many_requests(self):
         hook = DeltaSharingHook(retry_args=DEFAULT_RETRY_ARGS)
 
-        with mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests') as mock_requests:
+        with mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests') as mock_requests:
             with mock.patch.object(hook.log, 'error') as mock_errors:
                 setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=429)
 
@@ -138,7 +138,7 @@ class TestDeltaSharingHook(unittest.TestCase):
 
                 assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
         hook = DeltaSharingHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -160,7 +160,7 @@ class TestDeltaSharingHook(unittest.TestCase):
             requests_exceptions.ConnectTimeout,
             requests_exceptions.HTTPError,
         ]:
-            with mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests') as mock_requests:
+            with mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests') as mock_requests:
                 with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception, error_count=2)
 
@@ -178,7 +178,7 @@ class TestDeltaSharingHook(unittest.TestCase):
             requests_exceptions.ConnectTimeout,
             requests_exceptions.HTTPError,
         ]:
-            with mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests') as mock_requests:
+            with mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests') as mock_requests:
                 with mock.patch.object(hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception)
 
@@ -187,7 +187,7 @@ class TestDeltaSharingHook(unittest.TestCase):
 
                     assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_get_table_version(self, mock_requests):
         mock_requests.head.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),
@@ -204,7 +204,7 @@ class TestDeltaSharingHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds,
         )
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_get_table_version_no_version(self, mock_requests):
         mock_requests.head.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),
@@ -212,7 +212,7 @@ class TestDeltaSharingHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             self.hook.get_table_version(DEFAULT_SHARE, DEFAULT_SCHEMA, DEFAULT_TABLE)
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_query_table(self, mock_requests):
         mock_requests.post.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),
@@ -258,7 +258,7 @@ class TestDeltaSharingHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds,
         )
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_query_table_no_version(self, mock_requests):
         mock_requests.post.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),
@@ -266,7 +266,7 @@ class TestDeltaSharingHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             self.hook.query_table(DEFAULT_SHARE, DEFAULT_SCHEMA, DEFAULT_TABLE)
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_query_table_too_few_data(self, mock_requests):
         mock_requests.post.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),
@@ -277,7 +277,7 @@ class TestDeltaSharingHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             self.hook.query_table(DEFAULT_SHARE, DEFAULT_SCHEMA, DEFAULT_TABLE)
 
-    @mock.patch('airflow.providers.delta_sharing.hooks.delta_sharing.requests')
+    @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_query_table_garbage_data(self, mock_requests):
         mock_requests.post.return_value.headers.lower_items.return_value = [
             ('content-type', 'application/json'),

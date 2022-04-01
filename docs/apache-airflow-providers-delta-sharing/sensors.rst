@@ -20,8 +20,8 @@
 Delta Sharing Sensor
 ====================
 
-Use the :class:`~airflow.providers.delta_sharing.sensors.delta_sharing.DeltaSharingSensor` to wait for changes in a
-give Delta Sharing table.
+Use the :class:`~airflow.providers.delta.sharing.sensors.delta_sharing.DeltaSharingSensor` to wait for changes in a
+given Delta Sharing table.
 
 Using the Sensor
 ----------------
@@ -59,7 +59,7 @@ Waiting for new version of Delta Sharing table
 
 An example usage of the DeltaSharingSensor to wait for changes in Delta Sharing a table is as follows:
 
-.. exampleinclude:: /../../airflow/providers/delta_sharing/example_dags/example_delta_sharing.py
+.. exampleinclude:: /../../airflow/providers/delta/sharing/example_dags/example_delta_sharing.py
     :language: python
     :start-after: [START howto_delta_sharing_sensor]
     :end-before: [END howto_delta_sharing_sensor]

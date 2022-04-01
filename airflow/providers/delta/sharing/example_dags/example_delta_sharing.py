@@ -34,8 +34,8 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
-from airflow.providers.delta_sharing.sensors.delta_sharing import DeltaSharingSensor
+from airflow.providers.delta.sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
+from airflow.providers.delta.sharing.sensors.delta_sharing import DeltaSharingSensor
 
 default_args = {
     'owner': 'airflow',

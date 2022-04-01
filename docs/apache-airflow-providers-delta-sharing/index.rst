@@ -37,13 +37,13 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/delta_sharing/index>
+    Python API <_api/airflow/providers/delta/sharing/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/delta_sharing/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/delta/sharing/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-delta-sharing/>
     Installing from sources <installing-providers-from-sources>
 
@@ -69,7 +69,7 @@ Provider package
 ----------------
 
 This is a provider package for ``delta-sharing`` provider. All classes for this provider package
-are in ``airflow.providers.delta_sharing`` python package.
+are in ``airflow.providers.delta.sharing`` python package.
 
 Installation
 ------------
@@ -87,4 +87,4 @@ PIP package                   Version required
 ``requests``                  ``>=2.26.0, <3``
 ============================  ===================
 
-.. include:: ../../airflow/providers/delta_sharing/CHANGELOG.rst
+.. include:: ../../airflow/providers/delta/sharing/CHANGELOG.rst

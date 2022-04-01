@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 import responses
 
-from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingQueryResult
-from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
+from airflow.providers.delta.sharing.hooks.delta_sharing import DeltaSharingQueryResult
+from airflow.providers.delta.sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
 
 TASK_ID = 'delta-sharing-operator'
 DEFAULT_CONN_ID = 'delta_sharing_default'
@@ -35,7 +35,7 @@ DEFAULT_LOCATION = "/tmp/test-delta-sharing-operator"
 DEFAULT_RETRY_LIMIT = 3
 
 
-class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
+class TestDeltaSharingLocalDownloadOperator(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(DEFAULT_LOCATION, ignore_errors=True)
 
@@ -63,7 +63,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
                 num_parallel_downloads=0,
             )
 
-    @mock.patch('airflow.providers.delta_sharing.operators.delta_sharing.DeltaSharingHook')
+    @mock.patch('airflow.providers.delta.sharing.operators.delta_sharing.DeltaSharingHook')
     def test_exec_success_no_files(self, ds_mock_class):
         """
         Test the execute function in case where the run is successful.
@@ -98,7 +98,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
             predicates=None,
         )
 
-    @mock.patch('airflow.providers.delta_sharing.operators.delta_sharing.DeltaSharingHook')
+    @mock.patch('airflow.providers.delta.sharing.operators.delta_sharing.DeltaSharingHook')
     @responses.activate
     def test_exec_success_with_files(self, ds_mock_class):
         """

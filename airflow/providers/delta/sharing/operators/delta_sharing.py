@@ -27,7 +27,7 @@ import requests
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingHook
+from airflow.providers.delta.sharing.hooks.delta_sharing import DeltaSharingHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
