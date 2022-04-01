@@ -47,10 +47,6 @@ if TYPE_CHECKING:
 def _check_cli_args(args):
     if not args:
         raise ValueError("Args should be set")
-    if not isinstance(args[0], Namespace):
-        raise ValueError(
-            "1st positional argument should be argparse.Namespace instance," f"but is {type(args[0])}"
-        )
 
 
 def action_cli(func=None, check_db=True):
@@ -79,15 +75,13 @@ def action_cli(func=None, check_db=True):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             """
-            An wrapper for cli functions. It assumes to have Namespace instance
-            at 1st positional argument
+            An wrapper for cli functions.
 
-            :param args: Positional argument. It assumes to have Namespace instance
-                at 1st positional argument
+            :param args: Positional argument.
             :param kwargs: A passthrough keyword argument
             """
             _check_cli_args(args)
-            metrics = _build_metrics(f.__name__, args[0])
+            metrics = _build_metrics(f.__name__, args, kwargs)
             cli_action_loggers.on_pre_execution(**metrics)
             try:
                 # Check and run migrations if necessary
@@ -111,15 +105,16 @@ def action_cli(func=None, check_db=True):
     return action_logging
 
 
-def _build_metrics(func_name, namespace):
+def _build_metrics(func_name, args, kwargs):
     """
     Builds metrics dict from function args
-    It assumes that function arguments is from airflow.bin.cli module's function
-    and has Namespace instance where it optionally contains "dag_id", "task_id",
-    and "execution_date".
+    If the first item in args is a Namespace instance, it assumes that it
+    optionally contains "dag_id", "task_id", and "execution_date".
 
     :param func_name: name of function
-    :param namespace: Namespace instance from argparse
+    :param args: Arguments from wrapped function, possibly including the Namespace instance from
+                 argparse as the first argument
+    :param kwargs: Keyword arguments from wrapped function
     :return: dict with metrics
     """
     from airflow.models import Log
@@ -146,11 +141,7 @@ def _build_metrics(func_name, namespace):
         'user': getuser(),
     }
 
-    if not isinstance(namespace, Namespace):
-        raise ValueError(
-            "namespace argument should be argparse.Namespace instance," f"but is {type(namespace)}"
-        )
-    tmp_dic = vars(namespace)
+    tmp_dic = vars(args[0]) if isinstance(args[0], Namespace) else kwargs
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')
     metrics['execution_date'] = tmp_dic.get('execution_date')
