@@ -179,9 +179,15 @@ class OperatorPartial:
 
     def __del__(self):
         if not self._expand_called:
-            warnings.warn(f"{self!r} was never mapped!")
+            try:
+                task_id = repr(self.kwargs["task_id"])
+            except KeyError:
+                task_id = f"at {hex(id(self))}"
+            warnings.warn(f"Task {task_id} was never mapped!")
 
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+        self._expand_called = True
+
         from airflow.operators.dummy import DummyOperator
 
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
@@ -218,7 +224,6 @@ class OperatorPartial:
             start_date=start_date,
             end_date=end_date,
         )
-        self._expand_called = True
         return op
 
 
