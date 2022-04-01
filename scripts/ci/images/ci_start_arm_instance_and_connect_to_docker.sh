@@ -28,11 +28,14 @@ MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.1,SpotInstanceType=one-t
 REGION="us-east-2"
 EC2_USER="ec2-user"
 USER_DATA_FILE="${SCRIPTS_DIR}/self_terminate.sh"
+METADATA_ADDRESS="http://169.254.169.254/latest/meta-data"
+MAC_ADDRESS=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/" | head -n1 | tr -d '/')
+CIDR=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/${MAC_ADDRESS}/vpc-ipv4-cidr-block/")
 
 function start_arm_instance() {
     set -x
     mkdir -p "${WORKING_DIR}"
-    cd "${WORKING_DIR}"
+    cd "${WORKING_DIR}" || exit 1
     aws ec2 run-instances \
         --region "${REGION}" \
         --image-id "${ARM_AMI}" \
@@ -46,24 +49,27 @@ function start_arm_instance() {
 
     INSTANCE_ID=$(jq < "${INSTANCE_INFO}" ".Instances[0].InstanceId" -r)
     AVAILABILITY_ZONE=$(jq < "${INSTANCE_INFO}" ".Instances[0].Placement.AvailabilityZone" -r)
-    SECURITY_GROUP=$(jq < "${INSTANCE_INFO}" ".Instances[0].NetworkInterfaces[0].Groups[0].GroupId" -r)
-
     aws ec2 wait instance-status-ok --instance-ids "${INSTANCE_ID}"
-    INSTANCE_PUBLIC_DNS_NAME=$(aws ec2 describe-instances \
+    INSTANCE_PRIVATE_DNS_NAME=$(aws ec2 describe-instances \
         --filters "Name=instance-state-name,Values=running" "Name=instance-id,Values=${INSTANCE_ID}" \
-        --query 'Reservations[*].Instances[*].PublicDnsName' --output text)
+        --query 'Reservations[*].Instances[*].PrivateDnsName' --output text)
+    SECURITY_GROUP=$(jq < "${INSTANCE_INFO}" ".Instances[0].NetworkInterfaces[0].Groups[0].GroupId" -r)
     rm -f my_key
     ssh-keygen -t rsa -f my_key -N ""
     aws ec2-instance-connect send-ssh-public-key --instance-id "${INSTANCE_ID}" \
         --availability-zone "${AVAILABILITY_ZONE}" \
         --instance-os-user "${EC2_USER}" \
-        --ssh-public-key file://my_key.pub
+        --ssh-public-key "file://${WORKING_DIR}/my_key.pub"
     aws ec2 authorize-security-group-ingress --region "${REGION}" --group-id "${SECURITY_GROUP}" \
-        --protocol tcp --port 22 --cidr "0.0.0.0/0" || true
-    autossh -f -L12357:/var/run/docker.sock \
-        -o "IdentitiesOnly=yes" -o "StrictHostKeyChecking=no" \
-        -i my_key \
-        "${EC2_USER}@${INSTANCE_PUBLIC_DNS_NAME}"
+            --protocol tcp --port 22 --cidr "${CIDR}" || true
+    export AUTOSSH_LOGFILE="${WORKING_DIR}/autossh.log"
+    autossh -f "-L12357:/var/run/docker.sock" \
+        -N -o "IdentitiesOnly=yes" -o "StrictHostKeyChecking=no" \
+        -i "${WORKING_DIR}/my_key" "${EC2_USER}@${INSTANCE_PRIVATE_DNS_NAME}"
+
+    bash -c 'echo -n "Waiting port 12357 .."; for _ in `seq 1 40`; do echo -n .; sleep 0.25; nc -z localhost 12357 && echo " Open." && exit ; done; echo " Timeout!" >&2; exit 1'
+
+    docker buildx create --name airflow_cache
     docker buildx create --name airflow_cache --append localhost:12357
     docker buildx ls
 }
