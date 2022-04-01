@@ -949,7 +949,7 @@ Bug Fixes
 * BugFix: TypeError in airflow.kubernetes.pod_launcher's monitor_pod (#14513)
 * Bugfix: Fix wrong output of tags and owners in dag detail API endpoint (#14490)
 * Fix logging error with task error when JSON logging is enabled (#14456)
-* Fix statsd metrics not sending when using daemon mode (#14454)
+* Fix StatsD metrics not sending when using daemon mode (#14454)
 * Gracefully handle missing start_date and end_date for DagRun (#14452)
 * BugFix: Serialize max_retry_delay as a timedelta (#14436)
 * Fix crash when user clicks on  "Task Instance Details" caused by start_date being None (#14416)
@@ -1109,7 +1109,7 @@ Improvements
 Doc only changes
 """"""""""""""""
 
-- Add Missing Statsd Metrics in Docs (#13708)
+- Add Missing StatsD Metrics in Docs (#13708)
 - Add Missing Email configs in Configuration doc (#13709)
 - Add quick start for Airflow on Docker (#13660)
 - Describe which Python versions are supported (#13259)
@@ -1170,7 +1170,7 @@ Bug Fixes
 - Scheduler should acknowledge active runs properly (#13803)
 - Include ``airflow/contrib/executors`` in the dist package
 - Pin Click version for Python 2.7 users
-- Ensure all statsd timers use millisecond values. (#10633)
+- Ensure all StatsD timers use millisecond values. (#10633)
 - [``kubernetes_generate_dag_yaml``] - Fix dag yaml generate function (#13816)
 - Fix ``airflow tasks clear`` cli command with ``--yes`` (#14188)
 - Fix permission error on non-POSIX filesystem (#13121) (#14383)
@@ -2253,7 +2253,7 @@ Bug Fixes
 - [AIRFLOW-5481] Allow Deleting Renamed DAGs (#6101)
 - [AIRFLOW-3857] spark_submit_hook cannot kill driver pod in Kubernetes (#4678)
 - [AIRFLOW-4391] Fix tooltip for None-State Tasks in 'Recent Tasks' (#5909)
-- [AIRFLOW-5554] Require statsd 3.3.0 minimum (#6185)
+- [AIRFLOW-5554] Require StatsD 3.3.0 minimum (#6185)
 - [AIRFLOW-5306] Fix the display of links when they contain special characters (#5904)
 - [AIRFLOW-3705] Fix PostgresHook get_conn to use conn_name_attr (#5841)
 - [AIRFLOW-5581] Cleanly shutdown KubernetesJobWatcher for safe Scheduler shutdown on SIGTERM (#6237)
@@ -2268,7 +2268,7 @@ Bug Fixes
 - [AIRFLOW-5342] Fix MSSQL breaking task_instance db migration (#6014)
 - [AIRFLOW-5556] Add separate config for timeout from scheduler dag processing (#6186)
 - [AIRFLOW-4858] Deprecate "Historical convenience functions" in airflow.configuration (#5495) (#6144)
-- [AIRFLOW-774] Fix long-broken DAG parsing Statsd metrics (#6157)
+- [AIRFLOW-774] Fix long-broken DAG parsing StatsD metrics (#6157)
 - [AIRFLOW-5419] Use ``sudo`` to kill cleared tasks when running with impersonation (#6026) (#6176)
 - [AIRFLOW-5537] Yamllint is not needed as dependency on host
 - [AIRFLOW-5536] Better handling of temporary output files
@@ -2913,7 +2913,7 @@ Bug fixes
 - [AIRFLOW-4037] Log response in SimpleHttpOperator even if the response check fails
 - [AIRFLOW-4044] The documentation of ``query_params`` in ``BigQueryOperator`` is wrong.  (#4876)
 - [AIRFLOW-4015] Make missing API endpoints available in classic mode
-- [AIRFLOW-3153] Send DAG processing stats to statsd (#4748)
+- [AIRFLOW-3153] Send DAG processing stats to StatsD (#4748)
 - [AIRFLOW-2966] Catch ApiException in the Kubernetes Executor (#4209)
 - [AIRFLOW-4129] Escape HTML in generated tooltips (#4950)
 - [AIRFLOW-4070] AirflowException -> log.warning for duplicate task dependencies (#4904)
@@ -3018,7 +3018,7 @@ Doc-only changes
 - [AIRFLOW-3996] Add view source link to included fragments
 - [AIRFLOW-3811] Automatic generation of API Reference in docs (#4788)
 - [AIRFLOW-3810] Remove duplicate autoclass directive (#4656)
-- [AIRFLOW-XXX] Mention that statsd must be installed to gather metrics (#5038)
+- [AIRFLOW-XXX] Mention that StatsD must be installed to gather metrics (#5038)
 - [AIRFLOW-XXX] Add contents to cli (#4825)
 - [AIRFLOW-XXX] fix check docs failure on CI (#4998)
 - [AIRFLOW-XXX] Fix syntax docs errors (#4789)
@@ -5168,7 +5168,7 @@ Airflow 1.7.1, 2016-05-19
 - [AIRFLOW-52] Fix bottlenecks when working with many tasks
 - Add columns to toggle extra detail in the connection list view.
 - Log the number of errors when importing DAGs
-- Log dagbag metrics duplicate messages in queue into Statsd (#1406)
+- Log dagbag metrics duplicate messages in queue into StatsD (#1406)
 - Clean up issue template (#1419)
 - correct missed arg.foreground to arg.daemon in cli
 - Reinstate imports for github enterprise auth

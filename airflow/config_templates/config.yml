@@ -699,7 +699,7 @@
       default: ""
     - name: stat_name_handler
       description: |
-        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
         the transformed stat name.
 
         The function should have the following signature:
@@ -724,7 +724,7 @@
       default: ""
     - name: statsd_custom_client_path
       description: |
-        If you want to utilise your own custom Statsd client set the relevant
+        If you want to utilise your own custom StatsD client set the relevant
         module path below.
         Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
       version_added: 2.0.0
@@ -1894,7 +1894,7 @@
       default: "30"
     - name: pool_metrics_interval
       description: |
-        How often (in seconds) should pool usage stats be sent to statsd (if statsd_on is enabled)
+        How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
       version_added: 2.0.0
       type: float
       example: ~
