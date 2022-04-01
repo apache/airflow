@@ -32,8 +32,12 @@ const AutoRefreshContext = React.createContext(null);
 
 export const AutoRefreshProvider = ({ children }) => {
   let dagRuns = [];
-  const data = JSON.parse(treeData);
-  if (data.dag_runs) dagRuns = formatData(data.dag_runs);
+  try {
+    const data = JSON.parse(treeData);
+    if (data.dag_runs) dagRuns = formatData(data.dag_runs);
+  } catch {
+    dagRuns = [];
+  }
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isActive = areActiveRuns(dagRuns);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);
