@@ -22,6 +22,7 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 from kubernetes.client import models as k8s
 
 from airflow.models import DAG, Connection, DagRun, TaskInstance
@@ -521,27 +522,76 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body['spec']['driver']['tolerations'] == [toleration]
         assert op.launcher.body['spec']['executor']['tolerations'] == [toleration]
 
-    def test_resources(self):
+    @pytest.mark.parametrize(
+        "resources, dr_exp_cores, dr_exp_cor_limit, dr_exp_mem, exec_exp_cores, exec_exp_cor_limit, exec_exp_mem, dr_gpu, exec_gpu",
+        [
+            (
+                {
+                    'driver_request_cpu': '1',
+                    'driver_limit_cpu': '1',
+                    'driver_limit_memory': '1Gi',
+                    'executor_request_cpu': '2',
+                    'executor_limit_cpu': '1',
+                    'executor_limit_memory': '1Gi',
+                    'driver_gpu_name': 'nvidia.com/gpu',
+                    'driver_gpu_quantity': '1',
+                    'executor_gpu_name': 'nvidia.com/gpu',
+                    'executor_gpu_quantity': '2',
+                },
+                1,
+                '1',
+                '731m',
+                2,
+                '1',
+                '731m',
+                {'name': 'nvidia.com/gpu', 'quantity': 1},
+                {'name': 'nvidia.com/gpu', 'quantity': 2},
+            ),  # 731 + (40%*731) = 1024m(1Gi)
+            (
+                {
+                    'driver_request_cpu': 1,
+                    'driver_limit_cpu': 1,
+                    'driver_limit_memory': '1024m',
+                },
+                1,
+                '1',
+                '731m',
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+            ({}, None, None, None, None, None, None, None, None),
+        ],
+    )
+    def test_resources(
+        self,
+        resources,
+        dr_exp_cores,
+        dr_exp_cor_limit,
+        dr_exp_mem,
+        exec_exp_cores,
+        exec_exp_cor_limit,
+        exec_exp_mem,
+        dr_gpu,
+        exec_gpu,
+    ):
         op = SparkKubernetesOperator(
             task_id='test-spark',
             code_path='/code/path',
             image='mock_image_tag',
-            resources={
-                'driver_limit_cpu': '1',
-                'executor_limit_cpu': '1',
-                'driver_limit_memory': '1Gi',
-                'executor_limit_memory': '1Gi',
-            },
+            resources=resources,
             dag=self.dag,
         )
-        exp_resources = {
-            'driver': {
-                'coreLimit': '1',
-                'memory': '731m',
-            },
-            'executor': {
-                'coreLimit': '1',
-                'memory': '731m',
-            },
-        }
-        assert op.resources == exp_resources
+        context = self.create_context(op)
+        op.execute(context)
+        assert op.launcher.body['spec']['driver'].get('cores') == dr_exp_cores
+        assert op.launcher.body['spec']['driver'].get('coreLimit') == dr_exp_cor_limit
+        assert op.launcher.body['spec']['driver'].get('memory') == dr_exp_mem
+        assert op.launcher.body['spec']['driver'].get('gpu') == dr_gpu
+
+        assert op.launcher.body['spec']['executor'].get('cores') == exec_exp_cores
+        assert op.launcher.body['spec']['executor'].get('coreLimit') == exec_exp_cor_limit
+        assert op.launcher.body['spec']['executor'].get('memory') == exec_exp_mem
+        assert op.launcher.body['spec']['executor'].get('gpu') == exec_gpu

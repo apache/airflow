@@ -17,6 +17,7 @@
 
 """Launches Custom object"""
 import time
+from copy import deepcopy
 from datetime import datetime as dt
 
 import tenacity
@@ -49,10 +50,8 @@ class SparkResources:
 
     def __init__(
         self,
-        number_workers=1,
         **kwargs,
     ):
-        self.number_workers = number_workers
         self.driver_request_cpu = kwargs.get('driver_request_cpu')
         self.driver_limit_cpu = kwargs.get('driver_limit_cpu')
         self.driver_limit_memory = kwargs.get('driver_limit_memory')
@@ -79,7 +78,7 @@ class SparkResources:
         """
         driver = {}
         if self.driver_request_cpu:
-            driver['cores'] = int(float(self.driver_request_cpu))
+            driver['cores'] = self.driver_request_cpu
         if self.driver_limit_cpu:
             driver['coreLimit'] = self.driver_limit_cpu
         if self.driver_limit_memory:
@@ -95,7 +94,7 @@ class SparkResources:
         """
         executor = {}
         if self.executor_request_cpu:
-            executor['cores'] = int(float(self.executor_request_cpu))
+            executor['cores'] = self.executor_request_cpu
         if self.executor_limit_cpu:
             executor['coreLimit'] = self.executor_limit_cpu
         if self.executor_limit_memory:
@@ -121,6 +120,20 @@ class SparkResources:
             # Adjusting the memory value as operator adds 40% to the given value
             self.executor_limit_memory = str(int(self.executor_limit_memory / 1.4)) + 'm'
 
+        if self.driver_request_cpu:
+            self.driver_request_cpu = int(float(self.driver_request_cpu))
+        if self.driver_limit_cpu:
+            self.driver_limit_cpu = str(self.driver_limit_cpu)
+        if self.executor_request_cpu:
+            self.executor_request_cpu = int(float(self.executor_request_cpu))
+        if self.executor_limit_cpu:
+            self.executor_limit_cpu = str(self.executor_limit_cpu)
+
+        if self.driver_gpu_quantity:
+            self.driver_gpu_quantity = int(float(self.driver_gpu_quantity))
+        if self.executor_gpu_quantity:
+            self.executor_gpu_quantity = int(float(self.executor_gpu_quantity))
+
 
 class CustomObjectStatus:
     """Status of the PODs"""
@@ -133,17 +146,8 @@ class CustomObjectStatus:
         'metadata': {},
         'spec': {
             'dynamicAllocation': {'enabled': False},
-            'driver': {
-                'cores': 1,
-                'coreLimit': '1',
-                'memory': '512m',
-            },
-            'executor': {
-                'cores': 1,
-                'coreLimit': '1',
-                'memory': '512m',
-                'instances': 1,
-            },
+            'driver': {},
+            'executor': {},
         },
     }
 
@@ -155,7 +159,7 @@ class CustomObjectLauncher(PodLauncher):
         self,
         kube_client: client.CoreV1Api,
         custom_obj_api: client.CustomObjectsApi,
-        namespace: str = 'ds',
+        namespace: str = 'default',
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
         plural: str = 'sparkapplications',
@@ -283,7 +287,8 @@ class CustomObjectLauncher(PodLauncher):
                 raise
 
     @staticmethod
-    def get_body(api_version, kind, body_template, **kwargs):
+    def get_body(api_version, kind, initial_template, **kwargs):
+        body_template = deepcopy(initial_template)
         body_template['apiVersion'] = api_version
         body_template['kind'] = kind
         body_template['metadata']['name'] = kwargs['name']
@@ -300,7 +305,6 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['mainApplicationFile'] = f'local://{kwargs["code_path"]}'
         body_template['spec']['driver']['serviceAccount'] = kwargs['service_account_name']
         body_template['spec']['driver']['labels'] = kwargs['labels']
-        body_template['spec']['executor']['instances'] = int(kwargs['number_workers'])
         body_template['spec']['executor']['labels'] = kwargs['labels']
         body_template['spec']['imagePullSecrets'] = kwargs['image_pull_secrets']
         body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
@@ -312,6 +316,7 @@ class CustomObjectLauncher(PodLauncher):
 
         body_template['spec']['driver'].update(kwargs['driver_resource'])
         body_template['spec']['executor'].update(kwargs['executor_resource'])
+        body_template['spec']['executor']['instances'] = int(kwargs['number_workers'])
 
         body_template['spec']['volumes'] = kwargs['volumes']
         for item in ['driver', 'executor']:

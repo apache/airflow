@@ -94,7 +94,7 @@ class SparkKubernetesOperator(BaseOperator):
         success_run_history_limit: int = 1,
         is_delete_operator_pod: bool = False,
         dynamic_allocation: bool = False,
-        dynamic_alloc_max_executors: int = 5,
+        dynamic_alloc_max_executors: int = None,
         dynamic_alloc_initial_executors: int = 1,
         dynamic_alloc_min_executors: int = 1,
         api_group: str = 'sparkoperator.k8s.io',
@@ -109,7 +109,6 @@ class SparkKubernetesOperator(BaseOperator):
         startup_timeout_seconds=600,
         log_events_on_failure: bool = False,
         in_cluster: Optional[bool] = None,
-        # this will be False/False for nonprod and True/True for prod
         reattach_on_restart: bool = True,
         delete_on_termination: bool = True,
         kubernetes_conn_id: str = 'kubernetes_default',
@@ -174,7 +173,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.spark_obj_spec = None
         self.restart_policy = restart_policy or {'type': 'Never'}
         self.hadoop_config = hadoop_config
-        self.resources = SparkResources(**resources).resources if resources else {}
+        self.resources = SparkResources(**resources) if resources else SparkResources()
 
     def get_kube_client(self):
         if self.in_cluster is not None:
@@ -270,8 +269,8 @@ class SparkKubernetesOperator(BaseOperator):
             dynamic_alloc_initial_executors=self.dynamic_alloc_initial_executors,
             dynamic_alloc_max_executors=self.dynamic_alloc_max_executors,
             dynamic_alloc_min_executors=self.dynamic_alloc_min_executors,
-            driver_resource=self.resources.get('driver', {}).get('driver_resource', {}),
-            executor_resource=self.resources.get('executor', {}).get('executor_resource', {}),
+            driver_resource=self.resources.driver_resources,
+            executor_resource=self.resources.executor_resources,
             number_workers=self.number_workers,
             hadoop_config=self.hadoop_config,
             image_pull_secrets=self.image_pull_secrets,
