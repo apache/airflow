@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-03-31T18:13:23Z
+# This constraints file was automatically generated on 2022-04-01T09:35:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -138,7 +138,7 @@ attrs==20.3.0
 aws-xray-sdk==2.9.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.23.0
+azure-core==1.23.1
 azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
 azure-identity==1.8.0
@@ -167,9 +167,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.30
+boto3==1.21.31
 boto==2.49.0
-botocore==1.24.30
+botocore==1.24.31
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -184,7 +184,7 @@ charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.1.1
+click==8.1.2
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.0.0
@@ -252,7 +252,7 @@ google-cloud-bigquery-storage==2.13.0
 google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.0
 google-cloud-build==3.8.1
-google-cloud-container==1.0.1
+google-cloud-container==1.0.2
 google-cloud-core==1.7.2
 google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==0.2.1
@@ -268,12 +268,12 @@ google-cloud-orchestration-airflow==1.3.1
 google-cloud-os-login==2.6.1
 google-cloud-pubsub==2.11.0
 google-cloud-redis==2.8.0
-google-cloud-secret-manager==1.0.0
+google-cloud-secret-manager==1.0.1
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
 google-cloud-storage==1.44.0
 google-cloud-tasks==2.8.1
-google-cloud-texttospeech==1.0.1
+google-cloud-texttospeech==1.0.2
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
