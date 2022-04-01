@@ -18,6 +18,7 @@
 # under the License.
 
 from airflow.cli import airflow_cmd
+from airflow.cli.commands import db  # noqa: F401
 
 if __name__ == '__main__':
     airflow_cmd(obj={})
