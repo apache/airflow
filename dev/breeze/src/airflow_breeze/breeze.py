@@ -181,6 +181,12 @@ option_runtime_apt_deps = click.option(
     help='The basic apt runtime dependencies to use when building the images.',
     envvar='RUNTIME_APT_DEPS',
 )
+option_ci_flag = click.option(
+    '--ci',
+    help='Enabling this option will off the pip progress bar',
+    is_flag=True,
+    envvar='CI',
+)
 
 
 @main.command()
@@ -282,6 +288,8 @@ def shell(
 @click.option('--build-cache', help='Cache option')
 @option_platform
 @option_debian_version
+@click.option('--prepare-buildx-cache', is_flag=True)
+@option_ci_flag
 @option_upgrade_to_newer_dependencies
 def build_ci_image(
     verbose: bool,
@@ -302,6 +310,8 @@ def build_ci_image(
     build_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
+    prepare_buildx_cache: bool,
+    ci: bool,
     upgrade_to_newer_dependencies: str = "false",
 ):
     """Builds docker CI image without entering the container."""
@@ -331,6 +341,8 @@ def build_ci_image(
         docker_cache=build_cache,
         platform=platform,
         debian_version=debian_version,
+        prepare_buildx_cache=prepare_buildx_cache,
+        ci=ci,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
@@ -380,6 +392,7 @@ def build_ci_image(
 )
 @option_image_tag
 @click.option('--github-token', envvar='GITHUB_TOKEN')
+@option_ci_flag
 def build_prod_image(
     verbose: bool,
     cleanup_docker_context_files: bool,
@@ -417,6 +430,7 @@ def build_prod_image(
     install_from_docker_context_files: bool,
     image_tag: Optional[str],
     github_token: Optional[str],
+    ci: bool,
     upgrade_to_newer_dependencies: str = "false",
 ):
     """Builds docker Production image without entering the container."""
@@ -463,6 +477,7 @@ def build_prod_image(
         install_docker_context_files=install_from_docker_context_files,
         image_tag=image_tag,
         github_token=github_token,
+        ci=ci,
     )
 
 

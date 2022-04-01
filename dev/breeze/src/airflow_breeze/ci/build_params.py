@@ -15,12 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.console import console
 from airflow_breeze.global_constants import get_airflow_version
+from airflow_breeze.utils.docker_command_utils import check_if_buildx_plugin_available
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -59,6 +62,8 @@ class BuildParams:
     additional_runtime_apt_env: str = ""
     platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
+    prepare_buildx_cache: bool = False
+    ci: bool = False
 
     @property
     def airflow_image_name(self):
@@ -107,17 +112,63 @@ class BuildParams:
         return output.stdout.strip()
 
     @property
+    def airflow_version(self):
+        return get_airflow_version()
+
+    def check_buildx_plugin_build_command(self):
+        build_command_param = []
+        is_buildx_available = check_if_buildx_plugin_available(True)
+        if is_buildx_available:
+            if self.prepare_buildx_cache:
+                build_command_param.extend(
+                    ["buildx", "build", "--builder", "airflow_cache", "--progress=tty"]
+                )
+                cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
+                output = run_command(cmd, verbose=True, text=True)
+                if output.returncode != 0:
+                    next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
+                    run_command(next_cmd, verbose=True, text=True)
+            else:
+                build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
+        else:
+            if self.prepare_buildx_cache:
+                console.print(
+                    '\n[red] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
+                )
+                console.print(
+                    '[red] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
+                )
+                sys.exit()
+            build_command_param.append("build")
+        return build_command_param
+
+    @property
     def docker_cache_ci_directive(self) -> List:
         docker_cache_ci_directive = []
+
         if self.docker_cache == "pulled":
-            docker_cache_ci_directive.append("--cache-from")
-            docker_cache_ci_directive.append(self.airflow_ci_image_name)
+            docker_cache_ci_directive.append(f"--cache-from={self.airflow_ci_image_name}")
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:
-            pass
+            docker_cache_ci_directive = []
+
+        if self.prepare_buildx_cache:
+            docker_cache_ci_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
         return docker_cache_ci_directive
 
     @property
-    def airflow_version(self):
-        return get_airflow_version()
+    def extra_docker_ci_flags(self) -> List[str]:
+        extra_ci_flags = []
+        if self.ci:
+            extra_ci_flags.extend(
+                [
+                    "--build-arg",
+                    "PIP_PROGRESS_BAR=off",
+                ]
+            )
+        if self.airflow_constraints_location is not None and len(self.airflow_constraints_location) > 0:
+            extra_ci_flags.extend(
+                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
+            )
+        return extra_ci_flags

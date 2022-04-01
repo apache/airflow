@@ -72,8 +72,13 @@ def construct_arguments_docker_command(ci_image: BuildParams) -> List[str]:
 
 def construct_docker_command(ci_image: BuildParams) -> List[str]:
     arguments = construct_arguments_docker_command(ci_image)
+    build_command = ci_image.check_buildx_plugin_build_command()
+    build_flags = ci_image.extra_docker_ci_flags
     final_command = []
-    final_command.extend(["docker", "buildx", "build", "--builder", "default", "--progress=tty", "--pull"])
+    final_command.extend(["docker"])
+    final_command.extend(build_command)
+    final_command.extend(build_flags)
+    final_command.extend(["--pull"])
     final_command.extend(arguments)
     final_command.extend(["-t", ci_image.airflow_ci_image_name, "--target", "main", "."])
     final_command.extend(["-f", 'Dockerfile.ci'])

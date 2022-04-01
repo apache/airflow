@@ -47,17 +47,17 @@ class ProdParams:
     install_docker_context_files: bool
     disable_pypi_when_building: bool
     disable_pip_cache: bool
+    skip_installing_airflow_providers_from_sources: bool
+    cleanup_docker_context_files: bool
+    prepare_buildx_cache: bool
     upgrade_to_newer_dependencies: str = "false"
-    skip_installing_airflow_providers_from_sources: bool = False
-    cleanup_docker_context_files: bool = False
-    prepare_buildx_cache: bool = False
     airflow_version: str = get_airflow_version()
     python_version: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
     install_airflow_reference: str = ""
     install_airflow_version: str = ""
     default_constraints_branch = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    ci: str = "false"
+    ci: bool = False
     build_id: int = 0
     airflow_constraints: str = "constraints-source-providers"
     github_repository: str = "apache/airflow"
