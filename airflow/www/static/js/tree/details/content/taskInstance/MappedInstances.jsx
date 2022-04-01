@@ -57,6 +57,7 @@ const MappedInstances = ({
 
   const {
     data: { taskInstances, totalEntries } = { taskInstances: [], totalEntries: 0 },
+    isLoading,
   } = useMappedInstances({
     dagId, runId, taskId, limit, offset, order,
   });
@@ -142,6 +143,7 @@ const MappedInstances = ({
         }}
         pageSize={limit}
         setSortBy={setSortBy}
+        isLoading={isLoading}
       />
     </Box>
   );

@@ -22,16 +22,20 @@
 import axios from 'axios';
 import { useQuery } from 'react-query';
 
+import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+
+const mappedInstancesUrl = getMetaValue('mapped_instances_api');
 
 export default function useMappedInstances({
   dagId, runId, taskId, limit, offset, order,
 }) {
+  const url = mappedInstancesUrl.replace('_DAG_RUN_ID_', runId).replace('_TASK_ID_', taskId);
   const orderParam = order && order !== 'map_index' ? { order_by: order } : {};
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
     ['mappedInstances', dagId, runId, taskId, offset, order],
-    () => axios.get(`/api/v1/dags/${dagId}/dagRuns/${runId}/taskInstances/${taskId}/listMapped`, {
+    () => axios.get(url, {
       params: { offset, limit, ...orderParam },
     }),
     {

@@ -45,7 +45,7 @@ import {
 } from 'react-icons/ti';
 
 const Table = ({
-  data, columns, manualPagination, pageSize = 25, setSortBy,
+  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false,
 }) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
@@ -120,7 +120,7 @@ const Table = ({
           </Tr>
         </Thead>
         <Tbody {...getTableBodyProps()}>
-          {!data.length && (
+          {!data.length && !isLoading && (
           <Tr>
             <Td colSpan={2}>No Data found.</Td>
           </Tr>
