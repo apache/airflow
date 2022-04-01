@@ -16,17 +16,20 @@
     under the License.
 
 
+.. _howto/operator:DeltaSharingOperators:
 
-Delta Sharing Sensor
-====================
 
-Use the :class:`~airflow.providers.delta_sharing.sensors.delta_sharing.DeltaSharingSensor` to wait for changes in a
-give Delta Sharing table.
+DeltaSharingDownloadToLocalOperator
+===================================
 
-Using the Sensor
-----------------
+Use the :class:`~airflow.providers.delta_sharing.operators.delta_sharing.DeltaSharingDownloadToLocalOperator` to
+download data from Delta Sharing table to a local disk.
 
-The sensor waits for version changes in a specified Delta Sharing table.
+
+Using the Operator
+------------------
+
+Operator downloads data to a local disk from a specified Delta Sharing table.
 
 .. list-table::
    :widths: 15 25
@@ -40,6 +43,22 @@ The sensor waits for version changes in a specified Delta Sharing table.
      - name of the schema (database) in which check will be performed
    * - table: str
      - name of the table to check
+   * - location: str
+     - name of directory where downloaded data will be stored. This field will be templated.
+   * - predicates: list
+     - optional list of strings that will be ANDed to build a filter expression. This field will be templated.
+   * - limit: int
+     - optional limit on the number of records to return.
+   * - save_partitioned: bool
+     - if ``True`` (default), data will be saved by partitions. if ``False``, all data files will be  saved into a top-level directory.
+   * - save_metadata: bool
+     - if ``True`` (default), metadata will be shared into a ``_metadata/<version>.json`` file
+   * - save_stats: bool
+     - if ``True`` (default), per-file statistics will be saved into a ``_stats/<data_file_name>.json``
+   * - overwrite_existing: bool
+     - If ``False`` (default), file with the same name exists and has the same size as returned in file metadata, then it won't be re-downloaded and overwritten.
+   * - num_parallel_downloads: int
+     - number of parallel downloads. Default is 5.
    * - delta_sharing_conn_id: str
      - name of the Delta Sharing connection that will be used to perform check.   By default and in the common case this will be ``delta_sharing_default``. To use token based authentication, provide the bearer token in the password field for the connection and put the base URL in the ``host`` field.
    * - timeout_seconds: int
@@ -54,12 +73,12 @@ The sensor waits for version changes in a specified Delta Sharing table.
 Examples
 --------
 
-Waiting for new version of Delta Sharing table
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Downloading data from Delta Sharing table to a local disk
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An example usage of the DeltaSharingSensor to wait for changes in Delta Sharing a table is as follows:
+An example usage of the DeltaSharingDownloadToLocalOperator to download data from a  Delta Sharing table is as follows:
 
 .. exampleinclude:: /../../airflow/providers/delta_sharing/example_dags/example_delta_sharing.py
     :language: python
-    :start-after: [START howto_delta_sharing_sensor]
-    :end-before: [END howto_delta_sharing_sensor]
+    :start-after: [START howto_delta_sharing_operator]
+    :end-before: [END howto_delta_sharing_operator]

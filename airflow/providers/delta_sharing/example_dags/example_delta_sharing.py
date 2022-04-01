@@ -34,6 +34,7 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingDownloadToLocalOperator
 from airflow.providers.delta_sharing.sensors.delta_sharing import DeltaSharingSensor
 
 default_args = {
@@ -51,7 +52,6 @@ with DAG(
 ) as dag:
     # [START howto_delta_sharing_sensor]
     # Example of using Delta Sharing Sensor to wait for changes in the table.
-
     check_nytaxi = DeltaSharingSensor(
         task_id='check_nytaxi',
         share="delta_sharing",
@@ -61,3 +61,16 @@ with DAG(
         #    mode='reschedule',
     )
     # [END howto_delta_sharing_sensor]
+
+    # [START howto_delta_sharing_operator]
+    download_nytaxi = DeltaSharingDownloadToLocalOperator(task_id='download_nytaxi',
+                                                          share="delta_sharing",
+                                                          schema="default",
+                                                          table="nyctaxi_2019",
+                                                          timeout_seconds=60,
+                                                          limit=100,
+                                                          location='/tmp/nytaxi_2019',
+                                                          )
+    # [END howto_delta_sharing_operator]
+
+    (check_nytaxi >> download_nytaxi)

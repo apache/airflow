@@ -31,6 +31,7 @@ Content
 
     Connection types <connections>
     Sensors <sensors>
+    Operators <operators>
 
 .. toctree::
     :maxdepth: 1
@@ -59,7 +60,7 @@ Content
 Package apache-airflow-providers-delta-sharing
 ----------------------------------------------
 
-`Delta Sharing <https://github.com/delta-io/delta-sharing/>`__
+This package provides support for `Delta Sharing protocol <https://github.com/delta-io/delta-sharing/>`__
 
 
 Release: 1.0.0
