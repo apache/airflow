@@ -39,10 +39,8 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-  INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+  IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -110,12 +108,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: env
-        run: printenv
-        env:
-          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
-          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
-          GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: Selective checks
         id: selective-checks
         env:
@@ -152,6 +144,12 @@ jobs:
           fi
         env:
           SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
+      - name: env
+        run: printenv
+        env:
+          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
     permissions:
@@ -171,8 +169,6 @@ jobs:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
       - uses: actions/checkout@v2
@@ -182,7 +178,7 @@ jobs:
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
@@ -228,15 +224,24 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: Breeze2 build-image
-      - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        env:
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      - name: "Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
+        env:
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: >
           Push empty CI images to finish waiting jobs:
-          ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+          ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         if: failure() || cancelled()
         run: ./scripts/ci/images/ci_push_empty_ci_images.sh
+        env:
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
         run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
@@ -259,11 +264,8 @@ jobs:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      INSTALL_PROVIDERS_FROM_SOURCES: >
-        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -318,16 +320,25 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Pull CI image for PROD ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Pull CI image for PROD build: ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
         env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
+      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
-      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+        env:
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: >
           Push empty PROD images to finish waiting jobs:
-          ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+          ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         if: failure() || cancelled()
         run: ./scripts/ci/images/ci_push_empty_prod_images.sh
+        env:
+          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
