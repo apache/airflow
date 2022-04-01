@@ -36,6 +36,7 @@ PREV_DATA_INTERVAL = DataInterval(start=PREV_DATA_INTERVAL_START, end=PREV_DATA_
 
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
+OLD_INTERVAL = DataInterval(start=YESTERDAY, end=CURRENT_TIME)
 
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", TIMEZONE)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
@@ -60,6 +61,29 @@ def test_no_catchup_first_starts_at_current_time(
     )
     expected_start = YESTERDAY + DELTA_FROM_MIDNIGHT
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT)
+
+
+@pytest.mark.parametrize(
+    "earliest",
+    [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
+)
+@pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@freezegun.freeze_time(CURRENT_TIME)
+def test_new_schedule_interval_next_info_starts_at_new_time(
+    earliest: Optional[pendulum.DateTime],
+    catchup: bool,
+) -> None:
+    """First run after DAG has new schedule interval."""
+    next_info = CRON_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=OLD_INTERVAL,
+        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=catchup),
+    )
+    expected_start = YESTERDAY + datetime.timedelta(hours=16, minutes=30)
+    expected_end = CURRENT_TIME + datetime.timedelta(hours=16, minutes=30)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
 
 
 @pytest.mark.parametrize(
