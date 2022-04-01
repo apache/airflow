@@ -41,8 +41,11 @@ class DeltaSharingSensor(BaseSensorOperator):
         By default and in the common case this will be ``delta_sharing_default``. To use
         token based authentication, provide the bearer token in the password field for the
         connection and put the base URL in the ``host`` field.
+<<<<<<< HEAD
     :param profile_file: Optional path or HTTP(S) URL to a Delta Sharing profile file.
         If this parameter is specified, the ``delta_sharing_conn_id`` isn't used.
+=======
+>>>>>>> Refactor the structure of Delta Sharing provider
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
     :param retry_limit: Amount of times retry if the Delta Sharing backend is
