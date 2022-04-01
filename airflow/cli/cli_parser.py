@@ -276,7 +276,7 @@ ARG_NUM_EXECUTIONS = Arg(
 ARG_RESPECT_CATCHUP = Arg(
     ("-r", "--respect-catchup"),
     action="store_true",
-    help="Respect catchup=False on a paused DAG",
+    help="Respect the DAG's catchup configuration",
 )
 
 # backfill
