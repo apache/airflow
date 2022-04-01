@@ -44,7 +44,7 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 class DeltaSharingQueryResult:
     """Data class to hold results from querying a Delta Sharing table"""
 
-    version: str
+    version: int
     protocol: Dict[str, Any]
     metadata: Dict[str, Any]
     files: List[Dict[str, Any]]
@@ -141,7 +141,6 @@ class DeltaSharingHook(BaseHook):
         if token is None:
             raise AirflowException("Please provide Delta Sharing bearer token as 'password' configuration")
         headers['Authorization'] = f'Bearer {token}'
-        self.log.info("url: '%s', headers: %s", url, headers)
 
         request_func: Any
         if http_method == 'GET':
@@ -163,6 +162,7 @@ class DeltaSharingHook(BaseHook):
                         headers=headers,
                         timeout=self.timeout_seconds,
                     )
+                    print(f"HTTP Status: {response.status_code}")
                     response.raise_for_status()
                     return response
         except RetryError:
@@ -181,7 +181,20 @@ class DeltaSharingHook(BaseHook):
             and (exception.response.status_code >= 500 or exception.response.status_code == 429)
         )
 
-    def get_table_version(self, share: str, schema: str, table: str) -> str:
+    @staticmethod
+    def _extract_delta_sharing_version(response, item_name: str) -> int:
+        version = None
+        for k, v in response.headers.lower_items():
+            if k == 'delta-table-version':
+                version = v
+        if version is None:
+            raise AirflowException(
+                f"No delta-table-version header in response from Delta Sharing server for item {item_name}"
+            )
+
+        return int(version)
+
+    def get_table_version(self, share: str, schema: str, table: str) -> int:
         """
         Returns a version of the Delta Sharing table
         :param share: name of the share in which check will be performed.
@@ -193,17 +206,7 @@ class DeltaSharingHook(BaseHook):
             f"shares/{share}/schemas/{schema}/tables/{table}",
             http_method='HEAD',
         )
-        version = None
-        for k, v in response.headers.lower_items():
-            if k == 'delta-table-version':
-                version = v
-        if version is None:
-            raise AirflowException(
-                "No delta-table-version header in response from Delta Sharing server"
-                f"for item {share}.{schema}.{table}"
-            )
-
-        return version
+        return self._extract_delta_sharing_version(response, f"{share}.{schema}.{table}")
 
     def query_table(
         self,
@@ -232,15 +235,7 @@ class DeltaSharingHook(BaseHook):
             json=query_body,
             http_method='POST',
         )
-        version = None
-        for k, v in response.headers.lower_items():
-            if k == 'delta-table-version':
-                version = v
-        if version is None:
-            raise AirflowException(
-                "No delta-table-version header in response from Delta Sharing server"
-                f"for item {share}.{schema}.{table}"
-            )
+        version = self._extract_delta_sharing_version(response, f"{share}.{schema}.{table}")
         lines = response.text.splitlines()
         if len(lines) < 2:
             raise AirflowException(
@@ -248,6 +243,6 @@ class DeltaSharingHook(BaseHook):
             )
         protocol = json.loads(lines[0])['protocol']
         meta = json.loads(lines[1])['metaData']
-        files = [json.loads(line)['file'] for line in lines[2:]]
+        files = [json.loads(line.strip())['file'] for line in lines[2:] if line.strip() != ""]
 
         return DeltaSharingQueryResult(version, protocol, meta, files)
