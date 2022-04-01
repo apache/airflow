@@ -17,10 +17,9 @@
 # under the License.
 import copy
 import json
-from dataclasses import dataclass
 import sys
-from collections import namedtuple
-from typing import Any, Dict, Optional, List
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import requests
 from requests import exceptions as requests_exceptions
@@ -43,6 +42,8 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 # TODO: create separate data classes for protocol/metadata/files?
 @dataclass
 class DeltaSharingQueryResult:
+    """Data class to hold results from querying a Delta Sharing table"""
+
     version: str
     protocol: Dict[str, Any]
     metadata: Dict[str, Any]
@@ -54,16 +55,16 @@ class DeltaSharingHook(BaseHook):
     Hook to interaction with Delta Sharing endpoint.
 
     :param delta_sharing_conn_id: Reference to the
-        :ref:`Databricks connection <howto/connection:delta_sharing>`.
+        :ref:`Delta Sharing connection <howto/connection:delta_sharing>`.
         By default and in the common case this will be ``delta_sharing_default``. To use
         token based authentication, provide the bearer token in the password field for the
         connection and put the base URL in the ``host`` field.
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.
-    :param retry_limit: Amount of times retry if the Databricks backend is
+    :param retry_limit: Amount of times retry if the Delta Sharing backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param retry_delay: Number of seconds to wait between retries (it
+    :param retry_delay: Number of seconds for initial wait between retries (it
             might be a floating point number).
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
@@ -181,6 +182,13 @@ class DeltaSharingHook(BaseHook):
         )
 
     def get_table_version(self, share: str, schema: str, table: str) -> str:
+        """
+        Returns a version of the Delta Sharing table
+        :param share: name of the share in which check will be performed.
+        :param schema: name of the schema (database) in which check will be performed.
+        :param table: name of the table to check.
+        :return: version of the given Delta Sharing table
+        """
         response = self._do_api_call(
             f"shares/{share}/schemas/{schema}/tables/{table}",
             http_method='HEAD',
@@ -197,16 +205,32 @@ class DeltaSharingHook(BaseHook):
 
         return version
 
-    def query_table(self, share: str, schema: str, table: str, predicates: Optional[List[str]] = None,
-                    limit: Optional[int] = None) -> DeltaSharingQueryResult:
-        query_body = {}
+    def query_table(
+        self,
+        share: str,
+        schema: str,
+        table: str,
+        predicates: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+    ) -> DeltaSharingQueryResult:
+        """
+        Queries a given Delta Sharing table
+        :param share: name of the share in which check will be performed.
+        :param schema: name of the schema (database) in which check will be performed.
+        :param table: name of the table to check.
+        :param predicates: optional list of strings that will be ANDed to build a filter expression.
+        :param limit: optional limit on the number of records to return.
+        :return:
+        """
+        query_body: Dict[str, Any] = {}
         if limit is not None:
             query_body["limitHint"] = limit
         if predicates is not None:
             query_body["predicateHints"] = predicates
         response = self._do_api_call(
             f"shares/{share}/schemas/{schema}/tables/{table}/query",
-            json=query_body,  http_method='POST',
+            json=query_body,
+            http_method='POST',
         )
         version = None
         for k, v in response.headers.lower_items():
@@ -219,8 +243,9 @@ class DeltaSharingHook(BaseHook):
             )
         lines = response.text.splitlines()
         if len(lines) < 2:
-            raise AirflowException("Content should have at least two lines (protocol and metadata),"
-                                   f" got {len(lines)}")
+            raise AirflowException(
+                "Content should have at least two lines (protocol and metadata)," f" got {len(lines)}"
+            )
         protocol = json.loads(lines[0])['protocol']
         meta = json.loads(lines[1])['metaData']
         files = [json.loads(line)['file'] for line in lines[2:]]

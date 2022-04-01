@@ -31,21 +31,23 @@ class DeltaSharingSensor(BaseSensorOperator):
     Sensor for checking updates to an existing Delta Sharing table.
 
     :param share: name of the share in which check will be performed
+        This field will be templated.
     :param schema: name of the schema (database) in which check will be performed
+        This field will be templated.
     :param table: name of the table to check
+        This field will be templated.
     :param delta_sharing_conn_id: Reference to the
-        :ref:`Databricks connection <howto/connection:delta_sharing>`.
+        :ref:`Delta Sharing connection <howto/connection:delta_sharing>`.
         By default and in the common case this will be ``delta_sharing_default``. To use
         token based authentication, provide the bearer token in the password field for the
         connection and put the base URL in the ``host`` field.
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
-        This field will be templated.
-    :param databricks_retry_limit: Amount of times retry if the Databricks backend is
+    :param retry_limit: Amount of times retry if the Delta Sharing backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
+    :param retry_delay: Number of seconds for initial wait between retries (it
             might be a floating point number).
-    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     """
 
     template_fields: Sequence[str] = ('share', 'schema', 'table')
