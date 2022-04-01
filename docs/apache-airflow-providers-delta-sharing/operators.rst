@@ -22,7 +22,7 @@
 DeltaSharingDownloadToLocalOperator
 ===================================
 
-Use the :class:`~airflow.providers.delta.sharing.operators.delta_sharing.DeltaSharingLocalDownloadOperator` to
+Use the :class:`~airflow.providers.delta.sharing.operators.delta.sharing.DeltaSharingLocalDownloadOperator` to
 download data from a given Delta Sharing table to a local disk.
 
 

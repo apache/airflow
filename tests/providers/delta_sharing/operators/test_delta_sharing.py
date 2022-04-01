@@ -24,7 +24,7 @@ import pytest
 import responses
 
 from airflow.providers.delta_sharing.hooks.delta_sharing import DeltaSharingQueryResult
-from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingDownloadToLocalOperator
+from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
 
 TASK_ID = 'delta-sharing-operator'
 DEFAULT_CONN_ID = 'delta_sharing_default'
@@ -45,7 +45,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
         """
 
         with pytest.raises(ValueError):
-            DeltaSharingDownloadToLocalOperator(
+            DeltaSharingLocalDownloadOperator(
                 task_id=TASK_ID,
                 share=DEFAULT_SHARE,
                 schema=DEFAULT_SCHEMA,
@@ -54,7 +54,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
                 location=DEFAULT_LOCATION,
             )
         with pytest.raises(ValueError):
-            DeltaSharingDownloadToLocalOperator(
+            DeltaSharingLocalDownloadOperator(
                 task_id=TASK_ID,
                 share=DEFAULT_SHARE,
                 schema=DEFAULT_SCHEMA,
@@ -68,7 +68,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
         """
         Test the execute function in case where the run is successful.
         """
-        op = DeltaSharingDownloadToLocalOperator(
+        op = DeltaSharingLocalDownloadOperator(
             task_id=TASK_ID,
             share=DEFAULT_SHARE,
             schema=DEFAULT_SCHEMA,
@@ -104,7 +104,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
         """
         Test the execute function in case where the run is successful.
         """
-        op = DeltaSharingDownloadToLocalOperator(
+        op = DeltaSharingLocalDownloadOperator(
             task_id=TASK_ID,
             share=DEFAULT_SHARE,
             schema=DEFAULT_SCHEMA,
