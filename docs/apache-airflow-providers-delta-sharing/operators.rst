@@ -22,7 +22,7 @@
 DeltaSharingDownloadToLocalOperator
 ===================================
 
-Use the :class:`~airflow.providers.delta_sharing.operators.delta_sharing.DeltaSharingDownloadToLocalOperator` to
+Use the :class:`~airflow.providers.delta_sharing.operators.delta_sharing.DeltaSharingLocalDownloadOperator` to
 download data from Delta Sharing table to a local disk.
 
 
@@ -76,7 +76,7 @@ Examples
 Downloading data from Delta Sharing table to a local disk
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An example usage of the DeltaSharingDownloadToLocalOperator to download data from a  Delta Sharing table is as follows:
+An example usage of the DeltaSharingLocalDownloadOperator to download data from a  Delta Sharing table is as follows:
 
 .. exampleinclude:: /../../airflow/providers/delta_sharing/example_dags/example_delta_sharing.py
     :language: python

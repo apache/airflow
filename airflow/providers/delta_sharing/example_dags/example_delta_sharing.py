@@ -34,7 +34,7 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingDownloadToLocalOperator
+from airflow.providers.delta_sharing.operators.delta_sharing import DeltaSharingLocalDownloadOperator
 from airflow.providers.delta_sharing.sensors.delta_sharing import DeltaSharingSensor
 
 default_args = {
@@ -63,7 +63,7 @@ with DAG(
     # [END howto_delta_sharing_sensor]
 
     # [START howto_delta_sharing_operator]
-    download_nytaxi = DeltaSharingDownloadToLocalOperator(
+    download_nytaxi = DeltaSharingLocalDownloadOperator(
         task_id='download_nytaxi',
         share="delta_sharing",
         schema="default",

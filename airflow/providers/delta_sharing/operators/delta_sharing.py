@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DeltaSharingDownloadToLocalOperator(BaseOperator):
+class DeltaSharingLocalDownloadOperator(BaseOperator):
     """
     :param share: name of the share in which check will be performed.
         This field will be templated.
