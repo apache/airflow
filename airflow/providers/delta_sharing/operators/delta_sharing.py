@@ -109,7 +109,7 @@ class DeltaSharingDownloadToLocalOperator(BaseOperator):
         self.table = table
         self.location = location
         if limit is not None and limit < 0:
-            raise AirflowException(f"limit should be greater or equal to 0, got {limit}")
+            raise ValueError(f"limit should be greater or equal to 0, got {limit}")
         self.limit = limit
         self.predicates = predicates
         self.save_partitioned = save_partitioned
@@ -117,7 +117,7 @@ class DeltaSharingDownloadToLocalOperator(BaseOperator):
         self.save_metadata = save_metadata
         self.overwrite_existing = overwrite_existing
         if num_parallel_downloads < 1:
-            raise AirflowException(
+            raise ValueError(
                 "num_parallel_downloads should be greater or equal to 1," f" got {num_parallel_downloads}"
             )
         self.num_parallel_downloads = num_parallel_downloads
@@ -189,34 +189,34 @@ class DeltaSharingDownloadToLocalOperator(BaseOperator):
         results = self.hook.query_table(
             self.share, self.schema, self.table, limit=self.limit, predicates=self.predicates
         )
-        self.log.info(f"Version: {results.version}")
-        self.log.info(f"Protocol: {results.protocol}")
-        self.log.info(f"Metadata: {results.metadata}")
-        self.log.info(f"Files: count={len(results.files)}")
-        # [self.log.info(file) for file in results.files]
+        self.log.debug(f"Version: {results.version}")
+        self.log.debug(f"Protocol: {results.protocol}")
+        self.log.debug(f"Metadata: {results.metadata}")
+        self.log.debug(f"Files: count={len(results.files)}")
         # write files
-        has_errors = False
-        with ThreadPoolExecutor(max_workers=self.num_parallel_downloads) as executor:
-            future_to_file = {
-                executor.submit(lambda x: self._download_one(results.metadata, x), file): file
-                for file in results.files
-            }
-            for future in as_completed(future_to_file):
-                file = future_to_file[future]
-                try:
-                    _ = future.result()
-                except Exception as exc:
-                    has_errors = True
-                    self.log.warning("Exception when downloading from '%s': %s", file['url'], exc)
-        if has_errors:
-            raise AirflowException(
-                "Some Delta Sharing files weren't downloaded correctly. " "Check logs for details"
-            )
+        if len(results.files) > 0:
+            has_errors = False
+            with ThreadPoolExecutor(max_workers=self.num_parallel_downloads) as executor:
+                future_to_file = {
+                    executor.submit(lambda x: self._download_one(results.metadata, x), file): file
+                    for file in results.files
+                }
+                for future in as_completed(future_to_file):
+                    file = future_to_file[future]
+                    try:
+                        _ = future.result()
+                    except Exception as exc:
+                        has_errors = True
+                        self.log.warning("Exception when downloading from '%s': %s", file['url'], exc)
+            if has_errors:
+                raise AirflowException(
+                    "Some Delta Sharing files weren't downloaded correctly. " "Check logs for details"
+                )
 
         # write metadata - for each version
         if self.save_metadata:
             metadata_dir = os.path.join(self.location, "_metadata")
             os.makedirs(metadata_dir, exist_ok=True)
-            metadata_file_name = os.path.join(metadata_dir, results.version + ".json")
+            metadata_file_name = os.path.join(metadata_dir, str(results.version) + ".json")
             with open(metadata_file_name, "w") as f:
                 json.dump(results.metadata, f)

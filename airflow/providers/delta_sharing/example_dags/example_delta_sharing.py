@@ -63,14 +63,15 @@ with DAG(
     # [END howto_delta_sharing_sensor]
 
     # [START howto_delta_sharing_operator]
-    download_nytaxi = DeltaSharingDownloadToLocalOperator(task_id='download_nytaxi',
-                                                          share="delta_sharing",
-                                                          schema="default",
-                                                          table="nyctaxi_2019",
-                                                          timeout_seconds=60,
-                                                          limit=100,
-                                                          location='/tmp/nytaxi_2019',
-                                                          )
+    download_nytaxi = DeltaSharingDownloadToLocalOperator(
+        task_id='download_nytaxi',
+        share="delta_sharing",
+        schema="default",
+        table="nyctaxi_2019",
+        timeout_seconds=60,
+        limit=100,
+        location='/tmp/nytaxi_2019',
+    )
     # [END howto_delta_sharing_operator]
 
     (check_nytaxi >> download_nytaxi)

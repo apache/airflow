@@ -48,6 +48,7 @@ body:
         - databricks
         - datadog
         - dbt-cloud
+        - delta-sharing
         - dingding
         - discord
         - docker

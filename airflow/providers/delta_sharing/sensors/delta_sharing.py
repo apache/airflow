@@ -78,6 +78,14 @@ class DeltaSharingSensor(BaseSensorOperator):
             timeout_seconds=timeout_seconds,
         )
 
+    @staticmethod
+    def get_previous_version(context: 'Context', lookup_key):
+        return context['ti'].xcom_pull(key=lookup_key, include_prior_dates=True)
+
+    @staticmethod
+    def set_version(context: 'Context', lookup_key, version):
+        context['ti'].xcom_push(key=lookup_key, value=version)
+
     def poke(self, context: 'Context') -> bool:
         table_full_name = f'{self.share}.{self.schema}.{self.table}'
         self.log.info(
@@ -86,19 +94,19 @@ class DeltaSharingSensor(BaseSensorOperator):
         try:
             version = self.hook.get_table_version(self.share, self.schema, self.table)
             self.log.info("Version for %s is '%s'", table_full_name, version)
-            prev_version = ""
+            prev_version = -1
             if context is not None:
                 lookup_key = re.sub("[^[a-zA-Z0-9]+", "_", self.hook.delta_sharing_endpoint + table_full_name)
-                prev_data = context['ti'].xcom_pull(key=lookup_key, include_prior_dates=True)
-                self.log.info("prev_data: %s, type=%s", str(prev_data), type(prev_data))
-                if isinstance(prev_data, str):
+                prev_data = self.get_previous_version(context, lookup_key)
+                self.log.debug("prev_data: %s, type=%s", str(prev_data), type(prev_data))
+                if isinstance(prev_data, int):
                     prev_version = prev_data
                 elif prev_data is not None:
                     raise AirflowException(f"Incorrect type for previous XCom Data: {type(prev_data)}")
                 if prev_version != version:
-                    context['ti'].xcom_push(key=lookup_key, value=version)
+                    self.set_version(context, lookup_key, version)
 
-            return prev_version != version
+            return prev_version < version
         except AirflowException as exc:
             if str(exc).__contains__("Status Code: 404"):
                 return False

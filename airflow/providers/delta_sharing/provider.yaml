@@ -28,14 +28,14 @@ integrations:
   - integration-name: Delta Sharing
     external-doc-url: https://github.com/delta-io/delta-sharing
     how-to-guide:
-      - /docs/apache-airflow-providers-http/operators.rst
+      - /docs/apache-airflow-providers-delta-sharing/operators.rst
     logo: /integration-logos/delta-sharing/delta-sharing.png
     tags: [protocol]
 
-# operators:
-#  - integration-name: Delta Sharing
-#    python-modules:
-#      - airflow.providers.delta_sharing.operators.delta_sharing
+operators:
+  - integration-name: Delta Sharing
+    python-modules:
+      - airflow.providers.delta_sharing.operators.delta_sharing
 
 sensors:
   - integration-name: Delta Sharing
