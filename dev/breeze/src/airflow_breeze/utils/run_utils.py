@@ -27,9 +27,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
-import psutil
-import requests
-
 from airflow_breeze.cache import update_md5checksum_in_cache
 from airflow_breeze.console import console
 from airflow_breeze.global_constants import FILES_FOR_REBUILD_CHECK
@@ -102,6 +99,9 @@ def check_package_installed(package_name: str) -> bool:
 
 
 def get_filesystem_type(filepath):
+    # We import it locally so that click autocomplete works
+    import psutil
+
     root_type = "unknown"
     for part in psutil.disk_partitions():
         if part.mountpoint == '/':
@@ -210,6 +210,9 @@ def fix_group_permissions():
 
 
 def get_latest_sha(repo: str, branch: str):
+    # We import it locally so that click autocomplete works
+    import requests
+
     gh_url = f"https://api.github.com/repos/{repo}/commits/{branch}"
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     resp = requests.get(gh_url, headers=headers_dict)
