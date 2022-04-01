@@ -310,7 +310,7 @@ jobs:
         run: airflow-freespace
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Build CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: Breeze2 build-ci-image
+        run: Breeze2 build-image
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh

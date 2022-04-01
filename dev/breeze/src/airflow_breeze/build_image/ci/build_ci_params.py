@@ -14,37 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Parameters for Build CI Image."""
 import os
-import sys
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.console import console
 from airflow_breeze.global_constants import get_airflow_version
-from airflow_breeze.utils.docker_command_utils import check_if_buildx_plugin_available
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.console import console
+from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
 
 @dataclass
-class BuildParams:
-    # To construct ci_image_name
+class BuildCiParams:
+    """
+    CI build parameters. Those parameters are used to determine command issued to build CI image.
+    """
+
     upgrade_to_newer_dependencies: str = "false"
-    python_version: str = "3.7"
+    python: str = "3.7"
     airflow_branch: str = AIRFLOW_BRANCH
     build_id: int = 0
-    # To construct docker cache ci directive
     docker_cache: str = "pulled"
     airflow_extras: str = "devel_ci"
+    install_providers_from_sources: bool = False
     additional_airflow_extras: str = ""
     additional_python_deps: str = ""
-    # To construct ci_image_name
-    tag: str = "latest"
-    # To construct airflow_image_repository
     github_repository: str = "apache/airflow"
     constraints_github_repository: str = "apache/airflow"
-    # Not sure if defaultConstraintsBranch and airflow_constraints_reference are different
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints: str = "constraints-source-providers"
     airflow_constraints_reference: Optional[str] = "constraints-main"
@@ -52,6 +51,7 @@ class BuildParams:
     airflow_pre_cached_pip_packages: str = "true"
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
+    image_tag: str = ""
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
@@ -63,24 +63,24 @@ class BuildParams:
     platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
     prepare_buildx_cache: bool = False
-    ci: bool = False
+    skip_rebuild_check: bool = False
 
     @property
-    def airflow_image_name(self):
+    def airflow_base_image_name(self):
         image = f'ghcr.io/{self.github_repository.lower()}'
         return image
 
     @property
-    def airflow_ci_image_name(self):
+    def airflow_image_name(self):
         """Construct CI image link"""
-        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
+        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
         return image
 
     @property
     def airflow_ci_image_name_with_tag(self):
         """Construct CI image link"""
-        image = f'{self.airflow_image_name}/{self.airflow_branch}/ci/python{self.python_version}'
-        return image if not self.tag else image + f":{self.tag}"
+        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
+        return image if not self.image_tag else image + f":{self.image_tag}"
 
     @property
     def airflow_image_repository(self):
@@ -89,17 +89,17 @@ class BuildParams:
     @property
     def python_base_image(self):
         """Construct Python Base Image"""
-        return f'python:{self.python_version}-slim-{self.debian_version}'
+        return f'python:{self.python}-slim-{self.debian_version}'
 
     @property
     def airflow_ci_local_manifest_image(self):
         """Construct CI Local Manifest Image"""
-        return f'local-airflow-ci-manifest/{self.airflow_branch}/python{self.python_version}'
+        return f'local-airflow-ci-manifest/{self.airflow_branch}/python{self.python}'
 
     @property
     def airflow_ci_remote_manifest_image(self):
         """Construct CI Remote Manifest Image"""
-        return f'{self.airflow_ci_image_name}/{self.airflow_branch}/ci-manifest//python:{self.python_version}'
+        return f'{self.airflow_image_name}/{self.airflow_branch}/ci-manifest//python:{self.python}'
 
     @property
     def airflow_image_date_created(self):
@@ -107,68 +107,35 @@ class BuildParams:
         return now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @property
-    def commit_sha(self):
-        output = run_command(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True)
-        return output.stdout.strip()
-
-    @property
     def airflow_version(self):
         return get_airflow_version()
 
-    def check_buildx_plugin_build_command(self):
-        build_command_param = []
-        is_buildx_available = check_if_buildx_plugin_available(True)
-        if is_buildx_available:
-            if self.prepare_buildx_cache:
-                build_command_param.extend(
-                    ["buildx", "build", "--builder", "airflow_cache", "--progress=tty"]
-                )
-                cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-                output = run_command(cmd, verbose=True, text=True)
-                if output.returncode != 0:
-                    next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-                    run_command(next_cmd, verbose=True, text=True)
-            else:
-                build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
-        else:
-            if self.prepare_buildx_cache:
-                console.print(
-                    '\n[red] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
-                )
-                console.print(
-                    '[red] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
-                )
-                sys.exit()
-            build_command_param.append("build")
-        return build_command_param
-
     @property
-    def docker_cache_ci_directive(self) -> List:
+    def docker_cache_ci_directive(self) -> List[str]:
         docker_cache_ci_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_ci_directive.append(f"--cache-from={self.airflow_ci_image_name}")
+            docker_cache_ci_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
             docker_cache_ci_directive.append("--no-cache")
         else:
             docker_cache_ci_directive = []
-
         if self.prepare_buildx_cache:
             docker_cache_ci_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
         return docker_cache_ci_directive
 
     @property
-    def extra_docker_ci_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> List[str]:
         extra_ci_flags = []
-        if self.ci:
-            extra_ci_flags.extend(
-                [
-                    "--build-arg",
-                    "PIP_PROGRESS_BAR=off",
-                ]
-            )
         if self.airflow_constraints_location is not None and len(self.airflow_constraints_location) > 0:
             extra_ci_flags.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
         return extra_ci_flags
+
+    @property
+    def md5sum_cache_dir(self) -> Path:
+        return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
+
+    def print_info(self):
+        console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")

@@ -37,9 +37,4 @@ if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
          # shellcheck disable=1090
         source "${INIT_SCRIPT_FILE}"
         popd >/dev/null 2>&1 || exit 1
-else
-    echo
-    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${INIT_SCRIPT_FILE}"
-    echo "In it to make breeze source an initialization script automatically for you"
-    echo
 fi

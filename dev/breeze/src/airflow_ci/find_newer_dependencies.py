@@ -14,7 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Finds which newer dependencies were used to build that build and prints them for better diagnostics.
 
+This is a common problem that currently `pip` does not produce "perfect" information about the errors,
+and we sometimes need to guess what new dependency caused long backtracking. Once we know short
+list of candidates, we can (following a manual process) pinpoint the actual culprit.
+
+This small tool is run in CI whenever the image build timed out - so that we can easier guess
+which dependency caused the problem.
+
+The process to follow once you see the backtracking is described in:
+
+https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md
+"""
 import json
 from datetime import timedelta
 from typing import Any, Dict, List, Tuple
@@ -102,10 +115,10 @@ def main(constraints_branch: str, python: str, timezone: str, updated_on_or_afte
             hour=0, minute=0, second=0, microsecond=0
         )
     console.print(
-        "\n[yellow]Those are possible candidates that broke current "
+        "\n[bright_yellow]Those are possible candidates that broke current "
         "`pip` resolution mechanisms by falling back to long backtracking[/]\n"
     )
-    console.print(f"\n[yellow]We are limiting to packages updated after {min_date} ({timezone})[/]\n")
+    console.print(f"\n[bright_yellow]We are limiting to packages updated after {min_date} ({timezone})[/]\n")
     with Progress(console=console) as progress:
         task = progress.add_task(f"Processing {count_packages} packages.", total=count_packages)
         for package_line in package_lines:
@@ -122,14 +135,16 @@ def main(constraints_branch: str, python: str, timezone: str, updated_on_or_afte
                 constrained_packages[package] = constraints_package_version
             progress.advance(task)
             progress.refresh()
-    console.print("\n[yellow]If you see long running builds with `pip` backtracking, you should follow[/]")
     console.print(
-        "[yellow]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
+        "\n[bright_yellow]If you see long running builds with `pip` backtracking, you should follow[/]"
+    )
+    console.print(
+        "[bright_yellow]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
     )
     constraint_string = ""
     for package, constrained_version in constrained_packages.items():
         constraint_string += f' "{package}=={constrained_version}"'
-    console.print("[yellow]Use the following pip install command (see the doc above for details)\n")
+    console.print("[bright_yellow]Use the following pip install command (see the doc above for details)\n")
     console.print(
         'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
         '"dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"' + constraint_string,
