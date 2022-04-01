@@ -32,11 +32,11 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         values_str = textwrap.dedent(
             """
             extraConfigMaps:
-              "{{ include "airflow.fullname" . }}-airflow-variables":
+              '{{ include "airflow.fullname" . }}-airflow-variables':
                 data: |
                   AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
                   AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
-              "{{ include "airflow.fullname" . }}-other-variables":
+              '{{ include "airflow.fullname" . }}-other-variables':
                 data: |
                   HELLO_WORLD: "Hi again!"
             """
@@ -48,8 +48,8 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         k8s_objects_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         all_expected_keys = [
-            ("ConfigMap", f"{RELEASE_NAME}-airflow-variables"),
-            ("ConfigMap", f"{RELEASE_NAME}-other-variables"),
+            ("ConfigMap", f"{RELEASE_NAME}-airflow-airflow-variables"),
+            ("ConfigMap", f"{RELEASE_NAME}-airflow-other-variables"),
         ]
         assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
@@ -65,19 +65,19 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         values_str = textwrap.dedent(
             """
             extraSecrets:
-              "{{ include "airflow.fullname" . }}-airflow-connections":
+              '{{ include "airflow.fullname" . }}-airflow-connections':
                 data: |
                   AIRFLOW_CON_AWS: {{ printf "aws_connection_string" | b64enc }}
                 stringData: |
                   AIRFLOW_CON_GCP: "gcp_connection_string"
-              "{{ include "airflow.fullname" . }}-other-secrets":
+              '{{ include "airflow.fullname" . }}-other-secrets':
                 data: |
                   MY_SECRET_1: {{ printf "MY_SECRET_1" | b64enc }}
                   MY_SECRET_2: {{ printf "MY_SECRET_2" | b64enc }}
                 stringData: |
                   MY_SECRET_3: "MY_SECRET_3"
                   MY_SECRET_4: "MY_SECRET_4"
-              "{{ include "airflow.fullname" . }}-other-secrets-with-type":
+              '{{ include "airflow.fullname" . }}-other-secrets-with-type':
                 type: kubernetes.io/dockerconfigjson
                 data: |
                   MY_SECRET_5: {{ printf "MY_SECRET_5" | b64enc }}
@@ -94,9 +94,9 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         k8s_objects_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         all_expected_keys = [
-            ("Secret", f"{RELEASE_NAME}-airflow-connections"),
-            ("Secret", f"{RELEASE_NAME}-other-secrets"),
-            ("Secret", f"{RELEASE_NAME}-other-secrets-with-type"),
+            ("Secret", f"{RELEASE_NAME}-airflow-airflow-connections"),
+            ("Secret", f"{RELEASE_NAME}-airflow-other-secrets"),
+            ("Secret", f"{RELEASE_NAME}-airflow-other-secrets-with-type"),
         ]
         assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
@@ -134,8 +134,8 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             name=RELEASE_NAME,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "extraSecrets": {"{{ include "airflow.fullname" . }}-extra-secret-1": {"stringData": "data: secretData"}},
-                "extraConfigMaps": {"{{ include "airflow.fullname" . }}-extra-configmap-1": {"data": "data: configData"}},
+                "extraSecrets": {'{{ include "airflow.fullname" . }}-extra-secret-1': {"stringData": "data: secretData"}},
+                "extraConfigMaps": {'{{ include "airflow.fullname" . }}-extra-configmap-1': {"data": "data: configData"}},
             },
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )

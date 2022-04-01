@@ -29,11 +29,11 @@ from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render
 RELEASE_NAME_REDIS = "TEST-REDIS"
 
 REDIS_OBJECTS = {
-    "NETWORK_POLICY": ("NetworkPolicy", f"{RELEASE_NAME_REDIS}-redis-policy"),
-    "SERVICE": ("Service", f"{RELEASE_NAME_REDIS}-redis"),
-    "STATEFUL_SET": ("StatefulSet", f"{RELEASE_NAME_REDIS}-redis"),
-    "SECRET_PASSWORD": ("Secret", f"{RELEASE_NAME_REDIS}-redis-password"),
-    "SECRET_BROKER_URL": ("Secret", f"{RELEASE_NAME_REDIS}-broker-url"),
+    "NETWORK_POLICY": ("NetworkPolicy", f"{RELEASE_NAME_REDIS}-airflow-redis-policy"),
+    "SERVICE": ("Service", f"{RELEASE_NAME_REDIS}-airflow-redis"),
+    "STATEFUL_SET": ("StatefulSet", f"{RELEASE_NAME_REDIS}-airflow-redis"),
+    "SECRET_PASSWORD": ("Secret", f"{RELEASE_NAME_REDIS}-airflow-redis-password"),
+    "SECRET_BROKER_URL": ("Secret", f"{RELEASE_NAME_REDIS}-airflow-broker-url"),
 }
 SET_POSSIBLE_REDIS_OBJECT_KEYS = set(REDIS_OBJECTS.values())
 
@@ -57,7 +57,7 @@ class RedisTest(unittest.TestCase):
 
     @staticmethod
     def get_broker_url_secret_in_deployment(k8s_obj_by_key, kind: str, name: str) -> str:
-        deployment_obj = k8s_obj_by_key[(kind, f"{RELEASE_NAME_REDIS}-{name}")]
+        deployment_obj = k8s_obj_by_key[(kind, f"{RELEASE_NAME_REDIS}-airflow-{name}")]
         containers = deployment_obj["spec"]["template"]["spec"]["containers"]
         container = next(obj for obj in containers if obj["name"] == name)
 

@@ -109,7 +109,7 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         assert {
             "name": "webserver-config",
-            "configMap": {"name": "RELEASE-NAME-webserver-config"},
+            "configMap": {"name": "RELEASE-NAME-airflow-webserver-config"},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
         assert {
@@ -297,7 +297,7 @@ class WebserverDeploymentTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, None),
-            ({"enabled": True}, "RELEASE-NAME-logs"),
+            ({"enabled": True}, "RELEASE-NAME-airflow-logs"),
             ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
         ]
     )
@@ -530,9 +530,9 @@ class WebserverDeploymentTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ({"persistence": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True}}, "RELEASE-NAME-airflow-dags"),
             ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
-            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "RELEASE-NAME-airflow-dags"),
         ]
     )
     def test_dags_persistence_volume_no_sidecar(self, dags_values, expected_claim_name):
@@ -556,7 +556,7 @@ class WebserverServiceTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-service.yaml"],
         )
 
-        assert "RELEASE-NAME-webserver" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-webserver" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert {"tier": "airflow", "component": "webserver", "release": "RELEASE-NAME"} == jmespath.search(
             "spec.selector", docs[0]
@@ -629,7 +629,7 @@ class WebserverConfigmapTest(unittest.TestCase):
         )
 
         assert "ConfigMap" == docs[0]["kind"]
-        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-webserver-config" == jmespath.search("metadata.name", docs[0])
         assert (
             "CSRF_ENABLED = True  # RELEASE-NAME"
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()

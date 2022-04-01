@@ -47,7 +47,7 @@ class TestSCCActivation:
         if created:
             assert "RoleBinding" == jmespath.search("kind", docs[0])
             assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "RELEASE-NAME-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
+            assert "RELEASE-NAME-airflow-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
             assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
             assert "RELEASE-NAME-airflow-webserver" == jmespath.search("subjects[0].name", docs[0])
             assert "RELEASE-NAME-airflow-worker" == jmespath.search("subjects[1].name", docs[0])
@@ -81,7 +81,7 @@ class TestSCCActivation:
         if created:
             assert "ClusterRoleBinding" == jmespath.search("kind", docs[0])
             assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "RELEASE-NAME-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
+            assert "RELEASE-NAME-airflow-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
             assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
 
     @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ class TestSCCActivation:
         if created:
             assert "RoleBinding" == jmespath.search("kind", docs[0])
             assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "RELEASE-NAME-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
+            assert "RELEASE-NAME-airflow-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
             assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
             assert "RELEASE-NAME-airflow-webserver" == jmespath.search("subjects[0].name", docs[0])
             assert "RELEASE-NAME-airflow-worker" == jmespath.search("subjects[1].name", docs[0])

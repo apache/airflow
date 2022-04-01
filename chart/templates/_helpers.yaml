@@ -85,7 +85,7 @@ If release name contains chart name it will be used as a full name.
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
+        name: {{ default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
         key: connection
     {{- end }}
   {{- end }}
@@ -300,7 +300,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{ define "airflow_result_backend_secret" -}}
-{{ default (printf "%s-airflow-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
+{{ default (printf "%s-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{ define "airflow_pod_template_file" -}}
@@ -438,7 +438,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{ define "airflow_config" -}}
-{{ (printf "%s-airflow-config" .Release.Name) }}
+{{ (printf "%s-config" (include "airflow.fullname" .)) }}
 {{- end }}
 
 {{/*

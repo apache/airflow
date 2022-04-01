@@ -41,7 +41,7 @@ class TestFlowerDeployment:
 
         assert bool(docs) is created
         if created:
-            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+            assert "RELEASE-NAME-airflow-flower" == jmespath.search("metadata.name", docs[0])
             assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     @pytest.mark.parametrize(
@@ -258,14 +258,14 @@ class TestFlowerService:
 
         assert bool(docs) is created
         if created:
-            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+            assert "RELEASE-NAME-airflow-flower" == jmespath.search("metadata.name", docs[0])
 
     def test_default_service(self):
         docs = render_chart(
             show_only=["templates/flower/flower-service.yaml"],
         )
 
-        assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-flower" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert {"tier": "airflow", "component": "flower", "release": "RELEASE-NAME"} == jmespath.search(
             "spec.selector", docs[0]

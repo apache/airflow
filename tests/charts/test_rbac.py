@@ -23,11 +23,11 @@ from tests.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ('Secret', 'TEST-RBAC-postgresql'),
-    ('Secret', 'TEST-RBAC-airflow-metadata'),
-    ('Secret', 'TEST-RBAC-airflow-result-backend'),
+    ('Secret', 'TEST-RBAC-metadata'),
+    ('Secret', 'TEST-RBAC-result-backend'),
     ('Secret', 'TEST-RBAC-pgbouncer-config'),
     ('Secret', 'TEST-RBAC-pgbouncer-stats'),
-    ('ConfigMap', 'TEST-RBAC-airflow-config'),
+    ('ConfigMap', 'TEST-RBAC-config'),
     ('Service', 'TEST-RBAC-postgresql-headless'),
     ('Service', 'TEST-RBAC-postgresql'),
     ('Service', 'TEST-RBAC-statsd'),

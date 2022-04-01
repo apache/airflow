@@ -27,7 +27,7 @@ apiVersion: networking.k8s.io/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ include "airflow.fullname" . }}-airflow-ingress
+  name: {{ include "airflow.fullname" . }}-ingress
   labels:
     tier: airflow
     component: airflow-ingress

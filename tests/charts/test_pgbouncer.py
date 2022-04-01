@@ -39,7 +39,7 @@ class PgbouncerTest(unittest.TestCase):
         )
 
         assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "RELEASE-NAME-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "pgbouncer" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_create_pgbouncer_service(self):
@@ -49,7 +49,7 @@ class PgbouncerTest(unittest.TestCase):
         )
 
         assert "Service" == jmespath.search("kind", docs[0])
-        assert "RELEASE-NAME-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
         assert "9127" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
 
@@ -151,7 +151,7 @@ class PgbouncerTest(unittest.TestCase):
 
         assert {
             "name": "pgbouncer-config",
-            "secret": {"secretName": "TEST-PGBOUNCER-CONFIG-pgbouncer-config"},
+            "secret": {"secretName": "TEST-PGBOUNCER-CONFIG-airflow-pgbouncer-config"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
 
     def test_existing_secret(self):
@@ -313,11 +313,11 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
 
         assert (
-            "RELEASE-NAME-metadata = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            "RELEASE-NAME-airflow-metadata = host=RELEASE-NAME-airflow-postgresql.default dbname=postgres port=5432"
             " pool_size=10" in ini
         )
         assert (
-            "RELEASE-NAME-result-backend = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            "RELEASE-NAME-airflow-result-backend = host=RELEASE-NAME-airflow-postgresql.default dbname=postgres port=5432"
             " pool_size=5" in ini
         )
 
@@ -346,11 +346,11 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini(values)
 
         assert (
-            "RELEASE-NAME-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
+            "RELEASE-NAME-airflow-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
             in ini
         )
         assert (
-            "RELEASE-NAME-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
+            "RELEASE-NAME-airflow-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
             in ini
         )
 

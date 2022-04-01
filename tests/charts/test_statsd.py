@@ -26,7 +26,7 @@ class StatsdTest(unittest.TestCase):
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
-        assert "RELEASE-NAME-statsd" == jmespath.search("metadata.name", docs[0])
+        assert "RELEASE-NAME-airflow-statsd" == jmespath.search("metadata.name", docs[0])
 
         assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
@@ -41,7 +41,7 @@ class StatsdTest(unittest.TestCase):
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-statsd"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-statsd"}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
 

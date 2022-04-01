@@ -41,7 +41,7 @@ spec:
         - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
-              name: airflow-airflow-metadata
+              name: airflow-metadata
               key: connection
         - name: foo
           value: bar
@@ -65,7 +65,7 @@ spec:
       emptyDir: {}
     - name: airflow-config
       configMap:
-        name: airflow-airflow-config
+        name: airflow-config
         defaultMode: 420
   restartPolicy: Never
   terminationGracePeriodSeconds: 30

@@ -30,33 +30,33 @@ RELEASE_NAME = "TEST-EXTRA-ENV-ENV-FROM"
 # Test Params: k8s object key and paths with expected env / envFrom
 PARAMS = [
     (
-        ("Job", f"{RELEASE_NAME}-create-user"),
+        ("Job", f"{RELEASE_NAME}-airflow-create-user"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Job", f"{RELEASE_NAME}-run-airflow-migrations"),
+        ("Job", f"{RELEASE_NAME}-airflow-run-airflow-migrations"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-scheduler"),
+        ("Deployment", f"{RELEASE_NAME}-airflow-scheduler"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("StatefulSet", f"{RELEASE_NAME}-worker"),
+        ("StatefulSet", f"{RELEASE_NAME}-airflow-worker"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-webserver"),
+        ("Deployment", f"{RELEASE_NAME}-airflow-webserver"),
         ("spec.template.spec.initContainers[0]", "spec.template.spec.containers[0]"),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-flower"),
+        ("Deployment", f"{RELEASE_NAME}-airflow-flower"),
         ("spec.template.spec.containers[0]",),
     ),
 ]
@@ -73,16 +73,16 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
             executor: "CeleryExecutor"
             extraEnvFrom: |
               - secretRef:
-                  name: '{{ include "airflow.fullname" . }}-airflow-connections'
+                  name: '{{ .Release.Name }}-airflow-connections'
               - configMapRef:
-                  name: '{{ include "airflow.fullname" . }}-airflow-variables'
+                  name: '{{ .Release.Name }}-airflow-variables'
             extraEnv: |
               - name: PLATFORM
                 value: FR
               - name: TEST
                 valueFrom:
                   secretKeyRef:
-                    name: '{{ include "airflow.fullname" . }}-some-secret'
+                    name: '{{ .Release.Name }}-some-secret'
                     key: connection
             """
         )
