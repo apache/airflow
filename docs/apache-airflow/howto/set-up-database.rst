@@ -50,7 +50,7 @@ this option with ``AIRFLOW__DATABE__SQL_ALCHEMY_CONN`` environment variable.
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value, you can use ``airflow config get-value databse sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value database sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
