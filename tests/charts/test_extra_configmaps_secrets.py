@@ -134,8 +134,12 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             name=RELEASE_NAME,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "extraSecrets": {'{{ include "airflow.fullname" . }}-extra-secret-1': {"stringData": "data: secretData"}},
-                "extraConfigMaps": {'{{ include "airflow.fullname" . }}-extra-configmap-1': {"data": "data: configData"}},
+                "extraSecrets": {
+                    '{{ include "airflow.fullname" . }}-extra-secret-1': {"stringData": "data: secretData"}
+                },
+                "extraConfigMaps": {
+                    '{{ include "airflow.fullname" . }}-extra-configmap-1': {"data": "data: configData"}
+                },
             },
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
