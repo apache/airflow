@@ -23,9 +23,12 @@ import {
   Text,
   Box,
   Link,
-  Button,
+  IconButton,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
+import { FaMicroscope } from 'react-icons/fa';
+import { GiLog } from 'react-icons/gi';
+import { HiTemplate } from 'react-icons/hi';
 
 import { getMetaValue } from '../../../../utils';
 import { formatDateTime, formatDuration } from '../../../../datetime_utils';
@@ -36,6 +39,10 @@ import Table from '../../../Table';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
+
+const IconLink = (props) => (
+  <IconButton as={Link} variant="outline" colorScheme="blue" {...props} />
+);
 
 const MappedInstances = ({
   dagId, runId, taskId,
@@ -78,9 +85,9 @@ const MappedInstances = ({
         endDate: mi.endDate && formatDateTime(mi.endDate),
         links: (
           <Flex alignItems="center">
-            <Button as={Link} variant="outline" mr={1} colorScheme="blue" href={renderedLink}>Rendered</Button>
-            <Button as={Link} variant="outline" mr={1} colorScheme="blue" href={logLink}>Log</Button>
-            <Button as={Link} variant="outline" colorScheme="blue" href={detailsLink}>More Details</Button>
+            <IconLink mr={1} title="Rendered Templates" aria-label="Rendered Templates" icon={<HiTemplate />} href={renderedLink} />
+            <IconLink mr={1} title="Log" aria-label="Log" icon={<GiLog />} href={logLink} />
+            <IconLink title="Details" aria-label="Details" icon={<FaMicroscope />} href={detailsLink} />
           </Flex>
         ),
       };
