@@ -145,26 +145,34 @@ class TestSchedulerJob:
         self.null_exec = None
         del self.dagbag
 
-    def test_is_alive(self):
-        self.scheduler_job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
-        assert self.scheduler_job.is_alive()
+    @pytest.mark.parametrize(
+        'configs',
+        [
+            {('scheduler', 'standalone_dag_processor'): 'False'},
+            {('scheduler', 'standalone_dag_processor'): 'True'},
+        ],
+    )
+    def test_is_alive(self, configs):
+        with conf_vars(configs):
+            self.scheduler_job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
+            assert self.scheduler_job.is_alive()
 
-        self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
-        assert self.scheduler_job.is_alive()
+            self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+            assert self.scheduler_job.is_alive()
 
-        self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
-        assert not self.scheduler_job.is_alive()
+            self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+            assert not self.scheduler_job.is_alive()
 
-        # test because .seconds was used before instead of total_seconds
-        # internal repr of datetime is (days, seconds)
-        self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
-        assert not self.scheduler_job.is_alive()
+            # test because .seconds was used before instead of total_seconds
+            # internal repr of datetime is (days, seconds)
+            self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
+            assert not self.scheduler_job.is_alive()
 
-        self.scheduler_job.state = State.SUCCESS
-        self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
-        assert (
-            not self.scheduler_job.is_alive()
-        ), "Completed jobs even with recent heartbeat should not be alive"
+            self.scheduler_job.state = State.SUCCESS
+            self.scheduler_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+            assert (
+                not self.scheduler_job.is_alive()
+            ), "Completed jobs even with recent heartbeat should not be alive"
 
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):
         """
@@ -1914,140 +1922,174 @@ class TestSchedulerJob:
             run_kwargs=dict(ignore_first_depends_on_past=True),
         )
 
-    def test_scheduler_start_date(self):
+    @pytest.mark.parametrize(
+        'configs',
+        [
+            {('scheduler', 'standalone_dag_processor'): 'False'},
+            {('scheduler', 'standalone_dag_processor'): 'True'},
+        ],
+    )
+    def test_scheduler_start_date(self, configs):
         """
         Test that the scheduler respects start_dates, even when DAGs have run
         """
-        with create_session() as session:
-            dag_id = 'test_start_date_scheduling'
-            dag = self.dagbag.get_dag(dag_id)
-            dag.clear()
-            assert dag.start_date > datetime.datetime.now(timezone.utc)
+        with conf_vars(configs):
+            with create_session() as session:
+                dag_id = 'test_start_date_scheduling'
+                dag = self.dagbag.get_dag(dag_id)
+                dag.clear()
+                assert dag.start_date > datetime.datetime.now(timezone.utc)
 
-            # Deactivate other dags in this file
-            other_dag = self.dagbag.get_dag('test_task_start_date_scheduling')
-            other_dag.is_paused_upon_creation = True
-            other_dag.sync_to_db()
+                # Deactivate other dags in this file
+                other_dag = self.dagbag.get_dag('test_task_start_date_scheduling')
+                other_dag.is_paused_upon_creation = True
+                other_dag.sync_to_db()
 
-            self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=1)
-            self.scheduler_job.run()
+                self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=1)
+                self.scheduler_job.run()
 
-            # zero tasks ran
-            assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
-            session.commit()
-            assert [] == self.null_exec.sorted_tasks
+                # zero tasks ran
+                assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
+                session.commit()
+                assert [] == self.null_exec.sorted_tasks
 
-            # previously, running this backfill would kick off the Scheduler
-            # because it would take the most recent run and start from there
-            # That behavior still exists, but now it will only do so if after the
-            # start date
-            bf_exec = MockExecutor()
-            backfill = BackfillJob(executor=bf_exec, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            backfill.run()
+                # previously, running this backfill would kick off the Scheduler
+                # because it would take the most recent run and start from there
+                # That behavior still exists, but now it will only do so if after the
+                # start date
+                bf_exec = MockExecutor()
+                backfill = BackfillJob(
+                    executor=bf_exec, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
+                )
+                backfill.run()
 
-            # one task ran
-            assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
-            assert [
-                (
-                    TaskInstanceKey(dag.dag_id, 'dummy', f'backfill__{DEFAULT_DATE.isoformat()}', 1),
-                    (State.SUCCESS, None),
-                ),
-            ] == bf_exec.sorted_tasks
-            session.commit()
+                # one task ran
+                assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
+                assert [
+                    (
+                        TaskInstanceKey(dag.dag_id, 'dummy', f'backfill__{DEFAULT_DATE.isoformat()}', 1),
+                        (State.SUCCESS, None),
+                    ),
+                ] == bf_exec.sorted_tasks
+                session.commit()
 
-            self.scheduler_job = SchedulerJob(dag.fileloc, executor=self.null_exec, num_runs=1)
-            self.scheduler_job.run()
+                self.scheduler_job = SchedulerJob(dag.fileloc, executor=self.null_exec, num_runs=1)
+                self.scheduler_job.run()
 
-            # still one task
-            assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
-            session.commit()
-            assert [] == self.null_exec.sorted_tasks
+                # still one task
+                assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
+                session.commit()
+                assert [] == self.null_exec.sorted_tasks
 
-    def test_scheduler_task_start_date(self):
+    @pytest.mark.parametrize(
+        'configs',
+        [
+            {('scheduler', 'standalone_dag_processor'): 'False'},
+            {('scheduler', 'standalone_dag_processor'): 'True'},
+        ],
+    )
+    def test_scheduler_task_start_date(self, configs):
         """
         Test that the scheduler respects task start dates that are different from DAG start dates
         """
+        with conf_vars(configs):
+            dagbag = DagBag(
+                dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
+                include_examples=False,
+            )
+            dag_id = 'test_task_start_date_scheduling'
+            dag = self.dagbag.get_dag(dag_id)
+            dag.is_paused_upon_creation = False
+            dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        dagbag = DagBag(
-            dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"), include_examples=False
-        )
-        dag_id = 'test_task_start_date_scheduling'
-        dag = self.dagbag.get_dag(dag_id)
-        dag.is_paused_upon_creation = False
-        dagbag.bag_dag(dag=dag, root_dag=dag)
+            # Deactivate other dags in this file so the scheduler doesn't waste time processing them
+            other_dag = self.dagbag.get_dag('test_start_date_scheduling')
+            other_dag.is_paused_upon_creation = True
+            dagbag.bag_dag(dag=other_dag, root_dag=other_dag)
 
-        # Deactivate other dags in this file so the scheduler doesn't waste time processing them
-        other_dag = self.dagbag.get_dag('test_start_date_scheduling')
-        other_dag.is_paused_upon_creation = True
-        dagbag.bag_dag(dag=other_dag, root_dag=other_dag)
+            dagbag.sync_to_db()
 
-        dagbag.sync_to_db()
+            self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=3)
+            self.scheduler_job.run()
 
-        self.scheduler_job = SchedulerJob(executor=self.null_exec, subdir=dag.fileloc, num_runs=3)
-        self.scheduler_job.run()
+            session = settings.Session()
+            tiq = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id)
+            ti1s = tiq.filter(TaskInstance.task_id == 'dummy1').all()
+            ti2s = tiq.filter(TaskInstance.task_id == 'dummy2').all()
+            assert len(ti1s) == 0
+            assert len(ti2s) >= 2
+            for task in ti2s:
+                assert task.state == State.SUCCESS
 
-        session = settings.Session()
-        tiq = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id)
-        ti1s = tiq.filter(TaskInstance.task_id == 'dummy1').all()
-        ti2s = tiq.filter(TaskInstance.task_id == 'dummy2').all()
-        assert len(ti1s) == 0
-        assert len(ti2s) >= 2
-        for task in ti2s:
-            assert task.state == State.SUCCESS
-
-    def test_scheduler_multiprocessing(self):
+    @pytest.mark.parametrize(
+        'configs',
+        [
+            {('scheduler', 'standalone_dag_processor'): 'False'},
+            {('scheduler', 'standalone_dag_processor'): 'True'},
+        ],
+    )
+    def test_scheduler_multiprocessing(self, configs):
         """
         Test that the scheduler can successfully queue multiple dags in parallel
         """
-        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
-        for dag_id in dag_ids:
-            dag = self.dagbag.get_dag(dag_id)
-            dag.clear()
+        with conf_vars(configs):
+            dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+            for dag_id in dag_ids:
+                dag = self.dagbag.get_dag(dag_id)
+                dag.clear()
 
-        self.scheduler_job = SchedulerJob(
-            executor=self.null_exec,
-            subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
-            num_runs=1,
-        )
-        self.scheduler_job.run()
+            self.scheduler_job = SchedulerJob(
+                executor=self.null_exec,
+                subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                num_runs=1,
+            )
+            self.scheduler_job.run()
 
-        # zero tasks ran
-        dag_id = 'test_start_date_scheduling'
-        session = settings.Session()
-        assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
+            # zero tasks ran
+            dag_id = 'test_start_date_scheduling'
+            session = settings.Session()
+            assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
 
-    def test_scheduler_verify_pool_full(self, dag_maker):
+    @pytest.mark.parametrize(
+        'configs',
+        [
+            {('scheduler', 'standalone_dag_processor'): 'False'},
+            {('scheduler', 'standalone_dag_processor'): 'True'},
+        ],
+    )
+    def test_scheduler_verify_pool_full(self, dag_maker, configs):
         """
         Test task instances not queued when pool is full
         """
-        with dag_maker(dag_id='test_scheduler_verify_pool_full'):
-            BashOperator(
-                task_id='dummy',
-                pool='test_scheduler_verify_pool_full',
-                bash_command='echo hi',
+        with conf_vars(configs):
+            with dag_maker(dag_id='test_scheduler_verify_pool_full'):
+                BashOperator(
+                    task_id='dummy',
+                    pool='test_scheduler_verify_pool_full',
+                    bash_command='echo hi',
+                )
+
+            session = settings.Session()
+            pool = Pool(pool='test_scheduler_verify_pool_full', slots=1)
+            session.add(pool)
+            session.flush()
+
+            self.scheduler_job = SchedulerJob(executor=self.null_exec)
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            # Create 2 dagruns, which will create 2 task instances.
+            dr = dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+            )
+            self.scheduler_job._schedule_dag_run(dr, session)
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
+            self.scheduler_job._schedule_dag_run(dr, session)
+            session.flush()
+            task_instances_list = self.scheduler_job._executable_task_instances_to_queued(
+                max_tis=32, session=session
             )
 
-        session = settings.Session()
-        pool = Pool(pool='test_scheduler_verify_pool_full', slots=1)
-        session.add(pool)
-        session.flush()
-
-        self.scheduler_job = SchedulerJob(executor=self.null_exec)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-
-        # Create 2 dagruns, which will create 2 task instances.
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-        )
-        self.scheduler_job._schedule_dag_run(dr, session)
-        dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
-        self.scheduler_job._schedule_dag_run(dr, session)
-        session.flush()
-        task_instances_list = self.scheduler_job._executable_task_instances_to_queued(
-            max_tis=32, session=session
-        )
-
-        assert len(task_instances_list) == 1
+            assert len(task_instances_list) == 1
 
     @pytest.mark.need_serialized_dag
     def test_scheduler_verify_pool_full_2_slots_per_task(self, dag_maker, session):
