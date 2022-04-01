@@ -4202,6 +4202,14 @@
                             ],
                             "default": null
                         },
+                        "annotations": {
+                            "description": "Annotations for the dag PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "subPath": {
                             "description": "Subpath within the PVC where dags are located.",
                             "type": [
