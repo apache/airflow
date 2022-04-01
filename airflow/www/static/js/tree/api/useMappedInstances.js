@@ -17,17 +17,26 @@
  * under the License.
  */
 
+/* global autoRefreshInterval */
+
 import axios from 'axios';
 import { useQuery } from 'react-query';
+
+import { useAutoRefresh } from '../context/autorefresh';
 
 export default function useMappedInstances({
   dagId, runId, taskId, limit, offset, order,
 }) {
   const orderParam = order && order !== 'map_index' ? { order_by: order } : {};
+  const { isRefreshOn } = useAutoRefresh();
   return useQuery(
     ['mappedInstances', dagId, runId, taskId, offset, order],
     () => axios.get(`/api/v1/dags/${dagId}/dagRuns/${runId}/taskInstances/${taskId}/listMapped`, {
       params: { offset, limit, ...orderParam },
     }),
+    {
+      keepPreviousData: true,
+      refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
+    },
   );
 }

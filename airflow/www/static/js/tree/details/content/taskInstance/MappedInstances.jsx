@@ -27,10 +27,15 @@ import {
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 
-import { formatDateTime, formatDuration } from '../../../datetime_utils';
-import { useMappedInstances } from '../../api';
-import { SimpleStatus } from '../../StatusBox';
-import Table from '../../Table';
+import { getMetaValue } from '../../../../utils';
+import { formatDateTime, formatDuration } from '../../../../datetime_utils';
+import { useMappedInstances } from '../../../api';
+import { SimpleStatus } from '../../../StatusBox';
+import Table from '../../../Table';
+
+const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
+const logUrl = getMetaValue('log_url');
+const taskUrl = getMetaValue('task_url');
 
 const MappedInstances = ({
   dagId, runId, taskId,
@@ -57,8 +62,9 @@ const MappedInstances = ({
         execution_date: mi.executionDate,
         map_index: mi.mapIndex,
       }).toString();
-      const logLink = `/log?${params}`;
-      const detailsLink = `/task?${params}`;
+      const detailsLink = `${taskUrl}&${params}`;
+      const renderedLink = `${renderedTemplatesUrl}&${params}`;
+      const logLink = `${logUrl}&${params}`;
       return {
         ...mi,
         state: (
@@ -67,11 +73,12 @@ const MappedInstances = ({
             {mi.state || 'no status'}
           </Flex>
         ),
-        duration: formatDuration(mi.duration),
-        startDate: formatDateTime(mi.startDate),
-        endDate: formatDateTime(mi.endDate),
+        duration: mi.duration && formatDuration(mi.duration),
+        startDate: mi.startDate && formatDateTime(mi.startDate),
+        endDate: mi.endDate && formatDateTime(mi.endDate),
         links: (
           <Flex alignItems="center">
+            <Button as={Link} variant="outline" mr={1} colorScheme="blue" href={renderedLink}>Rendered</Button>
             <Button as={Link} variant="outline" mr={1} colorScheme="blue" href={logLink}>Log</Button>
             <Button as={Link} variant="outline" colorScheme="blue" href={detailsLink}>More Details</Button>
           </Flex>
