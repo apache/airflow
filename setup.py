@@ -204,7 +204,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.33.0',
 ]
-arangodb = ['python-arango>=7.3.1']
+arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
 async_packages = [
     'eventlet>=0.9.7',
