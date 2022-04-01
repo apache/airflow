@@ -18,6 +18,7 @@
 """Base operator for all operators."""
 import abc
 import collections
+import collections.abc
 import contextlib
 import copy
 import functools
@@ -131,7 +132,7 @@ def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]
     return Resources(**resources)
 
 
-def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
+def _get_parent_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
     if not dag:
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
@@ -143,20 +144,24 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     return dag_args, dag_params
 
 
-def _merge_defaults(
-    dag_args: dict,
-    dag_params: ParamsDict,
+def get_merged_defaults(
+    dag: Optional["DAG"],
+    task_group: Optional["TaskGroup"],
     task_params: Optional[dict],
-    task_default_args: dict,
+    task_default_args: Optional[dict],
 ) -> Tuple[dict, ParamsDict]:
+    args, params = _get_parent_defaults(dag, task_group)
     if task_params:
-        dag_params.update(task_params)
-    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
-        raise TypeError("default_args must be a mapping")
-    dag_args.update(task_default_args)
-    with contextlib.suppress(KeyError):
-        dag_params.update(task_default_args.pop("params"))
-    return dag_args, dag_params
+        if not isinstance(task_params, collections.abc.Mapping):
+            raise TypeError("params must be a mapping")
+        params.update(task_params)
+    if task_default_args:
+        if not isinstance(task_default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
+        args.update(task_default_args)
+        with contextlib.suppress(KeyError):
+            params.update(task_default_args["params"] or {})
+    return args, params
 
 
 class _PartialDescriptor:
@@ -226,12 +231,11 @@ def partial(
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    dag_args, dag_params = _get_dag_defaults(dag, task_group)
-    partial_kwargs, default_params = _merge_defaults(
-        dag_args=dag_args,
-        dag_params=dag_params,
+    partial_kwargs, default_params = get_merged_defaults(
+        dag=dag,
+        task_group=task_group,
         task_params=params,
-        task_default_args=kwargs.pop("default_args", {}),
+        task_default_args=kwargs.pop("default_args", None),
     )
     partial_kwargs.update(kwargs)
 
@@ -357,12 +361,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
 
-            dag_args, dag_params = _get_dag_defaults(dag, task_group)
-            default_args, merged_params = _merge_defaults(
-                dag_args=dag_args,
-                dag_params=dag_params,
+            default_args, merged_params = get_merged_defaults(
+                dag=dag,
+                task_group=task_group,
                 task_params=kwargs.pop("params", None),
-                task_default_args=kwargs.pop("default_args", {}),
+                task_default_args=kwargs.pop("default_args", None),
             )
 
             for arg in sig_cache.parameters:
