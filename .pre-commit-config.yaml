@@ -29,9 +29,9 @@ repos:
     rev: v2.1.0
     hooks:
       - id: doctoc
-        name: Add TOC for md files
+        name: Add TOC for md and rst files
         files:
-          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         exclude: ^airflow/_vendor/
         args:
           - "--maxlevel"
@@ -40,7 +40,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go\.sh|\.gitmodules$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -61,7 +61,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$|^airflow/_vendor/
@@ -73,8 +73,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/TS/TSX/CSS/PUML files
-        files: \.(js|ts|tsx|css|puml)$
+        name: Add license for all CSS/JS/PUML/TS/TSX files
+        files: \.(css|js|puml|ts|tsx)$
         exclude: ^\.github/.*$|^airflow/_vendor/
         args:
           - --comment-style
@@ -95,7 +95,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        files: ^breeze$|^breeze-complete$|\.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -136,7 +136,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md|^airflow/_vendor/
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^airflow/_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -206,7 +206,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1
     hooks:
@@ -214,7 +214,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -550,7 +550,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         require_serial: true
-        files: provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
         additional_dependencies:
           - 'PyYAML==5.3.1'
           - 'jsonschema>=3.2.0,<5.0.0'
@@ -700,7 +700,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
         language: python
         pass_filenames: false
-        files: ^Dockerfile$|^Dockerfile.ci|^scripts/docker/.*$
+        files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
         require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
