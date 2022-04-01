@@ -37,7 +37,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow import settings
-from airflow.configuration import AirflowConfigParser, conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
 from airflow.utils.code_utils import get_terminal_formatter
@@ -279,9 +279,7 @@ def sigint_handler(sig, frame):
 
 
 def sigconf_handler(sig, frame):
-    """
-    Print configuration and source including default values.
-    """
+    """Print configuration and source including default values."""
     config = get_config_with_source(include_default=True)
     log = logging.getLogger(__name__)
     log.info(config)
@@ -346,10 +344,8 @@ def suppress_logs_and_warning(f: T) -> T:
     return cast(T, _wrapper)
 
 
-def get_config_with_source(include_default=False):
-    """
-    Return configuration along with source for each option.
-    """
+def get_config_with_source(include_default: bool = False) -> str:
+    """Return configuration along with source for each option."""
     config_dict = conf.as_dict(display_source=True)
 
     with io.StringIO() as buf, redirect_stdout(buf):
@@ -363,8 +359,6 @@ def get_config_with_source(include_default=False):
             if options:
                 print(f"[{section}]")
                 for key, (value, source) in options.items():
-                    if not include_default and source == "default":
-                        continue
                     print(f"{key} = {value} [{source}]")
                 print()
         code = buf.getvalue()
