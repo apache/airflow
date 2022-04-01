@@ -45,6 +45,7 @@ from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -1234,6 +1235,64 @@ class TestStringifiedDAGs:
             'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
             'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep',
             'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
+        ]
+
+    def test_error_on_unregistered_ti_dep_serialization(self):
+        # trigger rule not registered through the plugin system will not be serialized
+        class DummyTriggerRule(BaseTIDep):
+            pass
+
+        class DummyTask(BaseOperator):
+            deps = frozenset(list(BaseOperator.deps) + [DummyTriggerRule()])
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_error_on_unregistered_ti_dep_serialization", start_date=execution_date) as dag:
+            DummyTask(task_id="task1")
+
+        with pytest.raises(SerializationError):
+            SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+
+    def test_error_on_unregistered_ti_dep_deserialization(self):
+        from airflow.operators.dummy import DummyOperator
+
+        with DAG("test_error_on_unregistered_ti_dep_deserialization", start_date=datetime(2019, 8, 1)) as dag:
+            DummyOperator(task_id="task1")
+        serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+        serialize_op['deps'] = [
+            'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
+            # manually injected noncore ti dep should be ignored
+            'test_plugin.NotATriggerRule',
+        ]
+        with pytest.raises(SerializationError):
+            SerializedBaseOperator.deserialize_operator(serialize_op)
+
+    def test_serialize_and_deserialize_custom_ti_deps(self):
+        from test_plugin import CustomTestTriggerRule
+
+        class DummyTask(BaseOperator):
+            deps = frozenset(list(BaseOperator.deps) + [CustomTestTriggerRule()])
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_serialize_custom_ti_deps", start_date=execution_date) as dag:
+            DummyTask(task_id="task1")
+
+        serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+
+        assert serialize_op["deps"] == [
+            'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
+            'airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep',
+            'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
+            'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
+            'test_plugin.CustomTestTriggerRule',
+        ]
+
+        op = SerializedBaseOperator.deserialize_operator(serialize_op)
+        assert sorted(str(dep) for dep in op.deps) == [
+            '<TIDep(CustomTestTriggerRule)>',
+            '<TIDep(Not In Retry Period)>',
+            '<TIDep(Not Previously Skipped)>',
+            '<TIDep(Previous Dagrun State)>',
+            '<TIDep(Trigger Rule)>',
         ]
 
     def test_task_group_sorted(self):
