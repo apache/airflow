@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-01T15:47:11Z
+# This constraints file was automatically generated on 2022-04-02T11:30:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -13,7 +13,7 @@ Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
-Flask-Bcrypt==0.7.1
+Flask-Bcrypt==1.0.0
 Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
@@ -114,7 +114,7 @@ nox==2020.12.31
 numpy==1.22.3
 oauthlib==3.2.0
 packaging==21.3
-pandas==1.4.1
+pandas==1.4.2
 partd==1.2.0
 pendulum==2.1.2
 platformdirs==2.5.1
@@ -124,7 +124,7 @@ prison==0.2.1
 prometheus-client==0.13.1
 prompt-toolkit==3.0.28
 proto-plus==1.18.1
-protobuf==3.19.4
+protobuf==3.20.0
 psutil==5.9.0
 pure-sasl==0.6.2
 py==1.11.0

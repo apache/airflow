@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-01T15:43:13Z
+# This constraints file was automatically generated on 2022-04-02T11:25:12Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -15,7 +15,7 @@ Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
-Flask-Bcrypt==0.7.1
+Flask-Bcrypt==1.0.0
 Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
@@ -166,9 +166,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.31
+boto3==1.21.32
 boto==2.49.0
-botocore==1.24.31
+botocore==1.24.32
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -348,8 +348,8 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.21.30
-mypy-boto3-redshift-data==1.21.30
+mypy-boto3-rds==1.21.31
+mypy-boto3-redshift-data==1.21.31
 mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.28
@@ -370,7 +370,7 @@ oscrypto==1.3.0
 oss2==2.15.0
 packaging==21.3
 pandas-gbq==0.17.4
-pandas==1.4.1
+pandas==1.4.2
 papermill==2.3.4
 parameterized==0.8.1
 paramiko==2.10.3
@@ -397,7 +397,7 @@ prison==0.2.1
 prometheus-client==0.13.1
 prompt-toolkit==3.0.28
 proto-plus==1.18.1
-protobuf==3.19.4
+protobuf==3.20.0
 psutil==5.9.0
 psycopg2-binary==2.9.3
 ptyprocess==0.7.0
@@ -535,21 +535,21 @@ trino==0.312.0
 twine==4.0.0
 types-Deprecated==1.2.5
 types-Markdown==3.3.12
-types-PyMySQL==1.0.14
+types-PyMySQL==1.0.15
 types-PyYAML==6.0.5
 types-boto==2.49.10
 types-certifi==2021.10.8.1
 types-croniter==1.0.8
 types-cryptography==3.3.18
 types-docutils==0.18.0
-types-freezegun==1.1.7
+types-freezegun==1.1.8
 types-paramiko==2.8.17
 types-protobuf==3.19.15
 types-python-dateutil==2.8.10
 types-python-slugify==5.0.3
 types-pytz==2021.3.6
-types-redis==4.1.18
-types-requests==2.27.15
+types-redis==4.1.19
+types-requests==2.27.16
 types-setuptools==57.4.11
 types-six==1.16.12
 types-tabulate==0.8.6
