@@ -88,6 +88,7 @@ class TestDeltaSharingLocalDownloadOperator(unittest.TestCase):
             retry_delay=2.0,
             retry_limit=3,
             timeout_seconds=180,
+            profile_file=None,
         )
 
         ds_mock.query_table.assert_called_once_with(
@@ -124,6 +125,7 @@ class TestDeltaSharingLocalDownloadOperator(unittest.TestCase):
             retry_delay=2.0,
             retry_limit=3,
             timeout_seconds=180,
+            profile_file=None,
         )
         ds_mock.query_table.assert_called_once_with(
             DEFAULT_SHARE,

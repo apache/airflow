@@ -57,6 +57,7 @@ class TestDeltaSharingDownloadToLocalOperator(unittest.TestCase):
             retry_delay=2.0,
             retry_limit=3,
             timeout_seconds=180,
+            profile_file=None,
         )
         ds_mock.get_table_version.assert_called_once_with(
             DEFAULT_SHARE,

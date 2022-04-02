@@ -61,6 +61,8 @@ Operator downloads data to a local disk from a specified Delta Sharing table.
      - number of parallel downloads. Default is 5.
    * - delta_sharing_conn_id: str
      - name of the Delta Sharing connection that will be used to perform check.   By default and in the common case this will be ``delta_sharing_default``. To use token based authentication, provide the bearer token in the password field for the connection and put the base URL in the ``host`` field.
+   * - profile_file: str
+     - Optional path or HTTP(S) URL to a Delta Sharing profile file.  If this parameter is specified, the ``delta_sharing_conn_id`` isn't used.
    * - timeout_seconds: int
      - The timeout for this run. By default a value of 0 is used which means to have no timeout.
    * - retry_limit: int

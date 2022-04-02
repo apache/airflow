@@ -18,13 +18,15 @@
 #
 
 import itertools
+import os.path
 import unittest
 from json import JSONDecodeError
 from unittest import mock
 
 import pytest
+import requests_mock
 import tenacity
-from requests import exceptions as requests_exceptions
+from requests import HTTPError, exceptions as requests_exceptions
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
@@ -186,6 +188,56 @@ class TestDeltaSharingHook(unittest.TestCase):
                         hook._do_api_call(TABLE_QUERY_ENDPOINT, {}, http_method='POST')
 
                     assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
+
+    def test_init_from_profile_file(self):
+        data_base_path = os.path.join(os.path.dirname(__file__), "..", "data")
+        hook1 = DeltaSharingHook(profile_file=os.path.join(data_base_path, "open-datasets.share"))
+        assert hook1.delta_sharing_endpoint == "https://sharing.delta.io/delta-sharing/"
+
+        with pytest.raises(AirflowException):
+            assert DeltaSharingHook(
+                profile_file=os.path.join(data_base_path, "no-endpoint.share")
+            ).delta_sharing_endpoint
+        with pytest.raises(AirflowException):
+            assert DeltaSharingHook(
+                profile_file=os.path.join(data_base_path, "no-token.share")
+            ).delta_sharing_endpoint
+
+    @requests_mock.mock()
+    def test_init_from_profile_file_url(self, m):
+        profile_file_url = 'http://test.com/test.share'
+        m.get(
+            profile_file_url,
+            status_code=200,
+            text='{"shareCredentialsVersion": 1,"endpoint": "https://sharing.delta.io/delta-sharing/",'
+            '"bearerToken": "123"}',
+            reason='OK',
+        )
+
+        hook1 = DeltaSharingHook(profile_file=profile_file_url)
+        assert hook1.delta_sharing_endpoint == "https://sharing.delta.io/delta-sharing/"
+
+        with pytest.raises(AirflowException):
+            m.get(
+                'http://test.com/test.share',
+                status_code=200,
+                text='{"shareCredentialsVersion": 1,"bearerToken": "123"}',
+                reason='OK',
+            )
+            assert DeltaSharingHook(profile_file=profile_file_url).delta_sharing_endpoint
+
+        with pytest.raises(AirflowException):
+            m.get(
+                'http://test.com/test.share',
+                status_code=200,
+                text='{"shareCredentialsVersion": 1,"endpoint": "https://sharing.delta.io/delta-sharing/"}',
+                reason='OK',
+            )
+            assert DeltaSharingHook(profile_file=profile_file_url).delta_sharing_endpoint
+
+        with pytest.raises(HTTPError):
+            m.get('http://test.com/test.share', status_code=404, text='', reason='Not Found')
+            assert DeltaSharingHook(profile_file=profile_file_url).delta_sharing_endpoint
 
     @mock.patch('airflow.providers.delta.sharing.hooks.delta_sharing.requests')
     def test_do_api_call_get_table_version(self, mock_requests):

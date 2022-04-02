@@ -17,6 +17,8 @@
 # under the License.
 import copy
 import json
+import os.path
+import re
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -37,6 +39,8 @@ else:
 
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
+__http_regexp__ = re.compile("^https?://.*$")
 
 
 # TODO: create separate data classes for protocol/metadata/files?
@@ -59,9 +63,10 @@ class DeltaSharingHook(BaseHook):
         By default and in the common case this will be ``delta_sharing_default``. To use
         token based authentication, provide the bearer token in the password field for the
         connection and put the base URL in the ``host`` field.
+    :param profile_file: Optional path or HTTP(S) URL to a Delta Sharing profile file.
+        If this parameter is specified, the ``delta_sharing_conn_id`` isn't used.
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
-        This field will be templated.
     :param retry_limit: Amount of times retry if the Delta Sharing backend is
         unreachable. Its value must be greater than or equal to 1.
     :param retry_delay: Number of seconds for initial wait between retries (it
@@ -77,6 +82,7 @@ class DeltaSharingHook(BaseHook):
     def __init__(
         self,
         delta_sharing_conn_id: str = default_conn_name,
+        profile_file: Optional[str] = None,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 2.0,
@@ -89,6 +95,9 @@ class DeltaSharingHook(BaseHook):
             raise ValueError('Retry limit must be greater than or equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+        self.profile_file = profile_file
+        self._base_url = ""
+        self._token = ""
 
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
@@ -124,22 +133,51 @@ class DeltaSharingHook(BaseHook):
         """
         return Retrying(**self.retry_args)
 
-    @cached_property
-    def delta_sharing_endpoint(self) -> str:
-        endpoint = self.delta_sharing_conn.host
-        if endpoint is None:
-            raise AirflowException("Please provide Delta Sharing endpoint URL")
-        if not endpoint.endswith("/"):
-            endpoint += "/"
+    def _extract_endpoint_and_token(self):
+        if len(self._base_url) > 0 and len(self._token) > 0:
+            return
+        if self.profile_file is not None:
+            if os.path.exists(self.profile_file):
+                with open(self.profile_file) as f:
+                    data = json.load(f)
+            elif __http_regexp__.match(self.profile_file):
+                r = requests.get(self.profile_file, timeout=self.timeout_seconds)
+                r.raise_for_status()
+                data = r.json()
+            else:
+                raise AirflowException(f"{self.profile_file} doesn't exist or isn't URL")
+            if data is None:
+                raise AirflowException(f"No data loaded from the {self.profile_file}")
+            self._base_url = data.get('endpoint')
+            if self._base_url is None:
+                raise AirflowException(f"No 'endpoint' field in the read data: {data}")
+            self._token = data.get('bearerToken')
+            if self._token is None:
+                raise AirflowException(f"No 'bearerToken' field in the read data: {data}")
+        else:
+            self._base_url = self.delta_sharing_conn.host
+            if self._base_url is None:
+                raise AirflowException("Please provide Delta Sharing endpoint URL as 'host' field")
+            if not self._base_url.endswith("/"):
+                self._base_url += "/"
+            self._token = self.delta_sharing_conn.password
+            if self._token is None:
+                raise AirflowException("Please provide Delta Sharing bearer token as 'password' field")
 
-        return endpoint
+    @property
+    def delta_sharing_endpoint(self) -> str:
+        self._extract_endpoint_and_token()
+        return self._base_url
+
+    @property
+    def _delta_sharing_token(self) -> str:
+        self._extract_endpoint_and_token()
+        return self._token
 
     def _do_api_call(self, endpoint: str, json: Optional[Dict[str, Any]] = None, http_method='GET'):
         url = self.delta_sharing_endpoint + endpoint
+        token = self._delta_sharing_token
         headers = USER_AGENT_HEADER.copy()
-        token = self.delta_sharing_conn.password
-        if token is None:
-            raise AirflowException("Please provide Delta Sharing bearer token as 'password' configuration")
         headers['Authorization'] = f'Bearer {token}'
 
         request_func: Any

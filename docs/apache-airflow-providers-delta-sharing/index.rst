@@ -19,7 +19,7 @@
 ``apache-airflow-providers-delta-sharing``
 ==========================================
 
-This package provides support for `Delta Sharing protocol <https://github.com/delta-io/delta-sharing>`_ that simplifies
+This package provides support for `Delta Sharing protocol <https://delta.io/sharing/>`_ that simplifies
 sharing of data between organizations.
 
 Content
@@ -60,7 +60,7 @@ Content
 Package apache-airflow-providers-delta-sharing
 ----------------------------------------------
 
-This package provides support for `Delta Sharing protocol <https://github.com/delta-io/delta-sharing/>`__
+This package provides support for `Delta Sharing protocol <https://delta.io/sharing/>`__ - open source data sharing protocol.
 
 
 Release: 1.0.0

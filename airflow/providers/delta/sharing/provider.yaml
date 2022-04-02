@@ -19,14 +19,14 @@
 package-name: apache-airflow-providers-delta-sharing
 name: Delta Sharing
 description: |
-    `Delta Sharing <https://github.com/delta-io/delta-sharing>`__
+    `Delta Sharing <https://delta.io/sharing/>`__
 
 versions:
   - 1.0.0
 
 integrations:
   - integration-name: Delta Sharing
-    external-doc-url: https://github.com/delta-io/delta-sharing
+    external-doc-url: https://delta.io/sharing/
     how-to-guide:
       - /docs/apache-airflow-providers-delta-sharing/operators.rst
     logo: /integration-logos/delta-sharing/delta-sharing.png
