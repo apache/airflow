@@ -21,6 +21,7 @@ import multiprocessing
 import os
 import signal
 import threading
+import time
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -233,7 +234,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             os.kill(self._process.pid, signal.SIGKILL)
 
             # Reap the spawned zombie
-            os.waitpid(self._process.pid, 0)
+            while self._process.poll() is None:
+                time.sleep(0.001)
         if self._parent_channel:
             self._parent_channel.close()
 
