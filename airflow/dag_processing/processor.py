@@ -233,7 +233,9 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
 
-            # Reap the spawned zombie
+            # Reap the spawned zombie. We active wait, becasue in Python 3.9 `waitpid` might lead to an
+            # exception, due to change in Python standard library and possibility of race condition
+            # see https://bugs.python.org/issue42558 
             while self._process.poll() is None:
                 time.sleep(0.001)
         if self._parent_channel:
