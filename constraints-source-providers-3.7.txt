@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-02T11:25:32Z
+# This constraints file was automatically generated on 2022-04-02T19:42:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -273,7 +273,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.1.3
+moto==3.1.4
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
@@ -290,7 +290,7 @@ mysqlclient==2.1.0
 nbclient==0.5.13
 nbformat==5.2.0
 neo4j==4.4.2
-nest-asyncio==1.5.4
+nest-asyncio==1.5.5
 nodeenv==1.6.0
 nox==2020.12.31
 ntlm-auth==1.5.0
@@ -489,7 +489,7 @@ types-toml==0.10.4
 types-urllib3==1.26.11
 typing_extensions==4.1.1
 tzdata==2022.1
-tzlocal==4.1
+tzlocal==4.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.26.9
