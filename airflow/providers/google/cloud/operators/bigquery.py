@@ -965,7 +965,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         contains the schema for the table. (templated)
     :param source_format: File format of the data.
     :param autodetect: Try to detect schema and format options automatically.
-        Any option specified explicitly will be honored.
+        The schema_fields and schema_object options will be honored when specified explicitly.
+        https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
         The default value is NONE.
@@ -1060,6 +1061,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 skip_leading_rows,
                 field_delimiter,
                 max_bad_records,
+                autodetect,
                 quote_character,
                 allow_quoted_newlines,
                 allow_jagged_rows,
