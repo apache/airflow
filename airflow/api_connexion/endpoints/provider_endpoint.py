@@ -34,9 +34,9 @@ def _remove_rst_syntax(value: str) -> str:
 
 def _provider_mapper(provider: ProviderInfo) -> Provider:
     return Provider(
-        package_name=provider[1]["package-name"],
-        description=_remove_rst_syntax(provider[1]["description"]),
-        version=provider[0],
+        package_name=provider.data["package-name"],
+        description=_remove_rst_syntax(provider.data["description"]),
+        version=provider.version,
     )
 
 

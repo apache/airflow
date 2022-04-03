@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -234,8 +235,11 @@ class TestPodManager:
         assert timestamp == pendulum.parse(real_timestamp)
         assert line == log_message
 
-        with pytest.raises(Exception):
+    def test_parse_invalid_log_line(self, caplog):
+        with caplog.at_level(logging.INFO):
             self.pod_manager.parse_log_line('2020-10-08T14:16:17.793417674ZInvalidmessage\n')
+        assert "Invalidmessage" in caplog.text
+        assert "no timestamp in message" in caplog.text
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_retries_on_409_error(self, mock_run_pod_async):

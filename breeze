@@ -3292,13 +3292,12 @@ function breeze::remove_images() {
                        ${AIRFLOW_CI_IMAGE} \
                        ${AIRFLOW_PROD_IMAGE} \
                        ${AIRFLOW_PROD_BUILD_IMAGE} \
-        2>/dev/null >/dev/null && true
+        2>/dev/null >/dev/null || true
+    docker system prune || true
     echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
+    echo "#########################################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION} and pruned cache."
+    echo "#########################################################################################"
     echo
     rm -f "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
@@ -3526,7 +3525,7 @@ function breeze::run_breeze_command() {
         : "${airflow_testing_container:?"ERROR! Breeze must be running in order to exec into running container"}"
         set -e
         docker exec -it "${airflow_testing_container}" \
-            "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
+            "/opt/airflow/scripts/docker/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
         docker_engine_resources::check_all_resources

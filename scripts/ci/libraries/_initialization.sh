@@ -439,17 +439,17 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_VERSION_SPECIFICATION
 
     # By default no sources are copied to image
-    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="empty"}
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="Dockerfile"}
     export AIRFLOW_SOURCES_FROM
 
-    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_TO
 
     # By default no sources are copied to image
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="Dockerfile"}
     export AIRFLOW_SOURCES_WWW_FROM
 
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_WWW_TO
 
     # By default in scripts production docker image is installed from PyPI package

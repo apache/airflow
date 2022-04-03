@@ -74,6 +74,7 @@
     "@emotion/cache": "^11.4.0",
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11",
+    "axios": "^0.26.0",
     "bootstrap-3-typeahead": "^4.0.2",
     "camelcase-keys": "^7.0.0",
     "codemirror": "^5.59.1",
@@ -92,7 +93,7 @@
     "nvd3": "^1.8.6",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-icons": "^4.2.0",
+    "react-icons": "^4.3.1",
     "react-query": "^3.34.16",
     "redoc": "^2.0.0-rc.63",
     "url-search-params-polyfill": "^8.1.0"

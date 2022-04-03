@@ -128,7 +128,7 @@ class SchedulerJob(BaseJob):
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
-
+        self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -139,7 +139,7 @@ class SchedulerJob(BaseJob):
         sql_conn: str = conf.get('core', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
-
+        # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
@@ -599,7 +599,7 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _process_executor_events(self, session: Session = None) -> int:
         """Respond to executor events."""
-        if not self.processor_agent:
+        if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
         ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
@@ -722,47 +722,50 @@ class SchedulerJob(BaseJob):
 
         processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=self.subdir,
-            max_runs=self.num_times_parse_dags,
-            processor_timeout=processor_timeout,
-            dag_ids=[],
-            pickle_dags=pickle_dags,
-            async_mode=async_mode,
-        )
+        if not self._standalone_dag_processor:
+            self.processor_agent = DagFileProcessorAgent(
+                dag_directory=self.subdir,
+                max_runs=self.num_times_parse_dags,
+                processor_timeout=processor_timeout,
+                dag_ids=[],
+                pickle_dags=pickle_dags,
+                async_mode=async_mode,
+            )
 
         try:
             self.executor.job_id = self.id
-            if conf.getboolean("scheduler", "standalone_dag_processor"):
-                self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.executor.callback_sink = DatabaseCallbackSink()
-            else:
+            if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
                 self.executor.callback_sink = PipeCallbackSink(
                     get_sink_pipe=self.processor_agent.get_callbacks_pipe
                 )
+            else:
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                self.executor.callback_sink = DatabaseCallbackSink()
 
             self.executor.start()
 
             self.register_signals()
 
-            self.processor_agent.start()
+            if self.processor_agent:
+                self.processor_agent.start()
 
             execute_start_time = timezone.utcnow()
 
             self._run_scheduler_loop()
 
-            # Stop any processors
-            self.processor_agent.terminate()
+            if self.processor_agent:
+                # Stop any processors
+                self.processor_agent.terminate()
 
-            # Verify that all files were processed, and if so, deactivate DAGs that
-            # haven't been touched by the scheduler as they likely have been
-            # deleted.
-            if self.processor_agent.all_files_processed:
-                self.log.info(
-                    "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
-                )
-                models.DAG.deactivate_stale_dags(execute_start_time)
+                # Verify that all files were processed, and if so, deactivate DAGs that
+                # haven't been touched by the scheduler as they likely have been
+                # deleted.
+                if self.processor_agent.all_files_processed:
+                    self.log.info(
+                        "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
+                    )
+                    models.DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -773,10 +776,11 @@ class SchedulerJob(BaseJob):
                 self.executor.end()
             except Exception:
                 self.log.exception("Exception when executing Executor.end")
-            try:
-                self.processor_agent.end()
-            except Exception:
-                self.log.exception("Exception when executing DagFileProcessorAgent.end")
+            if self.processor_agent:
+                try:
+                    self.processor_agent.end()
+                except Exception:
+                    self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
     def _run_scheduler_loop(self) -> None:
@@ -796,7 +800,7 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        if not self.processor_agent:
+        if not self.processor_agent and not self._standalone_dag_processor:
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
@@ -828,7 +832,7 @@ class SchedulerJob(BaseJob):
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
-                if self.using_sqlite:
+                if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor
                     # is finished to avoid concurrent access to the DB.
@@ -841,8 +845,8 @@ class SchedulerJob(BaseJob):
                     self.executor.heartbeat()
                     session.expunge_all()
                     num_finished_events = self._process_executor_events(session=session)
-
-                self.processor_agent.heartbeat()
+                if self.processor_agent:
+                    self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
                 self.heartbeat(only_if_necessary=True)
@@ -866,7 +870,7 @@ class SchedulerJob(BaseJob):
                     loop_count,
                 )
                 break
-            if self.processor_agent.done:
+            if self.processor_agent and self.processor_agent.done:
                 self.log.info(
                     "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
                     " scheduler loops",

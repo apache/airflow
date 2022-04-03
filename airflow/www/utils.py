@@ -110,6 +110,7 @@ def get_mapped_summary(parent_instance, task_instances):
     )
 
     return {
+        'dag_id': parent_instance.dag_id,
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
         'state': group_state,
@@ -160,6 +161,7 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         'data_interval_start': datetime_to_string(dag_run.data_interval_start),
         'data_interval_end': datetime_to_string(dag_run.data_interval_end),
         'run_type': dag_run.run_type,
+        'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
     }
 
 

@@ -763,12 +763,13 @@ class DAG(LoggingMixin):
         earliest = None
         if start_dates:
             earliest = timezone.coerce_datetime(min(start_dates))
+        latest = self.end_date
         end_dates = [t.end_date for t in self.tasks if t.end_date]
-        if self.end_date is not None:
-            end_dates.append(self.end_date)
-        latest = None
-        if end_dates:
-            latest = timezone.coerce_datetime(max(end_dates))
+        if len(end_dates) == len(self.tasks):  # not exists null end_date
+            if self.end_date is not None:
+                end_dates.append(self.end_date)
+            if end_dates:
+                latest = timezone.coerce_datetime(max(end_dates))
         return TimeRestriction(earliest, latest, self.catchup)
 
     def iter_dagrun_infos_between(
@@ -2209,6 +2210,7 @@ class DAG(LoggingMixin):
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
+        continue_on_failures=False,
     ):
         """
         Runs the DAG.
@@ -2258,6 +2260,7 @@ class DAG(LoggingMixin):
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
         )
         job.run()
 
@@ -2688,7 +2691,7 @@ class DagModel(Base):
     owners = Column(String(2000))
     # Description of the dag
     description = Column(Text)
-    # Default view of the inside the webserver
+    # Default view of the DAG inside the webserver
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)

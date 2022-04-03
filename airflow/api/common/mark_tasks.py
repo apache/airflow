@@ -468,7 +468,20 @@ def set_dag_run_state_to_failed(
         task.dag = dag
         tasks.append(task)
 
-    return set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
+    # Mark non-finished tasks as SKIPPED.
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state.not_in(State.finished),
+        TaskInstance.state.not_in(State.running),
+    )
+
+    tis = [ti for ti in tis]
+    if commit:
+        for ti in tis:
+            ti.set_state(State.SKIPPED)
+
+    return tis + set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
 
 
 def __set_dag_run_state_to_running_or_queued(

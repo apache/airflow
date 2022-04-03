@@ -803,8 +803,8 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
-multiple processors on your local machine to generate such constraints faster.
+the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
@@ -2290,13 +2290,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  autoflake base-operator black blacken-docs boring-cyborg build
                  build-providers-dependencies chart-schema-lint capitalized-breeze
-                 changelog-duplicates check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-ti-run-id-in-providers check-xml
-                 daysago-import-check debug-statements detect-private-key docstring-params doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt
-                 forbidden-xcom-get-value codespell forbid-tabs helm-lint identity
-                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
+                 changelog-duplicates check-2-1-compatibility check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-extras-order
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
+                 check-system-tests daysago-import-check debug-statements detect-private-key
+                 docstring-params doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt codespell forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
+                 insert-license inline-dockerfile-scripts isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid migration-reference
                  mixed-line-ending mypy mypy-helm no-providers-in-core-examples no-relative-imports
                  persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names

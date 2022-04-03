@@ -33,7 +33,7 @@ function run_mypy() {
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" -t \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
         -e "SKIP_ENVIRONMENT_INITIALIZATION=true" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
+        "${AIRFLOW_CI_IMAGE}" \
         "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
 }
 

@@ -276,7 +276,7 @@ The ``BranchPythonOperator`` is much like the PythonOperator except that it expe
 The task_id returned by the Python function has to reference a task directly downstream from the BranchPythonOperator task.
 
 .. note::
-    When a Task is downstream of both the branching operator *and* downstream of one of more of the selected tasks, it will not be skipped:
+    When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
 
     .. image:: /img/branch_note.png
 

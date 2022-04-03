@@ -26,11 +26,12 @@ from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.fab_security.manager import AnonymousUser
-from airflow.www.fab_security.sqla.models import assoc_permission_role
+from airflow.www.fab_security.sqla.models import User, assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import create_user_scope, delete_role, set_user_single_role
 from tests.test_utils.asserts import assert_queries_count
@@ -804,3 +805,9 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             assert_user_has_dag_perms(
                 perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
+
+
+def test_fab_models_use_airflow_base_meta():
+    # TODO: move this test to appropriate place when we have more tests for FAB models
+    user = User()
+    assert user.metadata is Base.metadata

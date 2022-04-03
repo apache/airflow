@@ -55,8 +55,9 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -1056,6 +1057,36 @@ class TestTaskInstance:
         result = ti1.xcom_pull(task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
         assert result == ['bar', 'baz']
 
+    def test_xcom_pull_mapped(self, dag_maker, session):
+        with dag_maker(dag_id="test_xcom", session=session):
+            task_1 = DummyOperator.partial(task_id="task_1").expand()
+            DummyOperator(task_id="task_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+
+        ti_1_0 = dagrun.get_task_instance("task_1", session=session)
+        ti_1_0.map_index = 0
+        ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+        session.flush()
+
+        ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
+        ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
+
+        ti_2 = dagrun.get_task_instance("task_2", session=session)
+
+        assert set(ti_2.xcom_pull(["task_1"], session=session)) == {"a", "b"}  # Ordering not guaranteed.
+        assert ti_2.xcom_pull(["task_1"], map_indexes=0, session=session) == ["a"]
+
+        assert ti_2.xcom_pull(map_indexes=[0, 1], session=session) == ["a", "b"]
+        assert ti_2.xcom_pull("task_1", map_indexes=[1, 0], session=session) == ["b", "a"]
+        assert ti_2.xcom_pull(["task_1"], map_indexes=[0, 1], session=session) == ["a", "b"]
+
+        assert ti_2.xcom_pull("task_1", map_indexes=1, session=session) == "b"
+
+        joined = ti_2.xcom_pull("task_1", session=session)
+        assert iter(joined) is joined, "should be iterator"
+        assert list(joined) == ["a", "b"]
+
     def test_xcom_pull_after_success(self, create_task_instance):
         """
         tests xcom set/clear relative to a task in a 'success' rerun scenario
@@ -1345,7 +1376,7 @@ class TestTaskInstance:
         callback_wrapper = CallbackWrapper()
         ti = create_task_instance(
             on_success_callback=callback_wrapper.success_handler,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             execution_date=timezone.utcnow(),
             state=State.RUNNING,
         )
@@ -1718,7 +1749,7 @@ class TestTaskInstance:
             completed = True
 
         ti = create_task_instance(
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             on_success_callback=on_finish_callable,
             on_retry_callback=on_finish_callable,
             on_failure_callback=on_finish_callable,
@@ -1913,7 +1944,7 @@ class TestTaskInstance:
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
             dag_id='test_task_start_end_stats',
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             state=State.RUNNING,
         )
         stats_mock.reset_mock()

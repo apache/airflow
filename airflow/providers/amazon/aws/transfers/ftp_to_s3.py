@@ -31,6 +31,10 @@ class FTPToS3Operator(BaseOperator):
     This operator enables the transfer of files from a FTP server to S3. It can be used to
     transfer one or multiple files.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FTPToS3Operator`
+
     :param ftp_path: The ftp remote path. For one file it is mandatory to include the file as well.
         For multiple files, it is the route where the files will be found.
     :param s3_bucket: The targeted s3 bucket in which to upload the file(s).

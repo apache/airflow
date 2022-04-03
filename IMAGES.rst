@@ -247,13 +247,7 @@ currently run build. They are built once per each build and pulled by each test 
   ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>         - for CI images
   ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>       - for production images
 
-
-The cache images (pushed when main merge succeeds) are kept with ``cache`` tag:
-
-.. code-block:: bash
-
-  ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:cache           - for CI images
-  ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:cache         - for production images
+Thoe image contain inlined cache.
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
@@ -311,8 +305,9 @@ Here just a few examples are presented which should give you general understandi
 This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
-It is recommended to build images with ``DOCKER_BUILDKIT=1`` variable
-(Breeze sets ``DOCKER_BUILDKIT=1`` variable automatically).
+As of Airflow 2.3.0, it is required to build images with ``DOCKER_BUILDKIT=1`` variable
+(Breeze sets ``DOCKER_BUILDKIT=1`` variable automatically) or via ``docker buildx build`` command if
+you have ``buildx`` plugin installed.
 
 .. code-block:: bash
 
@@ -427,9 +422,11 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
-|                                          |                                          | upgraded to newer versions matching      |
-|                                          |                                          | setup.py before installation.            |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
+|                                          |                                          | the dependencies are upgraded to newer   |
+|                                          |                                          | versions. In CI it is set to build id    |
+|                                          |                                          | to make sure subsequent builds are not   |
+|                                          |                                          | reusing cached images with same value.   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
@@ -543,7 +540,7 @@ Running the CI image
 --------------------
 
 The entrypoint in the CI image contains all the initialisation needed for tests to be immediately executed.
-It is copied from ``scripts/in_container/entrypoint_ci.sh``.
+It is copied from ``scripts/docker/entrypoint_ci.sh``.
 
 The default behaviour is that you are dropped into bash shell. However if RUN_TESTS variable is
 set to "true", then tests passed as arguments are executed
