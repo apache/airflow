@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -62,6 +63,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:

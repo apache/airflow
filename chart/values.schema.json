@@ -116,6 +116,16 @@
                 "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
             }
         },
+        "topologySpreadConstraints": {
+            "description": "Specify topology spread constraints for all pods.",
+            "type": "array",
+            "default": [],
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "type": "object",
+                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+            }
+        },
         "labels": {
             "description": "Add common labels to all objects and pods defined in this chart.",
             "type": "object",
@@ -1374,6 +1384,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for worker pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "hostAliases": {
                     "description": "Specify HostAliases for workers.",
                     "items": {
@@ -1707,6 +1727,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for scheduler pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the scheduler pods.",
                     "type": "object",
@@ -2010,6 +2040,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for triggerer pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
@@ -2184,6 +2224,16 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for the create user job pod.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "securityContext": {
@@ -2367,6 +2417,16 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for migrate database job pod.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "securityContext": {
@@ -2829,6 +2889,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for webserver pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the webserver pods.",
                     "type": "object",
@@ -3140,6 +3210,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for Flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the Flower pods.",
                     "type": "object",
@@ -3277,6 +3357,16 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for StatsD pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "extraMappings": {
@@ -3601,6 +3691,16 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for PgBouncer pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "uid": {
                     "description": "PgBouncer run as user parameter.",
                     "type": "integer",
@@ -3746,6 +3846,16 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for Redis pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "serviceAccount": {
@@ -4027,6 +4137,16 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "podAnnotations": {

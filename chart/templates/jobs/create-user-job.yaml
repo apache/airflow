@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
@@ -74,6 +75,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:

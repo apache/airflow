@@ -121,9 +121,9 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
-    def test_global_affinity_tolerations_and_node_selector(self):
+    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         """
-        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        Test affinity, tolerations, topology spread constraints, and node selector are correctly applied on all pods created
         """
         k8s_objects = render_chart(
             values={
@@ -144,6 +144,16 @@ class TestAirflowCommon:
                 },
                 "tolerations": [
                     {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {
+                            "matchLabels": {"tier": "airflow"}
+                        }
+                    }
                 ],
                 "nodeSelector": {"type": "user-node"},
             },
@@ -180,6 +190,7 @@ class TestAirflowCommon:
             )
             assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
             assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
