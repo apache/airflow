@@ -1395,6 +1395,7 @@ cleanup:
   # Args to use when running the cleanup cronjob (templated).
   args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
 
+
   # Select certain nodes for airflow cleanup pods.
   nodeSelector: {}
   affinity: {}
