@@ -94,7 +94,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
         files: ^breeze$|^breeze-complete$|\.bash$|\.sh$
         args:
           - --comment-style
@@ -524,6 +524,7 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        exclude: ^dev/breeze/autocomplete/.*$
       - id: stylelint
         name: stylelint
         entry: "stylelint"
