@@ -686,7 +686,7 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
-        arg_sorting_key = request.args.get('sorting_key', "dag_id")
+        arg_sorting_key = request.args.get('sorting_key', 'dag_id')
         arg_sorting_direction = request.args.get('sorting_direction', default='asc')
 
         if request.args.get('reset_tags') is not None:
@@ -758,10 +758,12 @@ class Airflow(AirflowBaseView):
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
 
-            sort_column = DagModel.__table__.c[arg_sorting_key]
-            current_dags = current_dags.order_by(
-                sort_column.is_(None), desc(sort_column) if arg_sorting_direction == "desc" else sort_column
-            )
+            sort_column = DagModel.__table__.c.get(arg_sorting_key)
+            if sort_column is not None:
+                nulls_last = sort_column.is_(None)
+                if arg_sorting_direction == 'desc':
+                    sort_column = desc(sort_column)
+                current_dags = current_dags.order_by(nulls_last, sort_column)
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
