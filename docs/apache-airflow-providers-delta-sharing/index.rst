@@ -43,7 +43,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/delta/sharing/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/delta/sharing/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-delta-sharing/>
     Installing from sources <installing-providers-from-sources>
 

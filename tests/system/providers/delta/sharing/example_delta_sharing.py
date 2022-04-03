@@ -43,6 +43,8 @@ with DAG(
     table_name = "boston-housing"
     data_location = '/tmp/boston_housing'
 
+    # [START howto_delta_sharing_sensor]
+    # Example of using Delta Sharing Sensor to wait for changes in the table.
     check_boston_housing = DeltaSharingSensor(
         task_id='check_boston_housing',
         share=share_name,
@@ -50,6 +52,10 @@ with DAG(
         table=table_name,
         timeout=60,
     )
+    # [END howto_delta_sharing_sensor]
+
+    # [START howto_delta_sharing_operator]
+    # Example of using DeltaSharingLocalDownloadOperator to download Delta Sharing table
     download_boston_housing = DeltaSharingLocalDownloadOperator(
         task_id='download_boston_housing',
         share=share_name,
@@ -59,6 +65,7 @@ with DAG(
         limit=100,
         location=data_location,
     )
+    # [END howto_delta_sharing_operator]
 
     def do_data_check():
         if not os.path.exists(data_location) or not os.path.isdir(data_location):

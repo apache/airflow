@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 class DeltaSharingLocalDownloadOperator(BaseOperator):
     """
+    Operator to download data from a Delta Sharing table to a local disk.
+
     :param share: name of the share in which check will be performed.
         This field will be templated.
     :param schema: name of the schema (database) in which check will be performed.

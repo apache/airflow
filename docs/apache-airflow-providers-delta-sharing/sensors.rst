@@ -61,7 +61,7 @@ Waiting for new version of Delta Sharing table
 
 An example usage of the DeltaSharingSensor to wait for changes in Delta Sharing a table is as follows:
 
-.. exampleinclude:: /../../airflow/providers/delta/sharing/example_dags/example_delta_sharing.py
+.. exampleinclude:: /../../tests/system/providers/delta/sharing/example_delta_sharing.py
     :language: python
     :start-after: [START howto_delta_sharing_sensor]
     :end-before: [END howto_delta_sharing_sensor]

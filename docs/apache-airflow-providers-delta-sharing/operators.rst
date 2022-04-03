@@ -80,7 +80,7 @@ Downloading data from Delta Sharing table to a local disk
 
 An example usage of the DeltaSharingLocalDownloadOperator to download data from a  Delta Sharing table is as follows:
 
-.. exampleinclude:: /../../airflow/providers/delta/sharing/example_dags/example_delta_sharing.py
+.. exampleinclude:: /../../tests/system/providers/delta/sharing/example_delta_sharing.py
     :language: python
     :start-after: [START howto_delta_sharing_operator]
     :end-before: [END howto_delta_sharing_operator]
