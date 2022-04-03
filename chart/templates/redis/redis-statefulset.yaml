@@ -22,7 +22,7 @@
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.redis) }}
+{{- $securityContext := include "localSecurityContext" .Values.redis }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:

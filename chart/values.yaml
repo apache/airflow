@@ -1328,9 +1328,10 @@ redis:
   affinity: {}
   tolerations: []
 
-  # When not set, the values defined in the global securityContext will be used
+  uid: 0
+  # If not set, `redis.uid` will be used
   securityContext: {}
-  #  runAsUser: 50000
+  #  runAsUser: 999
   #  runAsGroup: 0
 
 # Auth secret for a private registry

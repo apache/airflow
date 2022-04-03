@@ -33,7 +33,6 @@ class TestSCBackwardsCompatibility:
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
@@ -161,14 +160,22 @@ class TestSecurityContext:
             assert 9000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[index])
             assert 90 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[index])
 
-    # Test containerSecurity priority over uid under statsd
-    def test_check_statsd_uid(self):
+    # Test containerSecurity priority over uid under components using localSecurityContext
+    def test_check_local_uid(self):
+        component_contexts = {"uid": 3000, "securityContext": {"runAsUser": 7000}}
         docs = render_chart(
-            values={"statsd": {"enabled": True, "uid": 3000, "securityContext": {"runAsUser": 7000}}},
-            show_only=["templates/statsd/statsd-deployment.yaml"],
+            values={
+                "redis": {**component_contexts},
+                "statsd": {"enabled": True, **component_contexts},
+            },
+            show_only=[
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
         )
 
-        assert 7000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        for doc in docs:
+            assert 7000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
 
     # Test containerSecurity priority over uid under dags.gitSync
     def test_gitsync_sidecar_and_init_container(self):
