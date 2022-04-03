@@ -1328,6 +1328,7 @@ redis:
   affinity: {}
   tolerations: []
 
+  # Set to 0 for backwards-compatiblity
   uid: 0
   # If not set, `redis.uid` will be used
   securityContext: {}
