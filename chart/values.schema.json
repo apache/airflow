@@ -3772,11 +3772,16 @@
                     "default": {},
                     "examples": [
                         {
-                            "runAsUser": 50000,
+                            "runAsUser": 999,
                             "runAsGroup": 0,
                             "fsGroup": 0
                         }
                     ]
+                },
+                "uid": {
+                    "description": "Redis run as user parameter.",
+                    "type": "integer",
+                    "default": 0
                 }
             }
         },
