@@ -38,6 +38,7 @@ body:
         - apache-pinot
         - apache-spark
         - apache-sqoop
+        - arangodb
         - asana
         - celery
         - cloudant
