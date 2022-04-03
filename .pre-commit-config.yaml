@@ -29,9 +29,9 @@ repos:
     rev: v2.1.0
     hooks:
       - id: doctoc
-        name: Add TOC for md files
+        name: Add TOC for md and rst files
         files:
-          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         exclude: ^airflow/_vendor/
         args:
           - "--maxlevel"
@@ -40,7 +40,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go\.sh|\.gitmodules$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -61,7 +61,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$|^airflow/_vendor/
@@ -73,8 +73,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/TS/TSX/CSS/PUML files
-        files: \.(js|ts|tsx|css|puml)$
+        name: Add license for all CSS/JS/PUML/TS/TSX files
+        files: \.(css|js|puml|ts|tsx)$
         exclude: ^\.github/.*$|^airflow/_vendor/
         args:
           - --comment-style
@@ -95,7 +95,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        files: ^breeze$|^breeze-complete$|\.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -136,7 +136,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md|^airflow/_vendor/
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^airflow/_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -144,17 +144,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
   - repo: https://github.com/psf/black
-    rev: 21.12b0
+    rev: 22.3.0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.0
+    rev: v1.12.1
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.12b0]
+        additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
@@ -206,7 +206,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1
     hooks:
@@ -214,7 +214,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -311,17 +311,10 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
-      - id: forbidden-xcom-get-value
-        name: Check if XCom.get_value is used in backwards-compatible way
-        language: python
-        files: ^airflow/providers/.*\.py$
-        pass_filenames: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_xcom_get_value.py
-        additional_dependencies: ['rich']
         # This check might be removed when min-airflow-version in providers is 2.2
-      - id: check-ti-run-id-in-providers
-        name: Check that run_id is not accessed in providers
-        entry: ./scripts/ci/pre_commit/pre_commit_check_no_ti_run_id.py
+      - id: check-2-1-compatibility
+        name: Check that providers are 2.1 compatible.
+        entry: ./scripts/ci/pre_commit/pre_commit_check_2_1_compatibility.py
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
@@ -432,7 +425,6 @@ repos:
         exclude: >
           (?x)
           ^airflow/decorators/.*$|
-          ^airflow/gcp/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
@@ -446,7 +438,6 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^airflow/gcp/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
@@ -559,7 +550,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         require_serial: true
-        files: provider\.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
         additional_dependencies:
           - 'PyYAML==5.3.1'
           - 'jsonschema>=3.2.0,<5.0.0'
@@ -570,7 +561,7 @@ repos:
         name: Check if pre-commits are described
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
         language: system
-        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst|^breeze-complete$
+        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst$|^breeze-complete$
         require_serial: true
       - id: pre-commit-hook-names
         name: Ensure hook ids are not overly long
@@ -579,16 +570,24 @@ repos:
           - --max-length=70
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
         name: Checks providers available when declared by extras in setup.py
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: setup\.py$|^airflow/providers/.*\.py$
+        files: ^setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
+        additional_dependencies: ['rich']
+      - id: check-system-tests
+        name: Check if system tests have required segments of code
+        entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
+        language: python
+        files: ^tests/system/.*/example_[^/]*.py$
+        exclude: ^tests/system/providers/google/bigquery/example_bigquery_queries\.py$
+        pass_filenames: true
         additional_dependencies: ['rich']
       - id: markdownlint
         name: Run markdownlint
@@ -696,6 +695,13 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$
         require_serial: true
+      - id: inline-dockerfile-scripts
+        name: Inline Dockerfile and Dockerfile.ci scripts
+        entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
+        language: python
+        pass_filenames: false
+        files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
+        require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node
@@ -704,7 +710,7 @@ repos:
         entry: ./scripts/ci/static_checks/ui_lint.sh
         pass_filenames: false
       - id: www-lint
-        name: ESLint against current UI js files
+        name: ESLint against current UI JavaScript files
         language: node
         'types_or': [javascript]
         files: ^airflow/www/static/js/
@@ -730,7 +736,7 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^docs/.*\.py$
-        exclude: rtd-deprecation
+        exclude: ^docs/rtd-deprecation
         require_serial: true
       - id: flake8
         name: Run flake8
@@ -744,5 +750,5 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.sh
         pass_filenames: false
-        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref.rst$
+        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

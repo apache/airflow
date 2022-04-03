@@ -40,7 +40,6 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cl
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
-from sqlalchemy.orm.session import Session
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
@@ -51,7 +50,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
@@ -237,10 +235,6 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
-        self.stuck_tasks_last_check_time: int = time.time()
-        self.stuck_queued_task_check_interval = conf.getint(
-            'celery', 'stuck_queued_task_check_interval', fallback=300
-        )
         self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
 
@@ -345,8 +339,6 @@ class CeleryExecutor(BaseExecutor):
 
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
-        if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
-            self._clear_stuck_queued_tasks()
 
     def _check_for_stalled_adopted_tasks(self):
         """
@@ -386,55 +378,6 @@ class CeleryExecutor(BaseExecutor):
             )
             for key in timedout_keys:
                 self.change_state(key, State.FAILED)
-
-    @provide_session
-    def _clear_stuck_queued_tasks(self, session: Session = NEW_SESSION) -> None:
-        """
-        Tasks can get stuck in queued state in DB while still not in
-        worker. This happens when the worker is autoscaled down and
-        the task is queued but has not been picked up by any worker prior to the scaling.
-
-        In such situation, we update the task instance state to scheduled so that
-        it can be queued again. We chose to use task_adoption_timeout to decide when
-        a queued task is considered stuck and should be reschelduled.
-        """
-        if not isinstance(app.backend, DatabaseBackend):
-            # We only want to do this for database backends where
-            # this case has been spotted
-            return
-        # We use this instead of using bulk_state_fetcher because we
-        # may not have the stuck task in self.tasks and we don't want
-        # to clear task in self.tasks too
-        session_ = app.backend.ResultSession()
-        task_cls = getattr(app.backend, "task_cls", TaskDb)
-        with session_cleanup(session_):
-            celery_task_ids = [
-                t.task_id
-                for t in session_.query(task_cls.task_id)
-                .filter(~task_cls.status.in_([celery_states.SUCCESS, celery_states.FAILURE]))
-                .all()
-            ]
-        self.log.debug("Checking for stuck queued tasks")
-
-        max_allowed_time = utcnow() - self.task_adoption_timeout
-
-        for task in session.query(TaskInstance).filter(
-            TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
-        ):
-            if task.key in self.queued_tasks or task.key in self.running:
-                continue
-
-            if task.external_executor_id in celery_task_ids:
-                # The task is still running in the worker
-                continue
-
-            self.log.info(
-                'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
-                task,
-                self.task_adoption_timeout.total_seconds(),
-            )
-            task.state = State.SCHEDULED
-            session.merge(task)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""

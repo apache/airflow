@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Imap Attachment To Amazon S3 Operator
-=====================================
+Imap Attachment to Amazon S3 Transfer Operator
+==============================================
 
 The ``ImapAttachmentToS3Operator`` transfers an email attachment via IMAP
 protocol from a mail server to an Amazon S3 Bucket.

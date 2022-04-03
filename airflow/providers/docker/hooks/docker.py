@@ -18,6 +18,7 @@
 from typing import Any, Dict, Optional
 
 from docker import APIClient
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
@@ -55,6 +56,7 @@ class DockerHook(BaseHook, LoggingMixin):
         base_url: Optional[str] = None,
         version: Optional[str] = None,
         tls: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         super().__init__()
         if not base_url:
@@ -76,6 +78,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__base_url = base_url
         self.__version = version
         self.__tls = tls
+        self.__timeout = timeout
         if conn.port:
             self.__registry = f"{conn.host}:{conn.port}"
         else:
@@ -86,7 +89,9 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__reauth = extra_options.get('reauth') != 'no'
 
     def get_conn(self) -> APIClient:
-        client = APIClient(base_url=self.__base_url, version=self.__version, tls=self.__tls)
+        client = APIClient(
+            base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
+        )
         self.__login(client)
         return client
 

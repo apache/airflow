@@ -68,3 +68,44 @@ class DagsPersistentVolumeClaimTest(unittest.TestCase):
             "resources": {"requests": {"storage": "1G"}},
             "storageClassName": "MyStorageClass",
         } == jmespath.search("spec", docs[0])
+
+    def test_single_annotation(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "persistence": {
+                        "enabled": True,
+                        "size": "1G",
+                        "existingClaim": None,
+                        "storageClassName": "MyStorageClass",
+                        "accessMode": "ReadWriteMany",
+                        "annotations": {"key": "value"},
+                    }
+                }
+            },
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
+
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "value" == annotations.get("key")
+
+    def test_multiple_annotations(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "persistence": {
+                        "enabled": True,
+                        "size": "1G",
+                        "existingClaim": None,
+                        "storageClassName": "MyStorageClass",
+                        "accessMode": "ReadWriteMany",
+                        "annotations": {"key": "value", "key-two": "value-two"},
+                    }
+                }
+            },
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
+
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "value" == annotations.get("key")
+        assert "value-two" == annotations.get("key-two")

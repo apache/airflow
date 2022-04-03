@@ -108,10 +108,10 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
-    @mock.patch(MODULE_NAME + ".CloudSecretManagerBackend.get_conn_uri")
-    def test_get_connections(self, mock_get_uri, mock_get_creds):
+    @mock.patch(MODULE_NAME + ".CloudSecretManagerBackend.get_conn_value")
+    def test_get_connections(self, mock_get_value, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        mock_get_uri.return_value = CONN_URI
+        mock_get_value.return_value = CONN_URI
         conns = CloudSecretManagerBackend().get_connections(conn_id=CONN_ID)
         assert isinstance(conns, list)
         assert isinstance(conns[0], Connection)

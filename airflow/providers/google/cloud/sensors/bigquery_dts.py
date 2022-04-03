@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -130,4 +131,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
             metadata=self.metadata,
         )
         self.log.info("Status of %s run: %s", self.run_id, str(run.state))
+
+        if run.state in (TransferState.FAILED, TransferState.CANCELLED):
+            raise AirflowException(f"Transfer {self.run_id} did not succeed")
         return run.state in self.expected_statuses

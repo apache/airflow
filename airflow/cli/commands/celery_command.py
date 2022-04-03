@@ -100,6 +100,8 @@ def _run_worker(options, skip_serve_logs):
 @cli_utils.action_cli
 def worker(args):
     """Starts Airflow Celery worker"""
+    # Disable connection pool so that celery worker does not hold an unnecessary db connection
+    settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
         raise SystemExit("Worker exiting, database connection precheck failed.")
 

@@ -38,7 +38,7 @@ def get_size(bytes):
     Convert Bytes into Gigabytes
     1 Gigabytes = 1024*1024*1024 = 1073741824 bytes
     """
-    factor = 1024 ** 3
+    factor = 1024**3
     value_gb = bytes / factor
     return value_gb
 

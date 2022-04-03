@@ -51,7 +51,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
-from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -2396,3 +2396,29 @@ def test_get_next_data_interval(
     )
 
     assert dag.get_next_data_interval(dag_model) == expected_data_interval
+
+
+@pytest.mark.parametrize(
+    ('dag_date', 'tasks_date', 'restrict'),
+    [
+        [
+            (DEFAULT_DATE, None),
+            [
+                (DEFAULT_DATE + timedelta(days=1), DEFAULT_DATE + timedelta(days=2)),
+                (DEFAULT_DATE + timedelta(days=3), DEFAULT_DATE + timedelta(days=4)),
+            ],
+            TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), True),
+        ],
+        [
+            (DEFAULT_DATE, None),
+            [(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)), (DEFAULT_DATE, None)],
+            TimeRestriction(DEFAULT_DATE, None, True),
+        ],
+    ],
+)
+def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
+    with dag_maker("test__time_restriction", start_date=dag_date[0], end_date=dag_date[1]) as dag:
+        DummyOperator(task_id="do1", start_date=tasks_date[0][0], end_date=tasks_date[0][1])
+        DummyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
+
+    assert dag._time_restriction == restrict

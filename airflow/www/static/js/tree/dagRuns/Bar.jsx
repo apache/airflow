@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global stateColors, moment */
+/* global stateColors */
 
 import React from 'react';
 import { isEqual } from 'lodash';
@@ -27,21 +27,32 @@ import {
   Tooltip,
   Text,
   VStack,
+  useTheme,
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
-import { callModalDag } from '../../dag';
+import { useContainerRef } from '../context/containerRef';
+import { useSelection } from '../context/selection';
+import Time from '../Time';
 
 const BAR_HEIGHT = 100;
 
 const DagRunBar = ({
-  run, max, index, totalRuns, containerRef,
+  run, max, index, totalRuns,
 }) => {
+  const containerRef = useContainerRef();
+  const { selected, onSelect } = useSelection();
+  const { colors } = useTheme();
+  const hoverBlue = `${colors.blue[100]}50`;
+  const isSelected = run.runId === selected.runId;
+
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
-      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+    if (selected.runId !== run.runId) {
+      [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
+        .forEach((e) => { e.style.backgroundColor = hoverBlue; });
+    }
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
@@ -51,6 +62,7 @@ const DagRunBar = ({
   return (
     <Box
       className={`js-${run.runId}`}
+      bg={isSelected && 'blue.100'}
       transition="background-color 0.2s"
       px="1px"
       pb="2px"
@@ -64,13 +76,9 @@ const DagRunBar = ({
         cursor="pointer"
         width="14px"
         zIndex={1}
-        onClick={() => {
-          callModalDag({
-            execution_date: run.executionDate, dag_id: run.dagId, run_id: run.runId,
-          });
-        }}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        onClick={() => onSelect({ runId: run.runId })}
       >
         <Tooltip
           label={<DagRunTooltip dagRun={run} />}
@@ -101,7 +109,7 @@ const DagRunBar = ({
       {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
-          {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
+          <Time dateTime={run.executionDate} format="MMM DD, HH:mm" />
         </Text>
         <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
       </VStack>
@@ -120,7 +128,6 @@ const compareProps = (
   && prevProps.max === nextProps.max
   && prevProps.index === nextProps.index
   && prevProps.totalRuns === nextProps.totalRuns
-  && prevProps.containerRef === nextProps.containerRef
 );
 
 export default React.memo(DagRunBar, compareProps);

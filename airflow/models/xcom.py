@@ -384,9 +384,9 @@ class BaseXCom(Base, LoggingMixin):
             keys will be returned. Pass *None* (default) to remove the filter.
         :param task_ids: Only XComs from task with matching IDs will be pulled.
             Pass *None* (default) to remove the filter.
-        :param dag_id: Only pulls XComs from this DAG. If *None* (default), the
-            DAG of the calling task is used.
-        :param map_index: Only XComs from matching map indexes will be pulled.
+        :param dag_ids: Only pulls XComs from specified DAGs. Pass *None*
+            (default) to remove the filter.
+        :param map_indexes: Only XComs from matching map indexes will be pulled.
             Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XComs from the
             specified DAG run are returned. If *True*, all matching XComs are

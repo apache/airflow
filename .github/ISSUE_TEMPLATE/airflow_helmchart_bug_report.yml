@@ -1,6 +1,6 @@
 ---
 name: Airflow Helm Chart Bug report
-description: Problems and issues with Apache Airflow Official Helm Chart
+description: Problems and issues with the Apache Airflow Official Helm Chart
 labels: ["kind:bug", "area:helm-chart"]
 body:
   - type: markdown
@@ -10,15 +10,15 @@ body:
         <img src='https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='120' height='120'>
         Thank you for finding the time to report the problem!
 
-        We really appreciate the community efforts to improve Airflow.
+        We really appreciate the community's efforts to improve Airflow.
 
         Note that this issue is only for the
         [Official Apache Airflow Helm Chart](https://airflow.apache.org/docs/helm-chart/stable/index.html).
         If you use another 3rd-party Chart, you should report your issue in the repo of that chart instead.
 
-        Note, that you do not need to create an issue if you have a change ready to submit!
+        Note, you do not need to create an issue if you have a change ready to submit!
 
-        You can open [Pull Request](https://github.com/apache/airflow/pulls) immediately instead.
+        You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: dropdown
@@ -42,7 +42,7 @@ body:
       label: Apache Airflow version
       description: >
         What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
-        discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
+        discuss Airflow 1.10, open a [discussion](https://github.com/apache/airflow/discussions) instead!
       multiple: false
       options:
         - "2.2.4 (latest released)"
@@ -80,9 +80,9 @@ body:
       label: Docker Image customisations
       description: What are the specific modification you've made in your image?
       placeholder: >
-          Did you extend or customise the official Airflow image? Did you add any packages? Maybe
-          you can share link to your image, or copy the Dockerfile and `docker build` commands
-          you used to build the image? Make sure to surround the code you paste with ``` ```.
+        Did you extend or customise the official Airflow image? Did you add any packages? Maybe
+        you can share a link to your image, or copy the Dockerfile and `docker build` commands
+        you used to build the image? Make sure to surround the code you paste with ``` ```.
   - type: textarea
     attributes:
       label: What happened
@@ -131,7 +131,8 @@ body:
   - type: checkboxes
     attributes:
       label: Code of Conduct
-      description: The Code of Conduct helps create a safe space for everyone. We require
+      description: >
+        The Code of Conduct helps create a safe space for everyone. We require
         that everyone agrees to it.
       options:
         - label: >

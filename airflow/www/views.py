@@ -113,6 +113,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -525,6 +526,21 @@ def get_task_stats_from_query(qry):
             data[dag_id] = {}
         data[dag_id][state] = count
     return data
+
+
+def redirect_or_json(origin, msg, status=""):
+    """
+    Some endpoints are called by javascript,
+    returning json will allow us to more elegantly handle side-effects in-page
+    """
+    if request.headers.get('Accept') == 'application/json':
+        return {'status': status, 'message': msg}
+    else:
+        if status:
+            flash(msg, status)
+        else:
+            flash(msg)
+        return redirect(origin)
 
 
 ######################################################################################
@@ -1244,19 +1260,20 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-        task = dag.get_task(task_id).prepare_for_execution()
+        raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
             # DAG has never been run. Task instance rendering does not really
             # make sense in this situation, but "works" prior to AIP-39. This
             # "fakes" a temporary DagRun-TaskInstance association (not saved to
             # database) for presentation only.
-            ti = TaskInstance(task, map_index=map_index)
+            ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
-            ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(task)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
+            ti.refresh_from_task(raw_task)
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1267,8 +1284,13 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
-        else:
-            task = ti.task
+
+        # Ensure we are rendering the unmapped operator. Unmapping should be
+        # done automatically if template fields are rendered successfully; this
+        # only matters if get_rendered_template_fields() raised an exception.
+        # The following rendering won't show useful values in this case anyway,
+        # but we'll display some quasi-meaingful field names.
+        task = ti.task.unmap()
 
         title = "Rendered Template"
         html_dict = {}
@@ -1728,17 +1750,14 @@ class Airflow(AirflowBaseView):
         executor = ExecutorLoader.get_default_executor()
 
         if not getattr(executor, "supports_ad_hoc_ti_run", False):
-            flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
-            return redirect(origin)
+            msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry"
+            return redirect_or_json(origin, msg, "error")
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
-            flash(
-                "Could not queue task instance for execution, task instance is missing",
-                "error",
-            )
-            return redirect(origin)
+            msg = "Could not queue task instance for execution, task instance is missing"
+            return redirect_or_json(origin, msg, "error")
 
         ti.refresh_from_task(task)
 
@@ -1752,11 +1771,8 @@ class Airflow(AirflowBaseView):
         failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
-            flash(
-                f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}",
-                "error",
-            )
-            return redirect(origin)
+            msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
+            return redirect_or_json(origin, msg, "error")
 
         executor.job_id = "manual"
         executor.start()
@@ -1769,8 +1785,8 @@ class Airflow(AirflowBaseView):
         executor.heartbeat()
         ti.queued_dttm = timezone.utcnow()
         session.merge(ti)
-        flash(f"Sent {ti} to the message queue, it should start any moment now.")
-        return redirect(origin)
+        msg = f"Sent {ti} to the message queue, it should start any moment now."
+        return redirect_or_json(origin, msg)
 
     @expose('/delete', methods=['POST'])
     @auth.has_access(
@@ -1937,7 +1953,14 @@ class Airflow(AirflowBaseView):
         return redirect(origin)
 
     def _clear_dag_tis(
-        self, dag, start_date, end_date, origin, recursive=False, confirmed=False, only_failed=False
+        self,
+        dag,
+        start_date,
+        end_date,
+        origin,
+        recursive=False,
+        confirmed=False,
+        only_failed=False,
     ):
         if confirmed:
             count = dag.clear(
@@ -1948,8 +1971,8 @@ class Airflow(AirflowBaseView):
                 only_failed=only_failed,
             )
 
-            flash(f"{count} task instances have been cleared")
-            return redirect(origin)
+            msg = f"{count} task instances have been cleared"
+            return redirect_or_json(origin, msg)
 
         try:
             tis = dag.clear(
@@ -1961,19 +1984,22 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            flash(str(ex), 'error')
-            return redirect(origin)
+            return redirect_or_json(origin, msg=str(ex), status="error")
 
         if not tis:
-            flash("No task instances to clear", 'error')
-            response = redirect(origin)
+            msg = "No task instances to clear"
+            return redirect_or_json(origin, msg, status="error")
+        elif request.headers.get('Accept') == 'application/json':
+            details = [str(t) for t in tis]
+
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
         else:
             details = "\n".join(str(t) for t in tis)
 
             response = self.render_template(
                 'airflow/confirm.html',
                 endpoint=None,
-                message="Here's the list of task instances you are about to clear:",
+                message="Task instances you are about to clear:",
                 details=details,
             )
 
@@ -2033,7 +2059,6 @@ class Airflow(AirflowBaseView):
     def dagrun_clear(self):
         """Clears the DagRun"""
         dag_id = request.form.get('dag_id')
-        origin = get_safe_url(request.form.get('origin'))
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == "true"
 
@@ -2042,7 +2067,14 @@ class Airflow(AirflowBaseView):
         start_date = dr.logical_date
         end_date = dr.logical_date
 
-        return self._clear_dag_tis(dag, start_date, end_date, origin, recursive=True, confirmed=confirmed)
+        return self._clear_dag_tis(
+            dag,
+            start_date,
+            end_date,
+            origin=None,
+            recursive=True,
+            confirmed=confirmed,
+        )
 
     @expose('/blocked', methods=['POST'])
     @auth.has_access(
@@ -2090,89 +2122,60 @@ class Airflow(AirflowBaseView):
             )
         return wwwutils.json_response(payload)
 
-    def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed, origin):
+    def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_failed(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash(f'Marked failed on {len(new_dag_state)} task instances')
-            return redirect(origin)
-
+            return {'status': 'success', 'message': f'Marked failed on {len(new_dag_state)} task instances'}
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to mark as failed",
-                details=details,
-            )
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
-            return response
-
-    def _mark_dagrun_state_as_success(self, dag_id, dag_run_id, confirmed, origin):
+    def _mark_dagrun_state_as_success(self, dag_id, dag_run_id, confirmed):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_success(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash(f'Marked success on {len(new_dag_state)} task instances')
-            return redirect(origin)
-
+            return {'status': 'success', 'message': f'Marked success on {len(new_dag_state)} task instances'}
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to mark as success",
-                details=details,
-            )
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
-            return response
-
-    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, origin: str):
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool):
         if not dag_run_id:
-            flash('Invalid dag_run_id', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': 'Invalid dag_run_id'}
 
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'Cannot find DAG: {dag_id}', 'error')
-            return redirect(origin)
+            return {'status': 'error', 'message': f'Cannot find DAG: {dag_id}'}
 
         new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
-            flash('Marked the DagRun as queued.')
-            return redirect(origin)
+            return {'status': 'success', 'message': 'Marked the DagRun as queued.'}
 
         else:
-            details = '\n'.join(str(t) for t in new_dag_state)
+            details = [str(t) for t in new_dag_state]
 
-            response = self.render_template(
-                'airflow/confirm.html',
-                message="Here's the list of task instances you are about to change",
-                details=details,
-            )
-
-            return response
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
 
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access(
@@ -2187,8 +2190,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_failed(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_failed(dag_id, dag_run_id, confirmed)
 
     @expose('/dagrun_success', methods=['POST'])
     @auth.has_access(
@@ -2203,8 +2205,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_success(dag_id, dag_run_id, confirmed)
 
     @expose('/dagrun_queued', methods=['POST'])
     @auth.has_access(
@@ -2219,8 +2220,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = get_safe_url(request.form.get('origin'))
-        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed, origin)
+        return self._mark_dagrun_state_as_queued(dag_id, dag_run_id, confirmed)
 
     @expose("/dagrun_details")
     @auth.has_access(
@@ -2326,17 +2326,18 @@ class Airflow(AirflowBaseView):
         downstream = to_boolean(args.get('downstream'))
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
+        origin = origin or url_for('Airflow.index')
 
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
-            flash(f'DAG {dag_id} not found', "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f'DAG {dag_id} not found'
+            return redirect_or_json(origin, msg, status='error')
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
-            flash(f"Task {task_id} not found", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Task {task_id} not found"
+            return redirect_or_json(origin, msg, status='error')
 
         task.dag = dag
 
@@ -2344,13 +2345,13 @@ class Airflow(AirflowBaseView):
             'success',
             'failed',
         ):
-            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Invalid state {state}, must be either 'success' or 'failed'"
+            return redirect_or_json(origin, msg, status='error')
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
-            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
-            return redirect(origin or url_for('Airflow.index'))
+            msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
+            return redirect_or_json(origin, msg, status='error')
 
         from airflow.api.common.mark_tasks import set_state
 
@@ -2365,12 +2366,16 @@ class Airflow(AirflowBaseView):
             commit=False,
         )
 
+        if request.headers.get('Accept') == 'application/json':
+            details = [str(t) for t in to_be_altered]
+            return htmlsafe_json_dumps(details, separators=(',', ':'))
+
         details = "\n".join(str(t) for t in to_be_altered)
 
         response = self.render_template(
             "airflow/confirm.html",
             endpoint=url_for(f'Airflow.{state}'),
-            message=f"Here's the list of task instances you are about to mark as {state}:",
+            message=f"Task instances you are about to mark as {state}:",
             details=details,
         )
 
@@ -2621,6 +2626,8 @@ class Airflow(AirflowBaseView):
             session.query(
                 (_convert_to_date(session, DagRun.execution_date)).label('date'),
                 DagRun.state,
+                func.max(DagRun.data_interval_start).label('data_interval_start'),
+                func.max(DagRun.data_interval_end).label('data_interval_end'),
                 func.count('*').label('count'),
             )
             .filter(DagRun.dag_id == dag.dag_id)
@@ -2629,7 +2636,7 @@ class Airflow(AirflowBaseView):
             .all()
         )
 
-        dag_states = [
+        data_dag_states = [
             {
                 # DATE() in SQLite and MySQL behave differently:
                 # SQLite returns a string, MySQL returns a date.
@@ -2640,10 +2647,39 @@ class Airflow(AirflowBaseView):
             for dr in dag_states
         ]
 
+        if dag_states:
+            last_automated_data_interval = DataInterval(
+                dag_states[-1].data_interval_start, dag_states[-1].data_interval_end
+            )
+
+            year = last_automated_data_interval.end.year
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            dates = collections.Counter()
+
+            while True:
+                info = dag.timetable.next_dagrun_info(
+                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                )
+                if info is None:
+                    break
+
+                if info.logical_date.year != year:
+                    break
+
+                last_automated_data_interval = info.data_interval
+                dates[info.logical_date] += 1
+
+            data_dag_states.extend(
+                {'date': date.isoformat(), 'state': 'planned', 'count': count}
+                for (date, count) in dates.items()
+            )
+
+        now = DateTime.utcnow()
+
         data = {
-            'dag_states': dag_states,
+            'dag_states': data_dag_states,
             'start_date': (dag.start_date or DateTime.utcnow()).date().isoformat(),
-            'end_date': (dag.end_date or DateTime.utcnow()).date().isoformat(),
+            'end_date': (dag.end_date or now).date().isoformat(),
         }
 
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
@@ -2847,8 +2883,8 @@ class Airflow(AirflowBaseView):
             session.query(TaskFail)
             .filter(
                 TaskFail.dag_id == dag.dag_id,
-                TaskFail.execution_date >= min_date,
-                TaskFail.execution_date <= base_date,
+                DagRun.execution_date >= min_date,
+                DagRun.execution_date <= base_date,
                 TaskFail.task_id.in_([t.task_id for t in dag.tasks]),
             )
             .all()
@@ -3185,11 +3221,7 @@ class Airflow(AirflowBaseView):
             .order_by(TaskInstance.start_date)
         )
 
-        ti_fails = (
-            session.query(TaskFail)
-            .join(DagRun, DagRun.execution_date == TaskFail.execution_date)
-            .filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
-        )
+        ti_fails = session.query(TaskFail).filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
 
         tasks = []
         for ti in tis:
@@ -4066,12 +4098,12 @@ class ProviderView(AirflowBaseView):
 
         providers = []
         for pi in providers_manager.providers.values():
-            provider_info = pi[1]
+            provider_info = pi.data
             provider_data = {
                 "package_name": provider_info["package-name"],
                 "description": self._clean_description(provider_info["description"]),
-                "version": pi[0],
-                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi[0]),
+                "version": pi.version,
+                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi.version),
             }
             providers.append(provider_data)
 
@@ -5285,6 +5317,31 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
 
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
 
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):

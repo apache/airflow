@@ -56,6 +56,8 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
+log = logging.getLogger(__name__)
+
 CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
@@ -364,7 +366,7 @@ def task_run(args, dag=None):
 
     hostname = get_hostname()
 
-    print(f"Running {ti} on host {hostname}")
+    log.info("Running %s on host %s", ti, hostname)
 
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)

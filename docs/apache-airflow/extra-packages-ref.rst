@@ -256,6 +256,8 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
+| arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 
 
 Other extras

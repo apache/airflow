@@ -106,7 +106,7 @@ class TestPythonPackages:
             'azure.cosmos',
             'azure.datalake.store',
             'azure.identity',
-            'azure.keyvault',
+            'azure.keyvault.secrets',
             'azure.kusto.data',
             'azure.mgmt.containerinstance',
             'azure.mgmt.datalake.store',

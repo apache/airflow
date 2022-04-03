@@ -45,7 +45,6 @@ class TestDb:
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(engine.connect())
         diff = compare_metadata(mctx, all_meta_data)
-
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
@@ -54,23 +53,6 @@ class TestDb:
             # ignore indices created by celery
             lambda t: (t[0] == 'remove_index' and t[1].name == 'task_id'),
             lambda t: (t[0] == 'remove_index' and t[1].name == 'taskset_id'),
-            # Ignore all the fab tables
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_register_user'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_role'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission_view'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission_view_role'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user_role'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_view_menu'),
-            # Ignore all the fab indices
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_id'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'name'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'user_id'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'username'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'field_string'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'email'),
-            lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_view_id'),
             # from test_security unit test
             lambda t: (t[0] == 'remove_table' and t[1].name == 'some_model'),
             # MSSQL default tables

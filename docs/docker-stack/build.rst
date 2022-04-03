@@ -45,6 +45,14 @@ replace it with your own images.
 How to build your own image
 ---------------------------
 
+.. note::
+  The ``Dockerfile`` does not strictly follow the `SemVer <https://semver.org/>`_ approach of
+  Apache Airflow when it comes to features and backwards compatibility. While Airflow code strictly
+  follows it, the ``Dockerfile`` is really a way to conveniently package Airflow using standard container
+  approach, occasionally there are some changes in the building process or in the entrypoint of the image
+  that require slight adaptation. Details of changes and adaptation needed can be found in the
+  :doc:`Changelog <changelog>`.
+
 There are several most-typical scenarios that you will encounter and here is a quick recipe on how to achieve
 your goal quickly. In order to understand details you can read further, but for the simple cases using
 typical tools here are the simple examples.
@@ -166,8 +174,6 @@ how you want to build your image.
 +----------------------------------------------------+-----------+-------------+
 |                                                    | Extending | Customizing |
 +====================================================+===========+=============+
-| Can be built without airflow sources               | Yes       | No          |
-+----------------------------------------------------+-----------+-------------+
 | Uses familiar 'FROM ' pattern of image building    | Yes       | No          |
 +----------------------------------------------------+-----------+-------------+
 | Requires only basic knowledge about images         | Yes       | No          |
@@ -232,9 +238,9 @@ You should be aware, about a few things:
 
 * If your apt, or PyPI dependencies require some of the ``build-essential`` or other packages that need
   to compile your python dependencies, then your best choice is to follow the "Customize the image" route,
-  because you can build a highly-optimized (for size) image this way. However it requires to checkout sources
-  of Apache Airflow, so you might still want to choose to add ``build-essential`` to your image,
-  even if your image will be significantly bigger.
+  because you can build a highly-optimized (for size) image this way. However it requires you to use
+  the Dockerfile that is released as part of Apache Airflow sources (also available at
+  `Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_)
 
 * You can also embed your dags in the image by simply adding them with COPY directive of Airflow.
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
@@ -345,6 +351,44 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
 Customizing the image
 ---------------------
 
+.. warning::
+    BREAKING CHANGE! As of Airflow 2.3.0 you need to use
+    `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_ to build customized
+    Airflow Docker image. We are using new features of Building (and ``dockerfile:1.4`` syntax)
+    to make our image faster to build and "standalone" - i.e. not needing any extra files from
+    Airflow in order to be build. As of Airflow 2.3.0, the ``Dockerfile`` that is released with Airflow
+    does not need any extra folders or files and can be copied and used from any folder.
+    Previously you needed to copy Airflow sources together with the Dockerfile as some scripts were
+    needed to make it work. You also need to use ``DOCKER_CONTEXT_FILES`` build arg if you want to
+    use your own custom files during the build (see
+    :ref:`Using docker context files <using-docker-context-files>` for details).
+
+.. note::
+    You can usually use the latest ``Dockerfile`` released by Airflow to build previous Airflow versions.
+    Note however, that there are slight changes in the Dockerfile and entrypoint scripts that can make it
+    behave slightly differently, depending which Dockerfile version you used. Details of what has changed
+    in each of the released versions of Docker image can be found in the :doc:`Changelog <changelog>`.
+
+Prerequisites for building customized docker image:
+
+* You need to enable `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_ to
+  build the image. This can be done by setting ``DOCKER_BUILDKIT=1`` as an environment variable
+  or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
+  and running ``docker buildx build`` command.
+
+* You need to have a new Docker installed to handle ``1.4`` syntax of the Dockerfile.
+  Docker version ``20.10.7`` and above is known to work.
+
+Before attempting to customize the image, you need to download flexible and customizable ``Dockerfile``.
+You can extract the officially released version of the Dockerfile from the
+`released sources <https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html>`_.
+You can also conveniently download the latest released version
+`from GitHub <https://raw.githubusercontent.com/apache/airflow/|version|/Dockerfile>`_. You can save it
+in any directory - there is no need for any other files to be present there. If you wish to use your own
+files (for example custom configuration of ``pip`` or your own ``requirements`` or custom dependencies,
+you need to use ``DOCKER_CONTEXT_FILES`` build arg and place the files in the directory pointed at by
+the arg (see :ref:`Using docker context files <using-docker-context-files>` for details).
+
 Customizing the image is an optimized way of adding your own dependencies to the image - better
 suited to prepare highly optimized (for size) production images, especially when you have dependencies
 that require to be compiled before installing (such as ``mpi4py``).
@@ -355,13 +399,10 @@ of Airflow, or building the images from security-vetted sources.
 The big advantage of this method is that it produces optimized image even if you need some compile-time
 dependencies that are not needed in the final image.
 
-The disadvantage is that you need to use Airflow Sources to build such images from the
-`official distribution repository of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
-released versions, or from the checked out sources (using release tags or main branches) in the
-`Airflow GitHub Project <https://github.com/apache/airflow>`_ or from your own fork
-if you happen to do maintain your own fork of Airflow.
+The disadvantage it that building the image takes longer and it requires you to use
+the Dockerfile that is released as part of Apache Airflow sources.
 
-Another disadvantage is that the pattern of building Docker images with ``--build-arg`` is less familiar
+The disadvantage is that the pattern of building Docker images with ``--build-arg`` is less familiar
 to developers of such images. However it is quite well-known to "power-users". That's why the
 customizing flow is better suited for those users who have more familiarity and have more custom
 requirements.
@@ -427,6 +468,66 @@ right version of python base image:
 
 * ``--build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster`` uses buster version of Debian (Debian 10)
 * ``--build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye`` uses bullseye version of Debian (Debian 11)
+
+.. _using-docker-context-files:
+
+Using docker-context-files
+--------------------------
+
+When customizing the image, you can optionally make Airflow install custom binaries or provide custom
+configuration for your pip in ``docker-context-files``. In order to enable it, you need to add
+``--build-arg DOCKER_CONTEXT_FILES=docker-context-files`` build arg when you build the image.
+You can pass any subdirectory of your docker context, it will always be mapped to ``/docker-context-files``
+during the build.
+
+You can use ``docker-context-files`` for the following purposes:
+
+* you can place ``requirements.txt`` and add any ``pip`` packages you want to install in the
+  ``docker-context-file`` folder. Those requirements will be automatically installed during the build.
+
+.. exampleinclude:: docker-examples/customizing/own-requirements.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+* you can place ``pip.conf`` (and legacy ``.piprc``) in the ``docker-context-files`` folder and they
+  will be used for all ``pip`` commands (for example you can configure your own sources
+  or authentication mechanisms)
+
+.. exampleinclude:: docker-examples/customizing/custom-pip.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+
+* you can place ``.whl`` packages that you downloaded and install them with
+  ``INSTALL_DOCKER_CONTEXT_FILES`` set to ``true`` . It's useful if you build the image in
+  restricted security environments (see: :ref:`image-build-secure-environments` for details):
+
+.. exampleinclude:: docker-examples/restricted/restricted_environments.sh
+    :language: bash
+    :start-after: [START download]
+    :end-before: [END download]
+
+.. note::
+  You can also pass ``--build-arg DOCKER_CONTEXT_FILES=.`` if you want to place your ``requirements.txt``
+  in main directory without creating a dedicated folder, however this is a good practice to keep any files
+  that you copy to the image context in a sub-folder. This makes it easier to separate things that
+  are used on the host from those that are passed in Docker context. Of course, by default when you run
+  ``docker build .`` the whole folder is available as "Docker build context" and sent to the docker
+  engine, but the ``DOCKER_CONTEXT_FILES`` are always copied to the ``build`` segment of the image so
+  copying all your local folder might unnecessarily increase time needed to build the image and your
+  cache will be invalidated every time any of the files in your local folder change.
+
+.. warning::
+  BREAKING CHANGE! As of Airflow 2.3.0 you need to specify additional flag:
+  ``--build-arg DOCKER_CONTEXT_Files=docker-context-files`` in order to use the files placed
+  in ``docker-context-files``. Previously that switch was not needed. Unfortunately this change is needed
+  in order to enable ``Dockerfile`` as standalone Dockerfile without any extra files. As of Airflow 2.3.0
+  the ``Dockerfile`` that is released with Airflow does not need any extra folders or files and can
+  be copied and used from any folder. Previously you needed to copy Airflow sources together with the
+  Dockerfile as some scripts were needed to make it work. With Airflow 2.3.0, we are using ``Buildkit``
+  features that enable us to make the ``Dockerfile`` a completely standalone file that can be used "as-is".
 
 Examples of image customizing
 -----------------------------

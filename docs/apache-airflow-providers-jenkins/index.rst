@@ -21,6 +21,11 @@
 
 Content
 -------
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
 
 .. toctree::
     :maxdepth: 1
