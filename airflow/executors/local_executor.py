@@ -349,7 +349,7 @@ class LocalExecutor(BaseExecutor):
         self.workers_active = 0
         self.impl = (
             LocalExecutor.UnlimitedParallelism(self)
-            if self.parallelism == 0
+            if self.parallelism <= 0
             else LocalExecutor.LimitedParallelism(self)
         )
 
