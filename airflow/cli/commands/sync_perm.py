@@ -25,7 +25,7 @@ from airflow.www.app import cached_app
 @airflow_cmd.command("sync-perm")
 @click.option("--include-dags", is_flag=True, help="If passed, DAG specific permissions will also be synced.")
 def sync_perm(include_dags):
-    """Updates permissions for existing roles and DAGs"""
+    """Update permissions for existing roles and optionally DAGs"""
     appbuilder = cached_app().appbuilder
     print('Updating actions and resources for all existing roles')
     # Add missing permissions for all the Base Views _before_ syncing/creating roles
