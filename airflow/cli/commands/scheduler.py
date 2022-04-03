@@ -36,12 +36,13 @@ from airflow.cli import (
     click_subdir,
 )
 from airflow.configuration import conf
-from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
 def _create_scheduler_job(subdir, num_runs, do_pickle):
+    from airflow.jobs.scheduler_job import SchedulerJob
+
     job = SchedulerJob(
         subdir=process_subdir(subdir),
         num_runs=num_runs,
