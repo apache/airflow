@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-03T08:28:05Z
+# This constraints file was automatically generated on 2022-04-03T19:25:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -176,7 +176,7 @@ cachelib==0.6.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
-celery==5.2.3
+celery==5.2.5
 certifi==2020.12.5
 cffi==1.15.0
 cfgv==3.3.1
@@ -220,7 +220,7 @@ email-validator==1.1.3
 entrypoints==0.4
 eventlet==0.33.0
 execnet==1.9.0
-facebook-business==12.0.1
+facebook-business==13.0.0
 fastavro==1.4.10
 filelock==3.6.0
 fissix==21.11.13
@@ -311,7 +311,7 @@ ipython==7.32.0
 isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
-jeepney==0.7.1
+jeepney==0.8.0
 jira==3.1.1
 jmespath==0.10.0
 json-merge-patch==0.2
@@ -469,7 +469,7 @@ requests==2.27.1
 responses==0.20.0
 rfc3986==1.5.0
 rich-click==1.3.0
-rich==12.0.1
+rich==12.1.0
 rsa==4.8
 s3transfer==0.5.2
 sasl==0.3.1
@@ -580,6 +580,6 @@ yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
 zict==2.1.0
-zipp==3.7.0
+zipp==3.8.0
 zope.event==4.5.0
 zope.interface==5.4.0
