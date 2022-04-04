@@ -23,6 +23,8 @@ export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
 export const dateTimeAttrFormat = 'YYYY-MM-DDThh:mm:ssTZD';
 
+export const TimezoneEvent = 'timezone';
+
 export function formatTimezone(what) {
   if (what instanceof moment) {
     return what.isUTC() ? 'UTC' : what.format(defaultTZFormat);

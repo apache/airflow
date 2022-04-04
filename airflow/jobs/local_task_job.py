@@ -195,7 +195,7 @@ class LocalTaskJob(BaseJob):
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
-                self.log.warning(
+                self.log.error(
                     "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,

@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.5](#airflow-225)
 - [Airflow 2.2.4](#airflow-224)
 - [Airflow 2.2.3](#airflow-223)
 - [Airflow 2.2.2](#airflow-222)
@@ -229,6 +230,10 @@ To support operator-mapping (AIP 42), the `deps` attribute on operator class mus
 ### The `tree` default view setting has been renamed to `grid`
 
 If you set the `dag_default_view` config option or the `default_view` argument to `DAG()` to `tree` you will need to update your deployment. The old name will continue to work but will issue warnings.
+
+## Airflow 2.2.5
+
+No breaking changes
 
 ## Airflow 2.2.4
 

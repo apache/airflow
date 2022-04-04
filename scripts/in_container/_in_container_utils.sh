@@ -54,7 +54,7 @@ function assert_in_container() {
 }
 
 function in_container_script_start() {
-    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" || ${VERBOSE_COMMANDS} == "True" ]]; then
         set -x
     fi
 }
@@ -63,14 +63,14 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" ]]; then
+        if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" || "${PRINT_INFO_FROM_SCRIPTS}" == "True" ]]; then
             echo "########################################################################################################################"
             echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
             echo "########################################################################################################################"
         fi
     fi
 
-    if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" || ${VERBOSE_COMMANDS} == "True" ]]; then
         set +x
     fi
 }
@@ -322,7 +322,7 @@ function setup_provider_packages() {
     export PACKAGE_PREFIX_UPPERCASE=""
     export PACKAGE_PREFIX_LOWERCASE=""
     export PACKAGE_PREFIX_HYPHEN=""
-    if [[ ${VERBOSE} == "true" ]]; then
+    if [[ ${VERBOSE:="false"} == "true" ||  ${VERBOSE} == "True" ]]; then
         OPTIONAL_VERBOSE_FLAG+=("--verbose")
     fi
     readonly PACKAGE_TYPE
@@ -429,7 +429,7 @@ function get_providers_to_act_on() {
 
 # Starts group for GitHub Actions - makes logs much more readable
 function group_start {
-    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
         echo "::group::${1}"
     else
         echo
@@ -440,7 +440,7 @@ function group_start {
 
 # Ends group for GitHub Actions
 function group_end {
-    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+    if [[ ${GITHUB_ACTIONS:="false"} == "true" ||  ${GITHUB_ACTIONS} == "True" ]]; then
         echo -e "\033[0m"  # Disable any colors set in the group
         echo "::endgroup::"
     fi

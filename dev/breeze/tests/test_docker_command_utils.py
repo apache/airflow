@@ -26,11 +26,18 @@ from airflow_breeze.utils.docker_command_utils import check_docker_compose_versi
 def test_check_docker_version_unknown(mock_console, mock_run_command):
     check_docker_version(verbose=True)
     expected_run_command_calls = [
-        call(['docker', 'info'], verbose=True, suppress_console_print=True, capture_output=True, text=True),
+        call(
+            ['docker', 'info'],
+            verbose=True,
+            check=True,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        ),
         call(
             ['docker', 'version', '--format', '{{.Client.Version}}'],
             verbose=True,
-            suppress_console_print=True,
+            no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
         ),
@@ -55,7 +62,7 @@ def test_check_docker_version_too_low(mock_console, mock_run_command, mock_check
     mock_run_command.assert_called_with(
         ['docker', 'version', '--format', '{{.Client.Version}}'],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
@@ -76,7 +83,7 @@ def test_check_docker_version_ok(mock_console, mock_run_command, mock_check_dock
     mock_run_command.assert_called_with(
         ['docker', 'version', '--format', '{{.Client.Version}}'],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
@@ -95,7 +102,7 @@ def test_check_docker_version_higher(mock_console, mock_run_command, mock_check_
     mock_run_command.assert_called_with(
         ['docker', 'version', '--format', '{{.Client.Version}}'],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
@@ -110,7 +117,7 @@ def test_check_docker_compose_version_unknown(mock_console, mock_run_command):
         call(
             ["docker-compose", "--version"],
             verbose=True,
-            suppress_console_print=True,
+            no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
         ),
@@ -131,7 +138,7 @@ def test_check_docker_compose_version_low(mock_console, mock_run_command):
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
@@ -157,7 +164,7 @@ def test_check_docker_compose_version_ok(mock_console, mock_run_command):
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
@@ -173,7 +180,7 @@ def test_check_docker_compose_version_higher(mock_console, mock_run_command):
     mock_run_command.assert_called_with(
         ["docker-compose", "--version"],
         verbose=True,
-        suppress_console_print=True,
+        no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )

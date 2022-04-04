@@ -23,9 +23,15 @@ from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsRespons
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
+from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def _get_transfer_config_details(config_transfer_name: str):
+    config_details = config_transfer_name.split("/")
+    return {"project_id": config_details[1], "region": config_details[3], "config_id": config_details[5]}
 
 
 class BigQueryCreateDataTransferOperator(BaseOperator):
@@ -67,6 +73,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (BigQueryDataTransferConfigLink(),)
 
     def __init__(
         self,
@@ -106,6 +113,16 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        transfer_config = _get_transfer_config_details(response.name)
+        BigQueryDataTransferConfigLink.persist(
+            context=context,
+            task_instance=self,
+            region=transfer_config["region"],
+            config_id=transfer_config["config_id"],
+            project_id=transfer_config["project_id"],
+        )
+
         result = TransferConfig.to_dict(response)
         self.log.info("Created DTS transfer config %s", get_object_id(result))
         self.xcom_push(context, key="transfer_config_id", value=get_object_id(result))
@@ -231,6 +248,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (BigQueryDataTransferConfigLink(),)
 
     def __init__(
         self,
@@ -273,6 +291,16 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        transfer_config = _get_transfer_config_details(response.runs[0].name)
+        BigQueryDataTransferConfigLink.persist(
+            context=context,
+            task_instance=self,
+            region=transfer_config["region"],
+            config_id=transfer_config["config_id"],
+            project_id=transfer_config["project_id"],
+        )
+
         result = StartManualTransferRunsResponse.to_dict(response)
         run_id = get_object_id(result['runs'][0])
         self.xcom_push(context, key="run_id", value=run_id)
