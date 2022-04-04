@@ -147,12 +147,20 @@ const Table = ({
         </Tbody>
       </ChakraTable>
       <Flex alignItems="center" justifyContent="flex-start" my={4}>
-        <IconButton variant="ghost" onClick={handlePrevious} disabled={!canPreviousPage} aria-label="Previous Page">
-          <MdKeyboardArrowLeft />
-        </IconButton>
-        <IconButton variant="ghost" onClick={handleNext} disabled={!canNextPage} aria-label="Next Page">
-          <MdKeyboardArrowRight />
-        </IconButton>
+        <IconButton
+          variant="ghost"
+          onClick={handlePrevious}
+          disabled={!canPreviousPage}
+          aria-label="Previous Page"
+          icon={<MdKeyboardArrowLeft />}
+        />
+        <IconButton
+          variant="ghost"
+          onClick={handleNext}
+          disabled={!canNextPage}
+          aria-label="Next Page"
+          icon={<MdKeyboardArrowRight />}
+        />
         <Text>
           {lowerCount}
           -
