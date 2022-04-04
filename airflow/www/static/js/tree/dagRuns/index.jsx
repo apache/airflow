@@ -29,6 +29,7 @@ import {
 import { useTreeData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
+import { useSelection } from '../context/selection';
 
 const DurationTick = ({ children, ...rest }) => (
   <Text fontSize={10} color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
@@ -38,6 +39,7 @@ const DurationTick = ({ children, ...rest }) => (
 
 const DagRuns = ({ tableWidth }) => {
   const { data: { dagRuns = [] } } = useTreeData();
+  const { selected, onSelect } = useSelection();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {
     const duration = getDuration(dagRun.startDate, dagRun.endDate);
@@ -99,6 +101,8 @@ const DagRuns = ({ tableWidth }) => {
               max={max}
               index={i}
               totalRuns={runs.length}
+              isSelected={run.runId === selected.runId}
+              onSelect={onSelect}
             />
           ))}
         </Flex>
