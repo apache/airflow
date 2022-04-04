@@ -1196,6 +1196,7 @@ class TestStringifiedDAGs:
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
 
         def check_task_group(node):
+            assert node.dag is serialized_dag
             try:
                 children = node.children.values()
             except AttributeError:
