@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-03T19:25:56Z
+# This constraints file was automatically generated on 2022-04-04T10:37:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -222,6 +222,7 @@ eventlet==0.33.0
 execnet==1.9.0
 facebook-business==13.0.0
 fastavro==1.4.10
+fastjsonschema==2.15.3
 filelock==3.6.0
 fissix==21.11.13
 flake8-colors==0.1.9
@@ -356,7 +357,7 @@ mypy==0.910
 mysql-connector-python==8.0.28
 mysqlclient==2.1.0
 nbclient==0.5.13
-nbformat==5.2.0
+nbformat==5.3.0
 neo4j==4.4.2
 nest-asyncio==1.5.5
 nodeenv==1.6.0
@@ -529,7 +530,7 @@ toml==0.10.2
 tomli==2.0.1
 toolz==0.11.2
 tornado==6.1
-tqdm==4.63.1
+tqdm==4.64.0
 traitlets==5.1.1
 trino==0.312.0
 twine==4.0.0
