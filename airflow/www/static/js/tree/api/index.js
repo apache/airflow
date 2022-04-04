@@ -33,6 +33,7 @@ import useMarkSuccessTask from './useMarkSuccessTask';
 import useExtraLinks from './useExtraLinks';
 import useConfirmMarkTask from './useConfirmMarkTask';
 import useTreeData from './useTreeData';
+import useMappedInstances from './useMappedInstances';
 
 axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -54,4 +55,5 @@ export {
   useExtraLinks,
   useConfirmMarkTask,
   useTreeData,
+  useMappedInstances,
 };

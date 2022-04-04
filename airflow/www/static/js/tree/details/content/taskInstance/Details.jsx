@@ -89,6 +89,7 @@ const Details = ({ instance, task }) => {
   }
 
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
+  const isStateFinal = ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
@@ -144,16 +145,20 @@ const Details = ({ instance, task }) => {
         </Text>
       </Box>
       <Box>
+        {startDate && (
         <Text>
           Started:
           {' '}
           <Time dateTime={startDate} />
         </Text>
+        )}
+        {endDate && isStateFinal && (
         <Text>
           Ended:
           {' '}
           <Time dateTime={endDate} />
         </Text>
+        )}
       </Box>
     </Flex>
   );
