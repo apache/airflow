@@ -364,8 +364,7 @@ class S3PrefixSensor(S3KeySensor):
         )
 
         self.prefix = prefix
-
-        prefixes = [prefix] if isinstance(self.prefix, str) else self.prefix
-        keys = list(map(lambda pref: pref + delimiter if pref[-1] != delimiter else pref, prefixes))
+        prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
+        keys = [pref if pref.endswith(delimiter) else pref + delimiter for pref in prefixes]
 
         super().__init__(bucket_key=keys, **kwargs)
