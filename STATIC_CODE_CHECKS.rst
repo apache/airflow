@@ -150,6 +150,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``changelog-duplicates``               Checks for duplicate changelog entries
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-2-1-compatibility``            Check that providers are 2.1-compatible
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-apache-license``               Checks compatibility with Apache License requirements
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-builtin-literals``             Require literal syntax when initializing Python builtin types
@@ -165,6 +167,8 @@ require Breeze Docker images to be installed locally.
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
+------------------------------------ ---------------------------------------------------------------- ------------
+``check-system-tests``                 Check if system tests have required segments of code
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``daysago-import-check``               Checks if daysago is properly imported
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -201,6 +205,8 @@ require Breeze Docker images to be installed locally.
 ``identity``                           Prints inputs to the static check hooks for troubleshooting
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``      Checks if LoggingMixin is properly imported
+------------------------------------ ---------------------------------------------------------------- ------------
+``inline-dockerfile-scripts``          Inline Dockerfile and Dockerfile.ci scripts
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``insert-license``                     Adds licenses for most file types
 ------------------------------------ ---------------------------------------------------------------- ------------

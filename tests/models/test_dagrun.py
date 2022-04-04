@@ -878,15 +878,16 @@ class TestDagRun:
     ('run_type', 'expected_tis'),
     [
         pytest.param(DagRunType.MANUAL, 1, id='manual'),
-        pytest.param(DagRunType.BACKFILL_JOB, 2, id='backfill'),
+        pytest.param(DagRunType.BACKFILL_JOB, 3, id='backfill'),
     ],
 )
 @mock.patch.object(Stats, 'incr')
-def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expected_tis):
-    """Test that tasks with specific start dates are only created for backfill runs"""
+def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
+    """Test that tasks with specific dates are only created for backfill runs"""
     with DAG('test', start_date=DEFAULT_DATE) as dag:
         DummyOperator(task_id='without')
-        DummyOperator(task_id='with_startdate', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_start_date', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_end_date', end_date=DEFAULT_DATE - datetime.timedelta(1))
 
     dag_run = DagRun(
         dag_id=dag.dag_id,
@@ -910,7 +911,7 @@ def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expecte
 def test_expand_mapped_task_instance(dag_maker, session):
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
-        mapped = MockOperator(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator(task_id='task_2').expand(arg2=literal)
 
     dr = dag_maker.create_dagrun()
     indices = (
@@ -926,7 +927,7 @@ def test_expand_mapped_task_instance(dag_maker, session):
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
 
     dr: DagRun = dag_maker.create_dagrun()
     ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
@@ -946,3 +947,37 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_upstream_failed(dag_maker, session):
+    from airflow.operators.python import PythonOperator
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {'a': 'b'}]))
+
+        def consumer(*args):
+            print(repr(args))
+
+        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+
+    dr = dag_maker.create_dagrun()
+    _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    make_list_ti.state = TaskInstanceState.FAILED
+    session.flush()
+
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+
+    assert sorted((ti.task_id, ti.map_index, ti.state) for ti in tis) == [
+        ("consumer", -1, TaskInstanceState.UPSTREAM_FAILED),
+        ("make_list", -1, TaskInstanceState.FAILED),
+    ]
+    # Bug/possible source of optimization: The DR isn't marked as failed until
+    # in the loop that marks the last task as UPSTREAM_FAILED
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    assert dr.state == DagRunState.FAILED

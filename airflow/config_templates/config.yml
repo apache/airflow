@@ -699,7 +699,7 @@
       default: ""
     - name: stat_name_handler
       description: |
-        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
         the transformed stat name.
 
         The function should have the following signature:
@@ -724,7 +724,7 @@
       default: ""
     - name: statsd_custom_client_path
       description: |
-        If you want to utilise your own custom Statsd client set the relevant
+        If you want to utilise your own custom StatsD client set the relevant
         module path below.
         Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
       version_added: 2.0.0
@@ -1155,11 +1155,11 @@
       default: "True"
     - name: dag_default_view
       description: |
-        Default DAG view. Valid values are: ``tree``, ``graph``, ``duration``, ``gantt``, ``landing_times``
+        Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
       version_added: ~
       type: string
       example: ~
-      default: "tree"
+      default: "grid"
     - name: dag_orientation
       description: |
         Default DAG orientation. Valid values are:
@@ -1351,7 +1351,7 @@
       default: "False"
     - name: auto_refresh_interval
       description: |
-        How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
+        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
         when auto-refresh is turned on
       version_added: 2.2.0
       type: integer
@@ -1372,7 +1372,7 @@
       version_added: 2.3.0
       type: string
       example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,tree,tree_data"
+      default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
     - name: audit_view_included_events
       description: |
         Comma separated string of view events to include in dag audit view.
@@ -1528,6 +1528,21 @@
       type: string
       example: ~
       default: ~
+- name: local_kubernetes_executor
+  description: |
+    This section only applies if you are using the ``LocalKubernetesExecutor`` in
+    ``[core]`` section above
+  options:
+    - name: kubernetes_queue
+      description: |
+        Define when to send a task to ``KubernetesExecutor`` when using ``LocalKubernetesExecutor``.
+        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+        the task is executed via ``KubernetesExecutor``,
+        otherwise via ``LocalExecutor``
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "kubernetes"
 - name: celery_kubernetes_executor
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
@@ -1588,15 +1603,15 @@
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
       version_added: 2.0.0
       type: integer
-      example: "1"
-      default: ~
+      example: ~
+      default: "1"
     - name: worker_enable_remote_control
       description: |
         Specify if remote control of the workers is enabled.
-        When using SQS as the broker, Celery creates lots of .*reply-celery-pidbox queues. You can turn off
-        this by setting this value as false. However, if the value is false, the flower won't work.
+        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
+        prevent this by setting this to false. However, with this disabled Flower won't work.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "true"
     - name: worker_umask
@@ -1751,13 +1766,6 @@
       type: string
       example: ~
       default: "False"
-    - name: stuck_queued_task_check_interval
-      description: |
-        How often to check for stuck queued task (in seconds)
-      version_added: 2.2.4
-      type: integer
-      example: ~
-      default: "300"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
@@ -1855,6 +1863,14 @@
       type: string
       example: ~
       default: "30"
+    - name: deactivate_stale_dags_interval
+      description: |
+        How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
+        the expected files) which should be deactivated.
+      version_added: 2.2.5
+      type: integer
+      example: ~
+      default: "60"
     - name: dag_dir_list_interval
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
@@ -1871,7 +1887,7 @@
       default: "30"
     - name: pool_metrics_interval
       description: |
-        How often (in seconds) should pool usage stats be sent to statsd (if statsd_on is enabled)
+        How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
       version_added: 2.0.0
       type: float
       example: ~
@@ -1923,6 +1939,17 @@
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
+      type: string
+      example: ~
+      default: "True"
+    - name: ignore_first_depends_on_past_by_default
+      description: |
+        Setting this to True will make first task instance of a task
+        ignore depends_on_past setting. A task instance will be considered
+        as the first task instance of a task when there is no task instance
+        in the DB with an execution_date earlier than it., i.e. no manual marking
+        success will be needed for a newly added task to be scheduled.
+      version_added: 2.3.0
       type: string
       example: ~
       default: "True"
@@ -1996,6 +2023,22 @@
       type: string
       example: ~
       default: "modified_time"
+    - name: standalone_dag_processor
+      description: |
+        Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
+        job.
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: max_callbacks_per_loop
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true and  callbacks are stored
+        in database. Contains maximum number of callbacks that are fetched during a single loop.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "20"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.

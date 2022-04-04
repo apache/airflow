@@ -19,6 +19,92 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add arguments to filter list: start_after_key, from_datetime, to_datetime, object_filter callable (#22231)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``ImapAttachmentToS3Operator: fix it, update sample dag and update doc (#22351)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update sample dag and doc for S3CreateBucketOperator, S3PutBucketTaggingOperator, S3GetBucketTaggingOperator, S3DeleteBucketTaggingOperator, S3DeleteBucketOperator (#22312)``
+   * ``Add docs and example dag for AWS Glue (#22295)``
+   * ``Update doc and sample dag for S3ToSFTPOperator and SFTPToS3Operator (#22313)``
+
+3.1.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Added AWS RDS sensors (#21231)``
+* ``Added AWS RDS operators (#20907)``
+* ``Add RedshiftDataHook (#19137)``
+* ``Feature: Add invoke lambda function operator (#21686)``
+* ``Add JSON output on SqlToS3Operator (#21779)``
+* ``Add SageMakerDeleteModelOperator (#21673)``
+* ``Added Hook for Amazon RDS. Added 'boto3_stub' library for autocomplete. (#20642)``
+* ``Added SNS example DAG and rst (#21475)``
+* ``retry on very specific eni provision failures (#22002)``
+* ``Configurable AWS Session Factory (#21778)``
+* ``S3KeySensor to use S3Hook url parser (#21500)``
+* ``Get log events after sleep to get all logs (#21574)``
+* ``Use temporary file in GCSToS3Operator (#21295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``AWS RDS integration fixes (#22125)``
+* ``Fix the Type Hints in ''RedshiftSQLOperator'' (#21885)``
+* ``Bug Fix - S3DeleteObjectsOperator will try and delete all keys (#21458)``
+* ``Fix Amazon SES emailer signature (#21681)``
+* ``Fix EcsOperatorError, so it can be loaded from a picklefile (#21441)``
+* ``Fix RedshiftDataOperator and update doc (#22157)``
+* ``Bugfix for retrying on provision failuers(#22137)``
+* ``If uploading task logs to S3 fails, retry once (#21981)``
+* ``Bug-fix GCSToS3Operator (#22071)``
+* ``fixes query status polling logic (#21423)``
+* ``use different logger to avoid duplicate log entry (#22256)``
+
+Misc
+~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+* ``Support for Python 3.10``
+* ``[doc] Improve s3 operator example by adding task upload_keys (#21422)``
+* ``Rename 'S3' hook name to 'Amazon S3' (#21988)``
+* ``Add template fields to DynamoDBToS3Operator (#22080)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``additional information in the ECSOperator around support of launch_type=EXTERNAL (#22093)``
+   * ``Add map_index to XCom model and interface (#22112)``
+   * ``Add sample dags and update doc for RedshiftClusterSensor, RedshiftPauseClusterOperator and RedshiftResumeClusterOperator (#22128)``
+   * ``Add sample dag and doc for RedshiftToS3Operator (#22060)``
+   * ``Add docs and sample dags for AWS Batch (#22010)``
+   * ``Add documentation for Feb Providers release (#22056)``
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Resolve mypy issue in athena example dag (#22020)``
+   * ``refactors polling logic for athena queries (#21488)``
+   * ``EMR on EKS Sample DAG and Docs Update (#22095)``
+   * ``Dynamo to S3 Sample DAG and Docs (#21920)``
+   * ``Cleanup RedshiftSQLOperator documentation (#21976)``
+   * ``Move S3ToRedshiftOperator documentation to transfer dir (#21975)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+   * ``Update ECS sample DAG and Docs to new standards (#21828)``
+   * ``Update EKS sample DAGs and docs (#21523)``
+   * ``EMR Sample DAG and Docs Update (#22189)``
+
 3.0.0
 .....
 

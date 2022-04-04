@@ -81,6 +81,51 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Minimum kubernetes version bumped from 3.0.0 to  21.7.0
+
+No change in behavior is expected.  This was necessary in order to take advantage of a [bugfix](https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4) concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some [workaround code](https://github.com/apache/airflow/pull/20759).
+
+### Deprecation: `Connection.extra` must be JSON-encoded dict
+
+#### TLDR
+
+From Airflow 3.0, the `extra` field in airflow connections must be a JSON-encoded Python dict.
+
+#### What, why, and when?
+
+Airflow's Connection is used for storing credentials.  For storage of information that does not
+fit into user / password / host / schema / port, we have the `extra` string field.  Its intention
+was always to provide for storage of arbitrary key-value pairs, like `no_host_key_check` in the SSH
+hook, or `keyfile_dict` in GCP.
+
+But since the field is string, it's technically been permissible to store any string value.  For example
+one could have stored the string value `'my-website.com'` and used this in the hook.  But this is a very
+bad practice. One reason is intelligibility: when you look at the value for `extra`, you don't have any idea
+what its purpose is.  Better would be to store `{"api_host": "my-website.com"}` which at least tells you
+*something* about the value.  Another reason is extensibility: if you store the API host as a simple string
+value, what happens if you need to add more information, such as the API endpoint, or credentials?  Then
+you would need to convert the string to a dict, and this would be a breaking change.
+
+For these reason, starting in Airflow 3.0 we will require that the `Connection.extra` field store
+a JSON-encoded Python dict.
+
+#### How will I be affected?
+
+For users of providers that are included in the Airflow codebase, you should not have to make any changes
+because in the Airflow codebase we should not allow hooks to misuse the `Connection.extra` field in this way.
+
+However, if you have any custom hooks that store something other than JSON dict, you will have to update it.
+If you do, you should see a warning any time that this connection is retrieved or instantiated (e.g. it should show up in
+task logs).
+
+To see if you have any connections that will need to be updated, you can run this command:
+
+```shell
+airflow connections export - 2>&1 >/dev/null | grep 'non-JSON'
+```
+
+This will catch any warnings about connections that are storing something other than JSON-encoded Python dict in the `extra` field.
+
 ### Zip files in the DAGs folder can no longer have a `.py` extension
 
 It was previously possible to have any extension for zip files in the DAGs folder. Now `.py` files are going to be loaded as modules without checking whether it is a zip file, as it leads to less IO. If a `.py` file in the DAGs folder is a zip compressed file, parsing it will fail with an exception.
@@ -163,11 +208,33 @@ This setting is also used for the deprecated experimental API, which only uses t
 
 To allow the Airflow UI to use the API, the previous default authorization backend `airflow.api.auth.backend.deny_all` is changed to `airflow.api.auth.backend.session`, and this is automatically added to the list of API authorization backends if a non-default value is set.
 
+### BaseOperatorLink's `get_link` method changed to take a `ti_key` keyword argument
+
+In v2.2 we "deprecated" passing an execution date to XCom.get methods, but there was no other option for operator links as they were only passed an execution_date.
+
+Now in 2.3 as part of Dynamic Task Mapping (AIP-42) we will need to add map_index to the XCom row to support the "reduce" part of the API.
+
+In order to support that cleanly we have changed the interface for BaseOperatorLink to take an TaskInstanceKey as the `ti_key` keyword argument (as execution_date + task is no longer unique for mapped operators).
+
+The existing signature will be detected (by the absence of the `ti_key` argument) and continue to work.
+
+### `ReadyToRescheduleDep` now only runs when `reschedule` is *True*
+
+When a `ReadyToRescheduleDep` is run, it now checks whether the `reschedule` attribute on the operator, and always reports itself as *passed* unless it is set to *True*. If you use this dep class on your custom operator, you will need to add this attribute to the operator class. Built-in operator classes that use this dep class (including sensors and all subclasses) already have this attribute and are not affected.
+
+### The `deps` attribute on an operator class should be a class level attribute
+
+To support operator-mapping (AIP 42), the `deps` attribute on operator class must be a set at the class level. This means that if a custom operator implements this as an instance-level variable, it will not be able to be used for operator-mapping. This does not affect existing code, but we highly recommend you to restructure the operator's dep logic in order to support the new feature.
+
+### The `tree` default view setting has been renamed to `grid`
+
+If you set the `dag_default_view` config option or the `default_view` argument to `DAG()` to `tree` you will need to update your deployment. The old name will continue to work but will issue warnings.
+
 ## Airflow 2.2.4
 
 ### Smart sensors deprecated
 
-Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferable Operators, added in Airflow 2.2.0.
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferrable Operators, added in Airflow 2.2.0.
 
 See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
@@ -1100,7 +1167,7 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
 `airflow.utils.helpers` module.
 
-The baseoperator module seems to be a better choice to keep
+The `baseoperator` module seems to be a better choice to keep
 closely coupled methods together. Helpers module is supposed to contain standalone helper methods
 that can be imported by all classes.
 
@@ -1232,13 +1299,13 @@ See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
 
 #### `airflow.operators.latest_only_operator.LatestOnlyOperator`
 
-In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and indirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
 
 No change is needed if only the default trigger rule `all_success` is being used.
 
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to accommodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
-The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+The goal of this change is to achieve a more consistent and configurable cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
 ### Changes to the core Python API
 
@@ -1387,7 +1454,7 @@ scheduled
 
 #### `airflow.utils.file.TemporaryDirectory`
 
-We remove airflow.utils.file.TemporaryDirectory
+We remove `airflow.utils.file.TemporaryDirectory`
 Since Airflow dropped support for Python < 3.5 there's no need to have this custom
 implementation of `TemporaryDirectory` because the same functionality is provided by
 `tempfile.TemporaryDirectory`.
@@ -2152,9 +2219,9 @@ Previously, the `list_prefixes` and `list_keys` methods returned `None` when the
 results. The behavior has been changed to return an empty list instead of `None` in this
 case.
 
-#### Removed Hipchat integration
+#### Removed HipChat integration
 
-Hipchat has reached end of life and is no longer available.
+HipChat has reached end of life and is no longer available.
 
 For more information please see
 https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
@@ -2226,9 +2293,9 @@ When initializing a Snowflake hook or operator, the value used for `snowflake_co
 
 This release also includes changes that fall outside any of the sections above.
 
-#### Standardised "extra" requirements
+#### Standardized "extra" requirements
 
-We standardised the Extras names and synchronized providers package names with the main airflow extras.
+We standardized the Extras names and synchronized providers package names with the main airflow extras.
 
 We deprecated a number of extras in 2.0.
 
@@ -2401,7 +2468,7 @@ defaulting to the `default_timezone` in the global config.
 
 ### Removed Kerberos support for HDFS hook
 
-The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+The HDFS hook's Kerberos support has been removed due to removed `python-krbV` dependency from PyPI
 and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
 support for SSL connection to HDFS).
 
@@ -2410,7 +2477,7 @@ SSL support still works for WebHDFS hook.
 ### Unify user session lifetime configuration
 
 In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+`session_lifetime_days` and `force_log_out_after` options. In practice only `session_lifetime_days`
 had impact on session lifetime, but it was limited to values in day.
 We have removed mentioned options and introduced new `session_lifetime_minutes`
 option which simplify session lifetime configuration.
@@ -2564,10 +2631,10 @@ passed in the request body.  It will also now be possible to have the execution_
 keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
 behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
 
-### Infinite pool size and pool size query optimisation
+### Infinite pool size and pool size query optimization
 
 Pool size can now be set to -1 to indicate infinite size (it also includes
-optimisation of pool query which lead to poor task n^2 performance of task
+optimization of pool query which lead to poor task n^2 performance of task
 pool queries in MySQL).
 
 ### Viewer won't have edit permissions on DAG view.
@@ -2734,7 +2801,7 @@ MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
 ### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
 
 It is no longer required to set one of the environment variables to avoid
-a GPL dependency. Airflow will now always use text-unidecode if unidecode
+a GPL dependency. Airflow will now always use `text-unidecode` if `unidecode`
 was not installed before.
 
 ### New `sync_parallelism` config option in `[celery]` section
@@ -3050,7 +3117,7 @@ https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
-dependency (python-nvd3 -> python-slugify -> unidecode).
+dependency `(python-nvd3 -> python-slugify -> unidecode)`.
 
 ### Replace DataProcHook.await calls to DataProcHook.wait
 
@@ -3158,7 +3225,7 @@ elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
-The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
+The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storage. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
 
 #### Change of per-task log path
 
@@ -3177,8 +3244,8 @@ SSH Hook now uses the Paramiko library to create an ssh client connection, inste
 
 - update SSHHook constructor
 - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
-- SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py for usage info.
-- No updates are required if you are using ftpHook, it will continue to work as is.
+- SFTPOperator is added to perform secure file transfer from server A to server B. Refer to test_sftp_operator.py for usage info.
+- No updates are required if you are using `ftpHook`, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
 

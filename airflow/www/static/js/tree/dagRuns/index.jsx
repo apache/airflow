@@ -26,7 +26,7 @@ import {
   Flex,
 } from '@chakra-ui/react';
 
-import useTreeData from '../useTreeData';
+import { useTreeData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
 
@@ -36,7 +36,7 @@ const DurationTick = ({ children, ...rest }) => (
   </Text>
 );
 
-const DagRuns = ({ containerRef }) => {
+const DagRuns = ({ tableWidth }) => {
   const { data: { dagRuns = [] } } = useTreeData();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {
@@ -66,6 +66,7 @@ const DagRuns = ({ containerRef }) => {
         backgroundColor="white"
         zIndex={2}
         borderBottom={0}
+        width={`${tableWidth - (runs.length * 16)}px`}
       >
         {!!runs.length && (
         <>
@@ -86,8 +87,10 @@ const DagRuns = ({ containerRef }) => {
         <Box position="absolute" bottom="100px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="50px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="4px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
+        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="120px" zIndex={2}>Runs</Text>
+        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="175px" zIndex={2}>Tasks</Text>
       </Td>
-      <Td p={0} width="16px" align="right" verticalAlign="bottom" borderBottom={0}>
+      <Td p={0} align="right" verticalAlign="bottom" borderBottom={0} width={`${runs.length * 16}px`}>
         <Flex justifyContent="flex-end">
           {runs.map((run, i) => (
             <DagRunBar
@@ -96,7 +99,6 @@ const DagRuns = ({ containerRef }) => {
               max={max}
               index={i}
               totalRuns={runs.length}
-              containerRef={containerRef}
             />
           ))}
         </Flex>

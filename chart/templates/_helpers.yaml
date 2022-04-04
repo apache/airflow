@@ -351,8 +351,8 @@ If release name contains chart name it will be used as a full name.
 pool_mode = transaction
 listen_port = {{ .Values.ports.pgbouncer }}
 listen_addr = *
-auth_type = md5
-auth_file = /etc/pgbouncer/users.txt
+auth_type = {{ .Values.pgbouncer.auth_type }}
+auth_file = {{ .Values.pgbouncer.auth_file }}
 stats_users = {{ .Values.data.metadataConnection.user }}
 ignore_startup_parameters = extra_float_digits
 max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
@@ -419,6 +419,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ define "airflow_dags_mount" -}}
 - name: dags
   mountPath: {{ (printf "%s/dags" .Values.airflowHome) }}
+  {{ if .Values.dags.persistence.subPath -}}
+  subPath: {{ .Values.dags.persistence.subPath }}
+  {{- end }}
   readOnly: {{ .Values.dags.gitSync.enabled | ternary "True" "False" }}
 {{- end -}}
 
@@ -483,7 +486,7 @@ Create the name of the scheduler service account to use
 {{- end -}}
 
 {{/*
-Create the name of the statsd service account to use
+Create the name of the StatsD service account to use
 */}}
 {{- define "statsd.serviceAccountName" -}}
 {{- if .Values.statsd.serviceAccount.create -}}
@@ -605,6 +608,41 @@ Create the name of the cleanup service account to use
                 time.sleep(1)
                 logging.info('Waiting for migrations... %s second(s)', ticker)
   {{- end }}
+{{- end }}
+
+{{define "scheduler_liveness_check_command"}}
+
+  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    from airflow.jobs.scheduler_job import SchedulerJob
+    from airflow.utils.db import create_session
+    from airflow.utils.net import get_hostname
+    import sys
+    with create_session() as session:
+        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+    sys.exit(0 if job.is_alive() else 1)"
+  {{- end }}
+{{- end }}
+
+{{define "triggerer_liveness_check_command"}}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
 {{- end }}
 
 {{ define "registry_docker_config" -}}

@@ -24,13 +24,16 @@ function install_pipx_tools() {
     echo
     # Make sure PIPX is installed in latest version
     pip install --upgrade pipx
-    # Install all the tools we need available in command line but without impacting the current environment
-    pipx install mssql-cli
+    if [[ $(uname -m) != "aarch64" ]]; then
+        # Do not install mssql-cli for ARM
+        # Install all the tools we need available in command line but without impacting the current environment
+        pipx install mssql-cli
 
-    # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
-    # its own execution bash script which is not compliant with the auto-activation of
-    # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
-    sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
+        # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
+        # its own execution bash script which is not compliant with the auto-activation of
+        # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
+        sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
+    fi
 }
 
 common::get_colors

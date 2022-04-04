@@ -21,7 +21,6 @@ import collections.abc
 import datetime
 import functools
 import operator
-import unittest.mock
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -46,6 +45,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cache
+from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -64,9 +64,9 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import Context
+from airflow.utils.helpers import is_container
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
@@ -77,8 +77,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
 
-    # BaseOperator.apply() can be called on an XComArg, sequence, or dict (not
+    # BaseOperator.expand() can be called on an XComArg, sequence, or dict (not
     # any mapping since we need the value to be ordered).
     Mappable = Union[XComArg, Sequence, dict]
 
@@ -104,17 +105,17 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
             continue
         for name in param_names:
             value = unknown_args.pop(name, NOTSET)
-            if func != "apply":
+            if func != "expand":
                 continue
             if value is NOTSET:
                 continue
             if isinstance(value, get_mappable_types()):
                 continue
             type_name = type(value).__name__
-            error = f"{op.__name__}.apply() got an unexpected type {type_name!r} for keyword argument {name}"
+            error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
             raise ValueError(error)
         if not unknown_args:
-            return  # If we have no args left ot check: stop looking at the MRO chian.
+            return  # If we have no args left to check: stop looking at the MRO chain.
 
     if len(unknown_args) == 1:
         error = f"an unexpected keyword argument {unknown_args.popitem()[0]!r}"
@@ -134,22 +135,20 @@ def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
-def create_mocked_kwargs(kwargs: Dict[str, "Mappable"]) -> Dict[str, unittest.mock.MagicMock]:
-    """Create a mapping of mocks for given map arguments.
+def ensure_xcomarg_return_value(arg: Any) -> None:
+    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
 
-    When a mapped operator is created, we want to perform basic validation on
-    the map arguments, especially the count of arguments. However, most of this
-    kind of logic lives directly on an operator class's ``__init__``, and
-    there's no good way to validate the arguments except to actually try to
-    create an operator instance.
-
-    Since the map arguments are yet to be populated when the mapped operator is
-    being parsed, we need to "invent" some mocked values for this validation
-    purpose. The :class:`~unittest.mock.MagicMock` class is a good fit for this
-    since it not only provide good run-time properties, but also enjoy special
-    treatments in Mypy.
-    """
-    return {k: unittest.mock.MagicMock(name=k) for k in kwargs}
+    if isinstance(arg, XComArg):
+        if arg.key != XCOM_RETURN_KEY:
+            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+    elif not is_container(arg):
+        return
+    elif isinstance(arg, collections.abc.Mapping):
+        for v in arg.values():
+            ensure_xcomarg_return_value(v)
+    elif isinstance(arg, collections.abc.Iterable):
+        for v in arg:
+            ensure_xcomarg_return_value(v)
 
 
 @attr.define(kw_only=True, repr=False)
@@ -157,14 +156,15 @@ class OperatorPartial:
     """An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
-    user to call ``.apply()`` on it at some point (usually in a method chain) to
+    user to call ``.expand()`` on it at some point (usually in a method chain) to
     create a ``MappedOperator`` to add into the DAG.
     """
 
     operator_class: Type["BaseOperator"]
+    user_supplied_task_id: str
     kwargs: Dict[str, Any]
 
-    _apply_called: bool = False  # Set when apply() is called to ease user debugging.
+    _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
         from airflow.operators.subdag import SubDagOperator
@@ -178,13 +178,21 @@ class OperatorPartial:
         return f"{self.operator_class.__name__}.partial({args})"
 
     def __del__(self):
-        if not self._apply_called:
-            warnings.warn(f"{self!r} was never mapped!")
+        if not self._expand_called:
+            try:
+                task_id = repr(self.kwargs["task_id"])
+            except KeyError:
+                task_id = f"at {hex(id(self))}"
+            warnings.warn(f"Task {task_id} was never mapped!")
 
-    def apply(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+        self._expand_called = True
+
         from airflow.operators.dummy import DummyOperator
 
-        validate_mapping_kwargs(self.operator_class, "apply", mapped_kwargs)
+        validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
+        ensure_xcomarg_return_value(mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -196,6 +204,7 @@ class OperatorPartial:
 
         op = MappedOperator(
             operator_class=self.operator_class,
+            user_supplied_task_id=self.user_supplied_task_id,
             mapped_kwargs=mapped_kwargs,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
@@ -204,6 +213,7 @@ class OperatorPartial:
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_dummy=issubclass(self.operator_class, DummyOperator),
@@ -214,7 +224,6 @@ class OperatorPartial:
             start_date=start_date,
             end_date=end_date,
         )
-        self._apply_called = True
         return op
 
 
@@ -222,7 +231,14 @@ class OperatorPartial:
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
-    operator_class: Union[Type["BaseOperator"], str]
+    # This attribute serves double purpose. For a "normal" operator instance
+    # loaded from DAG, this holds the underlying non-mapped operator class that
+    # can be used to create an unmapped operator for execution. For an operator
+    # recreated from a serialized DAG, however, this holds the serialized data
+    # that can be used to unmap this into a SerializedBaseOperator.
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
+
+    user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
 
@@ -233,6 +249,7 @@ class MappedOperator(AbstractOperator):
     operator_extra_links: Collection["BaseOperatorLink"]
     template_ext: Collection[str]
     template_fields: Collection[str]
+    template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
     _is_dummy: bool
@@ -240,7 +257,7 @@ class MappedOperator(AbstractOperator):
     _task_type: str
 
     dag: Optional["DAG"]
-    task_group: Optional[TaskGroup]
+    task_group: Optional["TaskGroup"]
     start_date: Optional[pendulum.DateTime]
     end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
@@ -255,7 +272,6 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
-        prevent_duplicates(self.partial_kwargs, self.mapped_kwargs, fail_reason="mapping already partial")
         self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)
@@ -284,7 +300,13 @@ class MappedOperator(AbstractOperator):
     @staticmethod
     @cache
     def deps_for(operator_class: Type["BaseOperator"]) -> FrozenSet[BaseTIDep]:
-        return operator_class.deps | {MappedTaskIsExpanded()}
+        operator_deps = operator_class.deps
+        if not isinstance(operator_deps, collections.abc.Set):
+            raise UnmappableOperator(
+                f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
+                f"not a {type(operator_deps).__name__}"
+            )
+        return operator_deps | {MappedTaskIsExpanded()}
 
     def _validate_argument_count(self) -> None:
         """Validate mapping arguments by unmapping with mocked values.
@@ -294,13 +316,9 @@ class MappedOperator(AbstractOperator):
         arguments are *valid* (that depends on the actual mapping values), but
         makes sure there are *enough* of them.
         """
-        if isinstance(self.operator_class, str):
+        if not isinstance(self.operator_class, type):
             return  # No need to validate deserialized operator.
-        mocked_mapped_kwargs = create_mocked_kwargs(self.mapped_kwargs)
-        op = self._create_unmapped_operator(mapped_kwargs=mocked_mapped_kwargs, real=False)
-        dag = op.get_dag()
-        if dag:
-            dag._remove_task(op.task_id)
+        self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
 
     @property
     def task_type(self) -> str:
@@ -412,7 +430,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def executor_config(self) -> dict:
-        return self.partial_kwargs.get("run_as_user", {})
+        return self.partial_kwargs.get("executor_config", {})
 
     @property
     def inlets(self) -> Optional[Any]:
@@ -430,42 +448,38 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _create_unmapped_operator(self, *, mapped_kwargs: Dict[str, Any], real: bool) -> "BaseOperator":
-        """Create a task of the underlying class based on this mapped operator.
-
-        :param mapped_kwargs: Mapped keyword arguments to be used to create the
-            task. Do not use ``self.mapped_kwargs``.
-        :param real: Whether the task should be created "for real" (i.e. *False*
-            means the operator is only created for validation purposes and not
-            going to be added to the actual DAG). This is simply forwarded to
-            the operator's ``_airflow_map_validation`` argument.
-        """
-        assert not isinstance(self.operator_class, str)
-        return self.operator_class(
-            task_id=self.task_id,
-            dag=self.dag,
-            task_group=self.task_group,
-            params=self.params,
-            start_date=self.start_date,
-            end_date=self.end_date,
-            _airflow_map_validation=not real,
+    def _get_unmap_kwargs(self) -> Dict[str, Any]:
+        return {
+            "task_id": self.user_supplied_task_id,
+            "dag": self.dag,
+            "task_group": self.task_group,
+            "params": self.params,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
             **self.partial_kwargs,
-            **mapped_kwargs,
-        )
+            **self.mapped_kwargs,
+        }
 
     def unmap(self) -> "BaseOperator":
-        """Get the "normal" Operator after applying the current mapping"""
-        dag = self.dag
-        if not dag:
-            raise RuntimeError("Cannot unmap a task without a DAG")
-        dag._remove_task(self.task_id)
-        return self._create_unmapped_operator(mapped_kwargs=self.mapped_kwargs, real=True)
+        """Get the "normal" Operator after applying the current mapping."""
+        if isinstance(self.operator_class, type):
+            return self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
+
+        # After a mapped operator is serialized, there's no real way to actually
+        # unmap it since we've lost access to the underlying operator class.
+        # This tries its best to simply "forward" all the attributes on this
+        # mapped operator to a new SerializedBaseOperator instance.
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        op = SerializedBaseOperator(task_id=self.task_id, _airflow_from_mapped=True)
+        SerializedBaseOperator.populate_operator(op, self.operator_class)
+        return op
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
         """The kwargs to calculate expansion length against.
 
         This is ``self.mapped_kwargs`` for classic operators because kwargs to
-        ``BaseOperator.apply()`` contribute to operator arguments.
+        ``BaseOperator.expand()`` contribute to operator arguments.
         """
         return self.mapped_kwargs
 

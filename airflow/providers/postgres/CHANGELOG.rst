@@ -19,12 +19,33 @@
 Changelog
 ---------
 
-3.0.0
------
+4.1.0
+.....
 
-The URIs returned by Postgres get_uri() returns ``postgresql://`` instead
+Features
+~~~~~~~~
+
+* ``adds ability to pass config params to postgres operator (#21551)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+4.0.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+4.0.0
+.....
+
+The URIs returned by Postgres ``get_uri()`` returns ``postgresql://`` instead
 of ``postgres://`` prefix which is the only supported prefix for the
-SQLAlchemy 1.4.0+. Any usage of get_uri() where ``postgres://`` prefix
+SQLAlchemy 1.4.0+. Any usage of ``get_uri()`` where ``postgres://`` prefix
 should be updated to reflect it.
 
 Breaking changes
@@ -38,6 +59,11 @@ Features
 * ``Add more SQL template fields renderers (#21237)``
 * ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
 
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
@@ -49,6 +75,15 @@ Features
    * ``Use typed Context EVERYWHERE (#20565)``
    * ``Fix mypy providers (#20190)``
    * ``Add documentation for January 2021 providers release (#21257)``
+
+
+3.0.1
+.....
+
+Misc
+~~~~
+
+* ``Make DbApiHook use get_uri from Connection (#21764)``
 
 2.4.0
 .....

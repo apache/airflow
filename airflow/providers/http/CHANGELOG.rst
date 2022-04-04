@@ -19,6 +19,39 @@
 Changelog
 ---------
 
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'method' to attributes in HttpSensor. (#21831)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
 2.0.3
 .....
 

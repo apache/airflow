@@ -24,6 +24,7 @@
   - [Pre-requisites](#pre-requisites)
   - [Build Changelog](#build-changelog)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -41,6 +42,7 @@
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
+  - [Update issue template with the new release](#update-issue-template-with-the-new-release)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
   - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
@@ -239,6 +241,27 @@ official Apache releases must not include the rcN suffix.
   git push origin tag helm-chart/${VERSION}
   ```
 
+## Prepare issue for testing status of rc
+
+Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
+(for example 1.4.0).
+
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow Helm Chart ${VERSION}
+EOF
+```
+
+Content is generated with:
+
+```shell
+./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
+    --current-release helm-chart/${VERSION} --is-helm-chart
+
+```
+
+Copy the URL of the issue.
+
 ## Prepare Vote email on the Apache Airflow release candidate
 
 - Send out a vote to the dev@airflow.apache.org mailing list:
@@ -249,6 +272,11 @@ Subject:
 cat <<EOF
 [VOTE] Release Apache Airflow Helm Chart ${VERSION_WITHOUT_RC} based on ${VERSION}
 EOF
+```
+
+```shell
+export VOTE_END_TIME=$(date --utc -d "now + 72 hours + 10 minutes" +'%Y-%m-%d %H:%M')
+export TIME_DATE_URL="to?iso=$(date --utc -d "now + 72 hours + 10 minutes" +'%Y%m%dT%H%M')&p0=136&font=cursive"
 ```
 
 Body:
@@ -281,9 +309,9 @@ gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
 gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
 plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
-The vote will be open for at least 72 hours (2021-05-19 01:30 UTC) or until the necessary number of votes are reached.
+The vote will be open for at least 72 hours ($VOTE_END_TIME UTC) or until the necessary number of votes is reached.
 
-https://www.timeanddate.com/countdown/to?iso=20210519T0230&p0=136&font=cursive
+https://www.timeanddate.com/countdown/$TIME_DATE_URL
 
 Please vote accordingly:
 
@@ -302,14 +330,17 @@ java -jar $PATH_TO_RAT/apache-rat-0.13/apache-rat-0.13.jar chart -E .rat-exclude
 
 Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
-the artifact checksums when we actually release.
+the artifact checksums when we actually release it.
+
+The status of testing the Helm Chart by the community is kept here:
+<TODO COPY LINK TO THE ISSUE CREATED>
 
 Thanks,
 <your name>
 EOF
 ```
 
-Note, you need to update the `helm gpg verify` output and the end of the voting period in the body.
+Note, you need to update the `helm gpg verify` output and verify the end of the voting period in the body.
 
 # Verify the release candidate by PMCs
 
@@ -665,6 +696,10 @@ Create a new release on GitHub with the changelog and assets from the release sv
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
+
+## Update issue template with the new release
+
+Updating issue templates in `.github/ISSUE_TEMPLATE/airflow_helmchart_bug_report.yml` with the new version
 
 ## Announce the release on the community slack
 

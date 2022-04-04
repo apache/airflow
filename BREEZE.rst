@@ -803,8 +803,8 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
-multiple processors on your local machine to generate such constraints faster.
+the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
@@ -1270,14 +1270,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1285,7 +1285,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1335,13 +1335,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
@@ -1485,14 +1478,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1500,7 +1493,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1560,14 +1553,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1575,7 +1568,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1642,14 +1635,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1657,7 +1650,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1693,14 +1686,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1708,7 +1701,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
 
   ####################################################################################################
@@ -1903,14 +1896,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -1918,7 +1911,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1987,14 +1980,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -2002,7 +1995,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2030,13 +2023,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
@@ -2290,23 +2276,23 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  autoflake base-operator black blacken-docs boring-cyborg build
                  build-providers-dependencies chart-schema-lint capitalized-breeze
-                 changelog-duplicates check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-xml daysago-import-check
-                 debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
-                 end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
-                 identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid
-                 migration-reference mixed-line-ending mypy mypy-helm no-providers-in-core-examples
-                 no-relative-imports persist-credentials-disabled pre-commit-descriptions
-                 pre-commit-hook-names pretty-format-json provide-create-sessions
-                 providers-changelogs providers-init-file providers-subpackages-init-file
-                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
-                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
-                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file update-supported-versions
-                 update-versions vendor-k8s-json-schema verify-db-migrations-documented version-sync
-                 www-lint yamllint yesqa
+                 changelog-duplicates check-2-1-compatibility check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-extras-order
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
+                 check-system-tests daysago-import-check debug-statements detect-private-key
+                 docstring-params doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt codespell forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
+                 insert-license inline-dockerfile-scripts isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid migration-reference
+                 mixed-line-ending mypy mypy-helm no-providers-in-core-examples no-relative-imports
+                 persist-credentials-disabled pre-commit-descriptions pre-commit-hook-names
+                 pretty-format-json provide-create-sessions providers-changelogs providers-init-file
+                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
+                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
+                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 update-supported-versions update-versions vendor-k8s-json-schema
+                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2402,14 +2388,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.10
 
   --platform PLATFORM
           Builds image for the platform specified.
 
           One of:
 
-                 linux/amd64
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
 
 
   -d, --debian DEBIAN_VERSION
@@ -2417,7 +2403,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 buster bullseye
+                 bullseye buster
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2509,17 +2495,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.21.1 v1.20.2
+                 v1.23.4 v1.22.7 v1.21.10 v1.20.15
 
-          Default: v1.21.1
+          Default: v1.23.4
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v0.11.1
+                 v0.12.0
 
-          Default: v0.11.1
+          Default: v0.12.0
 
   --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.
@@ -2534,6 +2520,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+                 LocalKubernetesExecutor
 
           Default: KubernetesExecutor
 
@@ -2630,13 +2617,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want

@@ -328,6 +328,7 @@ class PodGenerator:
         namespace: str,
         scheduler_job_id: str,
         run_id: Optional[str] = None,
+        map_index: int = -1,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -355,6 +356,9 @@ class PodGenerator:
             'airflow_version': airflow_version.replace('+', '-'),
             'kubernetes_executor': 'True',
         }
+        if map_index >= 0:
+            annotations['map_index'] = str(map_index)
+            labels['map_index'] = str(map_index)
         if date:
             annotations['execution_date'] = date.isoformat()
             labels['execution_date'] = datetime_to_label_safe_datestring(date)

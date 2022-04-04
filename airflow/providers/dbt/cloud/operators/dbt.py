@@ -33,10 +33,14 @@ class DbtCloudRunJobOperatorLink(BaseOperatorLink):
 
     name = "Monitor Job Run"
 
-    def get_link(self, operator, dttm):
-        job_run_url = XCom.get_one(
-            dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm, key="job_run_url"
-        )
+    def get_link(self, operator, dttm=None, *, ti_key=None):
+        if ti_key is not None:
+            job_run_url = XCom.get_value(key="job_run_url", ti_key=ti_key)
+        else:
+            assert dttm
+            job_run_url = XCom.get_one(
+                dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm, key="job_run_url"
+            )
 
         return job_run_url
 
@@ -68,7 +72,15 @@ class DbtCloudRunJobOperator(BaseOperator):
     :return: The ID of the triggered dbt Cloud job run.
     """
 
-    template_fields = ("dbt_cloud_conn_id", "job_id", "account_id", "trigger_reason")
+    template_fields = (
+        "dbt_cloud_conn_id",
+        "job_id",
+        "account_id",
+        "trigger_reason",
+        "steps_override",
+        "schema_override",
+        "additional_run_config",
+    )
 
     operator_extra_links = (DbtCloudRunJobOperatorLink(),)
 
@@ -112,6 +124,8 @@ class DbtCloudRunJobOperator(BaseOperator):
             account_id=self.account_id,
             job_id=self.job_id,
             cause=self.trigger_reason,
+            steps_override=self.steps_override,
+            schema_override=self.schema_override,
             additional_run_config=self.additional_run_config,
         )
         self.run_id = trigger_job_response.json()["data"]["id"]

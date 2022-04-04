@@ -93,6 +93,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+            {{- if .Values.flower.extraVolumeMounts }}
+            {{ toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           ports:
             - name: flower-ui
               containerPort: {{ .Values.ports.flowerUI }}

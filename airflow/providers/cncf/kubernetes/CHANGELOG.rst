@@ -19,6 +19,48 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+Misc
+~~~~
+
+* ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
+
+3.1.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add map_index label to mapped KubernetesPodOperator (#21916)``
+* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Fix Kubernetes example with wrong operator casing (#21898)``
+* ``Remove types from KPO docstring (#21826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
 3.0.2
 .....
 

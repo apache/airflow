@@ -19,14 +19,6 @@
 Amazon S3 Operators
 ====================
 
-Prerequisite Tasks
-------------------
-
-.. include:: _partials/prerequisite_tasks.rst
-
-Overview
---------
-
 Airflow to Amazon Simple Storage Service (S3) integration provides several operators to create and interact with S3 buckets.
 
  - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`
@@ -43,55 +35,81 @@ Airflow to Amazon Simple Storage Service (S3) integration provides several opera
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3ListOperator`
 
-Two example_dags are provided which showcase these operators in action.
+Prerequisite Tasks
+------------------
 
- - example_s3_bucket.py
- - example_s3_bucket_tagging.py
+.. include:: _partials/prerequisite_tasks.rst
 
 .. _howto/operator:S3CreateBucketOperator:
-.. _howto/operator:S3DeleteBucketOperator:
 
-Create and Delete Amazon S3 Buckets
------------------------------------
+Create an Amazon S3 Bucket
+--------------------------
 
-Purpose
-"""""""
-
-This example dag ``example_s3_bucket.py`` uses ``S3CreateBucketOperator`` and ``S3DeleteBucketOperator`` to create a
-new S3 bucket with a given bucket name then delete it.
-
-Defining tasks
-""""""""""""""
-
-In the following code we create a new bucket, add keys, and then delete the bucket.
+To create an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
     :language: python
-    :start-after: [START howto_operator_s3_bucket]
-    :end-before: [END howto_operator_s3_bucket]
+    :dedent: 4
+    :start-after: [START howto_operator_s3_create_bucket]
+    :end-before: [END howto_operator_s3_create_bucket]
 
-.. _howto/operator:S3DeleteBucketTaggingOperator:
-.. _howto/operator:S3GetBucketTaggingOperator:
+.. _howto/operator:S3DeleteBucketOperator:
+
+Delete an Amazon S3 Bucket
+--------------------------
+
+To delete an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_delete_bucket]
+    :end-before: [END howto_operator_s3_delete_bucket]
+
 .. _howto/operator:S3PutBucketTaggingOperator:
 
-Using Amazon S3 Bucket Tagging
-------------------------------
+Set the tags for an Amazon S3 Bucket
+------------------------------------
 
-Purpose
-"""""""
+To set the tags for an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator`.
 
-This example dag ``example_s3_bucket_tagging.py`` uses ``S3DeleteBucketTaggingOperator``, ``S3GetBucketTaggingOperator``,
-and ``S3PutBucketTaggingOperator`` to create a new S3 bucket, apply tagging, get tagging, delete tagging, then delete the bucket.
-
-Defining tasks
-""""""""""""""
-
-In the following code we create a new S3 bucket, apply tagging, get tagging, delete tagging, then delete the bucket.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket_tagging.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
     :language: python
-    :start-after: [START howto_operator_s3_bucket_tagging]
-    :end-before: [END howto_operator_s3_bucket_tagging]
+    :dedent: 4
+    :start-after: [START howto_operator_s3_put_bucket_tagging]
+    :end-before: [END howto_operator_s3_put_bucket_tagging]
+
+.. _howto/operator:S3GetBucketTaggingOperator:
+
+Get the tag of an Amazon S3 Bucket
+----------------------------------
+
+To get the tag set associated with an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_get_bucket_tagging]
+    :end-before: [END howto_operator_s3_get_bucket_tagging]
+
+
+.. _howto/operator:S3DeleteBucketTaggingOperator:
+
+Delete the tags of an Amazon S3 Bucket
+--------------------------------------
+
+To delete the tags of an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_delete_bucket_tagging]
+    :end-before: [END howto_operator_s3_delete_bucket_tagging]
 
 Reference
 ---------

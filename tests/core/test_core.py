@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from contextlib import suppress
 from datetime import timedelta
 from time import sleep
 
@@ -23,7 +23,7 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.models import TaskFail, TaskInstance
+from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
@@ -89,22 +89,25 @@ class TestCore:
             )
         dag_maker.create_dagrun()
         session = settings.Session()
-        try:
-            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
-            pass
-        try:
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        with suppress(AirflowTaskTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
-            pass
         op1_fails = (
             session.query(TaskFail)
-            .filter_by(task_id='pass_sleepy', dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
+            .filter(
+                TaskFail.task_id == 'pass_sleepy',
+                TaskFail.dag_id == dag.dag_id,
+                DagRun.execution_date == DEFAULT_DATE,
+            )
             .all()
         )
         op2_fails = (
             session.query(TaskFail)
-            .filter_by(task_id='fail_sleepy', dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
+            .filter(
+                TaskFail.task_id == 'fail_sleepy',
+                TaskFail.dag_id == dag.dag_id,
+                DagRun.execution_date == DEFAULT_DATE,
+            )
             .all()
         )
 

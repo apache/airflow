@@ -282,13 +282,18 @@ class KubernetesPodOperator(BaseOperator):
         if not context:
             return {}
 
-        labels = {
-            'dag_id': context['dag'].dag_id,
-            'task_id': context['task'].task_id,
-            'execution_date': context['ts'],
-        }
+        ti = context['ti']
+        run_id = context['run_id']
+
+        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
+
+        # If running on Airflow 2.3+:
+        map_index = getattr(ti, 'map_index', -1)
+        if map_index >= 0:
+            labels['map_index'] = map_index
+
         if include_try_number:
-            labels.update(try_number=context['ti'].try_number)
+            labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
             labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
@@ -368,9 +373,10 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.pod_manager.follow_container_logs(
+                self.pod_manager.fetch_container_logs(
                     pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
+                    follow=True,
                 )
             else:
                 self.pod_manager.await_container_completion(

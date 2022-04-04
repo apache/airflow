@@ -1406,7 +1406,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         -  ``displayName``
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMas`
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1452,7 +1452,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, cloud_memcache.Instance],
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
@@ -1504,8 +1504,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
 
     :param update_mask: Required. Mask of fields to update.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask`
-        Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`
     :param parameters: The parameters to apply to the instance.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`
@@ -1536,7 +1535,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        update_mask: Union[Dict, FieldMask],
         parameters: Union[Dict, cloud_memcache.MemcacheParameters],
         location: str,
         instance_id: str,

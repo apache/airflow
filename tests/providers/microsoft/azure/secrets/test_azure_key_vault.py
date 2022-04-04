@@ -24,9 +24,9 @@ from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBac
 
 
 class TestAzureKeyVaultBackend(TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.get_conn_uri')
-    def test_get_connections(self, mock_get_uri):
-        mock_get_uri.return_value = 'scheme://user:pass@host:100'
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.get_conn_value')
+    def test_get_connections(self, mock_get_value):
+        mock_get_value.return_value = 'scheme://user:pass@host:100'
         conn_list = AzureKeyVaultBackend().get_connections('fake_conn')
         conn = conn_list[0]
         assert conn.host == 'host'

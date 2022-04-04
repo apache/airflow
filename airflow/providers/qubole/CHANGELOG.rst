@@ -19,6 +19,39 @@
 Changelog
 ---------
 
+2.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * `` Add map_index to XCom model and interface (#22112)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
 2.1.0
 .....
 

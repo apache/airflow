@@ -52,7 +52,7 @@ from rich.syntax import Syntax
 
 from airflow.utils.yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9"]
+ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -104,7 +104,6 @@ sys.path.insert(0, str(SOURCE_DIR_PATH))
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
-import tests.deprecated_classes  # noqa # isort:skip
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
 from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
 
@@ -122,6 +121,13 @@ console = Console(width=400, color_system="standard")
 def cli():
     ...
 
+
+option_skip_tag_check = click.option(
+    "--skip-tag-check/--no-skip-tag-check",
+    default=False,
+    is_flag=True,
+    help="Skip checking if the tag already exists in the remote repository",
+)
 
 option_git_update = click.option(
     '--git-update/--no-git-update',
@@ -345,7 +351,7 @@ def get_long_description(provider_package_id: str) -> str:
     return long_description
 
 
-def get_install_requirements(provider_package_id: str, version_suffix: str) -> List[str]:
+def get_install_requirements(provider_package_id: str, version_suffix: str) -> str:
     """
     Returns install requirements for the package.
 
@@ -374,15 +380,19 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> L
             install_requires.extend(additional_dependencies)
 
     install_requires.extend(dependencies)
-    return install_requires
+    prefix = "\n    "
+    return prefix + prefix.join(install_requires)
 
 
-def get_setup_requirements() -> List[str]:
+def get_setup_requirements() -> str:
     """
     Returns setup requirements (common for all package for now).
     :return: setup requirements
     """
-    return ['setuptools', 'wheel']
+    return """
+    setuptools
+    wheel
+"""
 
 
 def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
@@ -1880,7 +1890,10 @@ def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: 
 @option_git_update
 @argument_package_id
 @option_verbose
-def generate_setup_files(version_suffix: str, git_update: bool, package_id: str, verbose: bool):
+@option_skip_tag_check
+def generate_setup_files(
+    version_suffix: str, git_update: bool, package_id: str, verbose: bool, skip_tag_check: bool
+):
     """
     Generates setup files for the package.
 
@@ -1888,20 +1901,17 @@ def generate_setup_files(version_suffix: str, git_update: bool, package_id: str,
     """
     provider_package_id = package_id
     with with_group(f"Generate setup files for '{provider_package_id}'"):
-        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-        if tag_exists_for_version(provider_package_id, current_tag, verbose):
-            console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
-            # Returns 1 in case of skipped package
-            sys.exit(1)
+        if not skip_tag_check:
+            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+            if tag_exists_for_version(provider_package_id, current_tag, verbose):
+                console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
+                # Returns 1 in case of skipped package
+                sys.exit(1)
+        if update_setup_files(provider_package_id, version_suffix):
+            console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
         else:
-            if update_setup_files(
-                provider_package_id,
-                version_suffix,
-            ):
-                console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
-            else:
-                # Returns 64 in case of skipped package
-                sys.exit(64)
+            # Returns 64 in case of skipped package
+            sys.exit(64)
 
 
 def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, verbose: bool):
@@ -1925,8 +1935,8 @@ def cleanup_remnants(verbose: bool):
         shutil.rmtree(file, ignore_errors=True)
 
 
-def verify_setup_py_prepared(provider_package):
-    with open("setup.py") as f:
+def verify_setup_cfg_prepared(provider_package):
+    with open("setup.cfg") as f:
         setup_content = f.read()
     search_for = f"providers-{provider_package.replace('.','-')} for Apache Airflow"
     if search_for not in setup_content:
@@ -1952,12 +1962,14 @@ def verify_setup_py_prepared(provider_package):
 @option_version_suffix
 @argument_package_id
 @option_verbose
+@option_skip_tag_check
 def build_provider_packages(
     package_format: str,
     git_update: bool,
     version_suffix: str,
     package_id: str,
     verbose: bool,
+    skip_tag_check: bool,
 ):
     """
     Builds provider package.
@@ -1974,7 +1986,7 @@ def build_provider_packages(
     try:
         provider_package_id = package_id
         with with_group(f"Prepare provider package for '{provider_package_id}'"):
-            if version_suffix.startswith("rc") or version_suffix == "":
+            if not skip_tag_check and (version_suffix.startswith("rc") or version_suffix == ""):
                 # For RC and official releases we check if the "officially released" version exists
                 # and skip the released if it was. This allows to skip packages that have not been
                 # marked for release. For "dev" suffixes, we always build all packages
@@ -1982,11 +1994,11 @@ def build_provider_packages(
                 if tag_exists_for_version(provider_package_id, released_tag, verbose):
                     console.print(f"[yellow]The tag {released_tag} exists. Skipping the package.[/]")
                     return False
-            console.print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
+            console.print(f"Changing directory to {TARGET_PROVIDER_PACKAGES_PATH}")
             os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
             cleanup_remnants(verbose)
             provider_package = package_id
-            verify_setup_py_prepared(provider_package)
+            verify_setup_cfg_prepared(provider_package)
 
             console.print(f"Building provider package: {provider_package} in format {package_format}")
             command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
@@ -2095,6 +2107,11 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
 KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     (
         'This version of Apache Beam has not been sufficiently tested on Python 3.9. '
+        'You may encounter bugs or missing features.',
+        "apache_beam",
+    ),
+    (
+        'This version of Apache Beam has not been sufficiently tested on Python 3.10. '
         'You may encounter bugs or missing features.',
         "apache_beam",
     ),
@@ -2458,7 +2475,7 @@ def get_prs_for_package(package_id: str) -> List[int]:
                 skip_line = True
                 continue
             if extract_prs:
-                if all(c == '.' for c in line):
+                if len(line) > 1 and all(c == '.' for c in line.strip()):
                     # Header for next version reached
                     break
                 if line.startswith('.. Below changes are excluded from the changelog'):

@@ -19,6 +19,7 @@
 import datetime
 import operator
 import os
+import pathlib
 import signal
 import sys
 import urllib
@@ -54,8 +55,9 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -71,6 +73,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -1017,15 +1020,14 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, create_task_instance):
-        """
-        Test xcom_pull, using different filtering methods.
-        """
-        ti1 = create_task_instance(
-            dag_id='test_xcom',
-            task_id='test_xcom_1',
-            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0),
-        )
+    def test_xcom_pull(self, dag_maker):
+        """Test xcom_pull, using different filtering methods."""
+        with dag_maker(dag_id="test_xcom") as dag:
+            task_1 = DummyOperator(task_id="test_xcom_1")
+            task_2 = DummyOperator(task_id="test_xcom_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key='foo', value='bar')
@@ -1034,9 +1036,9 @@ class TestTaskInstance:
         XCom.set(
             key='foo',
             value='baz',
-            task_id='test_xcom_2',
-            dag_id=ti1.dag_id,
-            execution_date=ti1.execution_date,
+            task_id=task_2.task_id,
+            dag_id=dag.dag_id,
+            execution_date=dagrun.execution_date,
         )
 
         # Pull with no arguments
@@ -1054,6 +1056,36 @@ class TestTaskInstance:
         # Pull the values pushed by both tasks & Verify Order of task_ids pass & values returned
         result = ti1.xcom_pull(task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
         assert result == ['bar', 'baz']
+
+    def test_xcom_pull_mapped(self, dag_maker, session):
+        with dag_maker(dag_id="test_xcom", session=session):
+            task_1 = DummyOperator.partial(task_id="task_1").expand()
+            DummyOperator(task_id="task_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+
+        ti_1_0 = dagrun.get_task_instance("task_1", session=session)
+        ti_1_0.map_index = 0
+        ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+        session.flush()
+
+        ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
+        ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
+
+        ti_2 = dagrun.get_task_instance("task_2", session=session)
+
+        assert set(ti_2.xcom_pull(["task_1"], session=session)) == {"a", "b"}  # Ordering not guaranteed.
+        assert ti_2.xcom_pull(["task_1"], map_indexes=0, session=session) == ["a"]
+
+        assert ti_2.xcom_pull(map_indexes=[0, 1], session=session) == ["a", "b"]
+        assert ti_2.xcom_pull("task_1", map_indexes=[1, 0], session=session) == ["b", "a"]
+        assert ti_2.xcom_pull(["task_1"], map_indexes=[0, 1], session=session) == ["a", "b"]
+
+        assert ti_2.xcom_pull("task_1", map_indexes=1, session=session) == "b"
+
+        joined = ti_2.xcom_pull("task_1", session=session)
+        assert iter(joined) is joined, "should be iterator"
+        assert list(joined) == ["a", "b"]
 
     def test_xcom_pull_after_success(self, create_task_instance):
         """
@@ -1344,7 +1376,7 @@ class TestTaskInstance:
         callback_wrapper = CallbackWrapper()
         ti = create_task_instance(
             on_success_callback=callback_wrapper.success_handler,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             execution_date=timezone.utcnow(),
             state=State.RUNNING,
         )
@@ -1717,7 +1749,7 @@ class TestTaskInstance:
             completed = True
 
         ti = create_task_instance(
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             on_success_callback=on_finish_callable,
             on_retry_callback=on_finish_callable,
             on_failure_callback=on_finish_callable,
@@ -1912,7 +1944,7 @@ class TestTaskInstance:
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
             dag_id='test_task_start_end_stats',
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             state=State.RUNNING,
         )
         stats_mock.reset_mock()
@@ -2004,7 +2036,7 @@ class TestTaskInstance:
             'metadata': {
                 'annotations': {
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00:00:00+00:00',
+                    'run_id': 'test_run_id',
                     'task_id': 'op1',
                     'try_number': '1',
                 },
@@ -2012,7 +2044,7 @@ class TestTaskInstance:
                     'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
-                    'execution_date': '2016-01-01T00_00_00_plus_00_00',
+                    'run_id': 'test_run_id',
                     'kubernetes_executor': 'True',
                     'task_id': 'op1',
                     'try_number': '1',
@@ -2312,7 +2344,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.apply(value=push_something())
+            pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComTypePushed) as ctx:
@@ -2335,7 +2367,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.apply(value=push_something())
+            pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         with pytest.raises(UnmappableXComLengthPushed) as ctx:
@@ -2364,7 +2396,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             def pull_something(value):
                 print(value)
 
-            pull_something.apply(value=push_something())
+            pull_something.expand(value=push_something())
 
         dag_run = dag_maker.create_dagrun()
         ti = next(ti for ti in dag_run.task_instances if ti.task_id == "push_something")
@@ -2396,7 +2428,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.apply(value=literal)
+            show.expand(value=literal)
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
@@ -2428,7 +2460,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(value):
                 outputs.append(value)
 
-            show.apply(value=emit())
+            show.expand(value=emit())
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
@@ -2461,7 +2493,7 @@ class TestMappedTaskInstanceReceiveValue:
             def show(number, letter):
                 outputs.append((number, letter))
 
-            show.apply(number=emit_numbers(), letter=emit_letters())
+            show.expand(number=emit_numbers(), letter=emit_letters())
 
         dag_run = dag_maker.create_dagrun()
         for task_id in ["emit_numbers", "emit_letters"]:
@@ -2500,7 +2532,7 @@ class TestMappedTaskInstanceReceiveValue:
                 outputs.append((a, b))
 
             emit_task = emit_numbers()
-            show.apply(a=emit_task, b=emit_task)
+            show.expand(a=emit_task, b=emit_task)
 
         dag_run = dag_maker.create_dagrun()
         ti = dag_run.get_task_instance("emit_numbers", session=session)
@@ -2515,3 +2547,41 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
+        out = tmp_path.joinpath("out")
+        out.touch()
+
+        with dag_maker(dag_id="in_group", session=session) as dag:
+
+            @dag.task
+            def envs():
+                return [{"VAR1": "FOO"}, {"VAR1": "BAR"}]
+
+            @dag.task
+            def cmds():
+                return [f'echo "hello $VAR1" >> {out}', f'echo "goodbye $VAR1" >> {out}']
+
+            with TaskGroup(group_id="dynamic"):
+                BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
+                    env=envs(),
+                    bash_command=cmds(),
+                )
+
+        dag_run: DagRun = dag_maker.create_dagrun()
+        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+
+        for task_id in ["dynamic.envs", "dynamic.cmds"]:
+            ti = original_tis[task_id]
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        bash_task = dag.get_task("dynamic.bash")
+        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(bash_task)
+            ti.run()
+
+        with out.open() as f:
+            out_lines = [line.strip() for line in f]
+        assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]

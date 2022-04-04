@@ -197,15 +197,24 @@ From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
 Step 2: Configure Your Environment
 ----------------------------------
 
-You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`__.
+You can use several development environments for Airflow. If you prefer to have development environments
+on your local machine, you might choose Local Virtualenv, or dockerized Breeze environment, however we
+also have support for popular remote development environments: GitHub Codespaces and GitPodify.
+You can see the differences between the various environments
+`here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`__.
 
-
-The local env's instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
+The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
 
 .. _LOCAL_VIRTUALENV.rst:
 https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst
-The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
+
+The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
+can replicate CI failures locally and work on solving them locally rather by pushing to CI.
+
+The Breeze instructions can be found in full in the `BREEZE.rst`_ file.
+
+.. _BREEZE.rst:
+https://github.com/apache/airflow/blob/main/BREEZE.rst
 
 You can configure the Docker-based Breeze development environment as follows:
 
@@ -469,28 +478,30 @@ develop Apache Airflow:
 -   `Breeze Docker-based development environment <#breeze-development-environment>`_ that provides
     an end-to-end CI solution with all software dependencies covered.
 
-The table below summarizes differences between the two environments:
+The table below summarizes differences between the environments:
 
 
-========================= ================================ =====================================
-**Property**              **Local virtualenv**             **Breeze environment**
-========================= ================================ =====================================
-Test coverage             - (-) unit tests only            - (+) integration and unit tests
-------------------------- -------------------------------- -------------------------------------
-Setup                     - (+) automated with breeze cmd  - (+) automated with breeze cmd
-------------------------- -------------------------------- -------------------------------------
-Installation difficulty   - (-) depends on the OS setup    - (+) works whenever Docker works
-------------------------- -------------------------------- -------------------------------------
-Team synchronization      - (-) difficult to achieve       - (+) reproducible within team
-------------------------- -------------------------------- -------------------------------------
-Reproducing CI failures   - (-) not possible in many cases - (+) fully reproducible
-------------------------- -------------------------------- -------------------------------------
-Ability to update         - (-) requires manual updates    - (+) automated update via breeze cmd
-------------------------- -------------------------------- -------------------------------------
-Disk space and CPU usage  - (+) relatively lightweight     - (-) uses GBs of disk and many CPUs
-------------------------- -------------------------------- -------------------------------------
-IDE integration           - (+) straightforward            - (-) via remote debugging only
-========================= ================================ =====================================
+========================= ================================ ===================================== ========================================
+**Property**              **Local virtualenv**             **Breeze environment**                 **GitHub Codespaces**
+========================= ================================ ===================================== ========================================
+Dev machine needed        - (-) You need a dev PC          - (-) You need a dev PC                (+) Works with remote setup
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Test coverage             - (-) unit tests only            - (+) integration and unit tests       (*/-) integration tests (extra config)
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Setup                     - (+) automated with breeze cmd  - (+) automated with breeze cmd        (+) automated with VSCode
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Installation difficulty   - (-) depends on the OS setup    - (+) works whenever Docker works      (+) works in a modern browser/VSCode
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Team synchronization      - (-) difficult to achieve       - (+) reproducible within team         (+) reproducible within team
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Reproducing CI failures   - (-) not possible in many cases - (+) fully reproducible               (+) reproduce CI failures
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Ability to update         - (-) requires manual updates    - (+) automated update via breeze cmd  (+/-) can be rebuild on demand
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+Disk space and CPU usage  - (+) relatively lightweight     - (-) uses GBs of disk and many CPUs   (-) integration tests (extra config)
+------------------------- -------------------------------- ------------------------------------- ----------------------------------------
+IDE integration           - (+) straightforward            - (-) via remote debugging only        (-) integration tests (extra config)
+========================= ================================ ===================================== ----------------------------------------
 
 
 Typically, you are recommended to use both of these environments depending on your needs.
@@ -606,11 +617,11 @@ This is the full list of those extras:
 
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
-apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
-cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api,
-devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch,
-exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
-hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
+apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
+celery, cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud,
+deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid,
+elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth,
+grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
 leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql,
 neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus,
 postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
@@ -633,7 +644,7 @@ and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--skip-installing-airflow-providers-from-sources`` flag to Breeze to skip installing providers when
+but you can add ``--install-providers-from-sources=true`` flag to Breeze to skip installing providers when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from

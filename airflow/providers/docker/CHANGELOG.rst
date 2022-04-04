@@ -19,6 +19,52 @@
 Changelog
 ---------
 
+2.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+Misc
+~~~~
+
+* ``Correct 'multiple_outputs' param descriptions mentioning lists/tuples (#22371)``
+
+2.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid trying to kill container when it did not succeed for Docker (#22145)``
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``added docker network_mode options (#21986)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change default python executable to python3 for docker decorator (#21973)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378) (#21875)``
+   * ``Revert "Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)" (#21874)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)``
+
 2.4.1
 .....
 

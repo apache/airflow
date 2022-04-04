@@ -85,7 +85,14 @@ function initialization::create_directories() {
 function initialization::initialize_base_variables() {
     # until we have support for ARM images, we set docker default platform to linux/AMD
     # so that all breeze commands use emulation
-    export PLATFORM=${PLATFORM:="linux/amd64"}
+    local machine
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        machine="arm64"
+    else
+        machine="amd64"
+    fi
+
+    export PLATFORM=${PLATFORM:="linux/${machine}"}
 
     # enable buildkit for builds
     export DOCKER_BUILDKIT=1
@@ -110,11 +117,11 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.10")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -353,7 +360,7 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="buster"}
+    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
 
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
@@ -412,9 +419,15 @@ function initialization::initialize_image_build_variables() {
     SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
     export SKIP_TWINE_CHECK
 
+    SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
+    export SKIP_SSH_SETUP
+
+    SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION:="false"}
+    export SKIP_ENVIRONMENT_INITIALIZATION
+
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.3"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.4"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -426,17 +439,17 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_VERSION_SPECIFICATION
 
     # By default no sources are copied to image
-    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="empty"}
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="Dockerfile"}
     export AIRFLOW_SOURCES_FROM
 
-    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_TO
 
     # By default no sources are copied to image
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="empty"}
+    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="Dockerfile"}
     export AIRFLOW_SOURCES_WWW_FROM
 
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/empty"}
+    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_WWW_TO
 
     # By default in scripts production docker image is installed from PyPI package
@@ -493,13 +506,13 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.21.1" "v1.20.2")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.23.4" "v1.22.7" "v1.21.10" "v1.20.15")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.11.1")
+    CURRENT_KIND_VERSIONS+=("v0.12.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.6.3")

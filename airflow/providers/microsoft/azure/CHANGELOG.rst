@@ -19,6 +19,47 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.7.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * `` Add map_index to XCom model and interface (#22112)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to 'AzureDataFactoryHook' (#21924)``
+* ``Add pre-commit check for docstring param types (#21398)``
+* ``Make container creation configurable when uploading files via WasbHook (#20510)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``(AzureCosmosDBHook) Update to latest Cosmos API (#21514)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
 3.6.0
 .....
 

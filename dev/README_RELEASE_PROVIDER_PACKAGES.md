@@ -588,21 +588,25 @@ downloaded from the SVN).
 You have to make sure you have Airflow 2* installed in your PIP virtualenv
 (the version you want to install providers with).
 
-```shell script
+```shell
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
 
-There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario.
-
-First copy all the provider packages .whl files to the `dist` folder.
-
-```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --use-packages-from-dist
+```shell
+./breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+    --load-example-dags --load-default-connections
 ```
+
+After you are in Breeze:
+
+```shell
+pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
+```
+
+NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
+provider packages is used.
 
 ### Building your own docker image
 
@@ -773,6 +777,18 @@ Copy links to updated packages.
 ## Publish documentation prepared before
 
 Merge the PR that you prepared before with the documentation.
+
+If you decided to remove some packages from the release make sure to do amend the commit in this way:
+
+* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
+* remove the latest version (the one you were releasing)
+* update `stable.txt` to the previous version
+* in the (unlikely) event you are removing first version of package:
+   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
 
 ## Add tags in git
 

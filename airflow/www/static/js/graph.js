@@ -35,6 +35,7 @@ const executionDate = getMetaValue('execution_date');
 const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
+const isSchedulerRunning = getMetaValue('is_scheduler_running');
 
 // This maps the actual taskId to the current graph node id that contains the task
 // (because tasks may be grouped into a group node)
@@ -86,10 +87,16 @@ let innerSvg = d3.select('#graph-svg g');
 // returns true if at least one node is changed
 const updateNodeLabels = (node, instances) => {
   let haveLabelsChanged = false;
-  const label = tasks[node.id] && tasks[node.id].is_mapped
-    ? `${node.id} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
-    : node.value.label;
+  let { label } = node.value;
+  // Check if there is a count of mapped instances
+  if (tasks[node.id] && tasks[node.id].is_mapped) {
+    const count = instances[node.id]
+      && instances[node.id].mapped_states
+      ? instances[node.id].mapped_states.length
+      : ' ';
 
+    label = `${node.id} [${count}]`;
+  }
   if (g.node(node.id) && g.node(node.id).label !== label) {
     g.node(node.id).label = label;
     haveLabelsChanged = true;
@@ -170,9 +177,20 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
+      let mappedLength = 0;
+      if (task.is_mapped) mappedLength = taskInstances[nodeId].mapped_states.length;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
+      callModal({
+        taskId: nodeId,
+        executionDate,
+        extraLinks: task.extra_links,
+        tryNumber,
+        isSubDag: task.task_type === 'SubDagOperator',
+        dagRunId,
+        mapIndex: task.map_index,
+        isMapped: task.is_mapped,
+        mappedLength,
+      });
     }
   });
 
@@ -376,6 +394,29 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let refreshInterval;
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 1000);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 let prevTis;
 
 function handleRefresh() {
@@ -413,18 +454,6 @@ function handleRefresh() {
     });
 }
 
-let refreshInterval;
-
-function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 1000);
-  } else {
-    clearInterval(refreshInterval);
-  }
-}
-
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
     // Run an initial refresh before starting interval if manually turned on
@@ -439,7 +468,7 @@ $('#auto_refresh').change(() => {
 function initRefresh() {
   const isDisabled = localStorage.getItem('disableAutoRefresh');
   const isFinal = checkRunState();
-  $('#auto_refresh').prop('checked', !(isDisabled || isFinal));
+  $('#auto_refresh').prop('checked', !(isDisabled || isFinal) && isSchedulerRunning === 'True');
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }
