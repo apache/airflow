@@ -257,9 +257,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             "maxSkew": 1,
             "topologyKey": "foo",
             "whenUnsatisfiable": "ScheduleAnyway",
-            "labelSelector": {
-                "matchLabels": {"tier": "airflow"}
-            }
+            "labelSelector": {"matchLabels": {"tier": "airflow"}},
         }
         docs = render_chart(
             values={
@@ -268,9 +266,7 @@ class WebserverDeploymentTest(unittest.TestCase):
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
-                    "topologySpreadConstraints": [
-                        expected_topology_spread_constraints
-                    ],
+                    "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
                 },
                 "affinity": {
@@ -295,9 +291,7 @@ class WebserverDeploymentTest(unittest.TestCase):
                         "maxSkew": 1,
                         "topologyKey": "not-me",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {
-                            "matchLabels": {"tier": "airflow"}
-                        }
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "not-me"},
@@ -313,7 +307,9 @@ class WebserverDeploymentTest(unittest.TestCase):
         tolerations = jmespath.search("spec.template.spec.tolerations", docs[0])
         assert 1 == len(tolerations)
         assert "dynamic-pods" == tolerations[0]["key"]
-        assert expected_topology_spread_constraints == jmespath.search("spec.topologySpreadConstraints[0].", docs[0])
+        assert expected_topology_spread_constraints == jmespath.search(
+            "spec.template.spec.topologySpreadConstraints[0]", docs[0]
+        )
 
     @parameterized.expand(
         [

@@ -89,7 +89,7 @@ spec:
   nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}
   affinity: {{ toYaml $affinity | nindent 4 }}
   tolerations: {{ toYaml $tolerations | nindent 4 }}
-  topologySpreadConstraints: {{ toYaml $topologySpreadConstraints | indent 4 }}
+  topologySpreadConstraints: {{ toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}

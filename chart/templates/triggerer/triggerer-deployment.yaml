@@ -95,7 +95,7 @@ spec:
       tolerations:
         {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints:
-        {{- toYaml $topologySpreadConstraints | indent 8 }}
+        {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}

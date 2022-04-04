@@ -123,7 +123,7 @@ class TestAirflowCommon:
 
     def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         """
-        Test affinity, tolerations, topology spread constraints, and node selector are correctly applied on all pods created
+        Test affinity, tolerations, etc are correctly applied on all pods created
         """
         k8s_objects = render_chart(
             values={
@@ -150,9 +150,7 @@ class TestAirflowCommon:
                         "maxSkew": 1,
                         "topologyKey": "foo",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {
-                            "matchLabels": {"tier": "airflow"}
-                        }
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "user-node"},
