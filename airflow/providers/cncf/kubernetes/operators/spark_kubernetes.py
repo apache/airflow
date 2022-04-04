@@ -47,16 +47,64 @@ class SparkKubernetesOperator(BaseOperator):
 
     .. seealso::
         For more detail about Spark Application Object have a look at the reference:
-        https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
+        https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.3.3-3.1.1/docs/api-docs.md#sparkapplication
 
     :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
-    :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: the connection to Kubernetes cluster
+    :param image: Docker image you wish to launch. Defaults to hub.docker.com,
+    :param code_path: path to the code in your image,
+    :param namespace: kubernetes namespace to put sparkApplication
+    :param api_group: CRD api group for spark https://github.com/GoogleCloudPlatform/spark-on-k8s-operator#project-status
+    :param api_version: CRD api version
+    :param api_kind: CRD api kind
+    :param api_plural: CRD api plural
+    :param cluster_context: context of the cluster
+    :param labels: labels to apply to the crd.
+    :param config_file: kube configuration file
+    :param resources: resources for the launched pod.
+    :param number_workers: number spark executors
+    :param env_vars: A dictionary of key:value OR list of V1EnvVar items
+    :param env_from: A list of V1EnvFromSource items
+    :param affinity: Affinity scheduling rules for the launched pod.(V1Affinity)
+    :param tolerations: A list of kubernetes tolerations.(V1Toleration)
+    :param volume_mounts: A list of V1VolumeMount items
+    :param volumes: A list of V1Volume items
+    :param config_map_mounts: A dictionary of config_map as key and path as value
+    :param from_env_config_map: Read configmap into a env variable(name of the configmap)
+    :param from_env_secret: Read secret into a env variable(name of the configmap)
     :param hadoop_config: hadoop base config
         example: AWS s3 config
         {'fs.s3n.impl': 'org.apache.hadoop.fs.s3native.NativeS3FileSystem',
          'fs.s3a.enable-server-side-encryption': 'true',
          'fs.s3a.server-side-encryption-algorithm': 'AES256'}
+    :param application_file: yaml file if passed
+    :param image_pull_secrets: Any image pull secrets to be given to the pod.
+        If more than one secret is required, provide a
+        comma separated list: secret_a,secret_b
+    :param get_logs: get the stdout of the container as logs of the tasks.
+    :param do_xcom_push: If True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :param restart_policy: restart policy of the driver/executor
+    :param spark_version: spark version
+    :param success_run_history_limit: Number of past successful runs of the application to keep.
+    :param is_delete_operator_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
+    :param dynamic_allocation: Enable spark dynamic allocation
+    :param dynamic_alloc_max_executors: Max number of executor if dynamic_allocation is enabled
+    :param dynamic_alloc_initial_executors: Initial number of executor if dynamic_allocation is enabled
+    :param dynamic_alloc_min_executors: min number of executor if dynamic_allocation is enabled
+    :param image_pull_policy: Specify a policy to cache or always pull an image.
+    :param service_account_name: Name of the service account
+    :param spark_job_mode: spark job type in spark operator(at the time of writing it just supports cluster)
+    :param spark_job_python_version: version of spark python
+    :param spark_job_type: type of spark job
+    :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param log_events_on_failure: Log the pod's events if a failure occurs
+    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param delete_on_termination: delete all pods after termination
     """
 
     template_fields = ['application_file', 'namespace']
@@ -70,6 +118,10 @@ class SparkKubernetesOperator(BaseOperator):
         image: Optional[str] = None,
         code_path: Optional[str] = None,
         namespace: Optional[str] = None,
+        api_group: str = 'sparkoperator.k8s.io',
+        api_version: str = 'v1beta2',
+        api_kind: str = 'SparkApplication',
+        api_plural: str = 'sparkapplications',
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
         labels: dict = None,
@@ -97,10 +149,6 @@ class SparkKubernetesOperator(BaseOperator):
         dynamic_alloc_max_executors: int = None,
         dynamic_alloc_initial_executors: int = 1,
         dynamic_alloc_min_executors: int = 1,
-        api_group: str = 'sparkoperator.k8s.io',
-        api_version: str = 'v1beta2',
-        api_kind: str = 'SparkApplication',
-        api_plural: str = 'sparkapplications',
         image_pull_policy: str = 'Always',
         service_account_name: str = 'default',
         spark_job_mode: str = 'cluster',
