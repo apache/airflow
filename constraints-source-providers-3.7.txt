@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-04T10:37:30Z
+# This constraints file was automatically generated on 2022-04-04T21:33:38Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -99,9 +99,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==4.1.0
 blinker==1.4
-boto3==1.21.32
+boto3==1.21.33
 boto==2.49.0
-botocore==1.24.32
+botocore==1.24.33
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -163,9 +163,9 @@ flaky==3.7.0
 flower==1.0.0
 freezegun==1.2.1
 frozenlist==1.3.0
-fsspec==2022.2.0
+fsspec==2022.3.0
 future==0.18.2
-gcsfs==2022.2.0
+gcsfs==2022.3.0
 geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
@@ -183,7 +183,7 @@ google-cloud-automl==2.7.2
 google-cloud-bigquery-datatransfer==3.6.1
 google-cloud-bigquery-storage==2.13.0
 google-cloud-bigquery==2.34.3
-google-cloud-bigtable==1.7.0
+google-cloud-bigtable==1.7.1
 google-cloud-build==3.8.1
 google-cloud-container==1.0.2
 google-cloud-core==1.7.2
@@ -191,7 +191,7 @@ google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==0.2.1
 google-cloud-dataproc-metastore==1.5.0
 google-cloud-dataproc==4.0.1
-google-cloud-dlp==1.0.0
+google-cloud-dlp==1.0.1
 google-cloud-kms==2.11.1
 google-cloud-language==1.3.0
 google-cloud-logging==3.0.0
@@ -203,13 +203,13 @@ google-cloud-pubsub==2.11.0
 google-cloud-redis==2.8.0
 google-cloud-secret-manager==1.0.1
 google-cloud-spanner==1.19.1
-google-cloud-speech==1.3.2
+google-cloud-speech==1.3.3
 google-cloud-storage==1.44.0
 google-cloud-tasks==2.8.1
 google-cloud-texttospeech==1.0.2
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
-google-cloud-vision==1.0.0
+google-cloud-vision==1.0.1
 google-cloud-workflows==1.6.1
 google-crc32c==1.3.0
 google-resumable-media==2.3.2
@@ -329,7 +329,7 @@ pre-commit==2.18.1
 presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.13.1
-prompt-toolkit==3.0.28
+prompt-toolkit==3.0.29
 proto-plus==1.18.1
 protobuf==3.20.0
 psutil==5.9.0
