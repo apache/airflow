@@ -22,25 +22,35 @@ import pendulum
 from pendulum import DateTime
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import NullTimetable
 
 
-class EventsTimetable(NullTimetable):
+class EventsTimetable(Timetable):
     """
     Timetable that schedules DAG runs at specific listed datetimes. Suitable for
     predictable but truly irregular scheduling such as sporting events.
 
     :param event_dates: List of datetimes for the DAG to run at
-    :type event_dates: Iterable of pendulum DateTimes
     :param restrict_to_events: Whether manual runs should use the most recent event or
     the current time
-    :type restrict_to_events: bool
     """
 
-    def __init__(self, event_dates: Iterable[DateTime], restrict_to_events: bool = False):
+    description = ""
+
+    def __init__(self, event_dates: Iterable[DateTime], restrict_to_events: bool = False, presorted=False):
 
         self.event_dates = np.array(event_dates)
+        if not presorted:
+            # For long lists this could take a while, so only want to do it once
+            self.event_dates = np.sort(self.event_dates)
         self.restrict_to_events = restrict_to_events
+        self.description = self.summary
+
+    @property
+    def summary(self) -> str:
+        return f"{len(self.event_dates)} Events"
+
+    def __repr__(self):
+        return self.summary
 
     def next_dagrun_info(
         self,
@@ -55,7 +65,7 @@ class EventsTimetable(NullTimetable):
             if len(future_dates) > 0:
                 next_event = future_dates.min()
             else:
-                next_event = None
+                return None
 
         return DagRunInfo.exact(next_event)
 
@@ -80,4 +90,8 @@ class EventsTimetable(NullTimetable):
 
     @classmethod
     def deserialize(cls, data) -> Timetable:
-        return cls(np.array([pendulum.parse(x) for x in data["event_dates"]]), data["restrict_to_events"])
+        return cls(
+            np.array([pendulum.parse(x) for x in data["event_dates"]]),
+            data["restrict_to_events"],
+            presorted=True,
+        )
