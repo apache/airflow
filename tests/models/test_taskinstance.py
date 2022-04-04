@@ -2438,7 +2438,12 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis = (
+            session.query(TI)
+            .filter_by(task_id='show', dag_id=dag_run.dag_id, run_id=dag_run.run_id)
+            .order_by(TI.map_index)
+            .all()
+        )
         assert len(mapped_tis) == len(literal)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):

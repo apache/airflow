@@ -44,7 +44,7 @@ import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
-from airflow.compat.functools import cache
+from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
@@ -682,3 +682,18 @@ class MappedOperator(AbstractOperator):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
+
+    @cached_property
+    def mapped_args_are_literals(self) -> bool:
+        """Are all the mapped arguments to this class static literals"""
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        return all(isinstance(item, (list, dict)) for item in expansion_kwargs.values())
+
+    @cached_property
+    def mapped_args_count(self) -> int:
+        """Count the length of the mapped arguments to this class"""
+        from airflow.models.xcom_arg import XComArg
+
+        expansion_kwargs = self._get_expansion_kwargs()
+        return sum(len(item) for item in expansion_kwargs.values() if not isinstance(item, XComArg))
