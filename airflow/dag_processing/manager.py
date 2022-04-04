@@ -527,7 +527,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
-
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
             # in sync mode we need to be told to start a "loop"
@@ -578,7 +578,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if conf.getboolean("scheduler", "standalone_dag_processor"):
+            if standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             self._refresh_dag_dir()
