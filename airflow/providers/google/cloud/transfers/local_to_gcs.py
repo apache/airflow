@@ -109,6 +109,13 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         )
 
         filepaths = self.src if isinstance(self.src, list) else glob(self.src)
+        if len(filepaths) < 1:
+            raise ValueError("'src' parameter references filepath. Please specify the src file")
+        else:
+            for file in filepaths:
+                if not os.path.exists(file):
+                    raise ValueError("File %s does not exists", file)
+
         if os.path.basename(self.dst):  # path to a file
             if len(filepaths) > 1:  # multiple file upload
                 raise ValueError(
