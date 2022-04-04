@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-04T21:37:45Z
+# This constraints file was automatically generated on 2022-04-04T22:57:27Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -50,6 +50,7 @@ cattrs==1.10.0
 celery==5.2.5
 certifi==2020.12.5
 cffi==1.15.0
+cgroupspy==0.2.2
 charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
