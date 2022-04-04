@@ -349,13 +349,11 @@ class PgbouncerConfigTest(unittest.TestCase):
 
         assert (
             "RELEASE-NAME-airflow-metadata "
-            "= host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
-            in ini
+            "= host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5" in ini
         )
         assert (
             "RELEASE-NAME-airflow-result-backend "
-            "= host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
-            in ini
+            "= host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3" in ini
         )
 
     def test_config_defaults(self):
