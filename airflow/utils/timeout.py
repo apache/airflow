@@ -47,7 +47,7 @@ class timeout(LoggingMixin):
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.alarm(self.seconds)
         except ValueError as e:
-            return
+            pass
             #self.log.warning("timeout can't be used in the current context")
             #self.log.exception(e)
 
@@ -55,6 +55,6 @@ class timeout(LoggingMixin):
         try:
             signal.alarm(0)
         except ValueError as e:
-            return
+            pass
             #self.log.warning("timeout can't be used in the current context")
             #self.log.exception(e)
