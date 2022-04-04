@@ -122,7 +122,9 @@ EXCLUDE_DOCS_PACKAGE_FOLDER = [
 def get_available_packages() -> List[str]:
     docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
-    return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+    package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+    package_list.sort()
+    return package_list
 
 
 # Initialise base variables

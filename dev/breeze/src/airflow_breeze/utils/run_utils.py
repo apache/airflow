@@ -162,7 +162,7 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
     console.print('Please run this command at earliest convenience:\n')
-    console.print(f'      `./Breeze2 build-image --python {python}`\n')
+    console.print(f'      `./breeze build-image --python {python}`\n')
 
 
 @contextlib.contextmanager

@@ -1,7 +1,7 @@
-function _Breeze2_completion;
+function _breeze_completion;
     set -l response;
 
-    for value in (env _BREEZE2_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) Breeze2);
+    for value in (env _BREEZE_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) breeze);
         set response $response $value;
     end;
 
@@ -18,4 +18,4 @@ function _Breeze2_completion;
     end;
 end;
 
-complete --no-files --command Breeze2 --arguments "(_Breeze2_completion)";
+complete --no-files --command breeze --arguments "(_breeze_completion)";

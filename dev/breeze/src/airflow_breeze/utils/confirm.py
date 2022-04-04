@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import sys
 from enum import Enum
 from typing import Optional
@@ -25,12 +26,24 @@ class Answer(Enum):
     QUIT = 2
 
 
+forced_answer: Optional[str] = None
+
+
+def set_forced_answer(answer: Optional[str]):
+    global forced_answer
+    forced_answer = answer
+
+
 def user_confirm(
-    message: str, timeout: float, default_answer: Optional[Answer] = None, quit_allowed: bool = True
+    message: str,
+    timeout: Optional[float],
+    default_answer: Optional[Answer] = Answer.NO,
+    quit_allowed: bool = True,
 ) -> Answer:
     """
     Ask the user for confirmation.
 
+    :rtype: object
     :param message: message to display to the user (should end with the question mark)
     :param timeout: time given user to answer
     :param default_answer: default value returned on timeout. If no default - the question is
@@ -43,15 +56,19 @@ def user_confirm(
     allowed_answers = "y/n/q" if quit_allowed else "y/n"
     while True:
         try:
-            user_status = inputimeout(
-                prompt=f'\n{message} \nPress {allowed_answers} in {timeout} seconds: ',
-                timeout=timeout,
-            )
+            force = forced_answer or os.environ.get('FORCE_ANSWER_TO_QUESTIONS')
+            if force:
+                user_status = force
+            else:
+                user_status = inputimeout(
+                    prompt=f'\n{message} \nPress {allowed_answers} in {timeout} seconds: ',
+                    timeout=timeout,
+                )
             if user_status.upper() in ['Y', 'YES']:
                 return Answer.YES
             elif user_status.upper() in ['N', 'NO']:
                 return Answer.NO
-            elif user_status.upper() in ['Q', 'QUIT']:
+            elif user_status.upper() in ['Q', 'QUIT'] and quit_allowed:
                 return Answer.QUIT
             else:
                 print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")

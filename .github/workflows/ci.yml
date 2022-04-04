@@ -329,7 +329,7 @@ jobs:
         run: airflow-freespace
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: Breeze2 build-image
+        run: breeze build-image
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
         env:
           GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
@@ -417,7 +417,7 @@ jobs:
 
   run-new-breeze-tests:
     timeout-minutes: 10
-    name: Breeze2 tests
+    name: breeze tests
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     steps:
