@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from airflow_breeze import NAME, VERSION
 from airflow_breeze.shell.shell_params import ShellParams
 
 try:
@@ -234,7 +235,7 @@ try:
             {
                 "name": "Setup autocomplete flags",
                 "options": [
-                    "--force-setup",
+                    "--force§",
                 ],
             },
         ],
@@ -310,15 +311,17 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
     create_directories,
-    find_airflow_sources_root,
+    find_airflow_sources_root_to_operate_on,
+    get_installation_airflow_sources,
+    get_installation_sources_setup_metadata_hash,
+    get_package_setup_metadata_hash,
+    get_used_airflow_sources,
+    get_used_sources_setup_metadata_hash,
 )
 from airflow_breeze.utils.run_utils import check_pre_commit_installed, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
-NAME = "Breeze2"
-VERSION = "0.0.1"
-
-find_airflow_sources_root()
+find_airflow_sources_root_to_operate_on()
 
 option_verbose = click.option(
     "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
@@ -418,6 +421,7 @@ option_db_reset = click.option(
 @option_db_reset
 @click.pass_context
 def main(ctx: Context, **kwargs):
+    create_directories()
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
 
@@ -567,11 +571,27 @@ option_load_default_connection = click.option(
 )
 
 
+@option_verbose
 @main.command()
-def version():
+def version(verbose: bool):
     """Prints version of breeze.py."""
     console.print(ASCIIART, style=ASCIIART_STYLE)
-    console.print(f"\n[green]{NAME} version: {VERSION}[/]\n")
+    console.print(f"\n[bright_blue]Breeze version: {VERSION}[/]")
+    console.print(f"[bright_blue]Breeze installed from: {get_installation_airflow_sources()}[/]")
+    console.print(f"[bright_blue]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
+    if verbose:
+        console.print(
+            f"[bright_blue]Installation Airflow sources Breeze setup hash   : "
+            f"{get_installation_sources_setup_metadata_hash()}[/]"
+        )
+        console.print(
+            f"[bright_blue]Currently used Airflow sources Breeze setup hash : "
+            f"{get_used_sources_setup_metadata_hash()}[/]"
+        )
+        console.print(
+            f"[bright_blue]Breeze installed package setup hash              : "
+            f"{(get_package_setup_metadata_hash())}[/]\n"
+        )
 
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -942,7 +962,7 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
             if not force_setup:
                 console.print(
                     "\n[bright_yellow]Autocompletion is already setup. Skipping. "
-                    "You can force autocomplete installation by adding --force-setup[/]\n"
+                    "You can force autocomplete installation by adding --force[/]\n"
                 )
                 return False
             else:
@@ -970,7 +990,7 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
         console.print(f"[bright_blue]The autocomplete script would be added to {script_path}[/]")
     console.print(
         f"\n[bright_yellow]IMPORTANT!!!! Please exit and re-enter your shell or run:[/]"
-        f"\n\n   `source {script_path}`\n"
+        f"\n\n   source {script_path}\n"
     )
     return True
 
@@ -979,12 +999,12 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
 @option_dry_run
 @click.option(
     '-f',
-    '--force-setup',
+    '--force',
     is_flag=True,
-    help='Force autocomplete setup even' 'if already setup before (overrides the setup).',
+    help='Force autocomplete setup even if already setup before (overrides the setup).',
 )
 @main.command(name='setup-autocomplete')
-def setup_autocomplete(verbose: bool, dry_run: bool, force_setup: bool):
+def setup_autocomplete(verbose: bool, dry_run: bool, force: bool):
     """
     Enables autocompletion of Breeze2 commands.
     """
@@ -1009,18 +1029,18 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force_setup: bool):
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
             command_to_execute = f"source {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force_setup)
+            write_to_shell(command_to_execute, dry_run, script_path, force)
         elif detected_shell == 'zsh':
             script_path = str(Path('~').expanduser() / '.zshrc')
             command_to_execute = f"source {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force_setup)
+            write_to_shell(command_to_execute, dry_run, script_path, force)
         elif detected_shell == 'fish':
             # Include steps for fish shell
             script_path = str(Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish')
-            if os.path.exists(script_path) and not force_setup:
+            if os.path.exists(script_path) and not force:
                 console.print(
                     "\n[bright_yellow]Autocompletion is already setup. Skipping. "
-                    "You can force autocomplete installation by adding --force-setup[/]\n"
+                    "You can force autocomplete installation by adding --force/]\n"
                 )
             else:
                 with open(autocomplete_path) as source_file, open(script_path, 'w') as destination_file:
@@ -1033,7 +1053,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force_setup: bool):
                 subprocess.check_output(['powershell', '-NoProfile', 'echo $profile']).decode("utf-8").strip()
             )
             command_to_execute = f". {autocomplete_path}"
-            write_to_shell(command_to_execute, dry_run, script_path, force_setup)
+            write_to_shell(command_to_execute, dry_run, script_path, force)
     else:
         console.print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
@@ -1249,5 +1269,4 @@ def cleanup(verbose: bool, dry_run: bool):
 
 
 if __name__ == '__main__':
-    create_directories()
     main()
