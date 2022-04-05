@@ -54,7 +54,8 @@ class SparkKubernetesOperator(BaseOperator):
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
     :param code_path: path to the code in your image,
     :param namespace: kubernetes namespace to put sparkApplication
-    :param api_group: CRD api group for spark https://github.com/GoogleCloudPlatform/spark-on-k8s-operator#project-status
+    :param api_group: CRD api group for spark
+            https://github.com/GoogleCloudPlatform/spark-on-k8s-operator#project-status
     :param api_version: CRD api version
     :param api_kind: CRD api kind
     :param api_plural: CRD api plural
@@ -72,11 +73,7 @@ class SparkKubernetesOperator(BaseOperator):
     :param config_map_mounts: A dictionary of config_map as key and path as value
     :param from_env_config_map: Read configmap into a env variable(name of the configmap)
     :param from_env_secret: Read secret into a env variable(name of the configmap)
-    :param hadoop_config: hadoop base config
-        example: AWS s3 config
-        {'fs.s3n.impl': 'org.apache.hadoop.fs.s3native.NativeS3FileSystem',
-         'fs.s3a.enable-server-side-encryption': 'true',
-         'fs.s3a.server-side-encryption-algorithm': 'AES256'}
+    :param hadoop_config: hadoop base config e.g, AWS s3 config
     :param application_file: yaml file if passed
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -270,7 +267,7 @@ class SparkKubernetesOperator(BaseOperator):
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def execute(self, context):
-        self.log.info(f'Creating sparkApplication.')
+        self.log.info('Creating sparkApplication.')
         # If yaml file used to create spark application
         if self.application_file:
             hook = KubernetesHook(conn_id=self.kubernetes_conn_id)

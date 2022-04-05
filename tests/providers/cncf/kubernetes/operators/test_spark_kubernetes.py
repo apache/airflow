@@ -523,7 +523,8 @@ class TestSparkKubernetesOperator:
         assert op.launcher.body['spec']['executor']['tolerations'] == [toleration]
 
     @pytest.mark.parametrize(
-        "resources, dr_exp_cores, dr_exp_cor_limit, dr_exp_mem, exec_exp_cores, exec_exp_cor_limit, exec_exp_mem, dr_gpu, exec_gpu",
+        "resources, dr_exp_cores, dr_exp_cor_limit, dr_exp_mem, exec_exp_cores, "
+        "exec_exp_cor_limit, exec_exp_mem, dr_gpu, exec_gpu",
         [
             (
                 {
