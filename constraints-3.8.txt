@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-04T22:52:53Z
+# This constraints file was automatically generated on 2022-04-05T15:17:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -15,7 +15,7 @@ Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
-Flask-Bcrypt==1.0.0
+Flask-Bcrypt==1.0.1
 Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
@@ -62,7 +62,7 @@ apache-airflow-providers-airbyte==2.1.4
 apache-airflow-providers-alibaba==1.1.1
 apache-airflow-providers-amazon==3.2.0
 apache-airflow-providers-apache-beam==3.3.0
-apache-airflow-providers-apache-cassandra==2.1.3
+apache-airflow-providers-apache-cassandra==2.1.0
 apache-airflow-providers-apache-drill==1.0.4
 apache-airflow-providers-apache-druid==2.3.3
 apache-airflow-providers-apache-hdfs==2.2.3
@@ -176,7 +176,7 @@ cachelib==0.6.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
-celery==5.2.5
+celery==5.2.6
 certifi==2020.12.5
 cffi==1.15.0
 cfgv==3.3.1
@@ -473,7 +473,7 @@ requests==2.27.1
 responses==0.20.0
 rfc3986==1.5.0
 rich-click==1.3.0
-rich==12.1.0
+rich==12.2.0
 rsa==4.8
 s3transfer==0.5.2
 sasl==0.3.1
@@ -542,10 +542,10 @@ types-Deprecated==1.2.5
 types-Markdown==3.3.12
 types-PyMySQL==1.0.15
 types-PyYAML==6.0.5
-types-boto==2.49.10
+types-boto==2.49.11
 types-certifi==2021.10.8.1
 types-croniter==1.0.8
-types-cryptography==3.3.18
+types-cryptography==3.3.19
 types-docutils==0.18.0
 types-freezegun==1.1.8
 types-paramiko==2.8.17
@@ -555,7 +555,7 @@ types-python-slugify==5.0.3
 types-pytz==2021.3.6
 types-redis==4.1.19
 types-requests==2.27.16
-types-setuptools==57.4.11
+types-setuptools==57.4.12
 types-six==1.16.12
 types-tabulate==0.8.6
 types-termcolor==1.1.3
