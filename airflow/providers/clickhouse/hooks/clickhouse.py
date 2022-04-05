@@ -100,6 +100,7 @@ class ClickHouseHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         import json
+        #  TODO: check why this is not working.
         return {
             "relabeling": {
                 'host': 'ClickHouse Host',
@@ -124,3 +125,15 @@ class ClickHouseHook(BaseHook):
                 ),
             },
         }
+
+    def test_connection(self):
+        """Tests the Clickhouse connection"""
+        status, message = False, ''
+        try:
+            if self.query("select 1"):
+                status = True
+                message = 'Clickhouse connection successfully tested!'
+        except Exception as e:
+            status = False
+            message = str(e)
+        return status, message
