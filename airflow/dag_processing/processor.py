@@ -236,7 +236,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             # Reap the spawned zombie. We active wait, because in Python 3.9 `waitpid` might lead to an
             # exception, due to change in Python standard library and possibility of race condition
             # see https://bugs.python.org/issue42558
-            while self._process._popen.poll() is None:
+            while self._process._popen.poll() is None:  # type: ignore
                 time.sleep(0.001)
         if self._parent_channel:
             self._parent_channel.close()
