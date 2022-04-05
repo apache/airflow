@@ -406,11 +406,10 @@ class TaskGroup(DAGNode):
         Sorts children in topographical order, such that a task comes after any of its
         upstream dependencies.
 
-        Heavily inspired by:
-        http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-
         :return: list of tasks in topological order
         """
+        # This uses a modified version of Kahn's Topological Sort algorithm to
+        # not have to pre-compute the "in-degree" of the nodes.
         from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
         graph_unsorted = copy.copy(self.children)
@@ -419,21 +418,18 @@ class TaskGroup(DAGNode):
 
         # special case
         if len(self.children) == 0:
-            return tuple(graph_sorted)
+            return graph_sorted
 
         # Run until the unsorted graph is empty.
         while graph_unsorted:
-            # Go through each of the node/edges pairs in the unsorted
-            # graph. If a set of edges doesn't contain any nodes that
-            # haven't been resolved, that is, that are still in the
-            # unsorted graph, remove the pair from the unsorted graph,
-            # and append it to the sorted graph. Note here that by using
-            # using the items() method for iterating, a copy of the
-            # unsorted graph is used, allowing us to modify the unsorted
-            # graph as we move through it. We also keep a flag for
-            # checking that graph is acyclic, which is true if any
-            # nodes are resolved during each pass through the graph. If
-            # not, we need to exit as the graph therefore can't be
+            # Go through each of the node/edges pairs in the unsorted graph. If a set of edges doesn't contain
+            # any nodes that haven't been resolved, that is, that are still in the unsorted graph, remove the
+            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using using
+            # the values() method for iterating, a copy of the unsorted graph is used, allowing us to modify
+            # the unsorted graph as we move through it.
+            #
+            # We also keep a flag for checking that graph is acyclic, which is true if any nodes are resolved
+            # during each pass through the graph. If not, we need to exit as the graph therefore can't be
             # sorted.
             acyclic = False
             for node in list(graph_unsorted.values()):
@@ -462,7 +458,7 @@ class TaskGroup(DAGNode):
             if not acyclic:
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
 
-        return tuple(graph_sorted)
+        return graph_sorted
 
 
 class MappedTaskGroup(TaskGroup):
