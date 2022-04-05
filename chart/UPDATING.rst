@@ -43,6 +43,9 @@ Default Airflow image is updated to ``2.2.5``
 
 The default Airflow image that is used with the Chart is now ``2.2.5``, previously it was ``2.2.4``.
 
+Resources naming has been updated to support ``nameOverride`` and ``fullnameOverride``. The default name is now derived from .Release.Name and chart name.
+``fullnameOverride`` can be used for backwards compatibility to name resources similarly to before this update.
+
 Airflow Helm Chart 1.5.0
 ------------------------
 
