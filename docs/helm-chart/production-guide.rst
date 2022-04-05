@@ -459,7 +459,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
-| ``<RELEASE_NAME>-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
+| ``<RELEASE_NAME>-result-backend``                     | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
 |                                                       |                                          | | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
