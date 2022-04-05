@@ -2160,8 +2160,15 @@ class TaskInstance(Base, LoggingMixin):
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
             return
+
         try:
-            self.render_templates()
+            # Task was never executed. Initialize RenderedTaskInstanceFields
+            # to render template and mask secrets.
+            rendered_task_instance = RenderedTaskInstanceFields(self)
+            rendered_fields = rendered_task_instance.rendered_fields
+            if rendered_fields:
+                for field_name, rendered_value in rendered_fields.items():
+                    setattr(self.task, field_name, rendered_value)
         except (TemplateAssertionError, UndefinedError) as e:
             raise AirflowException(
                 "Webserver does not have access to User-defined Macros or Filters "
