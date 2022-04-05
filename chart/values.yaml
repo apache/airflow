@@ -1118,7 +1118,7 @@ flower:
 
   podAnnotations: {}
 
-# Statsd settings
+# StatsD settings
 statsd:
   enabled: true
 
@@ -1133,7 +1133,8 @@ statsd:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # When not set, the values defined in the global securityContext will be used
+  uid: 65534
+  # When not set, `statsd.uid` will be used
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0
@@ -1152,17 +1153,15 @@ statsd:
   service:
     extraAnnotations: {}
 
-  # Select certain nodes for statsd pods.
+  # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
 
   priorityClassName: ~
 
-  # Additional mappings for statsd exporter.
+  # Additional mappings for StatsD exporter.
   extraMappings: []
-
-  uid: 65534
 
 # PgBouncer settings
 pgbouncer:

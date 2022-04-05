@@ -14,8 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from rich.console import Console
-from rich.theme import Theme
 
-custom_theme = Theme({"info": "blue", "warning": "magenta", "error": "red"})
-console = Console(force_terminal=True, color_system="standard", width=180, theme=custom_theme)
+---
+package-name: apache-airflow-providers-arangodb
+name: ArangoDB
+description: |
+    `ArangoDB <https://www.arangodb.com/>`__
+versions:
+  - 1.0.0
+
+integrations:
+  - integration-name: ArangoDB
+    external-doc-url: https://www.arangodb.com/
+    tags: [software]
+
+hooks:
+  - integration-name: ArangoDB
+    python-modules:
+      - airflow.providers.arangodb.hooks.arangodb
+
+operators:
+  - integration-name: ArangoDB
+    python-modules:
+      - airflow.providers.arangodb.operators.arangodb
+
+sensors:
+  - integration-name: ArangoDB
+    python-modules:
+      - airflow.providers.arangodb.sensors.arangodb
+
+connection-types:
+  - hook-class-name: airflow.providers.arangodb.hooks.arangodb.ArangoDBHook
+    connection-type: arangodb

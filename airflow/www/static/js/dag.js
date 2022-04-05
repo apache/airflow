@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $ */
+/* global document, window, Event, $ */
 
 import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
@@ -368,10 +368,19 @@ $('#pause_resume').on('change', function onChange() {
   // Remove focus on element so the tooltip will go away
   $input.trigger('blur');
   $input.removeClass('switch-input--error');
+
+  // dispatch an event that React can listen for
+  const event = new Event('paused');
+  event.value = isPaused;
+  event.key = 'isPaused';
+  document.dispatchEvent(event);
+
   $.post(url).fail(() => {
     setTimeout(() => {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
+      event.value = !isPaused;
+      document.dispatchEvent(event);
     }, 500);
   });
 });

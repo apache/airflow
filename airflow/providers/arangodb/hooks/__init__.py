@@ -14,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from dataclasses import dataclass
-from typing import List, Tuple
-
-
-@dataclass
-class DocBuilder:
-    package_filter: Tuple[str]
-    docs_only: bool
-    spellcheck_only: bool
-
-    @property
-    def args_doc_builder(self) -> List[str]:
-        doc_args = []
-        if self.docs_only:
-            doc_args.append("--docs-only")
-        if self.spellcheck_only:
-            doc_args.append("--spellcheck-only")
-        if self.package_filter and len(self.package_filter) > 0:
-            for single_filter in self.package_filter:
-                doc_args.extend(["--package-filter", single_filter])
-        return doc_args

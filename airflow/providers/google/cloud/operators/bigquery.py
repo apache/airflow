@@ -964,6 +964,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
     :param source_format: File format of the data.
+    :param autodetect: Try to detect schema and format options automatically.
+        The schema_fields and schema_object options will be honored when specified explicitly.
+        https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
         The default value is NONE.
@@ -1028,6 +1031,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         schema_fields: Optional[List] = None,
         schema_object: Optional[str] = None,
         source_format: Optional[str] = None,
+        autodetect: bool = False,
         compression: Optional[str] = None,
         skip_leading_rows: Optional[int] = None,
         field_delimiter: Optional[str] = None,
@@ -1057,6 +1061,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 skip_leading_rows,
                 field_delimiter,
                 max_bad_records,
+                autodetect,
                 quote_character,
                 allow_quoted_newlines,
                 allow_jagged_rows,
@@ -1116,6 +1121,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.autodetect = autodetect
 
         self.src_fmt_configs = src_fmt_configs or {}
         self.labels = labels
@@ -1153,6 +1159,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             schema_fields=schema_fields,
             source_uris=source_uris,
             source_format=self.source_format,
+            autodetect=self.autodetect,
             compression=self.compression,
             skip_leading_rows=self.skip_leading_rows,
             field_delimiter=self.field_delimiter,

@@ -204,6 +204,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.33.0',
 ]
+arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
 async_packages = [
     'eventlet>=0.9.7',
@@ -688,6 +689,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'arangodb': arangodb,
     'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
@@ -879,6 +881,7 @@ ALL_DB_PROVIDERS = [
     'apache.hdfs',
     'apache.hive',
     'apache.pinot',
+    'arangodb',
     'cloudant',
     'databricks',
     'exasol',

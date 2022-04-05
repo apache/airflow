@@ -337,6 +337,11 @@ ARG_RERUN_FAILED_TASKS = Arg(
     ),
     action="store_true",
 )
+ARG_CONTINUE_ON_FAILURES = Arg(
+    ("--continue-on-failures",),
+    help=("if set, the backfill will keep going even if some of the tasks failed"),
+    action="store_true",
+)
 ARG_RUN_BACKWARDS = Arg(
     (
         "-B",
@@ -1111,6 +1116,7 @@ DAGS_COMMANDS = (
             ARG_LOCAL,
             ARG_DONOT_PICKLE,
             ARG_YES,
+            ARG_CONTINUE_ON_FAILURES,
             ARG_BF_IGNORE_DEPENDENCIES,
             ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
@@ -1862,6 +1868,21 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_CAPACITY,
+        ),
+    ),
+    ActionCommand(
+        name='dag-processor',
+        help="Start a standalone Dag Processor instance",
+        func=lazy_load_command('airflow.cli.commands.dag_processor_command.dag_processor'),
+        args=(
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_SUBDIR,
+            ARG_NUM_RUNS,
+            ARG_DO_PICKLE,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
         ),
     ),
     ActionCommand(

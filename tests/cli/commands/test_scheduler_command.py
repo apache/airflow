@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
+import io
+import os
 import unittest
 from unittest import mock
 
@@ -87,3 +90,18 @@ class TestSchedulerCommand(unittest.TestCase):
                 scheduler_command.scheduler(args)
             finally:
                 mock_process().terminate.assert_called()
+
+    @mock.patch.dict(os.environ, {'AIRFLOW__CORE__PARALLELISM': '35'}, clear=True)
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_scheduler_print_config(self, mock_process, mock_scheduler_job):
+        args = self.parser.parse_args(['scheduler'])
+        with conf_vars({("core", "sql_alchemy_conn_cmd"): 'echo hello'}):
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                scheduler_command.scheduler(args)
+                output = temp_stdout.getvalue()
+
+                assert "sql_alchemy_conn = < hidden > [cmd]" in output
+                assert "max_active_tasks_per_dag = 16 [airflow.cfg]" in output
+                assert "parallelism = < hidden > [env var]" in output
+                assert "max_active_runs_per_dag = 16 [default]" not in output

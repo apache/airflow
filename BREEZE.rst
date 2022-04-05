@@ -1336,13 +1336,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
-
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
           to install Airflow, you have to install it from packages placed in
@@ -2031,13 +2024,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
-
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
           to install Airflow, you have to install it from packages placed in
@@ -2631,13 +2617,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
