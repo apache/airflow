@@ -158,7 +158,11 @@ class JenkinsJobTriggerOperator(BaseOperator):
             )
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
-                if 'executable' in json_response and 'number' in json_response['executable']:
+                if (
+                    'executable' in json_response
+                    and json_response['executable'] is not None
+                    and 'number' in json_response['executable']
+                ):
                     build_number = json_response['executable']['number']
                     self.log.info('Job executed on Jenkins side with the build number %s', build_number)
                     return build_number

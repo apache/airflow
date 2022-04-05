@@ -72,7 +72,7 @@ const Tree = () => {
       const runsContainer = scrollRef.current;
       // Set initial scroll to top right if it is scrollable
       if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-        runsContainer.scrollBy(runsContainer.clientWidth, 0);
+        runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
       }
     }
   }, [tableRef, isOpen]);

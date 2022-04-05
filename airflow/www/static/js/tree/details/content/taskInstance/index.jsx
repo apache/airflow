@@ -35,6 +35,7 @@ import TaskNav from './Nav';
 import Details from './Details';
 
 import { useTreeData } from '../../../api';
+import MappedInstances from './MappedInstances';
 
 const getTask = ({ taskId, runId, task }) => {
   if (task.id === taskId) return task;
@@ -100,6 +101,9 @@ const TaskInstance = ({ taskId, runId }) => {
         executionDate={executionDate}
         extraLinks={task.extraLinks}
       />
+      {task.isMapped && (
+        <MappedInstances dagId={dagId} runId={runId} taskId={taskId} />
+      )}
     </Box>
   );
 };

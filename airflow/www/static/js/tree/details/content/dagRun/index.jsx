@@ -126,16 +126,20 @@ const DagRun = ({ runId }) => {
         <Time dateTime={dataIntervalEnd} />
       </Text>
       <br />
+      {startDate && (
       <Text>
         Started:
         {' '}
         <Time dateTime={startDate} />
       </Text>
+      )}
+      {endDate && (
       <Text>
         Ended:
         {' '}
         <Time dateTime={endDate} />
       </Text>
+      )}
     </Box>
   );
 };

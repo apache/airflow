@@ -1,3 +1,55 @@
+Airflow 2.2.5, 2022-04-04
+-------------------------
+
+Bug Fixes
+"""""""""
+- Check and disallow a relative path for sqlite (#22530)
+- Fixed dask executor and tests (#22027)
+- Fix broken links to celery documentation (#22364)
+- Fix incorrect data provided to tries & landing times charts (#21928)
+- Fix assignment of unassigned triggers (#21770)
+- Fix triggerer ``--capacity`` parameter (#21753)
+- Fix graph autorefresh on page load (#21736)
+- Fix filesystem sensor for directories (#21729)
+- Fix stray ``order_by(TaskInstance.execution_date)`` (#21705)
+- Correctly handle multiple '=' in LocalFileSystem secrets. (#21694)
+- Log exception in local executor (#21667)
+- Disable ``default_pool`` delete on web ui (#21658)
+- Extends ``typing-extensions`` to be installed with python 3.8+ #21566 (#21567)
+- Dispose unused connection pool (#21565)
+- Fix logging JDBC SQL error when task fails (#21540)
+- Filter out default configs when overrides exist. (#21539)
+- Fix Resources ``__eq__`` check (#21442)
+- Fix ``max_active_runs=1`` not scheduling runs when ``min_file_process_interval`` is high (#21413)
+- Reduce DB load incurred by Stale DAG deactivation (#21399)
+- Fix race condition between triggerer and scheduler (#21316)
+- Fix trigger dag redirect from task instance log view (#21239)
+- Log traceback in trigger excs (#21213)
+- A trigger might use a connection; make sure we mask passwords (#21207)
+- Update ``ExternalTaskSensorLink`` to handle templated ``external_dag_id`` (#21192)
+- Ensure ``clear_task_instances`` sets valid run state (#21116)
+- Fix: Update custom connection field processing (#20883)
+- Truncate stack trace to DAG user code for exceptions raised during execution (#20731)
+- Fix duplicate trigger creation race condition (#20699)
+- Fix Tasks getting stuck in scheduled state (#19747)
+- Fix: Do not render undefined graph edges (#19684)
+- Set ``X-Frame-Options`` header to DENY only if ``X_FRAME_ENABLED`` is set to true. (#19491)
+
+Doc only changes
+""""""""""""""""
+- adding ``on_execute_callback`` to callbacks docs (#22362)
+- Add documentation on specifying a DB schema. (#22347)
+- Fix postgres part of pipeline example of tutorial (#21586)
+- Extend documentation for states of DAGs & tasks and update trigger rules docs (#21382)
+- DB upgrade is required when updating Airflow (#22061)
+- Remove misleading MSSQL information from the docs (#21998)
+
+Misc
+""""
+- Add the new Airflow Trove Classifier to setup.cfg (#22241)
+- Rename ``to_delete`` to ``to_cancel`` in TriggerRunner (#20658)
+- Update Flask-AppBuilder to ``3.4.5`` (#22596)
+
 Airflow 2.2.4, 2022-02-22
 -------------------------
 

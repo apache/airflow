@@ -55,10 +55,11 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     echo
-    echo "Airflow home: ${AIRFLOW_HOME}"
-    echo "Airflow sources: ${AIRFLOW_SOURCES}"
-    echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-
+    echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"
+    echo
+    echo "  * ${COLOR_BLUE}Airflow home:${COLOR_RESET} ${AIRFLOW_HOME}"
+    echo "  * ${COLOR_BLUE}Airflow sources:${COLOR_RESET} ${AIRFLOW_SOURCES}"
+    echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
     RUN_TESTS=${RUN_TESTS:="false"}
@@ -68,7 +69,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
-        echo "Using already installed airflow version"
+        echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
         if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
             pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
@@ -82,38 +83,38 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
-        echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+        echo "${COLOR_BLUE}Skip installing airflow - only install wheel/tar.gz packages that are present locally.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
-        echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
-        echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI without extras"
+        echo "${COLOR_BLUE}Install airflow from PyPI without extras"
         echo
         install_released_airflow_version "${USE_AIRFLOW_VERSION}"
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
-        echo "Install all packages from dist folder"
+        echo "${COLOR_BLUE}Install all packages from dist folder"
         if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
             echo "(except apache-airflow)"
         fi
         if [[ ${PACKAGE_FORMAT} == "both" ]]; then
             echo
-            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'.${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -197,7 +198,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     cd "${AIRFLOW_SOURCES}"
 
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         # shellcheck source=scripts/in_container/bin/run_tmux

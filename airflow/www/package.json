@@ -95,6 +95,7 @@
     "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
     "react-query": "^3.34.16",
+    "react-table": "^7.7.0",
     "redoc": "^2.0.0-rc.63",
     "url-search-params-polyfill": "^8.1.0"
   },

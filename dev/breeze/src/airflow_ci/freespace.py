@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""freespace.py for clean environment before start CI"""
+"""Cleans up the environment before starting CI."""
 
-import shlex
-import subprocess
-from typing import List
 
 import rich_click as click
 from rich.console import Console
+
+from airflow_breeze.utils.run_utils import run_command
 
 console = Console(force_terminal=True, color_system="standard", width=180)
 
@@ -46,26 +45,14 @@ option_dry_run = click.option(
 @option_verbose
 @option_dry_run
 def main(verbose, dry_run):
-    run_command(["sudo", "swapoff", "-a"], verbose, dry_run)
-    run_command(["sudo", "rm", "-f", "/swapfile"], verbose, dry_run)
-    run_command(["sudo", "apt-get", "clean"], verbose, dry_run, check=False)
-    run_command(["docker", "system", "prune", "--all", "--force", "--volumes"], verbose, dry_run)
-    run_command(["df", "-h"], verbose, dry_run)
-    run_command(["docker", "logout", "ghcr.io"], verbose, dry_run)
-
-
-def run_command(cmd: List[str], verbose, dry_run, *, check: bool = True, **kwargs):
-    if verbose:
-        console.print(f"\n[green]$ {' '.join(shlex.quote(c) for c in cmd)}[/]\n")
-    if dry_run:
-        return
-    try:
-        subprocess.run(cmd, check=check, **kwargs)
-    except subprocess.CalledProcessError as ex:
-        print("========================= OUTPUT start ============================")
-        print(ex.stderr)
-        print(ex.stdout)
-        print("========================= OUTPUT end ============================")
+    run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
+    run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+    run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
+    run_command(
+        ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
+    )
+    run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
+    run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run)
 
 
 if __name__ == '__main__':
