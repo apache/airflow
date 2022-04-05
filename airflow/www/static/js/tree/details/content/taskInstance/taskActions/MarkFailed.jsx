@@ -72,7 +72,7 @@ const MarkFailed = ({
       setAffectedTasks(data);
       onOpen();
     } catch (e) {
-      console.log(e);
+      console.error(e);
     }
   };
 

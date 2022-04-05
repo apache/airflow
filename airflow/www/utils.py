@@ -114,15 +114,12 @@ def get_mapped_summary(parent_instance, task_instances):
         else parent_instance.try_number
     )
     return {
-        'dag_id': parent_instance.dag_id,
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
         'state': group_state,
         'start_date': group_start_date,
         'end_date': group_end_date,
         'mapped_states': mapped_states,
-        'operator': parent_instance.operator,
-        'execution_date': datetime_to_string(parent_instance.execution_date),
         'try_number': try_count,
     }
 
@@ -143,15 +140,12 @@ def encode_ti(
     )
     return {
         'task_id': task_instance.task_id,
-        'dag_id': task_instance.dag_id,
         'run_id': task_instance.run_id,
         'map_index': task_instance.map_index,
         'state': task_instance.state,
         'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),
         'end_date': datetime_to_string(task_instance.end_date),
-        'operator': task_instance.operator,
-        'execution_date': datetime_to_string(task_instance.execution_date),
         'try_number': try_count,
     }
 
@@ -161,7 +155,6 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         return None
 
     return {
-        'dag_id': dag_run.dag_id,
         'run_id': dag_run.run_id,
         'start_date': datetime_to_string(dag_run.start_date),
         'end_date': datetime_to_string(dag_run.end_date),
