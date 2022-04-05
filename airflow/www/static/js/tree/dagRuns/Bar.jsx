@@ -59,6 +59,7 @@ const DagRunBar = ({
   return (
     <Box
       className={`js-${run.runId}`}
+      data-selected={isSelected}
       bg={isSelected && 'blue.100'}
       transition="background-color 0.2s"
       px="1px"

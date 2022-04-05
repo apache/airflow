@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global stateColors, window */
+/* global stateColors */
 
 import React from 'react';
 import { isEqual } from 'lodash';
@@ -56,9 +56,8 @@ const StatusBox = ({
   const onMouseEnter = () => {
     [...containerRef.current.getElementsByClassName(`js-${runId}`)]
       .forEach((e) => {
-        const bg = window.getComputedStyle(e).backgroundColor;
         // Don't apply hover if it is already selected
-        if (bg !== 'rgb(190, 227, 248)') e.style.backgroundColor = hoverBlue;
+        if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
       });
   };
   const onMouseLeave = () => {
