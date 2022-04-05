@@ -17,7 +17,8 @@
 # under the License.
 
 """This module allows connecting to a ClickHouse."""
-from typing import Any, Dict, Optional
+from itertools import islice
+from typing import Any, Dict, Optional, Union, Generator
 
 from clickhouse_driver import Client as ClickHouseClient
 
@@ -41,13 +42,40 @@ class ClickHouseHook(BaseHook):
     conn_type = 'clickhouse'
     hook_name = 'ClickHouse'
 
-    def __init__(self, clickhouse_conn_id: str = default_conn_name, database: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, clickhouse_conn_id: str = default_conn_name, database: Optional[str] = None, *args,
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.clickhouse_conn_id = clickhouse_conn_id
         self.database = database
 
         self.client: Optional[ClickHouseClient] = None
         self.get_conn()
+
+    @staticmethod
+    def _log_params(
+        parameters: Union[dict, list, tuple, Generator],
+        limit: int = 10,
+    ) -> str:
+        if isinstance(parameters, Generator) or len(parameters) <= limit:
+            return str(parameters)
+        if isinstance(parameters, dict):
+            head = dict(islice(parameters.items(), limit))
+        else:
+            head = parameters[:limit]
+        head_str = str(head)
+        closing_paren = head_str[-1]
+        return f'{head_str[:-1]} … and {len(parameters) - limit} ' \
+               f'more parameters{closing_paren}'
+
+    def _log_query(
+        self,
+        sql: str,
+        parameters: Union[None, dict, list, tuple, Generator],
+    ) -> None:
+        self.log.info(
+            '%s%s', sql,
+            f' with {self._log_params(parameters)}' if parameters else '',
+        )
 
     def get_conn(self) -> ClickHouseClient:
         """Function that initiates a new ClickHouse connection"""
@@ -73,32 +101,25 @@ class ClickHouseHook(BaseHook):
         self.client = ClickHouseClient(conn.host or 'localhost', **connection_kwargs)
         return self.client
 
-    def query(self, query, **kwargs) -> Any:
+    def query(self, query: str, params: Optional[dict] = None, **kwargs) -> Any:
         """
         Function to create a clickhouse session
-        and execute the AQL query in the session.
+        and execute the sql query in the session.
 
-        :param query: AQL query
-        :return: Result
+        :param query: sql query
+        :param params: substitution parameters for SELECT queries and data for INSERT queries.
+        :param kwargs: additional optional parameters from API
+
+        :return: output of method Client(params).execute(params)
+
+        for more, refer - https://clickhouse-driver.readthedocs.io/en/latest/api.html
         """
         try:
-            if self.db_conn:
-                result = self.db_conn.aql.execute(query, **kwargs)
-                return result
-            else:
-                raise AirflowException(
-                    f"Failed to execute AQLQuery, error connecting to database: {self.database}"
-                )
+            self._log_query(query, params)
+            result = self.client.execute(query, params=params, **kwargs)
+            return result
         except Exception as error:
-            raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
-
-    def create_database(self, name):
-        if not self.db_conn.has_database(name):
-            self.db_conn.create_database(name)
-            return True
-        else:
-            self.log.info('Database already exists: %s', name)
-            return False
+            raise AirflowException(f"Failed to execute SQL Query, error: {str(error)}")
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
@@ -110,8 +131,8 @@ class ClickHouseHook(BaseHook):
                 'schema': 'ClickHouse Database',
                 'login': 'ClickHouse Username',
                 'password': 'ClickHouse Password',
-                'extra': 'extra configs (https://clickhouse-driver.readthedocs.io/en/latest/api.html'
-                         '#connection) '
+                'extra': 'extra configs from'
+                         '(https://clickhouse-driver.readthedocs.io/en/latest/api.html#connection)'
             },
             "placeholders": {
                 'host': 'http://127.0.0.1',
