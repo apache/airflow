@@ -147,6 +147,13 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return self.dag is not None
 
     @property
+    def dag_id(self) -> str:
+        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        if self.dag:
+            return self.dag.dag_id
+        return "_in_memory_dag_"
+
+    @property
     def log(self) -> "Logger":
         raise NotImplementedError()
 
