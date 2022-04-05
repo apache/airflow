@@ -49,5 +49,5 @@ def send_email(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
-        custom_headers=custom_headers
+        custom_headers=custom_headers,
     )
