@@ -54,7 +54,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-     valueFrom:
+    valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
