@@ -45,7 +45,7 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 const Dag = () => {
   const { data: dag } = useDag(dagId);
   const { data: taskData } = useTasks(dagId);
-  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const { data: { dagRuns = [] } } = useTreeData();
   if (!dag || !taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
   const {
@@ -63,13 +63,8 @@ const Dag = () => {
   });
 
   const durations = [];
-  const runs = dagRuns.map((dagRun) => {
-    const duration = getDuration(dagRun.startDate, dagRun.endDate);
-    durations.push(duration);
-    return {
-      ...dagRun,
-      duration,
-    };
+  dagRuns.forEach((dagRun) => {
+    durations.push(getDuration(dagRun.startDate, dagRun.endDate));
   });
 
   // calculate dag run bar heights relative to max
