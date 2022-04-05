@@ -29,11 +29,10 @@ import ActionButton from './ActionButton';
 import ConfirmDialog from '../../ConfirmDialog';
 import { useClearTask } from '../../../../api';
 
-const Run = ({
+const Clear = ({
   dagId,
   runId,
   taskId,
-  executionDate,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -60,7 +59,7 @@ const Run = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const { mutateAsync: clearTask, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
+    dagId, runId, taskId,
   });
 
   const onClick = async () => {
@@ -128,4 +127,4 @@ const Run = ({
   );
 };
 
-export default Run;
+export default Clear;

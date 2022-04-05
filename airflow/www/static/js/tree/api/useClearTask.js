@@ -27,7 +27,7 @@ const csrfToken = getMetaValue('csrf_token');
 const clearUrl = getMetaValue('clear_url');
 
 export default function useClearTask({
-  dagId, runId, taskId, executionDate,
+  dagId, runId, taskId,
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -44,7 +44,6 @@ export default function useClearTask({
         dag_run_id: runId,
         task_id: taskId,
         confirmed,
-        execution_date: executionDate,
         past,
         future,
         upstream,

@@ -24,16 +24,16 @@ import { getMetaValue } from '../../utils';
 const extraLinksUrl = getMetaValue('extra_links_url');
 
 export default function useExtraLinks({
-  dagId, taskId, executionDate, extraLinks,
+  dagId, taskId, runId, extraLinks,
 }) {
   return useQuery(
-    ['extraLinks', dagId, taskId, executionDate],
+    ['extraLinks', dagId, taskId, runId],
     async () => {
       const data = await Promise.all(extraLinks.map(async (link) => {
         const url = `${extraLinksUrl
         }?task_id=${encodeURIComponent(taskId)
         }&dag_id=${encodeURIComponent(dagId)
-        }&execution_date=${encodeURIComponent(executionDate)
+        }&dag_run_id=${encodeURIComponent(runId)
         }&link_name=${encodeURIComponent(link)}`;
         try {
           const datum = await axios.get(url);

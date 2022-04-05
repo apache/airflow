@@ -42,11 +42,11 @@ const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
 const Nav = ({
-  taskId, executionDate, operator, isMapped,
+  taskId, operator, isMapped, runId,
 }) => {
   const params = new URLSearchParams({
     task_id: taskId,
-    execution_date: executionDate,
+    dag_run_id: runId,
   }).toString();
   const detailsLink = `${taskUrl}&${params}`;
   const renderedLink = `${renderedTemplatesUrl}&${params}`;
@@ -57,9 +57,6 @@ const Nav = ({
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: 'dag_run.execution_date',
   });
-  const subDagParams = new URLSearchParams({
-    execution_date: executionDate,
-  }).toString();
 
   const filterParams = new URLSearchParams({
     base_date: baseDate,
@@ -70,7 +67,7 @@ const Nav = ({
   const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
 
   const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams);
-  const subDagLink = appendSearchParams(gridUrl.replace(dagId, `${dagId}.${taskId}`), subDagParams);
+  const subDagLink = gridUrl.replace(dagId, `${dagId}.${taskId}`);
 
   // TODO: base subdag zooming as its own attribute instead of via operator name
   const isSubDag = operator === 'SubDagOperator';

@@ -183,8 +183,12 @@ def get_safe_url(url):
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     """Get Execution Data, Base Date & Number of runs from a Request"""
     date_time = www_request.args.get('execution_date')
+    dag_run_id = www_request.args.get('dag_run_id')
     if date_time:
         date_time = timezone.parse(date_time)
+    elif dag_run_id:
+        dr = dag.get_dagrun(run_id=dag_run_id)
+        date_time = dr.execution_date
     else:
         date_time = dag.get_latest_execution_date(session=session) or timezone.utcnow()
 
@@ -1253,13 +1257,20 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
-        form = DateTimeForm(data={'execution_date': dttm})
-        root = request.args.get('root', '')
+        dag_run_id = request.args.get('dag_run_id')
 
         logging.info("Retrieving rendered templates.")
         dag: DAG = current_app.dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+        if dag_run_id:
+            dag_run = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dag_run.execution_date
+            dttm = dag_run.execution_date.isoformat()
+        else:
+            dttm = timezone.parse(execution_date)
+            dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+
+        form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         ti: TaskInstance
@@ -1354,15 +1365,23 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+        dag_run_id = request.args.get('dag_run_id')
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
+
+        if dag_run_id:
+            dag_run = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dag_run.execution_date
+            dttm = dag_run.execution_date.isoformat()
+        else:
+            dttm = timezone.parse(execution_date)
+            dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         map_index = request.args.get('map_index', -1, type=int)
         logging.info("Retrieving rendered templates.")
 
-        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
 
         pod_spec = None
@@ -1412,11 +1431,17 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+        dag_run_id = request.args.get('dag_run_id')
         map_index = request.args.get('map_index', -1, type=int)
         try_number = request.args.get('try_number', type=int)
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
         response_format = request.args.get('format', 'json')
+
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if dag_run_id:
+            dr = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dr.execution_date.isoformat()
 
         # metadata may be null
         if not metadata:
@@ -1457,7 +1482,6 @@ class Airflow(AirflowBaseView):
             )
 
         try:
-            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 ti.task = dag.get_task(ti.task_id)
 
@@ -1495,7 +1519,16 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date) if execution_date else None
+        dag_run_id = request.args.get('dag_run_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if dag_run_id:
+            dr = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dr.execution_date.isoformat()
+            dttm = dr.execution_date
+        else:
+            dttm = timezone.parse(execution_date) if execution_date else None
+
         form = DateTimeForm(data={'execution_date': dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -1540,8 +1573,15 @@ class Airflow(AirflowBaseView):
     def redirect_to_external_log(self, session=None):
         """Redirects to external log."""
         dag_id = request.args.get('dag_id')
+        dag_run_id = request.args.get('dag_run_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+
+        if dag_run_id:
+            dag = current_app.dag_bag.get_dag(dag_id)
+            dr = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dr.execution_date.isoformat()
+
         dttm = timezone.parse(execution_date)
         map_index = request.args.get('map_index', -1, type=int)
         try_number = request.args.get('try_number', 1)
@@ -1579,11 +1619,17 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+        dag_run_id = request.args.get('dag_run_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if dag_run_id:
+            dr = dag.get_dagrun(run_id=dag_run_id)
+            execution_date = dr.execution_date.isoformat()
+
         dttm = timezone.parse(execution_date)
         map_index = request.args.get('map_index', -1, type=int)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
@@ -2019,9 +2065,8 @@ class Airflow(AirflowBaseView):
         task_id = request.form.get('task_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_run_id = request.form.get('dag_run_id')
 
-        execution_date = request.form.get('execution_date')
-        execution_date = timezone.parse(execution_date)
         confirmed = request.form.get('confirmed') == "true"
         upstream = request.form.get('upstream') == "true"
         downstream = request.form.get('downstream') == "true"
@@ -2030,13 +2075,17 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get('recursive') == "true"
         only_failed = request.form.get('only_failed') == "true"
 
+        dr = dag.get_dagrun(run_id=dag_run_id)
+        start_date = dr.logical_date
+        end_date = dr.logical_date
+        end_date = dr.logical_date if not future else None
+        start_date = dr.logical_date if not past else None
+
         dag = dag.partial_subset(
             task_ids_or_regex=fr"^{task_id}$",
             include_downstream=downstream,
             include_upstream=upstream,
         )
-        end_date = execution_date if not future else None
-        start_date = execution_date if not past else None
 
         return self._clear_dag_tis(
             dag,
@@ -2741,8 +2790,13 @@ class Airflow(AirflowBaseView):
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
-        dag_run = dag.get_dagrun(execution_date=dttm)
-        dag_run_id = dag_run.run_id if dag_run else None
+        dag_run_id = request.args.get('dag_run_id')
+        if dag_run_id:
+            dag_run = dag.get_dagrun(run_id=dag_run_id)
+            dttm = dag_run.execution_date
+        else:
+            dag_run = dag.get_dagrun(execution_date=dttm)
+            dag_run_id = dag_run.run_id if dag_run else None
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             """Graph Form class."""
@@ -3313,9 +3367,16 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
+        dag_run_id = request.args.get('dag_run_id')
         link_name = request.args.get('link_name')
-        dttm = timezone.parse(execution_date)
+
         dag = current_app.dag_bag.get_dag(dag_id)
+
+        if dag_run_id:
+            dr = dag.get_dagrun(run_id=dag_run_id)
+            dttm = dr.execution_date.isoformat()
+        else:
+            dttm = timezone.parse(execution_date)
 
         if not dag or task_id not in dag.task_ids:
             response = jsonify(

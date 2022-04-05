@@ -30,11 +30,11 @@ import { useExtraLinks } from '../../../api';
 const ExtraLinks = ({
   dagId,
   taskId,
-  executionDate,
+  runId,
   extraLinks = [],
 }) => {
   const { data: links = [] } = useExtraLinks({
-    dagId, taskId, executionDate, extraLinks,
+    dagId, taskId, runId, extraLinks,
   });
 
   if (!links.length) return null;

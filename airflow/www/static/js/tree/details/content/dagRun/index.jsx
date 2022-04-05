@@ -46,7 +46,6 @@ const DagRun = ({ runId }) => {
   const run = dagRuns.find((dr) => dr.runId === runId);
   if (!run) return null;
   const {
-    executionDate,
     state,
     runType,
     duration,
@@ -60,7 +59,7 @@ const DagRun = ({ runId }) => {
     run_id: runId,
   }).toString();
   const graphParams = new URLSearchParams({
-    execution_date: executionDate,
+    dag_run_id: runId,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);
   const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);

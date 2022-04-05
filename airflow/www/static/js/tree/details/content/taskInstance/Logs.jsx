@@ -39,7 +39,7 @@ const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost"
 const Logs = ({
   dagId,
   taskId,
-  executionDate,
+  runId,
   tryNumber,
 }) => {
   const externalLogs = [];
@@ -53,7 +53,7 @@ const Logs = ({
       const fullExternalUrl = `${externalLogUrl
       }?dag_id=${encodeURIComponent(dagId)
       }&task_id=${encodeURIComponent(taskId)
-      }&execution_date=${encodeURIComponent(executionDate)
+      }&dag_run_id=${encodeURIComponent(runId)
       }&try_number=${index}`;
       externalLogs.push(
         <LinkButton
@@ -70,7 +70,7 @@ const Logs = ({
     const fullMetadataUrl = `${logsWithMetadataUrl
     }?dag_id=${encodeURIComponent(dagId)
     }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
+    }&dag_run_id=${encodeURIComponent(runId)
     }&metadata=null&format=file${index > 0 && `&try_number=${index}`}`;
 
     return (

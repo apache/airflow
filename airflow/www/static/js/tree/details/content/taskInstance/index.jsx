@@ -54,10 +54,8 @@ const getTask = ({ taskId, runId, task }) => {
 };
 
 const TaskInstance = ({ taskId, runId }) => {
-  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const { data: { groups = {} } } = useTreeData();
   const group = getTask({ taskId, runId, task: groups });
-  const run = dagRuns.find((r) => r.runId === runId);
-  const { executionDate } = run;
   const { data: { tasks } } = useTasks(dagId);
   if (!group) return null;
   const task = tasks.find((t) => t.taskId === taskId);
@@ -74,20 +72,15 @@ const TaskInstance = ({ taskId, runId }) => {
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
-          executionDate={executionDate}
           operator={operator}
+          runId={runId}
         />
       )}
       {!isGroup && (
         <>
           <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
             <RunAction runId={runId} taskId={taskId} dagId={dagId} />
-            <ClearAction
-              runId={runId}
-              taskId={taskId}
-              dagId={dagId}
-              executionDate={executionDate}
-            />
+            <ClearAction runId={runId} taskId={taskId} dagId={dagId} />
             <MarkFailedAction runId={runId} taskId={taskId} dagId={dagId} />
             <MarkSuccessAction runId={runId} taskId={taskId} dagId={dagId} />
           </VStack>
@@ -98,7 +91,7 @@ const TaskInstance = ({ taskId, runId }) => {
         <Logs
           dagId={dagId}
           taskId={taskId}
-          executionDate={executionDate}
+          runId={runId}
           tryNumber={instance.tryNumber}
         />
       )}
@@ -106,7 +99,7 @@ const TaskInstance = ({ taskId, runId }) => {
       <ExtraLinks
         taskId={taskId}
         dagId={dagId}
-        executionDate={executionDate}
+        runId={runId}
         extraLinks={extraLinks}
       />
       {isMapped && (
