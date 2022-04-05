@@ -880,16 +880,16 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 
 
 def test_mapped_task_applies_default_args_classic(dag_maker):
-    with dag_maker(default_args={"sla": timedelta(minutes=30)}) as dag:
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
         MockOperator(task_id="simple", arg1=None, arg2=0)
         MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
 
-    assert dag.get_task("simple").sla == timedelta(minutes=30)
-    assert dag.get_task("mapped").sla == timedelta(minutes=30)
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
 
 
 def test_mapped_task_applies_default_args_taskflow(dag_maker):
-    with dag_maker(default_args={"sla": timedelta(minutes=30)}) as dag:
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
 
         @dag.task
         def simple(arg):
@@ -902,5 +902,5 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
         simple(arg=0)
         mapped.expand(arg=[1, 2])
 
-    assert dag.get_task("simple").sla == timedelta(minutes=30)
-    assert dag.get_task("mapped").sla == timedelta(minutes=30)
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
