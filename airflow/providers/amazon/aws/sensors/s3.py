@@ -109,6 +109,68 @@ class S3KeySensor(BaseSensorOperator):
         return self.hook
 
 
+class S3MultiKeySensor(BaseSensorOperator):
+    """
+    Waits for multiple keys (file-like instances on S3) to be present in a single S3 bucket.
+    Does not support multiple buckets or keys in the form of s3:// urls.
+    S3 being a key/value it does not support folders.
+
+    :param bucket_keys: The keys being waited on. Supports relative paths from root level.
+    :param bucket_name: Name of the S3 bucket.
+    :param aws_conn_id: a reference to the s3 connection
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    """
+
+    template_fields: Sequence[str] = ('bucket_keys', 'bucket_name')
+
+    def __init__(
+        self,
+        *,
+        bucket_keys: List[str],
+        bucket_name: str,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.bucket_name = bucket_name
+        self.bucket_keys = bucket_keys
+        self.aws_conn_id = aws_conn_id
+        self.verify = verify
+        self.hook: Optional[S3Hook] = None
+
+    def get_hook(self) -> S3Hook:
+        """Create and return an S3Hook"""
+        if self.hook:
+            return self.hook
+
+        self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        return self.hook
+
+    def poke(self, context: 'Context'):
+        self.log.info(f"Poking for keys:\n  { ', '.join(self.bucket_keys) } \nin bucket: {self.bucket_name}")
+
+        results = []
+        s3_hook = self.get_hook()
+        for s3_key in self.bucket_keys:
+            results.append(s3_hook.check_for_key(s3_key, self.bucket_name))
+
+        failed_keys = [self.bucket_keys[ix] for ix, value in enumerate(results) if value is False]
+        if failed_keys:
+            self.log.info(f"Some poke target(s) do not currently exist:\n { ', '.join(failed_keys) }")
+
+        return all(results)
+
+
 class S3KeySizeSensor(S3KeySensor):
     """
     Waits for a key (a file-like instance on S3) to be present and be more than

@@ -25,7 +25,7 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
-from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor, S3MultiKeySensor
 from airflow.utils import timezone
 
 
@@ -119,6 +119,53 @@ class TestS3KeySensor(unittest.TestCase):
         mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
 
         mock_check.return_value = True
+        assert op.poke(None) is True
+
+
+class TestS3MultiKeySensor(unittest.TestCase):
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
+    def test_parse_bucket_name_and_keys_from_jinja(self, mock_check):
+        mock_check.return_value = False
+
+        Variable.set("test_bucket", "bucket")
+        Variable.set("test_key1", "key1")
+        Variable.set("test_key2", "key2")
+
+        execution_date = timezone.datetime(2020, 1, 1)
+
+        dag = DAG("test_s3_multi_key", start_date=execution_date)
+        op = S3MultiKeySensor(
+            task_id='s3_key_multi_key_sensor',
+            bucket_keys=['{{ var.value.test_key1 }}', '{{ var.value.test_key2 }}'],
+            bucket_name='{{ var.value.test_bucket }}',
+            dag=dag,
+        )
+
+        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        context = ti.get_template_context()
+        ti.render_templates(context)
+        op.poke(None)
+
+        assert op.bucket_keys == ["key1", "key2"]
+        assert op.bucket_name == "bucket"
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
+    def test_poke(self, mock_check):
+        op = S3MultiKeySensor(
+            task_id='s3_multi_key_sensor', bucket_keys=['file_1', 'file_2'], bucket_name='test_bucket'
+        )
+
+        mock_check.side_effect = [False, False]
+        assert op.poke(None) is False
+        calls = [mock.call(op.bucket_keys[0], op.bucket_name), mock.call(op.bucket_keys[1], op.bucket_name)]
+        mock_check.assert_has_calls(calls)
+
+        mock_check.side_effect = [True, False]
+        assert op.poke(None) is False
+
+        mock_check.side_effect = [True, True]
         assert op.poke(None) is True
 
 
