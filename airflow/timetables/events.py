@@ -74,9 +74,9 @@ class EventsTimetable(Timetable):
             next_event = self.event_dates[0]
         else:
             future_dates = itertools.dropwhile(
-                lambda when: when <= last_automated_data_interval.end, self.event_dates
+                lambda when: when <= last_automated_data_interval.end, self.event_dates  # type: ignore
             )
-            next_event = next(future_dates, None)
+            next_event = next(future_dates, None)  # type: ignore
             if next_event is None:
                 return None
 
@@ -105,7 +105,7 @@ class EventsTimetable(Timetable):
     @classmethod
     def deserialize(cls, data) -> Timetable:
         return cls(
-            [pendulum.parse(x) for x in data["event_dates"]],
+            [pendulum.parse(x) for x in data["event_dates"]],  # type: ignore
             data["restrict_to_events"],
             presorted=True,
         )
