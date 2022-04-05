@@ -104,6 +104,19 @@ class DAGDetailSchema(DAGSchema):
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
+    is_paused_upon_creation = fields.Boolean()
+    end_date = fields.DateTime(dump_only=True)
+    template_search_path = fields.String(dump_only=True)
+    render_template_as_native_obj = fields.Boolean(dump_only=True)
+    has_on_success_callback = fields.Boolean(dump_only=True)
+    has_on_failure_callback = fields.Boolean(dump_only=True)
+    jinja_environment_kwargs = fields.Dict(dump_only=True)
+    last_loaded = fields.DateTime(dump_only=True)
+    default_args = fields.Dict(dump_only=True)
+    user_defined_filters = fields.List(fields.String, dump_only=True)
+    user_defined_macros = fields.Dict(dump_only=True)
+    partial = fields.Boolean(dump_only=True)
+    edge_info = fields.Dict(dump_only=True)
 
     @staticmethod
     def get_concurrency(obj: DAG):

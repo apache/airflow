@@ -56,6 +56,7 @@ def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 def get_dag_details(*, dag_id: str) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
+
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)

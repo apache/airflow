@@ -2912,6 +2912,106 @@ components:
                 User-specified DAG params.
 
                 *New in version 2.0.1*
+            end_date:
+              type: string
+              format: 'date-time'
+              readOnly: true
+              nullable: true
+              description: |
+                The DAG's end date.
+
+                *New in version 2.3.0*.
+            is_paused_upon_creation:
+              type: boolean
+              readOnly: true
+              nullable: true
+              description: |
+                Whether the DAG is paused upon creation.
+
+                *New in version 2.3.0*
+            last_loaded:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              description: |
+                The last time the DAG was loaded.
+
+                *New in version 2.3.0*
+            default_args:
+              type: object
+              nullable: true
+              description: |
+                The default arguments to pass to tasks
+
+                *New in version 2.3.0*
+            user_defined_filters:
+              type: array
+              nullable: true
+              items:
+                type: string
+              description: |
+                The user defined filters.
+
+                *New in version 2.3.0*
+            user_defined_macro:
+              type: object
+              nullable: true
+              description: |
+                The user defined macros.
+
+                *New in version 2.3.0*
+            template_search_path:
+              type: array
+              nullable: true
+              items:
+                type: string
+              description: |
+                The template search path.
+
+                *New in version 2.3.0*
+            render_template_as_native_obj:
+              type: boolean
+              nullable: true
+              readOnly: true
+              description: |
+                Whether to render templates as native Python objects.
+
+                *New in version 2.3.0*
+            has_on_success_callback:
+              type: boolean
+              readOnly: true
+              description: |
+                Whether the DAG has an on_success_callback.
+
+                *New in version 2.3.0*
+            has_on_failure_callback:
+              type: boolean
+              readOnly: true
+              description: |
+                Whether the DAG has an on_failure_callback.
+
+                *New in version 2.3.0*
+            jinja_environment_kwargs:
+              type: object
+              nullable: true
+              description: |
+                The jinja environment kwargs.
+
+                *New in version 2.3.0*
+            partial:
+              type: boolean
+              readOnly: true
+              description: |
+                Whether the DAG object is partial.
+
+                *New in version 2.3.0*
+            edge_info:
+              type: object
+              description: |
+                The edge info.
+
+                *New in version 2.3.0*
 
     ExtraLink:
       type: object
