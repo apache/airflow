@@ -1771,5 +1771,5 @@ def test_mapped_task_group_serde():
         ],
     }
 
-    with DAG("test", start_date=execution_date):
-        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict)
+    with DAG("test", start_date=execution_date) as new_dag:
+        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict, new_dag)

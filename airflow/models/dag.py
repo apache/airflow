@@ -1717,7 +1717,7 @@ class DAG(LoggingMixin):
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
 
-        Deprecated in favour of ``task_group.topological_sort``
+        Deprecated in place of ``task_group.topological_sort``
         """
         from airflow.utils.task_group import TaskGroup
 
@@ -1728,7 +1728,7 @@ class DAG(LoggingMixin):
                 else:
                     yield node
 
-        return list(nested_topo(self.task_group))
+        return tuple(*nested_topo(self.task_group))
 
     @provide_session
     def set_dag_runs_state(
