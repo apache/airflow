@@ -92,7 +92,7 @@ class ClickHouseHook(BaseHook):
         if conn.password:
             connection_kwargs.update(password=conn.password)
 
-        #  if custom database is provided use it or use from schema
+        #  if  database is provided use it or use from schema
         if self.database:
             connection_kwargs.update(database=self.database)
         elif conn.schema:
