@@ -18,6 +18,7 @@
 import io
 import os
 from datetime import datetime
+from typing import Mapping
 
 import numpy as np
 import pandas as pd
@@ -31,24 +32,49 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
     SageMakerTrainingOperator,
     SageMakerTransformOperator,
+    SageMakerTuningOperator,
 )
-from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerTrainingSensor, SageMakerTransformSensor
+from airflow.providers.amazon.aws.sensors.sagemaker import (
+    SageMakerTrainingSensor,
+    SageMakerTransformSensor,
+    SageMakerTuningSensor,
+)
 
-# This Sample DAG demonstrates using SageMaker to identify various species of Iris flower.
-# The Project Name variable below will be used to name various tasks and the required S3 keys.
+# Project name will be used in naming the S3 buckets and various tasks.
+# The dataset used in this example is identifying varieties of the Iris flower.
 PROJECT_NAME = 'iris'
 TIMESTAMP = '{{ ts_nodash }}'
 
 S3_BUCKET = os.getenv('S3_BUCKET', 'S3_bucket')
-INPUT_S3_KEY = f'{PROJECT_NAME}/processed-input-data'
-OUTPUT_S3_KEY = f'{PROJECT_NAME}/results'
-MODEL_NAME = f'{PROJECT_NAME}-KNN-model'
-TRAINING_JOB_NAME = f'{PROJECT_NAME}-train-{TIMESTAMP}'
-
 ROLE_ARN = os.getenv(
     'SAGEMAKER_ROLE_ARN',
     'arn:aws:iam::1234567890:role/service-role/AmazonSageMaker-ExecutionRole',
 )
+
+INPUT_DATA_S3_KEY = f'{PROJECT_NAME}/processed-input-data'
+TRAINING_DATA_SOURCE: Mapping[str, str] = {
+    "CompressionType": "None",
+    "ContentType": "text/csv",
+    "DataSource": {  # type: ignore
+        "S3DataDistributionType": "FullyReplicated",
+        "S3DataType": "S3Prefix",
+        "S3Uri": f's3://{S3_BUCKET}/{INPUT_DATA_S3_KEY}/train.csv',
+    },
+}
+TRAINING_OUTPUT_S3_KEY = f'{PROJECT_NAME}/results'
+PREDICTION_OUTPUT_S3_KEY = f'{PROJECT_NAME}/transform'
+
+MODEL_NAME = f'{PROJECT_NAME}-KNN-model'
+# Job names can't be reused, so appending a timestamp to ensure it is unique.
+TRAINING_JOB_NAME = f'{PROJECT_NAME}-train-{TIMESTAMP}'
+TRANSFORM_JOB_NAME = f'{PROJECT_NAME}-transform-{TIMESTAMP}'
+TUNING_JOB_NAME = f'{PROJECT_NAME}-tune-{TIMESTAMP}'
+
+RESOURCE_CONFIG = {
+    "InstanceCount": 1,
+    "InstanceType": "ml.m5.large",
+    "VolumeSizeInGB": 1,
+}
 
 # A Sample dataset hosted by UC Irvine's machine learning repository
 DATA_URL = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
@@ -73,22 +99,11 @@ TRAINING_CONFIG = {
     "InputDataConfig": [
         {
             "ChannelName": "train",
-            "DataSource": {
-                "S3DataSource": {
-                    "S3DataType": "S3Prefix",
-                    "S3Uri": f"s3://{S3_BUCKET}/{INPUT_S3_KEY}/train.csv",
-                }
-            },
-            "ContentType": "text/csv",
-            "InputMode": "File",
+            **TRAINING_DATA_SOURCE,
         }
     ],
-    "OutputDataConfig": {"S3OutputPath": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}/"},
-    "ResourceConfig": {
-        "InstanceCount": 1,
-        "InstanceType": "ml.m5.large",
-        "VolumeSizeInGB": 1,
-    },
+    "OutputDataConfig": {"S3OutputPath": f's3://{S3_BUCKET}/{TRAINING_OUTPUT_S3_KEY}/'},
+    "ResourceConfig": RESOURCE_CONFIG,
     "RoleArn": ROLE_ARN,
     "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
     "TrainingJobName": TRAINING_JOB_NAME,
@@ -100,29 +115,81 @@ MODEL_CONFIG = {
     "PrimaryContainer": {
         "Mode": "SingleModel",
         "Image": KNN_IMAGE_URI,
-        "ModelDataUrl": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}/{TRAINING_JOB_NAME}/output/model.tar.gz",
+        "ModelDataUrl": f's3://{S3_BUCKET}/{TRAINING_OUTPUT_S3_KEY}/{TRAINING_JOB_NAME}/output/model.tar.gz',
     },
 }
 
 TRANSFORM_CONFIG = {
-    # Transform job names can't be reused, so appending a full timestamp tp ensure it is unique.
-    "TransformJobName": f"test-{PROJECT_NAME}-knn-{TIMESTAMP}",
+    "TransformJobName": TRANSFORM_JOB_NAME,
     "TransformInput": {
         "DataSource": {
             "S3DataSource": {
                 "S3DataType": "S3Prefix",
-                "S3Uri": f"s3://{S3_BUCKET}/{INPUT_S3_KEY}/test.csv",
+                "S3Uri": f's3://{S3_BUCKET}/{INPUT_DATA_S3_KEY}/test.csv',
             }
         },
         "SplitType": "Line",
         "ContentType": "text/csv",
     },
-    "TransformOutput": {"S3OutputPath": f"s3://{S3_BUCKET}/{OUTPUT_S3_KEY}"},
+    "TransformOutput": {"S3OutputPath": f's3://{S3_BUCKET}/{PREDICTION_OUTPUT_S3_KEY}'},
     "TransformResources": {
         "InstanceCount": 1,
         "InstanceType": "ml.m5.large",
     },
     "ModelName": MODEL_NAME,
+}
+
+TUNING_CONFIG = {
+    "HyperParameterTuningJobName": TUNING_JOB_NAME,
+    "HyperParameterTuningJobConfig": {
+        "Strategy": "Bayesian",
+        "HyperParameterTuningJobObjective": {
+            "MetricName": "test:accuracy",
+            "Type": "Maximize",
+        },
+        "ResourceLimits": {
+            # You would bump these up in production as appropriate.
+            "MaxNumberOfTrainingJobs": 1,
+            "MaxParallelTrainingJobs": 1,
+        },
+        "ParameterRanges": {
+            "CategoricalParameterRanges": [],
+            "IntegerParameterRanges": [
+                # Set the min and max values of the hyperparameters you want to tune.
+                {
+                    "Name": "k",
+                    "MinValue": "1",
+                    "MaxValue": "1024",
+                },
+                {
+                    "Name": "sample_size",
+                    "MinValue": "100",
+                    "MaxValue": "2000",
+                },
+            ],
+        },
+    },
+    "TrainingJobDefinition": {
+        "StaticHyperParameters": {
+            "predictor_type": "classifier",
+            "feature_dim": "4",
+        },
+        "AlgorithmSpecification": {"TrainingImage": KNN_IMAGE_URI, "TrainingInputMode": "File"},
+        "InputDataConfig": [
+            {
+                "ChannelName": "train",
+                **TRAINING_DATA_SOURCE,
+            },
+            {
+                "ChannelName": "test",
+                **TRAINING_DATA_SOURCE,
+            },
+        ],
+        "OutputDataConfig": {"S3OutputPath": f's3://{S3_BUCKET}/{TRAINING_OUTPUT_S3_KEY}'},
+        "ResourceConfig": RESOURCE_CONFIG,
+        "RoleArn": ROLE_ARN,
+        "StoppingCondition": {"MaxRuntimeInSeconds": 600},
+    },
 }
 
 
@@ -197,6 +264,23 @@ with DAG(
     )
     # [END howto_operator_sagemaker_model]
 
+    # [START howto_operator_sagemaker_tuning]
+    tune_model = SageMakerTuningOperator(
+        task_id="tune_model",
+        config=TUNING_CONFIG,
+        # Waits by default, setting as False to demonstrate the Sensor below.
+        wait_for_completion=False,
+        do_xcom_push=False,
+    )
+    # [END howto_operator_sagemaker_tuning]
+
+    # [START howto_operator_sagemaker_tuning_sensor]
+    await_tune = SageMakerTuningSensor(
+        task_id="await_tuning",
+        job_name=TUNING_JOB_NAME,
+    )
+    # [END howto_operator_sagemaker_tuning_sensor]
+
     # [START howto_operator_sagemaker_transform]
     test_model = SageMakerTransformOperator(
         task_id='test_model',
@@ -210,7 +294,7 @@ with DAG(
     # [START howto_operator_sagemaker_transform_sensor]
     await_transform = SageMakerTransformSensor(
         task_id="await_transform",
-        job_name=f"test-{PROJECT_NAME}-knn-{TIMESTAMP}",
+        job_name=TRANSFORM_JOB_NAME,
     )
     # [END howto_operator_sagemaker_transform_sensor]
 
@@ -223,10 +307,12 @@ with DAG(
     # [END howto_operator_sagemaker_delete_model]
 
     (
-        data_prep(DATA_URL, S3_BUCKET, INPUT_S3_KEY)
+        data_prep(DATA_URL, S3_BUCKET, INPUT_DATA_S3_KEY)
         >> train_model
         >> await_training
         >> create_model
+        >> tune_model
+        >> await_tune
         >> test_model
         >> await_transform
         >> delete_model

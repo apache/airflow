@@ -121,7 +121,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     AirflowException with the failure reason if a failed state is reached.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SageMakerTransformSensor`
 
     :param job_name: Name of the transform job to watch.
@@ -156,6 +156,10 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     Asks for the state of the tuning state until it reaches a terminal state.
     Raises an AirflowException with the failure reason if a failed state is reached.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerTuningSensor`
+
     :param job_name: Name of the tuning instance to watch.
     """
 
@@ -189,7 +193,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     AirflowException with the failure reason if a failed state is reached.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SageMakerTrainingSensor`
 
     :param job_name: Name of the training job to watch.

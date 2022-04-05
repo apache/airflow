@@ -61,6 +61,20 @@ To create an Amazon Sagemaker model you can use
     :start-after: [START howto_operator_sagemaker_model]
     :end-before: [END howto_operator_sagemaker_model]
 
+.. _howto/operator:SageMakerTuningOperator:
+
+Start a Hyperparameter Tuning Job
+"""""""""""""""""""""""""""""""""
+
+To start a hyperparameter tuning job for an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_tuning]
+    :end-before: [END howto_operator_sagemaker_tuning]
+
 .. _howto/operator:SageMakerDeleteModelOperator:
 
 Delete an Amazon SageMaker Model
@@ -120,6 +134,20 @@ you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerT
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_transform_sensor]
     :end-before: [END howto_operator_sagemaker_transform_sensor]
+
+.. _howto/sensor:SageMakerTuningSensor:
+
+Amazon SageMaker Tuning Sensor
+""""""""""""""""""""""""""""""
+
+To check the state of an Amazon Sagemaker hyperparameter tuning job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTuningSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_tuning_sensor]
+    :end-before: [END howto_operator_sagemaker_tuning_sensor]
 
 Reference
 ^^^^^^^^^

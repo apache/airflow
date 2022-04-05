@@ -438,6 +438,10 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     you specify. It then chooses the hyperparameter values that result in a model
     that performs the best, as measured by an objective metric that you choose.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerTuningOperator`
+
     :param config: The configuration necessary to start a tuning job (templated).
 
         For details of the configuration parameter see
