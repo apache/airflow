@@ -32,10 +32,6 @@ from termcolor import colored
 from airflow.cli import airflow_cmd
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.executors import executor_constants
-from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.jobs.triggerer_job import TriggererJob
-from airflow.utils import db
-from airflow.www.app import cached_app
 
 
 @airflow_cmd.command('standalone')
@@ -179,6 +175,8 @@ class StandaloneCommand:
     def initialize_database(self):
         """Makes sure all the tables are created."""
         # Set up DB tables
+        from airflow.utils import db
+
         self.print_output("standalone", "Checking database is initialized")
         db.initdb()
         self.print_output("standalone", "Database ready")
@@ -188,6 +186,8 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
+        from airflow.www.app import cached_app
+
         appbuilder = cached_app().appbuilder
         user_exists = appbuilder.sm.find_user("admin")
         password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
@@ -219,6 +219,9 @@ class StandaloneCommand:
         Detects when all Airflow components are ready to serve.
         For now, it's simply time-based.
         """
+        from airflow.jobs.scheduler_job import SchedulerJob
+        from airflow.jobs.triggerer_job import TriggererJob
+
         return (
             self.port_open(self.web_server_port)
             and self.job_running(SchedulerJob)

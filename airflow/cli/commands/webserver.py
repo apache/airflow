@@ -51,7 +51,6 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
-from airflow.www.app import create_app
 
 log = logging.getLogger(__name__)
 
@@ -420,6 +419,8 @@ def webserver(
     """Starts Airflow Webserver"""
     console = Console()
     console.print(settings.HEADER)
+
+    from airflow.www.app import create_app
 
     # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
     if conf.get('webserver', 'secret_key') == 'temporary_key':

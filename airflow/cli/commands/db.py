@@ -27,9 +27,7 @@ from rich.console import Console
 from airflow import settings
 from airflow.cli import airflow_cmd, click_dry_run, click_verbose, click_yes
 from airflow.exceptions import AirflowException
-from airflow.utils import cli as cli_utils, db as db_utils
-from airflow.utils.db import REVISION_HEADS_MAP
-from airflow.utils.db_cleanup import config_dict, run_cleanup
+from airflow.utils import cli as cli_utils
 from airflow.utils.process_utils import execute_interactive
 
 click_revision = click.option(
@@ -72,6 +70,8 @@ def db(ctx):
 @click.pass_context
 def db_init(ctx):
     """Initializes the metadata database"""
+    from airflow.utils import db as db_utils
+
     console = Console()
     console.print(f"DB: {settings.engine.url}")
     db_utils.initdb()
@@ -88,6 +88,8 @@ def db_init(ctx):
 )
 def check_migrations(ctx, migration_wait_timeout):
     """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
+    from airflow.utils import db as db_utils
+
     console = Console()
     console.print(f"Waiting for {migration_wait_timeout}s")
     db_utils.check_migrations(timeout=migration_wait_timeout)
@@ -98,9 +100,12 @@ def check_migrations(ctx, migration_wait_timeout):
 @click_yes
 def db_reset(ctx, yes=False):
     """Burn down and rebuild the metadata database"""
+
     console = Console()
     console.print(f"DB: {settings.engine.url}")
     if yes or click.confirm("This will drop existing tables if they exist. Proceed? (y/n)"):
+        from airflow.utils import db as db_utils
+
         db_utils.resetdb()
     else:
         console.print("Cancelled")
@@ -125,6 +130,8 @@ def check_revision_and_version_options(wrapped, instance, args, kwargs):
         if from_version is not None:
             if parse_version(from_version) < parse_version('2.0.0'):
                 raise SystemExit("--from-version must be greater than or equal to 2.0.0")
+            from airflow.utils.db import REVISION_HEADS_MAP
+
             from_revision = REVISION_HEADS_MAP.get(from_version)
             if not from_revision:
                 raise SystemExit(f"Unknown version {from_version!r} supplied as `--from-version`.")
@@ -176,6 +183,8 @@ def upgrade(ctx, revision, version, from_revision, from_version, show_sql_only=F
             "operation. Proceed? (y/n)\n"
         )
     ):
+        from airflow.utils import db as db_utils
+
         db_utils.upgradedb(to_revision=revision, from_revision=from_revision, show_sql_only=show_sql_only)
         if not show_sql_only:
             console.print("Upgrades done")
@@ -218,6 +227,8 @@ def downgrade(ctx, revision, version, from_revision, from_version, show_sql_only
             "operation. Proceed? (y/n)\n"
         )
     ):
+        from airflow.utils import db as db_utils
+
         db_utils.downgrade(to_revision=revision, from_revision=from_revision, show_sql_only=show_sql_only)
         if not show_sql_only:
             console.print("Downgrades done")
@@ -283,13 +294,24 @@ def shell(ctx):
 @cli_utils.action_cli(check_db=False)
 def check(ctx, migration_wait_timeout):
     """Runs a check command that checks if db is reachable"""
+    from airflow.utils import db as db_utils
+
     console = Console()
     console.print(f"Waiting for {migration_wait_timeout}s")
     db_utils.check_migrations(timeout=migration_wait_timeout)
 
 
 # lazily imported by CLI parser for `help` command
-all_tables = sorted(config_dict)
+# Create a custom class that emulates a callable since click validates
+# non-callable and make __str__ to return output for lazy processing.
+class _CleanTableDefault:
+    def __call__(self):
+        pass
+
+    def __str__(self):
+        from airflow.utils.db_cleanup import config_dict
+
+        return str(sorted(config_dict))
 
 
 @db.command('cleanup')
@@ -298,7 +320,7 @@ all_tables = sorted(config_dict)
     '-t',
     '--tables',
     multiple=True,
-    default=all_tables,
+    default=_CleanTableDefault(),
     show_default=True,
     help=(
         "Table names to perform maintenance on (use comma-separated list).\n"
@@ -319,6 +341,8 @@ all_tables = sorted(config_dict)
 @cli_utils.action_cli(check_db=False)
 def cleanup_tables(ctx, tables, clean_before_timestamp, dry_run, verbose, yes):
     """Purge old records in metastore tables"""
+    from airflow.utils.db_cleanup import run_cleanup
+
     split_tables = []
     for table in tables:
         split_tables.extend(table.split(','))

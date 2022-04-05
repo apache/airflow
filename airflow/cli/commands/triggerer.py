@@ -25,7 +25,6 @@ from rich.console import Console
 
 from airflow import settings
 from airflow.cli import airflow_cmd, click_daemon, click_log_file, click_pid, click_stderr, click_stdout
-from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 
@@ -44,6 +43,8 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 @cli_utils.action_cli
 def triggerer(ctx, capacity, daemon_, log_file, pid, stderr, stdout):
     """Starts Airflow Triggerer"""
+    from airflow.jobs.triggerer_job import TriggererJob
+
     console = Console()
     settings.MASK_SECRETS_IN_LOGS = True
     console.print(settings.HEADER)
