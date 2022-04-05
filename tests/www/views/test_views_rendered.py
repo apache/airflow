@@ -183,9 +183,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
 
 @pytest.mark.usefixtures("patch_app")
 def test_rendered_template_secret(*args, admin_client, create_dag_run, task_secret):
-    """
-    Test that the Rendered View contains the values from RenderedTaskInstanceFields
-    """
+    """Test that the Rendered View masks values retrieved from secret variables."""
     Variable.set("my_secret", "foo")
     Variable.set("spam", "egg")
 
