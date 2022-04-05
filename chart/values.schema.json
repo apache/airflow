@@ -799,7 +799,7 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "- secretRef:\n    name: '{{ include 'airflow.fullname' . }}-airflow-connections'",
+                "- secretRef:\n    name: \"{{ include 'airflow.fullname' . }}-airflow-connections\"",
                 "- configMapRef:\n    name: '{{ include 'airflow.fullname' . }}-airflow-variables'"
             ]
         },
