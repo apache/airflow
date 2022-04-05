@@ -79,6 +79,6 @@
   <script src="{{ url_for_asset('gantt.js') }}"></script>
   <script>
     // Loading data via <meta> wasn't loading extra_links in a task
-    const data = JSON.parse('{{ data|tojson }}');
+    const data = JSON.parse('{{ data|tojson|replace("\\", "\\\\") }}');
   </script>
 {% endblock %}
