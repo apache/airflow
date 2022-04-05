@@ -32,10 +32,11 @@ import {
   Button,
   Flex,
 } from '@chakra-ui/react';
+import { mean } from 'lodash';
 
-import { formatDuration } from '../../../datetime_utils';
+import { getDuration, formatDuration } from '../../../datetime_utils';
 import { getMetaValue } from '../../../utils';
-import { useDag, useTasks } from '../../api';
+import { useDag, useTasks, useTreeData } from '../../api';
 import Time from '../../Time';
 
 const dagId = getMetaValue('dag_id');
@@ -44,6 +45,7 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 const Dag = () => {
   const { data: dag } = useDag(dagId);
   const { data: taskData } = useTasks(dagId);
+  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
   if (!dag || !taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
   const {
@@ -60,11 +62,60 @@ const Dag = () => {
     }
   });
 
+  const durations = [];
+  const runs = dagRuns.map((dagRun) => {
+    const duration = getDuration(dagRun.startDate, dagRun.endDate);
+    durations.push(duration);
+    return {
+      ...dagRun,
+      duration,
+    };
+  });
+
+  // calculate dag run bar heights relative to max
+  const max = Math.max.apply(null, durations);
+  const min = Math.min.apply(null, durations);
+  const avg = mean(durations);
+
   return (
     <>
-      <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
+      <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
+      {durations.length > 0 && (
+        <>
+          <Text my={3}>DAG Runs Summary</Text>
+          <Table variant="striped">
+            <Tbody>
+              <Tr>
+                <Td>Total Runs Displayed</Td>
+                <Td>
+                  {durations.length}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Max Run Duration</Td>
+                <Td>
+                  {formatDuration(max)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Mean Run Duration</Td>
+                <Td>
+                  {formatDuration(avg)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Min Run Duration</Td>
+                <Td>
+                  {formatDuration(min)}
+                </Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        </>
+      )}
+      <Text my={3}>DAG Summary</Text>
       <Table variant="striped">
         <Tbody>
           {description && (
@@ -116,7 +167,7 @@ const Dag = () => {
           </Tr>
           <Tr>
             <Td>Relative File Location</Td>
-            <Td><Code colorScheme="blackAlpha" maxWidth="250px">{fileloc}</Code></Td>
+            <Td><Code colorScheme="blackAlpha" maxWidth="450px" fontSize="12px">{fileloc}</Code></Td>
           </Tr>
           {dagRunTimeout && (
           <Tr>
