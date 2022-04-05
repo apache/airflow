@@ -313,12 +313,12 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
 
         assert (
-            "RELEASE-NAME-airflow-metadata "
+            "RELEASE-NAME-airflow-airflow-metadata "
             "= host=RELEASE-NAME-airflow-postgresql.default dbname=postgres port=5432"
             " pool_size=10" in ini
         )
         assert (
-            "RELEASE-NAME-airflow-result-backend "
+            "RELEASE-NAME-airflow-airflow-result-backend "
             "= host=RELEASE-NAME-airflow-postgresql.default dbname=postgres port=5432"
             " pool_size=5" in ini
         )
@@ -348,11 +348,11 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini(values)
 
         assert (
-            "RELEASE-NAME-airflow-metadata "
+            "RELEASE-NAME-airflow-airflow-metadata "
             "= host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5" in ini
         )
         assert (
-            "RELEASE-NAME-airflow-result-backend "
+            "RELEASE-NAME-airflow-airflow-result-backend "
             "= host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3" in ini
         )
 

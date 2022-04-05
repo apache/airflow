@@ -38,7 +38,7 @@ class CleanupPodsTest(unittest.TestCase):
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
             'apache/airflow'
         )
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-config"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-airflow-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
         )
         assert {

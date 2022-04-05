@@ -296,11 +296,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{ define "airflow_metadata_secret" -}}
-{{ default (printf "%s-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
+{{ default (printf "%s-airflow-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
 {{- end }}
 
 {{ define "airflow_result_backend_secret" -}}
-{{ default (printf "%s-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
+{{ default (printf "%s-airflow-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{ define "airflow_pod_template_file" -}}
@@ -344,8 +344,8 @@ If release name contains chart name it will be used as a full name.
 {{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" (include "airflow.fullname" .) "postgresql" .Release.Namespace) }}
 {{- $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" (include "airflow.fullname" .) "postgresql" .Release.Namespace) }}
 [databases]
-{{ include "airflow.fullname" . }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
-{{ include "airflow.fullname" . }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
+{{ include "airflow.fullname" . }}-airflow-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
+{{ include "airflow.fullname" . }}-airflow-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -438,7 +438,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{ define "airflow_config" -}}
-{{ (printf "%s-config" (include "airflow.fullname" .)) }}
+{{ (printf "%s-airflow-config" (include "airflow.fullname" .)) }}
 {{- end }}
 
 {{/*

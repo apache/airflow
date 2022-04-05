@@ -28,7 +28,7 @@ class KerberosTest(unittest.TestCase):
         k8s_objects = render_chart(name="NO-KERBEROS", values={"kerberos": {'enabled': False}})
         # ignore airflow config map
         k8s_objects_to_consider = [
-            obj for obj in k8s_objects if obj["metadata"]["name"] != "NO-KERBEROS-airflow-config"
+            obj for obj in k8s_objects if obj["metadata"]["name"] != "NO-KERBEROS-airflow-airflow-config"
         ]
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert k8s_objects_to_consider_str.count("kerberos") == 1
