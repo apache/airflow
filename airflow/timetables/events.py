@@ -28,25 +28,38 @@ class EventsTimetable(Timetable):
     Timetable that schedules DAG runs at specific listed datetimes. Suitable for
     predictable but truly irregular scheduling such as sporting events.
 
-    :param event_dates: List of datetimes for the DAG to run at
+    :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored.
     :param restrict_to_events: Whether manual runs should use the most recent event or
     the current time
+    :param description: A name for the timetable to display in the UI. Default None will be shown as
+                        "X Events" where X is the len of event_dates
     """
 
-    def __init__(self, event_dates: Iterable[DateTime], restrict_to_events: bool = False, presorted=False):
+    def __init__(
+        self,
+        event_dates: Iterable[DateTime],
+        restrict_to_events: bool = False,
+        presorted: bool = False,
+        description: Optional[str] = None,
+    ):
 
         self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once
             self.event_dates = sorted(self.event_dates)
         self.restrict_to_events = restrict_to_events
-        self.description = (
-            f"{len(self.event_dates)} Events between {self.event_dates[0]} and {self.event_dates[-1]}"
-        )
+        if description is None:
+            self.description = (
+                f"{len(self.event_dates)} Events between {self.event_dates[0]} and {self.event_dates[-1]}"
+            )
+            self._summary = f"{len(self.event_dates)} Events"
+        else:
+            self._summary = description
+            self.description = description
 
     @property
     def summary(self) -> str:
-        return f"{len(self.event_dates)} Events"
+        return self._summary
 
     def __repr__(self):
         return self.summary
