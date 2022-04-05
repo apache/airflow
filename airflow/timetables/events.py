@@ -33,16 +33,16 @@ class EventsTimetable(Timetable):
     the current time
     """
 
-    description = ""
-
     def __init__(self, event_dates: Iterable[DateTime], restrict_to_events: bool = False, presorted=False):
 
-        self.event_dates = event_dates
+        self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once
             self.event_dates = sorted(self.event_dates)
         self.restrict_to_events = restrict_to_events
-        self.description = self.summary
+        self.description = (
+            f"{len(self.event_dates)} Events between {self.event_dates[0]} and {self.event_dates[-1]}"
+        )
 
     @property
     def summary(self) -> str:
