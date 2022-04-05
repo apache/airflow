@@ -143,6 +143,8 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
         assert ti.pid != os.getpid()
+        assert not ti.run_as_user
+        assert not job1.task_runner.run_as_user
         job1.heartbeat_callback(session=None)
 
         job1.task_runner.process.pid = 2

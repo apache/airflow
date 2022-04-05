@@ -757,12 +757,7 @@ class TestDagFileProcessorManager:
         )
 
         with create_session() as session:
-            results = self.run_processor_manager_one_loop(manager, parent_pipe)
-
-        assert results[0] == callback3
-        assert results[1] == callback2
-        assert results[2] == callback1
-        with create_session() as session:
+            self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 0
 
     @conf_vars(
@@ -798,13 +793,11 @@ class TestDagFileProcessorManager:
         )
 
         with create_session() as session:
-            results = self.run_processor_manager_one_loop(manager, parent_pipe)
-            assert (len(results)) == 2
+            self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 3
 
         with create_session() as session:
-            results = self.run_processor_manager_one_loop(manager, parent_pipe)
-            assert (len(results)) == 2
+            self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 1
 
     @conf_vars(

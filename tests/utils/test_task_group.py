@@ -1154,3 +1154,134 @@ def test_decorator_map():
     tg = dag.task_group.get_child_by_label("my_task_group")
     assert isinstance(tg, MappedTaskGroup)
     assert "my_arg_1" in tg.mapped_kwargs
+
+
+def test_topological_sort1():
+    dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+    # A -> B
+    # A -> C -> D
+    # ordered: B, D, C, A or D, B, C, A or D, C, B, A
+    with dag:
+        op1 = DummyOperator(task_id='A')
+        op2 = DummyOperator(task_id='B')
+        op3 = DummyOperator(task_id='C')
+        op4 = DummyOperator(task_id='D')
+        [op2, op3] >> op1
+        op3 >> op4
+
+    topological_list = dag.task_group.topological_sort()
+
+    tasks = [op2, op3, op4]
+    assert topological_list[0] in tasks
+    tasks.remove(topological_list[0])
+    assert topological_list[1] in tasks
+    tasks.remove(topological_list[1])
+    assert topological_list[2] in tasks
+    tasks.remove(topological_list[2])
+    assert topological_list[3] == op1
+
+
+def test_topological_sort2():
+    dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+    # C -> (A u B) -> D
+    # C -> E
+    # ordered: E | D, A | B, C
+    with dag:
+        op1 = DummyOperator(task_id='A')
+        op2 = DummyOperator(task_id='B')
+        op3 = DummyOperator(task_id='C')
+        op4 = DummyOperator(task_id='D')
+        op5 = DummyOperator(task_id='E')
+        op3 << [op1, op2]
+        op4 >> [op1, op2]
+        op5 >> op3
+
+    topological_list = dag.task_group.topological_sort()
+
+    set1 = [op4, op5]
+    assert topological_list[0] in set1
+    set1.remove(topological_list[0])
+
+    set2 = [op1, op2]
+    set2.extend(set1)
+    assert topological_list[1] in set2
+    set2.remove(topological_list[1])
+
+    assert topological_list[2] in set2
+    set2.remove(topological_list[2])
+
+    assert topological_list[3] in set2
+
+    assert topological_list[4] == op3
+
+
+def test_topological_nested_groups():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        task1 = DummyOperator(task_id="task1")
+        task5 = DummyOperator(task_id="task5")
+        with TaskGroup("group_a") as group_a:
+            with TaskGroup("group_b"):
+                task2 = DummyOperator(task_id="task2")
+                task3 = DummyOperator(task_id="task3")
+                task4 = DummyOperator(task_id="task4")
+                task2 >> [task3, task4]
+
+        task1 >> group_a
+        group_a >> task5
+
+    def nested_topo(group):
+        return [
+            nested_topo(node) if isinstance(node, TaskGroup) else node for node in group.topological_sort()
+        ]
+
+    topological_list = nested_topo(dag.task_group)
+
+    assert topological_list == [
+        task1,
+        [
+            [
+                task2,
+                task3,
+                task4,
+            ],
+        ],
+        task5,
+    ]
+
+
+def test_topological_group_dep():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        task1 = DummyOperator(task_id="task1")
+        task6 = DummyOperator(task_id="task6")
+        with TaskGroup("group_a") as group_a:
+            task2 = DummyOperator(task_id="task2")
+            task3 = DummyOperator(task_id="task3")
+        with TaskGroup("group_b") as group_b:
+            task4 = DummyOperator(task_id="task4")
+            task5 = DummyOperator(task_id="task5")
+
+        task1 >> group_a >> group_b >> task6
+
+    def nested_topo(group):
+        return [
+            nested_topo(node) if isinstance(node, TaskGroup) else node for node in group.topological_sort()
+        ]
+
+    topological_list = nested_topo(dag.task_group)
+
+    assert topological_list == [
+        task1,
+        [
+            task2,
+            task3,
+        ],
+        [
+            task4,
+            task5,
+        ],
+        task6,
+    ]
