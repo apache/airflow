@@ -1728,7 +1728,7 @@ class DAG(LoggingMixin):
                 else:
                     yield node
 
-        return tuple(*nested_topo(self.task_group))
+        return tuple(nested_topo(self.task_group))
 
     @provide_session
     def set_dag_runs_state(
