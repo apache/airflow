@@ -17,8 +17,6 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
 import {
   Table,
@@ -27,7 +25,6 @@ import {
   Td,
   Tag,
   Text,
-  Code,
   Link,
   Button,
   Flex,
@@ -48,9 +45,7 @@ const Dag = () => {
   const { data: { dagRuns = [] } } = useTreeData();
   if (!dag || !taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
-  const {
-    description, tags, fileloc, owners, catchup, startDate, timezone, dagRunTimeout,
-  } = dag;
+  const { description, tags } = dag;
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};
@@ -155,12 +150,6 @@ const Dag = () => {
           </Tr>
           )}
           <Tr>
-            <Td>Start Date</Td>
-            <Td>
-              <Time dateTime={startDate} />
-            </Td>
-          </Tr>
-          <Tr>
             <Td>Total Tasks</Td>
             <Td>{totalEntries}</Td>
           </Tr>
@@ -187,28 +176,6 @@ const Dag = () => {
             </Td>
           </Tr>
           )}
-          <Tr>
-            <Td>Catchup</Td>
-            <Td>{catchup ? 'True' : 'False'}</Td>
-          </Tr>
-          <Tr>
-            <Td>Owners</Td>
-            <Td>{owners.map((o) => <Text key={o} mr={1}>{o}</Text>)}</Td>
-          </Tr>
-          <Tr>
-            <Td>Relative File Location</Td>
-            <Td><Code colorScheme="blackAlpha" maxWidth="450px" fontSize="12px">{fileloc}</Code></Td>
-          </Tr>
-          {dagRunTimeout && (
-          <Tr>
-            <Td>DAG Run Timeout</Td>
-            <Td>{formatDuration(moment.duration(dagRunTimeout.days, 'd').add(dagRunTimeout.seconds, 's'))}</Td>
-          </Tr>
-          )}
-          <Tr>
-            <Td>DAG Timezone</Td>
-            <Td>{timezone}</Td>
-          </Tr>
         </Tbody>
       </Table>
     </>
