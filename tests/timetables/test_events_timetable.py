@@ -28,6 +28,7 @@ EVENT_DATES = [
     pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
     pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
     pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),  # deliberate duplicate, should be ignored
     pendulum.DateTime(2021, 10, 9, tzinfo=TIMEZONE),  # deliberately out of order
     pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
 ]
