@@ -45,6 +45,7 @@ class ClickHouseOperator(BaseOperator):
 
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
+    ui_color = '#bfb050'
 
     def __init__(
         self,

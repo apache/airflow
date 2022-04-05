@@ -17,8 +17,7 @@
 # under the License.
 
 """This module allows connecting to a ClickHouse."""
-from itertools import islice
-from typing import Any, Dict, Optional, Union, Generator
+from typing import Any, Dict, Optional, Tuple
 
 from clickhouse_driver import Client as ClickHouseClient
 
@@ -50,32 +49,6 @@ class ClickHouseHook(BaseHook):
 
         self.client: Optional[ClickHouseClient] = None
         self.get_conn()
-
-    @staticmethod
-    def _log_params(
-        parameters: Union[dict, list, tuple, Generator],
-        limit: int = 10,
-    ) -> str:
-        if isinstance(parameters, Generator) or len(parameters) <= limit:
-            return str(parameters)
-        if isinstance(parameters, dict):
-            head = dict(islice(parameters.items(), limit))
-        else:
-            head = parameters[:limit]
-        head_str = str(head)
-        closing_paren = head_str[-1]
-        return f'{head_str[:-1]} … and {len(parameters) - limit} ' \
-               f'more parameters{closing_paren}'
-
-    def _log_query(
-        self,
-        sql: str,
-        parameters: Union[None, dict, list, tuple, Generator],
-    ) -> None:
-        self.log.info(
-            '%s%s', sql,
-            f' with {self._log_params(parameters)}' if parameters else '',
-        )
 
     def get_conn(self) -> ClickHouseClient:
         """Function that initiates a new ClickHouse connection"""
@@ -110,16 +83,19 @@ class ClickHouseHook(BaseHook):
         :param params: substitution parameters for SELECT queries and data for INSERT queries.
         :param kwargs: additional optional parameters from API
 
-        :return: output of method Client(params).execute(params)
+        :return: output of method Client(*args).execute(params)
 
         for more, refer - https://clickhouse-driver.readthedocs.io/en/latest/api.html
         """
         try:
-            self._log_query(query, params)
+            self.log.info('Running: %s (with parameters %s)', query, params)
             result = self.client.execute(query, params=params, **kwargs)
             return result
         except Exception as error:
             raise AirflowException(f"Failed to execute SQL Query, error: {str(error)}")
+
+    def get_records(self, sql: str, parameters: Optional[dict] = None) -> Optional[Tuple]:
+        return self.query(query=sql, params=parameters)
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
