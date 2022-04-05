@@ -187,6 +187,12 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
+    def test_current_state(self, create_task_instance):
+        ti = create_task_instance()
+        assert ti.current_state() is None
+        ti.run()
+        assert ti.current_state() == State.SUCCESS
+
     def test_set_dag(self, dag_maker):
         """
         Test assigning Operators to Dags, including deferred assignment
