@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $ */
+/* global document, window, Event, $ */
 
 import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
@@ -108,14 +108,14 @@ function updateModalUrls() {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _flt_3_map_index: mapIndex,
-    _oc_TaskInstanceModelView: executionDate,
+    _oc_TaskInstanceModelView: 'dag_run.execution_date',
   });
 
   updateButtonUrl(buttons.mapped, {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _flt_3_run_id: dagRunId,
-    _oc_TaskInstanceModelView: executionDate,
+    _oc_TaskInstanceModelView: 'map_index',
   });
 
   updateButtonUrl(buttons.log, {
@@ -183,10 +183,8 @@ export function callModal({
   }
 
   if (isMapped || mapIndex >= 0) {
-    $('#btn_rendered').hide();
     $('#mapped_instances').show();
   } else {
-    $('#btn_rendered').show();
     $('#mapped_instances').hide();
   }
 
@@ -198,7 +196,9 @@ export function callModal({
     });
     $('#btn_mapped').show();
     $('#mapped_dropdown').css('display', 'inline-block');
+    $('#btn_rendered').hide();
   } else {
+    $('#btn_rendered').show();
     $('#btn_mapped').hide();
     $('#mapped_dropdown').hide();
   }
@@ -313,22 +313,6 @@ $(document).on('click', '#btn_back', () => {
   });
 });
 
-export function callModalDag(dag) {
-  $('#dagModal').modal({});
-  $('#dagModal').css('margin-top', '0');
-  $('#run_id').text(dag.run_id);
-  executionDate = dag.execution_date;
-  dagRunId = dag.run_id;
-  updateButtonUrl(buttons.dag_graph_view, {
-    dag_id: dag && dag.dag_id,
-    execution_date: dag && dag.execution_date,
-  });
-  updateButtonUrl(buttons.dagrun_details, {
-    dag_id: dag && dag.dag_id,
-    run_id: dag && dag.run_id,
-  });
-}
-
 // Task Instance Modal actions
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
@@ -384,10 +368,19 @@ $('#pause_resume').on('change', function onChange() {
   // Remove focus on element so the tooltip will go away
   $input.trigger('blur');
   $input.removeClass('switch-input--error');
+
+  // dispatch an event that React can listen for
+  const event = new Event('paused');
+  event.value = isPaused;
+  event.key = 'isPaused';
+  document.dispatchEvent(event);
+
   $.post(url).fail(() => {
     setTimeout(() => {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
+      event.value = !isPaused;
+      document.dispatchEvent(event);
     }, 500);
   });
 });

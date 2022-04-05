@@ -20,8 +20,9 @@ ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
+# We use PYTHON_BASE_IMAGE to make sure that the scripts are different for different platforms.
 ##############################################################################################
-FROM scratch as scripts
+FROM ${PYTHON_BASE_IMAGE} as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
@@ -31,7 +32,7 @@ FROM scratch as scripts
 ##############################################################################################
 
 # The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
-COPY <<"EOF" determine_debian_version_specific_variables.sh
+COPY <<"EOF" /determine_debian_version_specific_variables.sh
 function determine_debian_version_specific_variables() {
     local color_red
     color_red=$'\e[31m'
@@ -66,7 +67,7 @@ determine_debian_version_specific_variables
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
-COPY <<"EOF" install_mysql.sh
+COPY <<"EOF" /install_mysql.sh
 set -euo pipefail
 declare -a packages
 
@@ -130,7 +131,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
-COPY <<"EOF" install_mssql.sh
+COPY <<"EOF" /install_mssql.sh
 set -euo pipefail
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -189,7 +190,7 @@ install_mssql_client "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
-COPY <<"EOF" install_postgres.sh
+COPY <<"EOF" /install_postgres.sh
 set -euo pipefail
 declare -a packages
 
@@ -230,7 +231,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
-COPY <<"EOF" install_pip_version.sh
+COPY <<"EOF" /install_pip_version.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -252,7 +253,7 @@ install_pip_version
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
-COPY <<"EOF" install_airflow_dependencies_from_branch_tip.sh
+COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -296,7 +297,7 @@ install_airflow_dependencies_from_branch_tip
 EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
-COPY <<"EOF" common.sh
+COPY <<"EOF" /common.sh
 set -euo pipefail
 
 function common::get_colors() {
@@ -355,7 +356,7 @@ function common::show_pip_version_and_location() {
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pipx_tools.sh
-COPY <<"EOF" install_pipx_tools.sh
+COPY <<"EOF" /install_pipx_tools.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_pipx_tools() {
@@ -382,7 +383,7 @@ install_pipx_tools
 EOF
 
 # The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY <<"EOF" prepare_node_modules.sh
+COPY <<"EOF" /prepare_node_modules.sh
 set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
@@ -420,7 +421,7 @@ prepare_node_modules
 EOF
 
 # The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY <<"EOF" compile_www_assets.sh
+COPY <<"EOF" /compile_www_assets.sh
 set -euo pipefail
 
 BUILD_TYPE=${BUILD_TYPE="prod"}
@@ -477,7 +478,7 @@ compile_www_assets
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
-COPY <<"EOF" install_airflow.sh
+COPY <<"EOF" /install_airflow.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -557,7 +558,7 @@ install_airflow
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
-COPY <<"EOF" install_additional_dependencies.sh
+COPY <<"EOF" /install_additional_dependencies.sh
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -608,7 +609,7 @@ install_additional_dependencies
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
-COPY <<"EOF" entrypoint_ci.sh
+COPY <<"EOF" /entrypoint_ci.sh
 #!/usr/bin/env bash
 if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
@@ -639,10 +640,11 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     echo
-    echo "Airflow home: ${AIRFLOW_HOME}"
-    echo "Airflow sources: ${AIRFLOW_SOURCES}"
-    echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-
+    echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"
+    echo
+    echo "  * ${COLOR_BLUE}Airflow home:${COLOR_RESET} ${AIRFLOW_HOME}"
+    echo "  * ${COLOR_BLUE}Airflow sources:${COLOR_RESET} ${AIRFLOW_SOURCES}"
+    echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
     RUN_TESTS=${RUN_TESTS:="false"}
@@ -652,7 +654,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
-        echo "Using already installed airflow version"
+        echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
         if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
             pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
@@ -666,38 +668,38 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
-        echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+        echo "${COLOR_BLUE}Skip installing airflow - only install wheel/tar.gz packages that are present locally.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
-        echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
-        echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI without extras"
+        echo "${COLOR_BLUE}Install airflow from PyPI without extras"
         echo
         install_released_airflow_version "${USE_AIRFLOW_VERSION}"
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
-        echo "Install all packages from dist folder"
+        echo "${COLOR_BLUE}Install all packages from dist folder"
         if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
             echo "(except apache-airflow)"
         fi
         if [[ ${PACKAGE_FORMAT} == "both" ]]; then
             echo
-            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'.${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -781,7 +783,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     cd "${AIRFLOW_SOURCES}"
 
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         # shellcheck source=scripts/in_container/bin/run_tmux
@@ -966,7 +968,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
-COPY <<"EOF" entrypoint_ci.sh
+COPY <<"EOF" /entrypoint_ci.sh
 #!/usr/bin/env bash
 if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
@@ -997,10 +999,11 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     echo
-    echo "Airflow home: ${AIRFLOW_HOME}"
-    echo "Airflow sources: ${AIRFLOW_SOURCES}"
-    echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-
+    echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"
+    echo
+    echo "  * ${COLOR_BLUE}Airflow home:${COLOR_RESET} ${AIRFLOW_HOME}"
+    echo "  * ${COLOR_BLUE}Airflow sources:${COLOR_RESET} ${AIRFLOW_SOURCES}"
+    echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
     RUN_TESTS=${RUN_TESTS:="false"}
@@ -1010,7 +1013,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
-        echo "Using already installed airflow version"
+        echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
         if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
             pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
@@ -1024,38 +1027,38 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
-        echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+        echo "${COLOR_BLUE}Skip installing airflow - only install wheel/tar.gz packages that are present locally.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
-        echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
-        echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+        echo "${COLOR_BLUE}Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI without extras"
+        echo "${COLOR_BLUE}Install airflow from PyPI without extras"
         echo
         install_released_airflow_version "${USE_AIRFLOW_VERSION}"
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
-        echo "Install all packages from dist folder"
+        echo "${COLOR_BLUE}Install all packages from dist folder"
         if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
             echo "(except apache-airflow)"
         fi
         if [[ ${PACKAGE_FORMAT} == "both" ]]; then
             echo
-            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'.${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -1139,7 +1142,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     cd "${AIRFLOW_SOURCES}"
 
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         # shellcheck source=scripts/in_container/bin/run_tmux
@@ -1324,7 +1327,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/entrypoint_exec.sh
-COPY <<"EOF" entrypoint_exec.sh
+COPY <<"EOF" /entrypoint_exec.sh
 #!/usr/bin/env bash
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -1338,9 +1341,10 @@ EOF
 ##############################################################################################
 # This is the www image where we keep all inlined files needed to build ui
 # It is copied separately to volume to speed up building and avoid cache miss on changed
-# file permissions
+# file permissions.
+# We use PYTHON_BASE_IMAGE to make sure that the scripts are different for different platforms.
 ##############################################################################################
-FROM scratch as www
+FROM ${PYTHON_BASE_IMAGE} as www
 COPY airflow/www/package.json airflow/www/yarn.lock airflow/www/webpack.config.js /
 COPY airflow/www/static/ /static
 

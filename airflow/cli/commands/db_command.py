@@ -49,15 +49,15 @@ def resetdb(args):
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    if args.revision and args.version:
-        raise SystemExit("Cannot supply both `--revision` and `--version`.")
+    if args.to_revision and args.to_version:
+        raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
         raise SystemExit("Cannot supply both `--from-revision` and `--from-version`")
     if (args.from_revision or args.from_version) and not args.show_sql_only:
         raise SystemExit(
             "Args `--from-revision` and `--from-version` may only be used with `--show-sql-only`"
         )
-    revision = None
+    to_revision = None
     from_revision = None
     if args.from_revision:
         from_revision = args.from_revision
@@ -68,19 +68,19 @@ def upgradedb(args):
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
-    if args.version:
-        revision = REVISION_HEADS_MAP.get(args.version)
-        if not revision:
-            raise SystemExit(f"Upgrading to version {args.version} is not supported.")
-    elif args.revision:
-        revision = args.revision
+    if args.to_version:
+        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        if not to_revision:
+            raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
+    elif args.to_revision:
+        to_revision = args.to_revision
 
     if not args.show_sql_only:
         print("Performing upgrade with database " + repr(settings.engine.url))
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
 
-    db.upgradedb(to_revision=revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+    db.upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
     if not args.show_sql_only:
         print("Upgrades done")
 
@@ -88,29 +88,29 @@ def upgradedb(args):
 @cli_utils.action_cli(check_db=False)
 def downgrade(args):
     """Downgrades the metadata database"""
-    if args.revision and args.version:
-        raise SystemExit("Cannot supply both `revision` and `version`.")
+    if args.to_revision and args.to_version:
+        raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
         raise SystemExit("`--from-revision` may not be combined with `--from-version`")
     if (args.from_revision or args.from_version) and not args.show_sql_only:
         raise SystemExit(
             "Args `--from-revision` and `--from-version` may only be used with `--show-sql-only`"
         )
-    if not (args.version or args.revision):
-        raise SystemExit("Must provide either revision or version.")
+    if not (args.to_version or args.to_revision):
+        raise SystemExit("Must provide either --to-revision or --to-version.")
     from_revision = None
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
         from_revision = REVISION_HEADS_MAP.get(args.from_version)
         if not from_revision:
-            raise SystemExit(f"Unknown version {args.version!r} supplied as `--from-version`.")
-    if args.version:
-        revision = REVISION_HEADS_MAP.get(args.version)
-        if not revision:
-            raise SystemExit(f"Downgrading to version {args.version} is not supported.")
-    elif args.revision:
-        revision = args.revision
+            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+    if args.to_version:
+        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        if not to_revision:
+            raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
+    elif args.to_revision:
+        to_revision = args.to_revision
     if not args.show_sql_only:
         print("Performing downgrade with database " + repr(settings.engine.url))
     else:
@@ -125,7 +125,7 @@ def downgrade(args):
         ).upper()
         == "Y"
     ):
-        db.downgrade(to_revision=revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+        db.downgrade(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
             print("Downgrade complete")
     else:

@@ -72,7 +72,7 @@ FROM scratch as scripts
 ##############################################################################################
 
 # The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
-COPY <<"EOF" determine_debian_version_specific_variables.sh
+COPY <<"EOF" /determine_debian_version_specific_variables.sh
 function determine_debian_version_specific_variables() {
     local color_red
     color_red=$'\e[31m'
@@ -107,7 +107,7 @@ determine_debian_version_specific_variables
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
-COPY <<"EOF" install_mysql.sh
+COPY <<"EOF" /install_mysql.sh
 set -euo pipefail
 declare -a packages
 
@@ -171,7 +171,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
-COPY <<"EOF" install_mssql.sh
+COPY <<"EOF" /install_mssql.sh
 set -euo pipefail
 
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
@@ -230,7 +230,7 @@ install_mssql_client "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
-COPY <<"EOF" install_postgres.sh
+COPY <<"EOF" /install_postgres.sh
 set -euo pipefail
 declare -a packages
 
@@ -271,7 +271,7 @@ fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
-COPY <<"EOF" install_pip_version.sh
+COPY <<"EOF" /install_pip_version.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -293,7 +293,7 @@ install_pip_version
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
-COPY <<"EOF" install_airflow_dependencies_from_branch_tip.sh
+COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -337,7 +337,7 @@ install_airflow_dependencies_from_branch_tip
 EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
-COPY <<"EOF" common.sh
+COPY <<"EOF" /common.sh
 set -euo pipefail
 
 function common::get_colors() {
@@ -396,7 +396,7 @@ function common::show_pip_version_and_location() {
 EOF
 
 # The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY <<"EOF" prepare_node_modules.sh
+COPY <<"EOF" /prepare_node_modules.sh
 set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
@@ -434,7 +434,7 @@ prepare_node_modules
 EOF
 
 # The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY <<"EOF" compile_www_assets.sh
+COPY <<"EOF" /compile_www_assets.sh
 set -euo pipefail
 
 BUILD_TYPE=${BUILD_TYPE="prod"}
@@ -491,7 +491,7 @@ compile_www_assets
 EOF
 
 # The content below is automatically copied from scripts/docker/pip
-COPY <<"EOF" pip
+COPY <<"EOF" /pip
 #!/usr/bin/env bash
 COLOR_RED=$'\e[31m'
 COLOR_RESET=$'\e[0m'
@@ -509,7 +509,7 @@ exec "${HOME}"/.local/bin/pip "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_from_docker_context_files.sh
-COPY <<"EOF" install_from_docker_context_files.sh
+COPY <<"EOF" /install_from_docker_context_files.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -628,7 +628,7 @@ install_all_other_packages_from_docker_context_files
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
-COPY <<"EOF" install_airflow.sh
+COPY <<"EOF" /install_airflow.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -708,7 +708,7 @@ install_airflow
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
-COPY <<"EOF" install_additional_dependencies.sh
+COPY <<"EOF" /install_additional_dependencies.sh
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -760,7 +760,7 @@ EOF
 
 
 # The content below is automatically copied from scripts/docker/entrypoint_prod.sh
-COPY <<"EOF" entrypoint_prod.sh
+COPY <<"EOF" /entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
 
@@ -1051,7 +1051,7 @@ exec "airflow" "${@}"
 EOF
 
 # The content below is automatically copied from scripts/docker/clean-logs.sh
-COPY <<"EOF" clean-logs.sh
+COPY <<"EOF" /clean-logs.sh
 #!/usr/bin/env bash
 
 
@@ -1079,7 +1079,7 @@ done
 EOF
 
 # The content below is automatically copied from scripts/docker/airflow-scheduler-autorestart.sh
-COPY <<"EOF" airflow-scheduler-autorestart.sh
+COPY <<"EOF" /airflow-scheduler-autorestart.sh
 #!/usr/bin/env bash
 
 while echo "Running"; do

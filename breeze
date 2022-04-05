@@ -1047,11 +1047,6 @@ function breeze::parse_arguments() {
             echo "Extras : ${AIRFLOW_EXTRAS}"
             shift 2
             ;;
-        --skip-installing-airflow-providers-from-sources)
-            export INSTALL_PROVIDERS_FROM_SOURCES="false"
-            echo "Install all Airflow Providers: false"
-            shift
-            ;;
         --additional-extras)
             export ADDITIONAL_AIRFLOW_EXTRAS="${2}"
             echo "Additional extras : ${ADDITIONAL_AIRFLOW_EXTRAS}"
@@ -2700,13 +2695,6 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
---skip-installing-airflow-providers-from-sources
-        By default 'pip install' in Airflow 2.0 installs only the provider packages that
-        are needed by the extras. When you build image during the development (which is
-        default in Breeze) all providers are installed by default from sources.
-        You can disable it by adding this flag but then you have to install providers from
-        wheel packages via --use-packages-from-dist flag.
-
 --disable-pypi-when-building
         Disable installing Airflow from pypi when building. If you use this flag and want
         to install Airflow, you have to install it from packages placed in
@@ -3292,13 +3280,12 @@ function breeze::remove_images() {
                        ${AIRFLOW_CI_IMAGE} \
                        ${AIRFLOW_PROD_IMAGE} \
                        ${AIRFLOW_PROD_BUILD_IMAGE} \
-        2>/dev/null >/dev/null && true
+        2>/dev/null >/dev/null || true
+    docker system prune || true
     echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
+    echo "#########################################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION} and pruned cache."
+    echo "#########################################################################################"
     echo
     rm -f "${BUILT_CI_IMAGE_FLAG_FILE}"
 }

@@ -111,7 +111,7 @@ function run_prepare_documentation() {
         echo "${COLOR_RED}There were errors when preparing documentation. Exiting! ${COLOR_RESET}"
         exit 1
     else
-        if [[ ${GENERATE_PROVIDERS_ISSUE=} == "true" ]]; then
+        if [[ ${GENERATE_PROVIDERS_ISSUE=} == "true" ||  ${GENERATE_PROVIDERS_ISSUE} == "True" ]]; then
             echo
             python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content "${prepared_documentation[@]}"
             echo
@@ -157,7 +157,7 @@ if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; th
 fi
 
 OPTIONAL_NON_INTERACTIVE_FLAG=()
-if [[ ${NON_INTERACTIVE=} == "true" ]]; then
+if [[ ${NON_INTERACTIVE=} == "true" || ${NON_INTERACTIVE} == "True" ]]; then
     OPTIONAL_NON_INTERACTIVE_FLAG+=("--non-interactive")
 fi
 

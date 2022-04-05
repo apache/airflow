@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Salesforce To Amazon S3 Transfer Operator
+Salesforce to Amazon S3 Transfer Operator
 =========================================
 
 Use the

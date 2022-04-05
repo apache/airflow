@@ -280,7 +280,7 @@ setup_provider_packages
 verify_parameters
 install_airflow_as_specified
 
-if [[ ${SKIP_TWINE_CHECK=""} != "true" ]]; then
+if [[ ${SKIP_TWINE_CHECK=""} != "true" &&  ${SKIP_TWINE_CHECK=""} != "True" ]]; then
     # Airflow 2.1.0 installs importlib_metadata version that does not work well with twine
     # So we should skip twine check in this case
     twine_check_provider_packages

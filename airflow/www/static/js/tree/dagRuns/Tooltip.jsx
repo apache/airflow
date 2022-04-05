@@ -17,81 +17,32 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
-import { MdPlayArrow } from 'react-icons/md';
 
-import { formatDateTime, formatDuration } from '../../datetime_utils';
+import { formatDuration } from '../../datetime_utils';
+import Time from '../Time';
 
 const DagRunTooltip = ({
   dagRun: {
-    state, runId, duration, dataIntervalStart, dataIntervalEnd, startDate, endDate, runType,
+    state, duration, dataIntervalEnd,
   },
 }) => (
-  <Box fontSize="12px" py="4px">
+  <Box fontSize="12px" py="2px">
     <Text>
-      <Text as="strong">Status:</Text>
+      Status:
       {' '}
       {state || 'no status'}
     </Text>
-    <br />
     <Text whiteSpace="nowrap">
-      Run Id:
+      Run:
       {' '}
-      {runId}
-    </Text>
-    <Text>
-      Run Type:
-      {' '}
-      {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
-      {runType}
+      <Time dateTime={dataIntervalEnd} />
     </Text>
     <Text>
       Duration:
       {' '}
       {formatDuration(duration)}
-    </Text>
-    <br />
-    <Text as="strong">Data Interval:</Text>
-    <Text>
-      Start:
-      {' '}
-      {formatDateTime(dataIntervalStart)}
-    </Text>
-    <Text>
-      End:
-      {' '}
-      {formatDateTime(dataIntervalEnd)}
-    </Text>
-    <br />
-    <Text as="strong">UTC</Text>
-    <Text>
-      Started:
-      {' '}
-      {formatDateTime(moment.utc(startDate))}
-    </Text>
-    <Text>
-      Ended:
-      {' '}
-      {endDate && formatDateTime(moment.utc(endDate))}
-    </Text>
-    <br />
-    <Text as="strong">
-      Local:
-      {' '}
-      {moment().format('Z')}
-    </Text>
-    <Text>
-      Started:
-      {' '}
-      {formatDateTime(startDate)}
-    </Text>
-    <Text>
-      Ended:
-      {' '}
-      {endDate && formatDateTime(endDate)}
     </Text>
   </Box>
 );

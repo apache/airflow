@@ -21,10 +21,10 @@ import logging
 import os
 import sys
 import time
+import warnings
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple
 
-from bcrypt import warnings
 from sqlalchemy import Table, column, exc, func, inspect, literal, or_, table, text
 from sqlalchemy.orm.session import Session
 
@@ -36,6 +36,7 @@ from airflow.jobs.base_job import BaseJob  # noqa: F401
 from airflow.models import (  # noqa: F401
     DAG,
     XCOM_RETURN_KEY,
+    Base,
     BaseOperator,
     BaseOperatorLink,
     Connection,
@@ -644,13 +645,6 @@ def initdb(session: Session = NEW_SESSION):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
 
-        dagbag = DagBag()
-        # Save DAGs in the ORM
-        dagbag.sync_to_db(session=session)
-
-        # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
-
         from flask_appbuilder.models.sqla import Base
 
         Base.metadata.create_all(settings.engine)
@@ -742,7 +736,7 @@ def check_and_run_migrations():
     if len(db_heads) < 1:
         db_command = initdb
         command_name = "init"
-        verb = "initialization"
+        verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
         command_name = "upgrade"
@@ -1058,8 +1052,15 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [RenderedTaskInstanceFields, TaskInstance, TaskFail, TaskReschedule, XCom]
-    for model in models_to_dagrun + [DagRun]:
+    models_to_dagrun: List[Tuple[Base, str]] = [
+        (mod, ver)
+        for ver, models in {
+            '2.2': [TaskInstance, TaskReschedule],
+            '2.3': [RenderedTaskInstanceFields, TaskFail, XCom],
+        }.items()
+        for mod in models
+    ]
+    for model, _ in [*models_to_dagrun, (DagRun, '2.2')]:
         try:
             metadata.reflect(
                 only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
@@ -1080,7 +1081,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     existing_table_names = set(inspect(session.get_bind()).get_table_names())
     errored = False
 
-    for model in models_to_dagrun:
+    for model, change_version in models_to_dagrun:
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
         source_table = metadata.tables.get(model.__tablename__)  # type: ignore
@@ -1105,7 +1106,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         if invalid_row_count <= 0:
             continue
 
-        dangling_table_name = _format_airflow_moved_table_name(source_table.name, "2.2")
+        dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version)
         if dangling_table_name in existing_table_names:
             yield _format_dangling_error(
                 source_table=source_table.name,
@@ -1283,6 +1284,17 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
 
     initdb(session=session)
+
+
+@provide_session
+def bootstrap_dagbag(session: Session = NEW_SESSION):
+
+    dagbag = DagBag()
+    # Save DAGs in the ORM
+    dagbag.sync_to_db(session=session)
+
+    # Deactivate the unknown ones
+    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
 @provide_session

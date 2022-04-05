@@ -29,7 +29,6 @@ services:
       # We need all those env variables here because docker-compose-v2 does not really work well
       # With env files and there are many problems with it:
       - AIRFLOW_CI_IMAGE=${AIRFLOW_CI_IMAGE}
-      - AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
       - BACKEND=${BACKEND}
       - BREEZE=${BREEZE}
       - CI=${CI}
