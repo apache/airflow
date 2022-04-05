@@ -35,7 +35,7 @@ import {
 import { mean } from 'lodash';
 
 import { getDuration, formatDuration } from '../../../datetime_utils';
-import { getMetaValue } from '../../../utils';
+import { finalStatesMap, getMetaValue } from '../../../utils';
 import { useDag, useTasks, useTreeData } from '../../api';
 import Time from '../../Time';
 
@@ -62,9 +62,31 @@ const Dag = () => {
     }
   });
 
+  const numMap = finalStatesMap();
   const durations = [];
   dagRuns.forEach((dagRun) => {
     durations.push(getDuration(dagRun.startDate, dagRun.endDate));
+    const stateKey = dagRun.state == null ? 'no_status' : dagRun.state;
+    if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+  });
+
+  const stateSummary = [];
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      stateSummary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Tr key={val}>
+          <Td>
+            Total
+            {' '}
+            {val}
+          </Td>
+          <Td>
+            {key}
+          </Td>
+        </Tr>,
+      );
+    }
   });
 
   // calculate dag run bar heights relative to max
@@ -79,13 +101,25 @@ const Dag = () => {
       </Button>
       {durations.length > 0 && (
         <>
-          <Text my={3}>DAG Runs Summary</Text>
+          <Text mt={4} mb={2}>DAG Runs Summary</Text>
           <Table variant="striped">
             <Tbody>
               <Tr>
                 <Td>Total Runs Displayed</Td>
                 <Td>
                   {durations.length}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>First Run Start</Td>
+                <Td>
+                  <Time dateTime={dagRuns[0].startDate} />
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Last Run Start</Td>
+                <Td>
+                  <Time dateTime={dagRuns[dagRuns.length - 1].startDate} />
                 </Td>
               </Tr>
               <Tr>
@@ -106,11 +140,12 @@ const Dag = () => {
                   {formatDuration(min)}
                 </Td>
               </Tr>
+              {stateSummary}
             </Tbody>
           </Table>
         </>
       )}
-      <Text my={3}>DAG Summary</Text>
+      <Text mt={4} mb={2}>DAG Summary</Text>
       <Table variant="striped">
         <Tbody>
           {description && (
