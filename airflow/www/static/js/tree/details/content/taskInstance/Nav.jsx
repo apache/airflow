@@ -27,6 +27,7 @@ import {
 
 import { getMetaValue, appendSearchParams } from '../../../../utils';
 
+const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
@@ -40,14 +41,9 @@ const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
 const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
-const Nav = ({ instance, isMapped }) => {
-  const {
-    taskId,
-    dagId,
-    operator,
-    executionDate,
-  } = instance;
-
+const Nav = ({
+  taskId, executionDate, operator, isMapped,
+}) => {
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,

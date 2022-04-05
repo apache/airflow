@@ -34,8 +34,11 @@ import Logs from './Logs';
 import TaskNav from './Nav';
 import Details from './Details';
 
-import { useTreeData } from '../../../api';
+import { useTreeData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
+import { getMetaValue } from '../../../../utils';
+
+const dagId = getMetaValue('dag_id');
 
 const getTask = ({ taskId, runId, task }) => {
   if (task.id === taskId) return task;
@@ -51,57 +54,62 @@ const getTask = ({ taskId, runId, task }) => {
 };
 
 const TaskInstance = ({ taskId, runId }) => {
-  const { data: { groups = {} } } = useTreeData();
-  const task = getTask({ taskId, runId, task: groups });
-  if (!task) return null;
+  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const group = getTask({ taskId, runId, task: groups });
+  const run = dagRuns.find((r) => r.runId === runId);
+  const { executionDate } = run;
+  const { data: { tasks } } = useTasks(dagId);
+  if (!group) return null;
+  const task = tasks.find((t) => t.taskId === taskId);
+  const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
 
-  const isGroup = !!task.children;
+  const isGroup = !!group.children;
+  const { isMapped, extraLinks } = group;
 
-  const instance = task.instances.find((ti) => ti.runId === runId);
-
-  const {
-    dagId,
-    executionDate,
-    tryNumber,
-  } = instance;
+  const instance = group.instances.find((ti) => ti.runId === runId);
 
   return (
     <Box fontSize="12px" py="4px">
       {!isGroup && (
-        <TaskNav instance={instance} isMapped={task.isMapped} />
+        <TaskNav
+          taskId={taskId}
+          isMapped={isMapped}
+          executionDate={executionDate}
+          operator={operator}
+        />
       )}
       {!isGroup && (
         <>
           <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
-            <RunAction runId={runId} taskId={task.id} dagId={dagId} />
+            <RunAction runId={runId} taskId={taskId} dagId={dagId} />
             <ClearAction
               runId={runId}
-              taskId={task.id}
+              taskId={taskId}
               dagId={dagId}
               executionDate={executionDate}
             />
-            <MarkFailedAction runId={runId} taskId={task.id} dagId={dagId} />
-            <MarkSuccessAction runId={runId} taskId={task.id} dagId={dagId} />
+            <MarkFailedAction runId={runId} taskId={taskId} dagId={dagId} />
+            <MarkSuccessAction runId={runId} taskId={taskId} dagId={dagId} />
           </VStack>
           <Divider my={2} />
         </>
       )}
-      {!task.isMapped && (
+      {!isMapped && (
         <Logs
           dagId={dagId}
           taskId={taskId}
           executionDate={executionDate}
-          tryNumber={tryNumber}
+          tryNumber={instance.tryNumber}
         />
       )}
-      <Details instance={instance} task={task} />
+      <Details instance={instance} group={group} operator={operator} />
       <ExtraLinks
         taskId={taskId}
         dagId={dagId}
         executionDate={executionDate}
-        extraLinks={task.extraLinks}
+        extraLinks={extraLinks}
       />
-      {task.isMapped && (
+      {isMapped && (
         <MappedInstances dagId={dagId} runId={runId} taskId={taskId} />
       )}
     </Box>

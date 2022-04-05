@@ -37,6 +37,7 @@ import ClearRun from './ClearRun';
 import { useTreeData } from '../../../api';
 import { appendSearchParams, getMetaValue } from '../../../../utils';
 
+const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
 const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
@@ -46,7 +47,6 @@ const DagRun = ({ runId }) => {
   if (!run) return null;
   const {
     executionDate,
-    dagId,
     state,
     runType,
     duration,

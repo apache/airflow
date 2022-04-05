@@ -19,7 +19,7 @@
 
 import camelcaseKeys from 'camelcase-keys';
 
-export const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 export const formatData = (data, emptyData) => {
   if (!data || !Object.keys(data).length) {
