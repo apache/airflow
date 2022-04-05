@@ -30,7 +30,7 @@ class EventsTimetable(Timetable):
 
     :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored.
     :param restrict_to_events: Whether manual runs should use the most recent event or
-    the current time
+        the current time
     :param description: A name for the timetable to display in the UI. Default None will be shown as
                         "X Events" where X is the len of event_dates
     """
