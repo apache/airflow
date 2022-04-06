@@ -28,9 +28,12 @@ class EventsTimetable(Timetable):
     Timetable that schedules DAG runs at specific listed datetimes. Suitable for
     predictable but truly irregular scheduling such as sporting events.
 
-    :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored.
+    :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored. Must be finite
+                        and of reasonable size as it will be loaded in its entirety.
     :param restrict_to_events: Whether manual runs should use the most recent event or
         the current time
+    :param presorted: if True, event_dates will be assumed to be in ascending order. Provides modest
+        performance improvement for larger lists of event_dates.
     :param description: A name for the timetable to display in the UI. Default None will be shown as
                         "X Events" where X is the len of event_dates
     """
