@@ -741,7 +741,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             duration = timezone.utcnow() - poke_start_time
             duration_seconds = duration.total_seconds()
 
-            self.log.info("Taking %s to execute %s tasks.", duration_seconds, len(self.sensor_works))
+            self.log.info("Taking %s seconds to execute %s tasks.", duration_seconds, len(self.sensor_works))
 
             Stats.timing("smart_sensor_operator.loop_duration", duration)
             Stats.gauge("smart_sensor_operator.executed_tasks", len(self.sensor_works))
