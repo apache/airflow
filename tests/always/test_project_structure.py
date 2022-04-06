@@ -192,7 +192,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
     # Please at the examples to those operators at the earliest convenience :)
     MISSING_EXAMPLES_FOR_OPERATORS = {
-        'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator',
         'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
@@ -244,10 +243,15 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
             }
             all_operators -= example_paths
 
+        covered_but_omitted = self.MISSING_EXAMPLES_FOR_OPERATORS - all_operators
         all_operators -= self.MISSING_EXAMPLES_FOR_OPERATORS
         all_operators -= self.DEPRECATED_OPERATORS
         all_operators -= self.BASE_OPERATORS
-        assert set() == all_operators
+        assert set() == all_operators, (
+            "Not all operators are covered with example dags. "
+            "Update self.MISSING_EXAMPLES_FOR_OPERATORS if you want to skip this error"
+        )
+        assert set() == covered_but_omitted, "Operator listed in missing examples but is used in example dag"
 
     @parameterized.expand(
         itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers"])
