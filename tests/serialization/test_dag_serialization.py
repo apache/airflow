@@ -1196,6 +1196,7 @@ class TestStringifiedDAGs:
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
 
         def check_task_group(node):
+            assert node.dag is serialized_dag
             try:
                 children = node.children.values()
             except AttributeError:
@@ -1770,5 +1771,5 @@ def test_mapped_task_group_serde():
         ],
     }
 
-    with DAG("test", start_date=execution_date):
-        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict)
+    with DAG("test", start_date=execution_date) as new_dag:
+        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict, new_dag)

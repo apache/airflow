@@ -26,7 +26,6 @@ import re
 import sys
 import traceback
 import warnings
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -1718,54 +1717,18 @@ class DAG(LoggingMixin):
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
 
-        Heavily inspired by:
-        http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-
-        :param include_subdag_tasks: whether to include tasks in subdags, default to False
-        :return: list of tasks in topological order
+        Deprecated in place of ``task_group.topological_sort``
         """
-        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
+        from airflow.utils.task_group import TaskGroup
 
-        # convert into an OrderedDict to speedup lookup while keeping order the same
-        graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
-
-        graph_sorted: List[Operator] = []
-
-        # special case
-        if len(self.tasks) == 0:
-            return tuple(graph_sorted)
-
-        # Run until the unsorted graph is empty.
-        while graph_unsorted:
-            # Go through each of the node/edges pairs in the unsorted
-            # graph. If a set of edges doesn't contain any nodes that
-            # haven't been resolved, that is, that are still in the
-            # unsorted graph, remove the pair from the unsorted graph,
-            # and append it to the sorted graph. Note here that by using
-            # using the items() method for iterating, a copy of the
-            # unsorted graph is used, allowing us to modify the unsorted
-            # graph as we move through it. We also keep a flag for
-            # checking that graph is acyclic, which is true if any
-            # nodes are resolved during each pass through the graph. If
-            # not, we need to exit as the graph therefore can't be
-            # sorted.
-            acyclic = False
-            for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                # no edges in upstream tasks
+        def nested_topo(group):
+            for node in group.topological_sort(_include_subdag_tasks=include_subdag_tasks):
+                if isinstance(node, TaskGroup):
+                    yield from nested_topo(node)
                 else:
-                    acyclic = True
-                    del graph_unsorted[node.task_id]
-                    graph_sorted.append(node)
-                    if include_subdag_tasks and isinstance(node, SubDagOperator):
-                        graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
+                    yield node
 
-            if not acyclic:
-                raise AirflowException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        return tuple(graph_sorted)
+        return tuple(nested_topo(self.task_group))
 
     @provide_session
     def set_dag_runs_state(
