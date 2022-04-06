@@ -205,10 +205,15 @@ class AbstractOperator(LoggingMixin, DAGNode):
         dag = self.get_dag()
         if dag is None:
             return self.priority_weight
-        return self.priority_weight + sum(
+        priority_weight_total = self.priority_weight + sum(
             dag.task_dict[task_id].priority_weight
             for task_id in self.get_flat_relative_ids(upstream=upstream)
         )
+        priority_weight_total = min(priority_weight_total, 2147483647)
+        # As priority_weight column is also used with "-" sign in some queries (-TI.priority_weight)
+        # we should not use -2147483648 as lower boundary.
+        priority_weight_total = max(priority_weight_total, -2147483647)
+        return priority_weight_total
 
     @cached_property
     def operator_extra_link_dict(self) -> Dict[str, Any]:

@@ -453,6 +453,27 @@ class TestDag(unittest.TestCase):
                 calculated_weight = task.priority_weight_total
                 assert calculated_weight == correct_weight
 
+    def test_dag_task_priority_weight_total_overflow(self):
+        # Test that priority_weight_total does not overflow
+        with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}):
+            t1 = DummyOperator(
+                task_id='stage1',
+                priority_weight=10,
+            )
+            t2 = DummyOperator(
+                task_id='stage2',
+                priority_weight=2147483648,
+            )
+            t3 = DummyOperator(
+                task_id='stage3',
+                priority_weight=-3147483648,
+            )
+            t1.set_downstream(t2)
+
+            assert t1.priority_weight_total == 2147483647
+            assert t2.priority_weight_total == 2147483647
+            assert t3.priority_weight_total == -2147483647
+
     def test_dag_task_invalid_weight_rule(self):
         # Test if we enter an invalid weight rule
         with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}):
