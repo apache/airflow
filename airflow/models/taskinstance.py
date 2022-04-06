@@ -2196,7 +2196,7 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
         else:
-            jinja_env = self.task.get_template_env()
+            jinja_env = self.task.get_template_env(force_sandboxed=True)
             jinja_context = self.get_template_context()
             context_merge(jinja_context, additional_context)
 
