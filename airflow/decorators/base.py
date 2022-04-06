@@ -371,6 +371,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
             mapped_op_kwargs=map_kwargs,
+            # Different from classic operators, kwargs passed to a taskflow
+            # task's expand() contribute to the op_kwargs operator argument, not
+            # the operator arguments themselves, and should expand against it.
+            expansion_kwargs_attr="mapped_op_kwargs",
         )
         return XComArg(operator=operator)
 
@@ -417,15 +421,6 @@ class DecoratedMappedOperator(MappedOperator):
         # Not using super(..., self) to work around pyupgrade bug.
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
-
-    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
-        """The kwargs to calculate expansion length against.
-
-        Different from classic operators, a decorated (taskflow) operator's
-        ``map()`` contributes to the ``op_kwargs`` operator argument (not the
-        operator arguments themselves), and should therefore expand against it.
-        """
-        return self.mapped_op_kwargs
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
         partial_kwargs = self.partial_kwargs.copy()

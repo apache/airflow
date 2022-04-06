@@ -796,6 +796,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                expansion_kwargs_attr=encoded_op["_expansion_kwargs_attr"],
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])
