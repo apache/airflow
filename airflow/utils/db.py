@@ -976,16 +976,20 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         )
 
 
-def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", target_table_name: str
+def _create_table_as(
+    *,
+    session,
+    dialect_name: str,
+    source_query: "Query",
+    target_table_name: str,
+    source_table_name: str,
 ):
+    """
+    Create a new table with rows from query.
+    We have to handle CTAS differently for different dialects.
+    """
     from sqlalchemy import column, select, table
-    from sqlalchemy.sql.selectable import Join
 
-    bind = session.get_bind()
-    dialect_name = bind.dialect.name
-
-    # First: Create moved rows from new table
     if dialect_name == "mssql":
         cte = source_query.cte("source")
         moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
@@ -998,7 +1002,7 @@ def _move_dangling_data_to_new_table(
     elif dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table.name}")
+        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table_name}")
         session.execute(
             f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
         )
@@ -1007,6 +1011,24 @@ def _move_dangling_data_to_new_table(
         session.execute(
             f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
         )
+
+
+def _move_dangling_data_to_new_table(
+    session, source_table: "Table", source_query: "Query", target_table_name: str
+):
+    from sqlalchemy.sql.selectable import Join
+
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
+
+    # First: Create moved rows from new table
+    _create_table_as(
+        dialect_name=dialect_name,
+        source_query=source_query,
+        target_table_name=target_table_name,
+        source_table_name=source_table.name,
+        session=session,
+    )
 
     # Second: Now delete rows we've moved
     try:
