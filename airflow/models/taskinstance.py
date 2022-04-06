@@ -823,17 +823,25 @@ class TaskInstance(Base, LoggingMixin):
         self.operator = task.task_type
 
     @provide_session
-    def clear_xcom_data(self, session=NEW_SESSION):
-        """
-        Clears all XCom data from the database for the task instance
+    def clear_xcom_data(self, session: Session = NEW_SESSION):
+        """Clear all XCom data from the database for the task instance.
+
+        If the task is unmapped, all XComs matching this task ID in the same DAG
+        run are removed. If the task is mapped, only the one with matching map
+        index is removed.
 
         :param session: SQLAlchemy ORM Session
         """
         self.log.debug("Clearing XCom data")
+        if self.map_index < 0:
+            map_index: Optional[int] = None
+        else:
+            map_index = self.map_index
         XCom.clear(
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
+            map_index=map_index,
             session=session,
         )
 
@@ -2279,6 +2287,7 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_indexes: Optional[Union[int, Iterable[int]]] = None,
+        default: Any = None,
     ) -> Any:
         """Pull XComs that optionally meet certain criteria.
 
@@ -2303,7 +2312,8 @@ class TaskInstance(Base, LoggingMixin):
         the specified task is mapped. If not, value from the one single task
         instance is returned. If the task to pull is mapped, an iterator (not a
         list) yielding XComs from mapped task instances is returned. In either
-        case, *None* is returned if no matching XComs are found.
+        case, ``default`` (*None* if not specified) is returned if no matching
+        XComs are found.
 
         When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
         a non-str iterable), a list of matching XComs is returned. Elements in
@@ -2330,9 +2340,10 @@ class TaskInstance(Base, LoggingMixin):
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
             first = query.with_entities(XCom.run_id, XCom.task_id, XCom.map_index, XCom.value).first()
             if first is None:  # No matching XCom at all.
-                return None
+                return default
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
+
             # We're pulling one specific mapped task. Add additional filters to
             # make sure all XComs come from one task and run (for task_ids=None
             # and include_prior_dates=True), and re-order by map index (reset
@@ -2343,7 +2354,14 @@ class TaskInstance(Base, LoggingMixin):
                 .order_by(None)
                 .order_by(XCom.map_index.asc())
             )
-            return (XCom.deserialize_value(r) for r in query)
+
+            def iter_xcom_values(query):
+                # The session passed to xcom_pull() may die before this is
+                # iterated through, so we need to bind to a new session.
+                for r in query.with_session(settings.Session()):
+                    yield XCom.deserialize_value(r)
+
+            return iter_xcom_values(query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
