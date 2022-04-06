@@ -295,9 +295,10 @@ class PodTemplateFileTest(unittest.TestCase):
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {'configMap': {'name': 'RELEASE-NAME-airflow-airflow-config'}, 'name': 'config'} in jmespath.search(
-            "spec.volumes", docs[0]
-        )
+        assert {
+            'configMap': {'name': 'RELEASE-NAME-airflow-airflow-config'},
+            'name': 'config',
+        } in jmespath.search("spec.volumes", docs[0])
         assert {
             'name': 'config',
             'mountPath': '/opt/airflow/airflow.cfg',
