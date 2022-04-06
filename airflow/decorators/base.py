@@ -44,7 +44,13 @@ from sqlalchemy.orm import Session
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
-from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
+from airflow.models.baseoperator import (
+    BaseOperator,
+    coerce_resources,
+    coerce_retry_delay,
+    get_merged_defaults,
+    parse_retries,
+)
 from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import (
     MappedOperator,
@@ -305,13 +311,21 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)
 
-        partial_kwargs = self.kwargs.copy()
+        task_kwargs = self.kwargs.copy()
+        dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
+        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
 
-        dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
-        task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
+        partial_kwargs, default_params = get_merged_defaults(
+            dag=dag,
+            task_group=task_group,
+            task_params=task_kwargs.pop("params", None),
+            task_default_args=task_kwargs.pop("default_args", None),
+        )
+        partial_kwargs.update(task_kwargs)
+
         user_supplied_task_id = partial_kwargs.pop("task_id")
         task_id = get_unique_task_id(user_supplied_task_id, dag, task_group)
-        params = partial_kwargs.pop("params", None)
+        params = partial_kwargs.pop("params", None) or default_params
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:

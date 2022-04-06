@@ -17,7 +17,7 @@
 # under the License.
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, NamedTuple
 from unittest import mock
 
@@ -877,3 +877,30 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_applies_default_args_classic(dag_maker):
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+        MockOperator(task_id="simple", arg1=None, arg2=0)
+        MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
+
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+
+
+def test_mapped_task_applies_default_args_taskflow(dag_maker):
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+
+        @dag.task
+        def simple(arg):
+            pass
+
+        @dag.task
+        def mapped(arg):
+            pass
+
+        simple(arg=0)
+        mapped.expand(arg=[1, 2])
+
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
