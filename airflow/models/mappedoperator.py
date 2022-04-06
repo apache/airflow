@@ -223,6 +223,9 @@ class OperatorPartial:
             task_group=task_group,
             start_date=start_date,
             end_date=end_date,
+            # For classic operators, this points to mapped_kwargs because kwargs
+            # to BaseOperator.expand() contribute to operator arguments.
+            expansion_kwargs_attr="mapped_kwargs",
         )
         return op
 
@@ -262,6 +265,12 @@ class MappedOperator(AbstractOperator):
     end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
+
+    _expansion_kwargs_attr: str
+    """Where to get kwargs to calculate expansion length against.
+
+    This should be a name to call ``getattr()`` on.
+    """
 
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
@@ -476,12 +485,8 @@ class MappedOperator(AbstractOperator):
         return op
 
     def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
-        """The kwargs to calculate expansion length against.
-
-        This is ``self.mapped_kwargs`` for classic operators because kwargs to
-        ``BaseOperator.expand()`` contribute to operator arguments.
-        """
-        return self.mapped_kwargs
+        """The kwargs to calculate expansion length against."""
+        return getattr(self, self._expansion_kwargs_attr)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
         # TODO: Find a way to cache this.

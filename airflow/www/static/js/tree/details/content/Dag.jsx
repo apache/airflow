@@ -17,8 +17,6 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
 import {
   Table,
@@ -26,16 +24,16 @@ import {
   Tr,
   Td,
   Tag,
-  Text,
-  Code,
   Link,
   Button,
   Flex,
+  Heading,
 } from '@chakra-ui/react';
+import { mean } from 'lodash';
 
-import { formatDuration } from '../../../datetime_utils';
-import { getMetaValue } from '../../../utils';
-import { useDag, useTasks } from '../../api';
+import { getDuration, formatDuration } from '../../../datetime_utils';
+import { finalStatesMap, getMetaValue } from '../../../utils';
+import { useDag, useTasks, useTreeData } from '../../api';
 import Time from '../../Time';
 
 const dagId = getMetaValue('dag_id');
@@ -44,11 +42,10 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 const Dag = () => {
   const { data: dag } = useDag(dagId);
   const { data: taskData } = useTasks(dagId);
+  const { data: { dagRuns = [] } } = useTreeData();
   if (!dag || !taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
-  const {
-    description, tags, fileloc, owners, catchup, startDate, timezone, dagRunTimeout,
-  } = dag;
+  const { description, tags } = dag;
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};
@@ -60,11 +57,90 @@ const Dag = () => {
     }
   });
 
+  const numMap = finalStatesMap();
+  const durations = [];
+  dagRuns.forEach((dagRun) => {
+    durations.push(getDuration(dagRun.startDate, dagRun.endDate));
+    const stateKey = dagRun.state == null ? 'no_status' : dagRun.state;
+    if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+  });
+
+  const stateSummary = [];
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      stateSummary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Tr key={val}>
+          <Td>
+            Total
+            {' '}
+            {val}
+          </Td>
+          <Td>
+            {key}
+          </Td>
+        </Tr>,
+      );
+    }
+  });
+
+  // calculate dag run bar heights relative to max
+  const max = Math.max.apply(null, durations);
+  const min = Math.min.apply(null, durations);
+  const avg = mean(durations);
+
   return (
     <>
-      <Button as={Link} mb={2} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
+      <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
+      {durations.length > 0 && (
+        <>
+          <Heading size="md" mt={4} mb={2}>DAG Runs Summary</Heading>
+          <Table variant="striped">
+            <Tbody>
+              <Tr>
+                <Td>Total Runs Displayed</Td>
+                <Td>
+                  {durations.length}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>First Run Start</Td>
+                <Td>
+                  <Time dateTime={dagRuns[0].startDate} />
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Last Run Start</Td>
+                <Td>
+                  <Time dateTime={dagRuns[dagRuns.length - 1].startDate} />
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Max Run Duration</Td>
+                <Td>
+                  {formatDuration(max)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Mean Run Duration</Td>
+                <Td>
+                  {formatDuration(avg)}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Min Run Duration</Td>
+                <Td>
+                  {formatDuration(min)}
+                </Td>
+              </Tr>
+              {stateSummary}
+            </Tbody>
+          </Table>
+        </>
+      )}
+      <Heading size="md" mt={4} mb={2}>DAG Summary</Heading>
       <Table variant="striped">
         <Tbody>
           {description && (
@@ -73,12 +149,6 @@ const Dag = () => {
             <Td>{description}</Td>
           </Tr>
           )}
-          <Tr>
-            <Td>Start Date</Td>
-            <Td>
-              <Time dateTime={startDate} />
-            </Td>
-          </Tr>
           <Tr>
             <Td>Total Tasks</Td>
             <Td>{totalEntries}</Td>
@@ -106,28 +176,6 @@ const Dag = () => {
             </Td>
           </Tr>
           )}
-          <Tr>
-            <Td>Catchup</Td>
-            <Td>{catchup ? 'True' : 'False'}</Td>
-          </Tr>
-          <Tr>
-            <Td>Owners</Td>
-            <Td>{owners.map((o) => <Text key={o} mr={1}>{o}</Text>)}</Td>
-          </Tr>
-          <Tr>
-            <Td>Relative File Location</Td>
-            <Td><Code colorScheme="blackAlpha" maxWidth="250px">{fileloc}</Code></Td>
-          </Tr>
-          {dagRunTimeout && (
-          <Tr>
-            <Td>DAG Run Timeout</Td>
-            <Td>{formatDuration(moment.duration(dagRunTimeout.days, 'd').add(dagRunTimeout.seconds, 's'))}</Td>
-          </Tr>
-          )}
-          <Tr>
-            <Td>DAG Timezone</Td>
-            <Td>{timezone}</Td>
-          </Tr>
         </Tbody>
       </Table>
     </>

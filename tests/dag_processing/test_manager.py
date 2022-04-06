@@ -501,10 +501,14 @@ class TestDagFileProcessorManager:
 
             assert len(active_dags) == 0
 
+    @mock.patch(
+        "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
+    )
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.kill")
-    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
+    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid, mock_waitable_handle):
         mock_pid.return_value = 1234
+        mock_waitable_handle.return_value = 3
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
@@ -518,8 +522,12 @@ class TestDagFileProcessorManager:
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.min)
         manager._processors = {'abc.txt': processor}
+        manager.waitables[3] = processor
+        initial_waitables = len(manager.waitables)
         manager._kill_timed_out_processors()
         mock_kill.assert_called_once_with()
+        assert len(manager._processors) == 0
+        assert len(manager.waitables) == initial_waitables - 1
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess")

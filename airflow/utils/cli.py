@@ -236,7 +236,7 @@ def get_dag_by_pickle(pickle_id, session=None):
 
     dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
     if not dag_pickle:
-        raise AirflowException("Who hid the pickle!? [missing pickle]")
+        raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle
     return pickle_dag
 

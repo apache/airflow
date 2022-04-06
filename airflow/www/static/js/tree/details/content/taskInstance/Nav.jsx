@@ -31,7 +31,7 @@ const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
-const taskInstancesUrl = getMetaValue('task_instances_url');
+const taskInstancesUrl = getMetaValue('task_instances_list_url');
 const renderedK8sUrl = getMetaValue('rendered_k8s_url');
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
