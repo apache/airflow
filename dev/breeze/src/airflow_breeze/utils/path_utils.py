@@ -21,13 +21,13 @@ import hashlib
 import os
 import sys
 import tempfile
-import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import console
+from airflow_breeze.utils.reinstall import ask_to_reinstall
 
 AIRFLOW_CFG_FILE = "setup.cfg"
 
@@ -111,13 +111,10 @@ def print_warning_if_setup_changed() -> bool:
     package_hash = get_package_setup_metadata_hash()
     sources_hash = get_installation_sources_config_metadata_hash()
     if sources_hash != package_hash:
-        console.print(
-            f"\n[bright_yellow]WARNING! Breeze dependencies changed since the installation![/]\n\n"
-            f"[bright_yellow]This might cause various problems!![/]\n\n"
-            f"If you experience problems - reinstall Breeze with:\n\n"
-            f"    pipx install -e '{get_installation_airflow_sources()}/dev/breeze/' --force\n\n"
-        )
-        time.sleep(2)
+        installation_sources = get_installation_airflow_sources()
+        if installation_sources is not None:
+            breeze_sources = installation_sources / "dev" / "breeze"
+            ask_to_reinstall(breeze_sources)
         return True
     return False
 
@@ -130,15 +127,7 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     """
     installation_airflow_sources = get_installation_airflow_sources()
     if airflow_sources != installation_airflow_sources:
-        console.print(
-            f"\n[bright_yellow]WARNING! Breeze used from different sources![/]\n\n"
-            f"[bright_yellow]Breeze is installed from : {installation_airflow_sources}[/]\n"
-            f"[bright_yellow]Airflow is installed from: {airflow_sources}[/]\n\n"
-            f"[bright_yellow]This might cause various problems!![/]\n\n"
-            f"If you experience problems - reinstall Breeze with:\n\n"
-            f"    pipx install -e '{airflow_sources}/dev/breeze/' --force\n\n"
-        )
-        time.sleep(2)
+        ask_to_reinstall(airflow_sources / "dev" / "breeze")
         return True
     return False
 
