@@ -50,6 +50,7 @@ const ExtraLinks = ({
             as={Link}
             colorScheme="blue"
             href={url}
+            fontSize="lg"
             isDisabled={!url}
             target={isExternal(url) ? '_blank' : undefined}
           >

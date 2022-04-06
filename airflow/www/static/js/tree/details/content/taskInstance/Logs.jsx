@@ -61,6 +61,7 @@ const Logs = ({
           key={index}
           href={fullExternalUrl}
           target="_blank"
+          fontSize="lg"
         >
           {index}
         </LinkButton>,
@@ -78,6 +79,7 @@ const Logs = ({
         // eslint-disable-next-line react/no-array-index-key
         key={index}
         href={fullMetadataUrl}
+        fontSize="lg"
       >
         {index === 0 ? 'All' : index}
       </LinkButton>

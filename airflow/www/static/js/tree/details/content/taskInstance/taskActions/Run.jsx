@@ -52,11 +52,12 @@ const Run = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline" fontSize="lg">
+      <ButtonGroup isAttached variant="outline">
         <Button
           bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
           title="Ignores all non-critical dependencies, including task state and task_deps"
+          fontSize="lg"
         >
           Ignore All Deps
         </Button>
@@ -64,6 +65,7 @@ const Run = ({
           bg={ignoreTaskState && 'gray.100'}
           onClick={onToggleTaskState}
           title="Ignore previous success/failure"
+          fontSize="lg"
         >
           Ignore Task State
         </Button>
@@ -71,6 +73,7 @@ const Run = ({
           bg={ignoreTaskDeps && 'gray.100'}
           onClick={onToggleTaskDeps}
           title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past"
+          fontSize="lg"
         >
           Ignore Task Deps
         </Button>

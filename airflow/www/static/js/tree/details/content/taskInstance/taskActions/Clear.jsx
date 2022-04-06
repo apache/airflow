@@ -102,12 +102,12 @@ const Run = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
-        <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
-        <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
-        <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
-        <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
-        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
-        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
+        <ActionButton bg={past && 'gray.100'} fontSize="lg" onClick={onTogglePast} name="Past" />
+        <ActionButton bg={future && 'gray.100'} fontSize="lg" onClick={onToggleFuture} name="Future" />
+        <ActionButton bg={upstream && 'gray.100'} fontSize="lg" onClick={onToggleUpstream} name="Upstream" />
+        <ActionButton bg={downstream && 'gray.100'} fontSize="lg" onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton bg={recursive && 'gray.100'} fontSize="lg" onClick={onToggleRecursive} name="Recursive" />
+        <ActionButton bg={failed && 'gray.100'} fontSize="lg" onClick={onToggleFailed} name="Failed" />
       </ButtonGroup>
       <Button
         colorScheme="blue"
