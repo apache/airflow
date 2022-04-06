@@ -324,7 +324,7 @@ class S3CopyObjectOperator(BaseOperator):
 
 class S3CreateObjectOperator(BaseOperator):
     """
-    Creates a new object from a given string or bytes.
+    Creates a new object from `data` as string or bytes.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
