@@ -486,7 +486,7 @@ Create the name of the scheduler service account to use
 {{- end -}}
 
 {{/*
-Create the name of the statsd service account to use
+Create the name of the StatsD service account to use
 */}}
 {{- define "statsd.serviceAccountName" -}}
 {{- if .Values.statsd.serviceAccount.create -}}

@@ -17,23 +17,30 @@
  * under the License.
  */
 
-/* global localStorage, treeData */
+/* global localStorage, treeData, document */
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { getMetaValue } from '../../utils';
 import { formatData, areActiveRuns } from '../treeDataUtils';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
-const isPaused = getMetaValue('is_paused') === 'True';
+const initialIsPaused = getMetaValue('is_paused') === 'True';
 const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
-const isRefreshAllowed = !(isPaused || isRefreshDisabled);
 
 const AutoRefreshContext = React.createContext(null);
 
 export const AutoRefreshProvider = ({ children }) => {
-  const dagRuns = treeData && treeData.dag_runs ? formatData(treeData.dag_runs, []) : [];
+  let dagRuns = [];
+  try {
+    const data = JSON.parse(treeData);
+    if (data.dag_runs) dagRuns = formatData(data.dag_runs);
+  } catch {
+    dagRuns = [];
+  }
+  const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isActive = areActiveRuns(dagRuns);
+  const isRefreshAllowed = !(isPaused || isRefreshDisabled);
   const initialState = isRefreshAllowed && isActive;
 
   const [isRefreshOn, setRefresh] = useState(initialState);
@@ -55,10 +62,26 @@ export const AutoRefreshProvider = ({ children }) => {
     }
   };
 
+  useEffect(() => {
+    const handleChange = (e) => {
+      setIsPaused(!e.value);
+      if (!e.value) {
+        stopRefresh();
+      } else if (isActive) {
+        setRefresh(true);
+      }
+    };
+
+    document.addEventListener('paused', handleChange);
+    return () => {
+      document.removeEventListener('paused', handleChange);
+    };
+  });
+
   return (
     <AutoRefreshContext.Provider
       value={{
-        isRefreshOn, toggleRefresh, stopRefresh, startRefresh,
+        isRefreshOn, toggleRefresh, stopRefresh, startRefresh, isPaused,
       }}
     >
       {children}

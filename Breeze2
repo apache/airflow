@@ -1,83 +1,42 @@
-#!/usr/bin/env python3
-# isort: skip
-import os
-import sys
+#!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+set -euo pipefail
 
-# Python <3.4 does not have pathlib
-from venv import EnvBuilder
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-if sys.version_info.major != 3 or sys.version_info.minor < 7:
-    print("ERROR! Make sure you use Python 3.7+ !!")
-    sys.exit(1)
+BREEZE_BINARY=Breeze2
 
-import subprocess
-from os import execv
-from pathlib import Path
+function check_breeze_installed() {
+    if ! command -v ${BREEZE_BINARY} &> /dev/null; then
+        echo
+        echo "You need to install pipx and run:"
+        echo
+        echo "    pipx install -e '${MY_DIR}/dev/breeze/'"
+        echo
+        echo
+        if "${MY_DIR}/scripts/tools/confirm" "Installing pipx and Breeze?"; then
+            python -m pip install pipx --upgrade
+            pipx install -e "${MY_DIR}/dev/breeze/"
+            ${BREEZE_BINARY} setup-autocomplete
+        else
+            exit
+        fi
+    fi
+}
 
-if getattr(sys, 'frozen', False):
-    # If the application is run as a bundle, the PyInstaller bootloader
-    # extends the sys module by a flag frozen=True and sets the temporary app
-    # path into variable _MEIPASS' and sys.executable is Breeze's executable path.
-    AIRFLOW_SOURCES_DIR = Path(sys.executable).parent.resolve()
-else:
-    AIRFLOW_SOURCES_DIR = Path(__file__).parent.resolve()
-BUILD_DIR = AIRFLOW_SOURCES_DIR / ".build"
-BUILD_BREEZE_DIR = BUILD_DIR / "breeze2"
-BUILD_BREEZE_CFG_SAVED = BUILD_BREEZE_DIR / "setup.cfg.saved"
-BUILD_BREEZE_VENV_DIR = BUILD_BREEZE_DIR / "venv"
-BUILD_BREEZE_VENV_BIN_DIR = BUILD_BREEZE_VENV_DIR / ("Scripts" if os.name == 'nt' else "bin")
-BUILD_BREEZE_VENV_PYTHON = BUILD_BREEZE_VENV_BIN_DIR / "python"
-BUILD_BREEZE_VENV_BREEZE = BUILD_BREEZE_VENV_BIN_DIR / "Breeze2"
-
-BREEZE_SOURCE_PATH = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
-BREEZE_SETUP_CFG_PATH = BREEZE_SOURCE_PATH / "setup.cfg"
-
-BUILD_BREEZE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def needs_installation() -> bool:
-    """Returns true if Breeze's virtualenv needs (re)installation"""
-    if not BUILD_BREEZE_VENV_DIR.exists() or not BUILD_BREEZE_CFG_SAVED.exists():
-        return True
-    return BREEZE_SETUP_CFG_PATH.read_text() != BUILD_BREEZE_CFG_SAVED.read_text()
-
-
-def save_config():
-    """Saves cfg file to virtualenv to check if there is a need for reinstallation of the virtualenv"""
-    BUILD_BREEZE_CFG_SAVED.write_text(BREEZE_SETUP_CFG_PATH.read_text())
-
-
-if needs_installation():
-    print(f"(Re)Installing Breeze's virtualenv in {BUILD_BREEZE_VENV_DIR}")
-    try:
-        EnvBuilder(system_site_packages=False, upgrade=True, with_pip=True, prompt="breeze").create(
-            str(BUILD_BREEZE_VENV_DIR)
-        )
-    except Exception as e:
-        # in some cases (mis-configured python) the venv creation might not work via API
-        # (ensurepip missing). This is the case in case of default MacOS Python and Python executable
-        # Bundled in Windows executable, In this case we fallback to running venv as a tool using default
-        # Python3 found on path (in case of Windows Bundled exe, you don't even have a current
-        # interpreted executable available, because Python interpreter is executed through a library.
-        # and sys.executable points to the Bundled exe file.
-        BUILD_BREEZE_VENV_DIR.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["python3", "-m", "venv", f"{BUILD_BREEZE_VENV_DIR}"], check=True)
-    if os.name == 'nt':
-        subprocess.run(
-            [f"{BUILD_BREEZE_VENV_PYTHON}", "-m", "pip", "install", "--upgrade", "-e", "."],
-            cwd=BREEZE_SOURCE_PATH,
-            check=True,
-        )
-    else:
-        subprocess.run(
-            [f"{BUILD_BREEZE_VENV_PYTHON}", "-m", "pip", "install", "--upgrade", "-e", "."],
-            cwd=BREEZE_SOURCE_PATH,
-            check=True,
-        )
-    save_config()
-
-if os.name == 'nt':
-    # This is the best way of running it on Windows, though it leaves the original process hanging around
-    subprocess.run([f"{BUILD_BREEZE_VENV_BREEZE}"] + sys.argv[1:], check=True)
-else:
-    execv(f"{BUILD_BREEZE_VENV_BREEZE}", [f"{BUILD_BREEZE_VENV_BREEZE}"] + sys.argv[1:])
+${BREEZE_BINARY} "${@}"

@@ -84,7 +84,7 @@ function check_integration {
 
     local env_var_name
     env_var_name=INTEGRATION_${integration_name^^}
-    if [[ ${!env_var_name:=} != "true" ]]; then
+    if [[ ${!env_var_name:=} != "true" || ${!env_var_name} != "True" ]]; then
         if [[ ! ${DISABLED_INTEGRATIONS} == *" ${integration_name}"* ]]; then
             DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${integration_name}"
         fi
@@ -112,7 +112,7 @@ function check_db_backend {
 }
 
 function resetdb_if_requested() {
-    if [[ ${DB_RESET:="false"} == "true" ]]; then
+    if [[ ${DB_RESET:="false"} == "true" || ${DB_RESET} == "True" ]]; then
         echo
         echo "Resetting the DB"
         echo
@@ -125,7 +125,7 @@ function resetdb_if_requested() {
 }
 
 function startairflow_if_requested() {
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         echo
         echo "Starting Airflow"
         echo
@@ -143,13 +143,14 @@ function startairflow_if_requested() {
     return $?
 }
 
-echo "==============================================================================================="
-echo "             Checking integrations and backends"
-echo "==============================================================================================="
+echo
+echo "${COLOR_BLUE}Checking integrations and backends.${COLOR_RESET}"
+echo
+
 if [[ -n ${BACKEND=} ]]; then
     check_db_backend 50
-    echo "-----------------------------------------------------------------------------------------------"
 fi
+echo
 check_integration "Kerberos" "kerberos" "run_nc kdc-server-example-com 88" 50
 check_integration "MongoDB" "mongo" "run_nc mongo 27017" 50
 check_integration "Redis" "redis" "run_nc redis 6379" 50
@@ -168,8 +169,6 @@ CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain'
 check_integration "Pinot (Broker API)" "pinot" "${CMD}" 50
 check_integration "RabbitMQ" "rabbitmq" "run_nc rabbitmq 5672" 50
 
-echo "-----------------------------------------------------------------------------------------------"
-
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
@@ -182,10 +181,8 @@ fi
 resetdb_if_requested
 startairflow_if_requested
 
-if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
+if [[ -n ${DISABLED_INTEGRATIONS=} && (${VERBOSE=} == "true" || ${VERBOSE} == "True") ]]; then
     echo
-    echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
-    echo
-    echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
+    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}"
     echo
 fi

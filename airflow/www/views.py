@@ -251,7 +251,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     task_group = task_item_or_group
 
     children = [
-        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.children.values()
+        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.topological_sort()
     ]
 
     def get_summary(dag_run, children):

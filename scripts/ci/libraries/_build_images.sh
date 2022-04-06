@@ -69,11 +69,6 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
         "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
     )
-    if [[ ${CI} == "true" ]]; then
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "PIP_PROGRESS_BAR=off"
-        )
-    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
@@ -241,11 +236,9 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the image by running:
+   ${COLOR_YELLOW}Make sure you build the image by running:${COLOR_RESET}
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
-
-   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'.
 
 """
         exit 1
@@ -489,11 +482,6 @@ function build_images::build_ci_image() {
         )
     fi
     local extra_docker_ci_flags=()
-    if [[ ${CI} == "true" ]]; then
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "PIP_PROGRESS_BAR=off"
-        )
-    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         extra_docker_ci_flags+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"

@@ -34,7 +34,6 @@ import {
   Button,
 } from '@chakra-ui/react';
 
-import { getMetaValue } from '../utils';
 import { useTreeData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
@@ -43,7 +42,6 @@ import Details from './details';
 import { useSelection } from './context/selection';
 import { useAutoRefresh } from './context/autorefresh';
 
-const isPaused = getMetaValue('is_paused') === 'True';
 const sidePanelKey = 'showSidePanel';
 
 const Tree = () => {
@@ -51,7 +49,7 @@ const Tree = () => {
   const tableRef = useRef();
   const [tableWidth, setTableWidth] = useState('100%');
   const { data: { groups = {}, dagRuns = [] } } = useTreeData();
-  const { isRefreshOn, toggleRefresh } = useAutoRefresh();
+  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
   const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
 
@@ -74,7 +72,7 @@ const Tree = () => {
       const runsContainer = scrollRef.current;
       // Set initial scroll to top right if it is scrollable
       if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-        runsContainer.scrollBy(runsContainer.clientWidth, 0);
+        runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
       }
     }
   }, [tableRef, isOpen]);
@@ -94,6 +92,7 @@ const Tree = () => {
             isDisabled={isPaused}
             isChecked={isRefreshOn}
             size="lg"
+            title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
           />
         </FormControl>
         <Button

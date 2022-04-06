@@ -23,8 +23,8 @@ import os
 import uuid
 
 import psutil
+from cgroupspy import trees
 
-from airflow._vendor.cgroupspy import trees
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.platform import getuser
