@@ -72,6 +72,7 @@ class RenderedTaskInstanceFields(Base):
             RenderedTaskInstanceFields.dag_id == foreign(DagRun.dag_id),
             RenderedTaskInstanceFields.run_id == foreign(DagRun.run_id),
         )""",
+        viewonly=True,
     )
 
     execution_date = association_proxy("dag_run", "execution_date")
