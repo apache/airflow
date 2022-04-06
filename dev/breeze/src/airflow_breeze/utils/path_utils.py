@@ -52,8 +52,8 @@ def in_autocomplete() -> bool:
     return os.environ.get(f"_{NAME.upper()}_COMPLETE") is not None
 
 
-def in_selfupgrade() -> bool:
-    return "selfupgrade" in sys.argv
+def in_self_upgrade() -> bool:
+    return "self-upgrade" in sys.argv
 
 
 def in_help() -> bool:
@@ -61,7 +61,7 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_selfupgrade() or in_autocomplete() or in_help()
+    return in_self_upgrade() or in_autocomplete() or in_help()
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -203,7 +203,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         console.print(
             "\n[red]Breeze should only be installed with -e flag[/]\n\n"
             "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
-            f"     {NAME} selfupgrade --force\n"
+            f"     {NAME} self-upgrade --force\n"
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()

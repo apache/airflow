@@ -269,7 +269,7 @@ try:
             },
             {
                 "name": "Configuration & maintenance",
-                "commands": ["cleanup", "selfupgrade", "setup-autocomplete", "config", "version"],
+                "commands": ["cleanup", "self-upgrade", "setup-autocomplete", "config", "version"],
             },
         ]
     }
@@ -1239,11 +1239,11 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     help=f'Use current Airflow sources for upgrade rather than from {get_installation_airflow_sources()}.',
 )
 @main.command(
-    name='selfupgrade',
-    help="Self-upgrade Breeze. By default it re-installs Breeze "
+    name='self-upgrade',
+    help="Self upgrade Breeze. By default it re-installs Breeze "
     f"from {get_installation_airflow_sources()}.",
 )
-def selfupgrade(force: bool, use_current_airflow_sources: bool):
+def self_upgrade(force: bool, use_current_airflow_sources: bool):
     if use_current_airflow_sources:
         airflow_sources = get_used_airflow_sources()
     else:
