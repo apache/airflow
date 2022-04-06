@@ -18,6 +18,7 @@
 import io
 import json
 import re
+import warnings
 from contextlib import redirect_stdout
 from unittest import mock
 
@@ -575,6 +576,14 @@ class TestCliAddConnections:
         with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: nonsense_uri"):
             connection_command.connections_add(
                 self.parser.parse_args(["connections", "add", "new1", f"--conn-uri={'nonsense_uri'}"])
+            )
+
+    def test_cli_connections_add_invalid_type(self):
+        with warnings.catch_warnings(record=True):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
+                )
             )
 
 
