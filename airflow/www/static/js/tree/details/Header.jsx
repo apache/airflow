@@ -24,6 +24,7 @@ import {
   BreadcrumbLink,
   Box,
   Heading,
+  Text,
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
@@ -36,8 +37,8 @@ const dagId = getMetaValue('dag_id');
 
 const LabelValue = ({ label, value }) => (
   <Box position="relative">
-    <Heading as="h5" size="md" color="gray.300" position="absolute" top="-12px">{label}</Heading>
-    <Heading as="h5" size="lg">{value}</Heading>
+    <Heading size="sm" color="gray.300" position="absolute" top="-12px" fontWeight={500}>{label}</Heading>
+    <Text size="md" fontWeight={500}>{value}</Text>
   </Box>
 );
 
