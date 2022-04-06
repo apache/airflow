@@ -723,20 +723,15 @@ class TaskInstance(Base, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
         """
-        ti = (
-            session.query(TaskInstance)
+        return (
+            session.query(TaskInstance.state)
             .filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == self.run_id,
             )
-            .all()
+            .scalar()
         )
-        if ti:
-            state = ti[0].state
-        else:
-            state = None
-        return state
 
     @provide_session
     def error(self, session=NEW_SESSION):
