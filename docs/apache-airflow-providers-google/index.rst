@@ -101,7 +101,7 @@ PIP package                             Version required
 ``google-cloud-bigquery-datatransfer``  ``>=3.0.0``
 ``google-cloud-bigtable``               ``>=1.0.0,<2.0.0``
 ``google-cloud-build``                  ``>=3.0.0``
-``google-cloud-container``              ``>=0.1.1,<2.0.0``
+``google-cloud-container``              ``>=2.2.0,<3.0.0``
 ``google-cloud-datacatalog``            ``>=3.0.0``
 ``google-cloud-dataplex``               ``>=0.1.0``
 ``google-cloud-dataproc-metastore``     ``>=1.2.0,<2.0.0``

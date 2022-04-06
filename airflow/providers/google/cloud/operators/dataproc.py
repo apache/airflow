@@ -412,6 +412,11 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param cluster_config: Required. The cluster config to create.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+    :param virtual_cluster_config: Optional. The virtual cluster config, used when creating a Dataproc
+        cluster that does not directly control the underlying compute resources, for example, when creating a
+        `Dataproc-on-GKE cluster
+        <https://cloud.google.com/dataproc/docs/concepts/jobs/dataproc-gke#create-a-dataproc-on-gke-cluster>`
+    :param run_in_gke_cluster: If true run in Google Kubernetes Engine cluster with virtual cluster config
     :param region: The specified region where the dataproc cluster is created.
     :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
@@ -439,11 +444,12 @@ class DataprocCreateClusterOperator(BaseOperator):
         'project_id',
         'region',
         'cluster_config',
+        'virtual_cluster_config',
         'cluster_name',
         'labels',
         'impersonation_chain',
     )
-    template_fields_renderers = {'cluster_config': 'json'}
+    template_fields_renderers = {'cluster_config': 'json', 'virtual_cluster_config': 'json'}
 
     operator_extra_links = (DataprocLink(),)
 
@@ -454,6 +460,8 @@ class DataprocCreateClusterOperator(BaseOperator):
         region: Optional[str] = None,
         project_id: Optional[str] = None,
         cluster_config: Optional[Dict] = None,
+        virtual_cluster_config: Optional[Dict] = None,
+        run_in_gke_cluster: bool = False,
         labels: Optional[Dict] = None,
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
@@ -516,6 +524,8 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.delete_on_error = delete_on_error
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
+        self.virtual_cluster_config = virtual_cluster_config
+        self.run_in_gke_cluster = run_in_gke_cluster
 
     def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(
@@ -524,6 +534,8 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster_name=self.cluster_name,
             labels=self.labels,
             cluster_config=self.cluster_config,
+            virtual_cluster_config=self.virtual_cluster_config,
+            run_in_gke_cluster=self.run_in_gke_cluster,
             request_id=self.request_id,
             retry=self.retry,
             timeout=self.timeout,

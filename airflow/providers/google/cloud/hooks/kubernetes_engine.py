@@ -25,6 +25,7 @@ This module contains a Google Kubernetes Engine Hook.
     enums
 """
 
+import json
 import time
 import warnings
 from typing import Dict, Optional, Sequence, Union
@@ -35,9 +36,8 @@ from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
 from google.cloud import container_v1, exceptions  # type: ignore[attr-defined]
-from google.cloud.container_v1.gapic.enums import Operation
-from google.cloud.container_v1.types import Cluster
-from google.protobuf.json_format import ParseDict
+from google.cloud.container_v1 import ClusterManagerClient
+from google.cloud.container_v1.types import Cluster, Operation
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -70,20 +70,24 @@ class GKEHook(GoogleBaseHook):
         self._client = None
         self.location = location
 
-    def get_conn(self) -> container_v1.ClusterManagerClient:
-        """
-        Returns ClusterManagerCLinet object.
-
-        :rtype: google.cloud.container_v1.ClusterManagerClient
-        """
+    def get_cluster_manager_client(self) -> ClusterManagerClient:
+        """Returns ClusterManagerClient."""
         if self._client is None:
-            credentials = self._get_credentials()
-            self._client = container_v1.ClusterManagerClient(credentials=credentials, client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     # To preserve backward compatibility
     # TODO: remove one day
-    def get_client(self) -> container_v1.ClusterManagerClient:
+    def get_conn(self) -> container_v1.ClusterManagerClient:
+        warnings.warn(
+            "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
+            DeprecationWarning,
+        )
+        return self.get_cluster_manager_client()
+
+    # To preserve backward compatibility
+    # TODO: remove one day
+    def get_client(self) -> ClusterManagerClient:
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
             DeprecationWarning,
@@ -118,7 +122,7 @@ class GKEHook(GoogleBaseHook):
         :param project_id: Google Cloud project ID
         :return: The new, updated operation from Google Cloud
         """
-        return self.get_conn().get_operation(
+        return self.get_cluster_manager_client().get_operation(
             name=f'projects/{project_id or self.project_id}'
             + f'/locations/{self.location}/operations/{operation_name}'
         )
@@ -169,7 +173,7 @@ class GKEHook(GoogleBaseHook):
         self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
 
         try:
-            resource = self.get_conn().delete_cluster(
+            resource = self.get_cluster_manager_client().delete_cluster(
                 name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
                 retry=retry,
                 timeout=timeout,
@@ -209,8 +213,7 @@ class GKEHook(GoogleBaseHook):
             AirflowException: cluster is not dict type nor Cluster proto type
         """
         if isinstance(cluster, dict):
-            cluster_proto = Cluster()
-            cluster = ParseDict(cluster, cluster_proto)
+            cluster = Cluster.from_json(json.dumps(cluster))
         elif not isinstance(cluster, Cluster):
             raise AirflowException("cluster is not instance of Cluster proto or python dict")
 
@@ -220,7 +223,7 @@ class GKEHook(GoogleBaseHook):
             "Creating (project_id=%s, location=%s, cluster_name=%s)", project_id, self.location, cluster.name
         )
         try:
-            resource = self.get_conn().create_cluster(
+            resource = self.get_cluster_manager_client().create_cluster(
                 parent=f'projects/{project_id}/locations/{self.location}',
                 cluster=cluster,
                 retry=retry,
@@ -261,7 +264,7 @@ class GKEHook(GoogleBaseHook):
         )
 
         return (
-            self.get_conn()
+            self.get_cluster_manager_client()
             .get_cluster(
                 name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
                 retry=retry,

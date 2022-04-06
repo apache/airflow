@@ -295,6 +295,8 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         cluster_name: str,
         cluster_config: Union[Dict, Cluster],
+        virtual_cluster_config: Optional[Dict] = None,
+        run_in_gke_cluster: Optional[bool] = False,
         labels: Optional[Dict[str, str]] = None,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
@@ -311,6 +313,12 @@ class DataprocHook(GoogleBaseHook):
         :param cluster_config: Required. The cluster config to create.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :param virtual_cluster_config: Optional. The virtual cluster config, used when creating a Dataproc
+            cluster that does not directly control the underlying compute resources, for example, when
+            creating a `Dataproc-on-GKE cluster`
+            :class:`~google.cloud.dataproc_v1.types.VirtualClusterConfig`
+        :param run_in_gke_cluster: Optional. If true run in Google Kubernetes Engine cluster with virtual
+            cluster config
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -326,12 +334,20 @@ class DataprocHook(GoogleBaseHook):
         labels = labels or {}
         labels.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
 
-        cluster = {
-            "project_id": project_id,
-            "cluster_name": cluster_name,
-            "config": cluster_config,
-            "labels": labels,
-        }
+        cluster = (
+            {
+                "project_id": project_id,
+                "cluster_name": cluster_name,
+                "virtual_cluster_config": virtual_cluster_config,
+            }
+            if run_in_gke_cluster
+            else {
+                "project_id": project_id,
+                "cluster_name": cluster_name,
+                "config": cluster_config,
+                "labels": labels,
+            }
+        )
 
         client = self.get_cluster_client(region=region)
         result = client.create_cluster(
