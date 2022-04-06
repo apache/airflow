@@ -1588,7 +1588,6 @@ def test_mapped_operator_serde():
         'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
-        'user_supplied_task_id': 'a',
         '_expansion_kwargs_attr': 'mapped_kwargs',
     }
 
@@ -1633,7 +1632,6 @@ def test_mapped_operator_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
-        'user_supplied_task_id': 'task_2',
         '_expansion_kwargs_attr': 'mapped_kwargs',
     }
 
@@ -1721,7 +1719,6 @@ def test_mapped_decorator_serde():
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
         'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
-        'user_supplied_task_id': 'x',
         '_expansion_kwargs_attr': 'mapped_op_kwargs',
     }
 
