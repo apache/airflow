@@ -476,6 +476,7 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
+            (False, True, SandboxedEnvironment),
             (False, False, SandboxedEnvironment),
             (True, False, NativeEnvironment),
             (True, True, SandboxedEnvironment),
