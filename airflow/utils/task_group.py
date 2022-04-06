@@ -22,13 +22,12 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Union
 
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -392,15 +391,6 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
-    def expand(self, arg: Iterable) -> "MappedTaskGroup":
-        if self.children:
-            raise RuntimeError("Cannot map a TaskGroup that already has children")
-        if not self.group_id:
-            raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
-        if self.task_group:
-            self.task_group._remove(self)
-        return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
-
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
         Sorts children in topographical order, such that a task comes after any of its
@@ -459,25 +449,6 @@ class TaskGroup(DAGNode):
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
 
         return graph_sorted
-
-
-class MappedTaskGroup(TaskGroup):
-    """
-    A TaskGroup that is dynamically expanded at run time.
-
-    Do not create instances of this class directly, instead use :meth:`TaskGroup.map`
-    """
-
-    mapped_arg: Any = NOTSET
-    mapped_kwargs: Dict[str, Any]
-    partial_kwargs: Dict[str, Any]
-
-    def __init__(self, group_id: Optional[str] = None, mapped_arg: Any = NOTSET, **kwargs):
-        if mapped_arg is not NOTSET:
-            self.mapped_arg = mapped_arg
-        self.mapped_kwargs = {}
-        self.partial_kwargs = {}
-        super().__init__(group_id=group_id, **kwargs)
 
 
 class TaskGroupContext:

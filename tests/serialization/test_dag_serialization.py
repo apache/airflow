@@ -44,11 +44,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
-from airflow.serialization.serialized_objects import (
-    SerializedBaseOperator,
-    SerializedDAG,
-    SerializedTaskGroup,
-)
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -1741,35 +1737,3 @@ def test_mapped_decorator_serde():
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
-
-
-def test_mapped_task_group_serde():
-    execution_date = datetime(2020, 1, 1)
-
-    literal = [1, 2, {'a': 'b'}]
-    with DAG("test", start_date=execution_date) as dag:
-        with TaskGroup("process_one", dag=dag).expand(literal) as process_one:
-            BaseOperator(task_id='one')
-
-    serialized = SerializedTaskGroup.serialize_task_group(process_one)
-
-    assert serialized == {
-        '_group_id': 'process_one',
-        'children': {'process_one.one': ('operator', 'process_one.one')},
-        'downstream_group_ids': [],
-        'downstream_task_ids': [],
-        'prefix_group_id': True,
-        'tooltip': '',
-        'ui_color': 'CornflowerBlue',
-        'ui_fgcolor': '#000',
-        'upstream_group_ids': [],
-        'upstream_task_ids': [],
-        'mapped_arg': [
-            1,
-            2,
-            {"__type": "dict", "__var": {'a': 'b'}},
-        ],
-    }
-
-    with DAG("test", start_date=execution_date) as new_dag:
-        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict, new_dag)
