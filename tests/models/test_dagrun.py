@@ -27,12 +27,13 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import ShortCircuitOperator, task
+from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -925,6 +926,7 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
         assert indices == [(0,), (1,), (2,), (3,)]
 
 
+@pytest.mark.need_serialized_dag
 @pytest.mark.parametrize('is_noop', [True, False])
 def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session):
     with mock.patch('airflow.settings.task_instance_mutation_hook') as mock_mut:
@@ -951,16 +953,27 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
 def test_mapped_literal_verify_integrity(dag_maker, session):
     """Test that when the length of a mapped literal changes we remove extra TIs"""
 
-    literal = [1, 2, 3, 4]
     with dag_maker(session=session) as dag:
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
 
-    dag._remove_task(mapped.task_id)
-    literal = [1, 2]
-    mapped = MockOperator.partial(task_id='task_2', dag=dag).expand(arg2=literal)
+    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
+    dag._remove_task('task_2')
 
+    with dag:
+        mapped = task_2.expand(arg2=[1, 2]).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
     dr.verify_integrity()
 
     indices = (
@@ -973,6 +986,49 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
     assert indices == [(0, None), (1, None), (2, TaskInstanceState.REMOVED), (3, TaskInstanceState.REMOVED)]
 
 
+def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
+    """Test that when we change from literal to a XComArg the TIs are removed"""
+
+    with dag_maker(session=session) as dag:
+        t1 = BaseOperator(task_id='task_1')
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
+
+    dr = dag_maker.create_dagrun()
+
+    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
+    dag._remove_task('task_2')
+
+    with dag:
+        mapped = task_2.expand(arg2=XComArg(t1)).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+    dr.verify_integrity()
+
+    indices = (
+        session.query(TI.map_index, TI.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+        .all()
+    )
+
+    assert indices == [
+        (0, TaskInstanceState.REMOVED),
+        (1, TaskInstanceState.REMOVED),
+        (2, TaskInstanceState.REMOVED),
+        (3, TaskInstanceState.REMOVED),
+    ]
+
+
+@pytest.mark.need_serialized_dag
 def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):

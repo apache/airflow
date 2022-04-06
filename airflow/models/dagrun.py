@@ -32,6 +32,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 from sqlalchemy import (
@@ -837,9 +838,11 @@ class DagRun(Base, LoggingMixin):
                     ti.state = State.REMOVED
                 continue
 
-            if task.is_mapped and task.mapped_args_are_literals:  # type: ignore
+            if task.is_mapped:
+                task = cast("MappedOperator", task)
+                num_mapped_tis = task.parse_time_mapped_ti_count
                 # Check if the number of mapped literals has changed and we need to mark this TI as removed
-                if ti.map_index >= task.mapped_args_count:  # type: ignore
+                if not num_mapped_tis or ti.map_index >= num_mapped_tis:
                     ti.state = State.REMOVED
                 elif ti.map_index < 0:
                     ti.state = State.REMOVED
@@ -878,14 +881,13 @@ class DagRun(Base, LoggingMixin):
 
         # Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
         def expand_mapped_literals(task: "Operator") -> Tuple["Operator", Sequence[int]]:
-
-            if (
-                not task.is_mapped
-                or not task.mapped_args_are_literals  # type: ignore
-                or not task.mapped_args_count  # type: ignore
-            ):
+            if not task.is_mapped:
                 return (task, (-1,))
-            return (task, range(task.mapped_args_count))  # type: ignore
+            task = cast("MappedOperator", task)
+            count = task.parse_time_mapped_ti_count
+            if not count:
+                return (task, (-1,))
+            return (task, range(count))
 
         tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
         tasks = itertools.chain.from_iterable(itertools.starmap(creator, tasks_and_map_idxs))
