@@ -10,7 +10,7 @@
 #
 # Editable install with no version control (apache-airflow==2.2.5)
 APScheduler==3.6.3
-Authlib==1.0.0
+Authlib==1.0.1
 Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
