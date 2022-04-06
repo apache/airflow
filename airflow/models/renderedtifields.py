@@ -204,12 +204,12 @@ class RenderedTaskInstanceFields(Base):
 
         if session.bind.dialect.name in ["postgresql", "sqlite"]:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
-            subq1 = tis_to_keep_query.subquery('subq1')
-
+            subq1 = tis_to_keep_query.subquery()
+            excluded = session.query(subq1.c.dag_id, subq1.c.task_id, subq1.c.run_id)
             session.query(cls).filter(
                 cls.dag_id == dag_id,
                 cls.task_id == task_id,
-                tuple_(cls.dag_id, cls.task_id, cls.run_id).notin_(subq1),
+                tuple_(cls.dag_id, cls.task_id, cls.run_id).notin_(excluded),
             ).delete(synchronize_session=False)
         elif session.bind.dialect.name in ["mysql"]:
             cls._remove_old_rendered_ti_fields_mysql(dag_id, session, task_id, tis_to_keep_query)
