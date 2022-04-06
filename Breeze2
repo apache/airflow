@@ -19,20 +19,24 @@ set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-if ! command -v pipx &> /dev/null; then
-    echo
-    echo "You need to install pipx and run:"
-    echo
-    echo "    pipx install -e '${MY_DIR}/dev/breeze/'"
-    echo
-    echo
-    if "${MY_DIR}/scripts/tools/confirm" "Installing pipx and Breeze?"; then
-        python -m pip install pipx --upgrade
-        pipx install -e "${MY_DIR}/dev/breeze/"
-        Breeze2 setup-autocomplete
-    else
-        exit
-    fi
-fi
+BREEZE_BINARY=Breeze2
 
-Breeze2 "${@}"
+function check_breeze_installed() {
+    if ! command -v ${BREEZE_BINARY} &> /dev/null; then
+        echo
+        echo "You need to install pipx and run:"
+        echo
+        echo "    pipx install -e '${MY_DIR}/dev/breeze/'"
+        echo
+        echo
+        if "${MY_DIR}/scripts/tools/confirm" "Installing pipx and Breeze?"; then
+            python -m pip install pipx --upgrade
+            pipx install -e "${MY_DIR}/dev/breeze/"
+            ${BREEZE_BINARY} setup-autocomplete
+        else
+            exit
+        fi
+    fi
+}
+
+${BREEZE_BINARY} "${@}"
