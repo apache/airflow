@@ -49,20 +49,20 @@ const ConfirmDialog = ({
     >
       <AlertDialogOverlay>
         <AlertDialogContent>
-          <AlertDialogHeader fontSize="3xl" fontWeight="bold">
+          <AlertDialogHeader fontSize="4xl" fontWeight="bold">
             {title}
           </AlertDialogHeader>
 
           <AlertDialogBody>
-            <Text mb={2}>{description}</Text>
-            {body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
+            <Text mb={2} fontSize="2xl">{description}</Text>
+            {body.map((ti) => (<Code key={ti} fontSize="xl">{ti}</Code>))}
           </AlertDialogBody>
 
           <AlertDialogFooter>
-            <Button onClick={onClose}>
+            <Button fontSize="lg" onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef}>
+            <Button colorScheme="blue" fontSize="lg" onClick={onConfirm} ml={3} ref={initialFocusRef}>
               Confirm
             </Button>
           </AlertDialogFooter>

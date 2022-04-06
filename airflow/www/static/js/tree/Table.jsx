@@ -104,6 +104,7 @@ const Table = ({
           <Tr>
             {allColumns.map((column) => (
               <Th
+                fontSize="sm"
                 {...column.getHeaderProps(column.getSortByToggleProps())}
               >
                 {column.render('Header')}
