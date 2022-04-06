@@ -976,7 +976,14 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         )
 
 
-def _create_table_as(*, dialect_name, source_query, target_table_name, source_table_name, session):
+def _create_table_as(
+    *,
+    session,
+    dialect_name: str,
+    source_query: "Query",
+    target_table_name: str,
+    source_table_name: str,
+):
     """
     Create a new table with rows from query.
     We have to handle CTAS differently for different dialects.
