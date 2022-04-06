@@ -24,10 +24,10 @@ import {
   Tr,
   Td,
   Tag,
-  Text,
   Link,
   Button,
   Flex,
+  Heading,
 } from '@chakra-ui/react';
 import { mean } from 'lodash';
 
@@ -96,7 +96,7 @@ const Dag = () => {
       </Button>
       {durations.length > 0 && (
         <>
-          <Text mt={4} mb={2}>DAG Runs Summary</Text>
+          <Heading size="md" mt={4} mb={2}>DAG Runs Summary</Heading>
           <Table variant="striped">
             <Tbody>
               <Tr>
@@ -140,7 +140,7 @@ const Dag = () => {
           </Table>
         </>
       )}
-      <Text mt={4} mb={2}>DAG Summary</Text>
+      <Heading size="md" mt={4} mb={2}>DAG Summary</Heading>
       <Table variant="striped">
         <Tbody>
           {description && (
