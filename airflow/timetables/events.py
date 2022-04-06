@@ -108,7 +108,7 @@ class EventsTimetable(Timetable):
     @classmethod
     def deserialize(cls, data) -> Timetable:
         return cls(
-            [pendulum.parse(x) for x in data["event_dates"]],  # type: ignore
+            [pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
             data["restrict_to_events"],
             presorted=True,
         )
