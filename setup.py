@@ -309,7 +309,7 @@ facebook = [
     'facebook-business>=6.0.2',
 ]
 flask_appbuilder_authlib = [
-    'authlib',
+    'authlib>=0.14, <1.0.0',
 ]
 github = [
     'pygithub',
