@@ -96,7 +96,7 @@ class TestSchedulerCommand(unittest.TestCase):
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_scheduler_print_config(self, mock_process, mock_scheduler_job):
         args = self.parser.parse_args(['scheduler'])
-        with conf_vars({("core", "sql_alchemy_conn_cmd"): 'echo hello'}):
+        with conf_vars({("database", "sql_alchemy_conn_cmd"): 'echo hello'}):
             with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
                 scheduler_command.scheduler(args)
                 output = temp_stdout.getvalue()
