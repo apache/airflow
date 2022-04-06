@@ -452,7 +452,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                     |
 +=======================================================+==========================================+==================================================+
-| ``<RELEASE_NAME>-airflow-metadata``                           | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
+| ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
 |                                                       |                                          | | ``AIRFLOW__CORE__SQL_ALCHEMY_CONN``            |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
