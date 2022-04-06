@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import sys
 from enum import Enum
 from typing import Optional
 
@@ -50,7 +50,7 @@ def user_confirm(
             if user_status.upper() in ['Y', 'YES']:
                 return Answer.YES
             elif user_status.upper() in ['N', 'NO']:
-                return Answer.YES
+                return Answer.NO
             elif user_status.upper() in ['Q', 'QUIT']:
                 return Answer.QUIT
             else:
@@ -59,3 +59,7 @@ def user_confirm(
             if default_answer is not None:
                 return default_answer
             print(f"Timeout after {timeout} seconds. Try again.")
+        except KeyboardInterrupt:
+            if quit_allowed:
+                return Answer.QUIT
+            sys.exit(1)

@@ -27,7 +27,12 @@ from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.reinstall import ask_to_reinstall
+from airflow_breeze.utils.reinstall import (
+    ask_to_reinstall_breeze,
+    warn_dependencies_changed,
+    warn_different_location,
+    warn_non_editable,
+)
 
 AIRFLOW_CFG_FILE = "setup.cfg"
 
@@ -45,6 +50,18 @@ def search_upwards_for_airflow_sources_root(start_from: Path) -> Optional[Path]:
 
 def in_autocomplete() -> bool:
     return os.environ.get(f"_{NAME.upper()}_COMPLETE") is not None
+
+
+def in_selfupgrade() -> bool:
+    return "selfupgrade" in sys.argv
+
+
+def in_help() -> bool:
+    return "--help" in sys.argv
+
+
+def skip_upgrade_check():
+    return in_selfupgrade() or in_autocomplete() or in_help()
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -114,7 +131,8 @@ def print_warning_if_setup_changed() -> bool:
         installation_sources = get_installation_airflow_sources()
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
-            ask_to_reinstall(breeze_sources)
+            warn_dependencies_changed()
+            ask_to_reinstall_breeze(breeze_sources)
         return True
     return False
 
@@ -127,7 +145,8 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     """
     installation_airflow_sources = get_installation_airflow_sources()
     if airflow_sources != installation_airflow_sources:
-        ask_to_reinstall(airflow_sources / "dev" / "breeze")
+        warn_different_location(installation_airflow_sources, airflow_sources)
+        ask_to_reinstall_breeze(airflow_sources / "dev" / "breeze")
         return True
     return False
 
@@ -150,11 +169,7 @@ def get_used_airflow_sources() -> Path:
     if current_sources is None:
         current_sources = get_installation_airflow_sources()
         if current_sources is None:
-            console.print(
-                "\n[red]Breeze should only be installed with -e flag[/]\n\n"
-                "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
-                "     pipx install -e ./dev/breeze --force\n"
-            )
+            warn_non_editable()
             sys.exit(1)
     return current_sources
 
@@ -184,19 +199,18 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
     """
     installation_airflow_sources = get_installation_airflow_sources()
-    if installation_airflow_sources is None:
+    if installation_airflow_sources is None and not skip_upgrade_check():
         console.print(
             "\n[red]Breeze should only be installed with -e flag[/]\n\n"
             "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
-            "     pipx install -e ./dev/breeze --force\n"
+            f"     {NAME} selfupgrade --force\n"
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()
-    if not in_autocomplete():
+    if not skip_upgrade_check():
         # only print warning and sleep if not producing complete results
-        warning_printed = print_warning_if_different_sources(airflow_sources)
-        if not warning_printed:
-            print_warning_if_setup_changed()
+        print_warning_if_different_sources(airflow_sources)
+        print_warning_if_setup_changed()
     console.print(f"[bright_blue]Airflow sources: {airflow_sources}[/]")
     os.chdir(str(airflow_sources))
     return airflow_sources

@@ -25,6 +25,7 @@ from typing import List, Optional, Tuple
 
 from airflow_breeze import NAME, VERSION
 from airflow_breeze.shell.shell_params import ShellParams
+from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
 
 try:
     # We handle ImportError so that click autocomplete works
@@ -268,7 +269,7 @@ try:
             },
             {
                 "name": "Configuration & maintenance",
-                "commands": ["cleanup", "setup-autocomplete", "config", "version"],
+                "commands": ["cleanup", "selfupgrade", "setup-autocomplete", "config", "version"],
             },
         ]
     }
@@ -1224,6 +1225,38 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     shell_params = ShellParams({})
     env_variables = construct_env_variables_docker_compose_command(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
+
+
+@click.option(
+    '-f',
+    '--force',
+    is_flag=True,
+    help='Force upgrade without asking question to the user.',
+)
+@click.option(
+    '--use-current-airflow-sources',
+    is_flag=True,
+    help=f'Use current Airflow sources for upgrade rather than from {get_installation_airflow_sources()}.',
+)
+@main.command(
+    name='selfupgrade',
+    help="Self-upgrade Breeze. By default it re-installs Breeze "
+    f"from {get_installation_airflow_sources()}.",
+)
+def selfupgrade(force: bool, use_current_airflow_sources: bool):
+    if use_current_airflow_sources:
+        airflow_sources = get_used_airflow_sources()
+    else:
+        airflow_sources = get_installation_airflow_sources()
+    if airflow_sources is not None:
+        breeze_sources = airflow_sources / "dev" / "breeze"
+        if force:
+            reinstall_breeze(breeze_sources)
+        else:
+            ask_to_reinstall_breeze(breeze_sources)
+    else:
+        warn_non_editable()
+        sys.exit(1)
 
 
 @main.command(name="cleanup", help="Removes the cache of parameters, images and cleans up docker cache.")
