@@ -274,6 +274,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-breeze-file``                 Update output of breeze command in BREEZE.rst
 ------------------------------------ ---------------------------------------------------------------- ------------
+``update-breeze-config-hash``          Update Breeze README.md with config files hash
+------------------------------------ ---------------------------------------------------------------- ------------
 ``update-extras``                      Updates extras in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-local-yml-file``              Updates mounts in local.yml file

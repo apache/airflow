@@ -35,7 +35,7 @@ Date: 2021-12-19
 
 ## Status
 
-Draft
+Accepted
 
 Also see [5. Preventing using contributed code when building images](0005-preventing-using-contributed-code-when-building-images.md)
 
