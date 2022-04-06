@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-05T22:24:27Z
+# This constraints file was automatically generated on 2022-04-06T17:34:54Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -10,7 +10,7 @@
 #
 # Editable install with no version control (apache-airflow==2.3.0.dev0)
 APScheduler==3.6.3
-Authlib==1.0.0
+Authlib==1.0.1
 Babel==2.9.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
@@ -218,7 +218,7 @@ google-resumable-media==2.3.2
 googleapis-common-protos==1.56.0
 graphviz==0.19.1
 greenlet==1.1.2
-grpc-google-iam-v1==0.12.3
+grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
 grpcio-status==1.44.0
 grpcio==1.44.0
@@ -426,8 +426,8 @@ snowballstemmer==2.2.0
 snowflake-connector-python==2.7.6
 snowflake-sqlalchemy==1.3.3
 sortedcontainers==2.4.0
-soupsieve==2.3.1
-sphinx-airflow-theme==0.0.6
+soupsieve==2.3.2
+sphinx-airflow-theme==0.0.7
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.5.0
