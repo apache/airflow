@@ -50,7 +50,7 @@ const MarkSuccessRun = ({ dagId, runId }) => {
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="green" isLoading={isLoading}>Mark Success</Button>
+      <Button fontSize="lg" onClick={onClick} colorScheme="green" isLoading={isLoading}>Mark Success</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

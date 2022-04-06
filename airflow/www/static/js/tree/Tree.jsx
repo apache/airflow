@@ -79,11 +79,11 @@ const Tree = () => {
 
   return (
     <Box>
-      <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
+      <Flex flexGrow={1} mb={2} justifyContent="flex-end" alignItems="center">
         <ResetRoot />
         <FormControl display="flex" width="auto" mr={2}>
           {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-          <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
+          <FormLabel htmlFor="auto-refresh" mb={0} fontSize="xl" fontWeight="normal">
             Auto-refresh
           </FormLabel>
           <Switch
@@ -99,6 +99,7 @@ const Tree = () => {
           onClick={toggleSidePanel}
           aria-label={isOpen ? 'Show Details' : 'Hide Details'}
           variant={isOpen ? 'solid' : 'outline'}
+          fontSize="lg"
         >
           {isOpen ? 'Hide ' : 'Show '}
           Details Panel

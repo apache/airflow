@@ -73,7 +73,7 @@ const StatusBox = ({
   return (
     <Tooltip
       label={<InstanceTooltip instance={instance} group={group} />}
-      fontSize="md"
+      fontSize="xl"
       portalProps={{ containerRef }}
       hasArrow
       placement="top"

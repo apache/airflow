@@ -49,7 +49,7 @@ const ConfirmDialog = ({
     >
       <AlertDialogOverlay>
         <AlertDialogContent>
-          <AlertDialogHeader fontSize="4xl" fontWeight="bold">
+          <AlertDialogHeader fontSize="3xl" fontWeight="bold">
             {title}
           </AlertDialogHeader>
 

@@ -53,6 +53,7 @@ const QueueRun = ({ dagId, runId }) => {
   return (
     <>
       <Button
+        fontSize="lg"
         onClick={onClick}
         isLoading={isLoading}
         ml="5px"

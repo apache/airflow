@@ -111,6 +111,7 @@ const Run = ({
       </ButtonGroup>
       <Button
         colorScheme="blue"
+        fontSize="lg"
         onClick={onClick}
         isLoading={isLoading}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"

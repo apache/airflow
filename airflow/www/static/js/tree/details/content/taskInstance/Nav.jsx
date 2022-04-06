@@ -39,7 +39,7 @@ const taskUrl = getMetaValue('task_url');
 const gridUrl = getMetaValue('grid_url');
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const LinkButton = ({ children, ...rest }) => (<Button as={Link} fontSize="lg" variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
 const Nav = ({
   taskId, executionDate, operator, isMapped,

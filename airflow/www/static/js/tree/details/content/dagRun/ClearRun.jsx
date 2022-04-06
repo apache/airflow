@@ -50,7 +50,7 @@ const ClearRun = ({ dagId, runId }) => {
 
   return (
     <>
-      <Button onClick={onClick} isLoading={isLoading}>Clear existing tasks</Button>
+      <Button onClick={onClick} fontSize="lg" isLoading={isLoading}>Clear existing tasks</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

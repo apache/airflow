@@ -91,7 +91,7 @@ const Dag = () => {
 
   return (
     <>
-      <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
+      <Button as={Link} mb={2} fontSize="lg" variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
       {durations.length > 0 && (

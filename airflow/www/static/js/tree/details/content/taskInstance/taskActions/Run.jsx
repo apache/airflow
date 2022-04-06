@@ -52,7 +52,7 @@ const Run = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" fontSize="lg">
         <Button
           bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
@@ -75,7 +75,7 @@ const Run = ({
           Ignore Task Deps
         </Button>
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onClick} isLoading={isLoading}>
+      <Button fontSize="lg" colorScheme="blue" onClick={onClick} isLoading={isLoading}>
         Run
       </Button>
     </Flex>

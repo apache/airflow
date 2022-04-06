@@ -66,10 +66,10 @@ const DagRun = ({ runId }) => {
   const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);
 
   return (
-    <Box fontSize="12px" py="4px">
+    <Box py="4px">
       <Flex justifyContent="space-between" alignItems="center">
-        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
-        <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
+        <Button as={Link} fontSize="lg" variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
+        <Button as={Link} fontSize="lg" variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
           Graph
         </Button>
         <MarkFailedRun dagId={dagId} runId={runId} />
