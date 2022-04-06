@@ -75,7 +75,7 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_mapped_summary(parent_instance, task_instances):
+def get_mapped_summary(parent_instance, task_instances, camel_case=False):
     priority = [
         TaskInstanceState.FAILED,
         TaskInstanceState.UPSTREAM_FAILED,
@@ -113,6 +113,17 @@ def get_mapped_summary(parent_instance, task_instances):
         if parent_instance.prev_attempted_tries != 0
         else parent_instance.try_number
     )
+    if camel_case:
+        return {
+            'taskId': parent_instance.task_id,
+            'runId': parent_instance.run_id,
+            'state': group_state,
+            'startDate': group_start_date,
+            'endDate': group_end_date,
+            'mappedStates': mapped_states,
+            'tryNumber': try_count,
+        }
+
     return {
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
@@ -131,7 +142,9 @@ def encode_ti(
         return None
 
     if is_mapped:
-        return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
+        return get_mapped_summary(
+            task_instance, task_instances=get_mapped_instances(task_instance, session), camel_case=True
+        )
 
     try_count = (
         task_instance.prev_attempted_tries
@@ -139,14 +152,14 @@ def encode_ti(
         else task_instance.try_number
     )
     return {
-        'task_id': task_instance.task_id,
-        'run_id': task_instance.run_id,
-        'map_index': task_instance.map_index,
+        'taskId': task_instance.task_id,
+        'runId': task_instance.run_id,
+        'mapIndex': task_instance.map_index,
         'state': task_instance.state,
         'duration': task_instance.duration,
-        'start_date': datetime_to_string(task_instance.start_date),
-        'end_date': datetime_to_string(task_instance.end_date),
-        'try_number': try_count,
+        'startDate': datetime_to_string(task_instance.start_date),
+        'endDate': datetime_to_string(task_instance.end_date),
+        'tryNumber': try_count,
     }
 
 
@@ -155,15 +168,15 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         return None
 
     return {
-        'run_id': dag_run.run_id,
-        'start_date': datetime_to_string(dag_run.start_date),
-        'end_date': datetime_to_string(dag_run.end_date),
+        'runId': dag_run.run_id,
+        'startDate': datetime_to_string(dag_run.start_date),
+        'endDate': datetime_to_string(dag_run.end_date),
         'state': dag_run.state,
-        'execution_date': datetime_to_string(dag_run.execution_date),
-        'data_interval_start': datetime_to_string(dag_run.data_interval_start),
-        'data_interval_end': datetime_to_string(dag_run.data_interval_end),
-        'run_type': dag_run.run_type,
-        'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
+        'executionDate': datetime_to_string(dag_run.execution_date),
+        'dataIntervalStart': datetime_to_string(dag_run.data_interval_start),
+        'dataIntervalEnd': datetime_to_string(dag_run.data_interval_end),
+        'runType': dag_run.run_type,
+        'lastSchedulingDecision': datetime_to_string(dag_run.last_scheduling_decision),
     }
 
 

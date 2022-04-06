@@ -17,18 +17,5 @@
  * under the License.
  */
 
-import camelcaseKeys from 'camelcase-keys';
-
+// eslint-disable-next-line import/prefer-default-export
 export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
-
-export const formatData = (data, emptyData) => {
-  if (!data || !Object.keys(data).length) {
-    return emptyData;
-  }
-  let formattedData = data;
-  // Convert to json if needed
-  if (typeof data === 'string') formattedData = JSON.parse(data);
-  // change from pascal to camelcase
-  formattedData = camelcaseKeys(formattedData, { deep: true });
-  return formattedData;
-};

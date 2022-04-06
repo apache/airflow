@@ -243,8 +243,8 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
                 if ti.task_id == task_item_or_group.task_id
             ],
             'label': task_item_or_group.label,
-            'extra_links': task_item_or_group.extra_links,
-            'is_mapped': task_item_or_group.is_mapped,
+            'extraLinks': task_item_or_group.extra_links,
+            'isMapped': task_item_or_group.is_mapped,
         }
 
     # Task Group
@@ -276,12 +276,10 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
         child_instances = [item for sublist in child_instances for item in sublist]
 
         children_start_dates = [
-            item['start_date'] for item in child_instances if item['run_id'] == dag_run.run_id
+            item['startDate'] for item in child_instances if item['runId'] == dag_run.run_id
         ]
-        children_end_dates = [
-            item['end_date'] for item in child_instances if item['run_id'] == dag_run.run_id
-        ]
-        children_states = [item['state'] for item in child_instances if item['run_id'] == dag_run.run_id]
+        children_end_dates = [item['endDate'] for item in child_instances if item['runId'] == dag_run.run_id]
+        children_states = [item['state'] for item in child_instances if item['runId'] == dag_run.run_id]
 
         group_state = None
         for state in priority:
@@ -296,11 +294,11 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
         )
 
         return {
-            'task_id': task_group.group_id,
-            'run_id': dag_run.run_id,
+            'taskId': task_group.group_id,
+            'runId': dag_run.run_id,
             'state': group_state,
-            'start_date': group_start_date,
-            'end_date': group_end_date,
+            'startDate': group_start_date,
+            'endDate': group_end_date,
         }
 
     group_summaries = [get_summary(dr, children) for dr in dag_runs]
@@ -2556,7 +2554,7 @@ class Airflow(AirflowBaseView):
 
         data = {
             'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
-            'dag_runs': encoded_runs,
+            'dagRuns': encoded_runs,
         }
 
         # avoid spaces to reduce payload size
@@ -3426,7 +3424,7 @@ class Airflow(AirflowBaseView):
             tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
             data = {
                 'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
-                'dag_runs': encoded_runs,
+                'dagRuns': encoded_runs,
             }
 
         # avoid spaces to reduce payload size
