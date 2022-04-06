@@ -62,22 +62,26 @@ def get_package_setup_metadata_hash() -> str:
     except ImportError:
         from importlib_metadata import distribution  # type: ignore[no-redef]
 
-    prefix = "Setup hash: "
+    prefix = "Package config hash: "
 
     for line in distribution('apache-airflow-breeze').metadata.as_string().splitlines(keepends=False):
-        if line.startswith("Setup hash: "):
+        if line.startswith(prefix):
             return line[len(prefix) :]
     return "NOT FOUND"
 
 
 def get_sources_setup_metadata_hash(sources: Path) -> str:
-    the_hash = hashlib.new("blake2b")
-    the_hash.update((sources / "dev" / "breeze" / "setup.py").read_bytes())
-    the_hash.update((sources / "dev" / "breeze" / "setup.cfg").read_bytes())
-    return the_hash.hexdigest()
+    try:
+        the_hash = hashlib.new("blake2b")
+        the_hash.update((sources / "dev" / "breeze" / "setup.py").read_bytes())
+        the_hash.update((sources / "dev" / "breeze" / "setup.cfg").read_bytes())
+        the_hash.update((sources / "dev" / "breeze" / "pyproject.toml").read_bytes())
+        return the_hash.hexdigest()
+    except FileNotFoundError as e:
+        return f"Missing file {e.filename}"
 
 
-def get_installation_sources_setup_metadata_hash() -> str:
+def get_installation_sources_config_metadata_hash() -> str:
     """
     Retrieves hash of setup.py and setup.cfg files from the source of installation of Breeze.
 
@@ -105,7 +109,7 @@ def print_warning_if_setup_changed() -> bool:
     :return: True if warning was printed.
     """
     package_hash = get_package_setup_metadata_hash()
-    sources_hash = get_installation_sources_setup_metadata_hash()
+    sources_hash = get_installation_sources_config_metadata_hash()
     if sources_hash != package_hash:
         console.print(
             f"\n[bright_yellow]WARNING! Breeze dependencies changed since the installation![/]\n\n"

@@ -235,7 +235,7 @@ try:
             {
                 "name": "Setup autocomplete flags",
                 "options": [
-                    "--force§",
+                    "--force",
                 ],
             },
         ],
@@ -313,7 +313,7 @@ from airflow_breeze.utils.path_utils import (
     create_directories,
     find_airflow_sources_root_to_operate_on,
     get_installation_airflow_sources,
-    get_installation_sources_setup_metadata_hash,
+    get_installation_sources_config_metadata_hash,
     get_package_setup_metadata_hash,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
@@ -581,16 +581,14 @@ def version(verbose: bool):
     console.print(f"[bright_blue]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
     if verbose:
         console.print(
-            f"[bright_blue]Installation Airflow sources Breeze setup hash   : "
-            f"{get_installation_sources_setup_metadata_hash()}[/]"
+            f"[bright_blue]Installation sources config hash : "
+            f"{get_installation_sources_config_metadata_hash()}[/]"
         )
         console.print(
-            f"[bright_blue]Currently used Airflow sources Breeze setup hash : "
-            f"{get_used_sources_setup_metadata_hash()}[/]"
+            f"[bright_blue]Used sources config hash         : " f"{get_used_sources_setup_metadata_hash()}[/]"
         )
         console.print(
-            f"[bright_blue]Breeze installed package setup hash              : "
-            f"{(get_package_setup_metadata_hash())}[/]\n"
+            f"[bright_blue]Package config hash              : " f"{(get_package_setup_metadata_hash())}[/]\n"
         )
 
 

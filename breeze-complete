@@ -153,7 +153,7 @@ sort-spelling-wordlist
 stylelint
 trailing-whitespace
 ui-lint
-update-breeze-setup-hash
+update-breeze-config-hash
 update-breeze-file
 update-extras
 update-local-yml-file

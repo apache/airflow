@@ -37,10 +37,14 @@ def get_package_setup_metadata_hash() -> str:
     as insecure algorithm (in Python 3.9 and above we can use `usedforsecurity=False`
     to disable it, but for now it's better to use more secure algorithms.
     """
-    the_hash = hashlib.new("blake2b")
-    the_hash.update((BREEZE_SOURCES_ROOT / "setup.py").read_bytes())
-    the_hash.update((BREEZE_SOURCES_ROOT / "setup.cfg").read_bytes())
-    return the_hash.hexdigest()
+    try:
+        the_hash = hashlib.new("blake2b")
+        the_hash.update((BREEZE_SOURCES_ROOT / "setup.py").read_bytes())
+        the_hash.update((BREEZE_SOURCES_ROOT / "setup.cfg").read_bytes())
+        the_hash.update((BREEZE_SOURCES_ROOT / "pyproject.toml").read_bytes())
+        return the_hash.hexdigest()
+    except FileNotFoundError as e:
+        return f"Missing file {e.filename}"
 
 
 def process_breeze_readme():
@@ -48,8 +52,8 @@ def process_breeze_readme():
     lines = breeze_readme.read_text().splitlines(keepends=True)
     result_lines = []
     for line in lines:
-        if line.startswith("Setup hash:"):
-            line = f"Setup hash: {get_package_setup_metadata_hash()}\n"
+        if line.startswith("Package config hash:"):
+            line = f"Package config hash: {get_package_setup_metadata_hash()}\n"
         result_lines.append(line)
     breeze_readme.write_text("".join(result_lines))
 
