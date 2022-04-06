@@ -299,7 +299,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         provide a way to record an DAG node's all downstream nodes instead.
         """
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+        from airflow.utils.task_group import TaskGroup
 
         def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
             """Recursively walk children in a task group.
@@ -318,7 +318,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         for key, child in _walk_group(tg):
             if key == self.node_id:
                 continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+            if not isinstance(child, MappedOperator):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child

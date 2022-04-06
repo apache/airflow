@@ -981,3 +981,54 @@ def test_mapped_task_upstream_failed(dag_maker, session):
     tis, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
+
+
+def test_mapped_task_all_finish_before_downstream(dag_maker, session):
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return [1, 2]
+
+        @dag.task
+        def double(value):
+            return value * 2
+
+        @dag.task
+        def consumer(value):
+            nonlocal result
+            result = list(value)
+
+        consumer(value=double.expand(value=make_list()))
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _task_ids(tis):
+        return [ti.task_id for ti in tis]
+
+    # The first task is always make_list.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["make_list"]
+
+    # After make_list is run, double is expanded.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["double", "double"]
+
+    # Running just one of the mapped tis does not make downstream schedulable.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["double"]
+
+    # Downstream is schedulable after all mapped tis are run.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["consumer"]
+
+    # We should be able to get all values aggregated from mapped upstreams.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis == []
+    assert result == [2, 4]

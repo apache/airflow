@@ -681,25 +681,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    def __new__(
-        cls,
-        dag: Optional['DAG'] = None,
-        task_group: Optional["TaskGroup"] = None,
-        _airflow_from_mapped: bool = False,  # Whether called from a MappedOperator.
-        **kwargs,
-    ):
-        # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
-        # create mapped operators.
-        from airflow.models.dag import DagContext
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
-
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-
-        if not _airflow_from_mapped and isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs).expand()
-        return super().__new__(cls)
-
     def __init__(
         self,
         task_id: str,
@@ -837,7 +818,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
-        self.trigger_rule = trigger_rule
+        self.trigger_rule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.wait_for_downstream = wait_for_downstream
