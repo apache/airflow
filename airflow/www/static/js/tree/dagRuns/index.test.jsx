@@ -84,10 +84,10 @@ describe('Test DagRuns', () => {
   ];
 
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
-    global.treeData = JSON.stringify({
+    global.treeData = {
       groups: {},
       dagRuns,
-    });
+    };
     const { queryAllByTestId, getByText, queryByText } = render(
       <DagRuns />, { wrapper: Wrapper },
     );
@@ -100,7 +100,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Top date ticks appear when there are 4 or more runs', () => {
-    global.treeData = JSON.stringify({
+    global.treeData = {
       groups: {},
       dagRuns: [
         ...dagRuns,
@@ -125,7 +125,7 @@ describe('Test DagRuns', () => {
           endDate: '2021-11-09T00:22:18.607167+00:00',
         },
       ],
-    });
+    };
     const { getByText } = render(
       <DagRuns />, { wrapper: Wrapper },
     );

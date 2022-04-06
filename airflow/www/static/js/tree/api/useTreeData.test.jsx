@@ -26,17 +26,16 @@ import { AutoRefreshProvider } from '../context/autorefresh';
 
 const pendingTreeData = {
   groups: {},
-  dag_runs: [
+  dagRuns: [
     {
-      dag_id: 'example_python_operator',
-      run_id: 'manual__2021-11-08T21:14:17.170046+00:00',
-      start_date: null,
-      end_date: null,
+      dagId: 'example_python_operator',
+      runId: 'manual__2021-11-08T21:14:17.170046+00:00',
+      startDate: null,
+      endDate: null,
       state: 'queued',
-      execution_date: '2021-11-08T21:14:17.170046+00:00',
-      data_interval_start: '2021-11-08T21:14:17.170046+00:00',
-      data_interval_end: '2021-11-08T21:14:17.170046+00:00',
-      run_type: 'manual',
+      dataIntervalStart: '2021-11-08T21:14:17.170046+00:00',
+      dataIntervalEnd: '2021-11-08T21:14:17.170046+00:00',
+      runType: 'manual',
     },
   ],
 };
@@ -59,14 +58,13 @@ describe('Test useTreeData hook', () => {
   });
 
   test('data is valid camelcase json', () => {
-    global.treeData = JSON.stringify(pendingTreeData);
+    global.treeData = pendingTreeData;
 
     const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
     const { data } = result.current;
 
     expect(typeof data === 'object').toBe(true);
     expect(data.dagRuns).toBeDefined();
-    expect(data.dag_runs).toBeUndefined();
   });
 
   test('Can handle no treeData', () => {

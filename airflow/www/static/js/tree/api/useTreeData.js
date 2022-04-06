@@ -37,7 +37,7 @@ const useTreeData = () => {
     dagRuns: [],
     groups: {},
   };
-  const initialData = treeData || emptyData;
+  const initialData = treeData && treeData.groups && treeData.dagRuns ? treeData : emptyData;
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   return useQuery('treeData', async () => {
     try {
