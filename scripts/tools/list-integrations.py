@@ -15,15 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import argparse
-import inspect
-import os
-import pkgutil
-import sys
+import argparse, inspect, os, pkgutil, sys, airflow
 from glob import glob
 from importlib import import_module
-
-import airflow
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.secrets import BaseSecretsBackend
