@@ -157,19 +157,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 location_answer = jenkins_request_with_headers(
                     jenkins_server, Request(method='POST', url=location)
                 )
-                if location_answer is not None:
-                    json_response = json.loads(location_answer['body'])
-                    if (
-                        'executable' in json_response
-                        and json_response['executable'] is not None
-                        and 'number' in json_response['executable']
-                    ):
-                        build_number = json_response['executable']['number']
-                        self.log.info('Job executed on Jenkins side with the build number %s', build_number)
-                        return build_number
-                try_count += 1
-                time.sleep(self.sleep_time)
-
             # we don't want to fail the operator, this will continue to poll
             # until max_try_before_job_appears reached
             except (HTTPError, JenkinsException) as ex:
@@ -177,6 +164,20 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 try_count += 1
                 time.sleep(self.sleep_time)
                 continue
+
+            if location_answer is not None:
+                json_response = json.loads(location_answer['body'])
+                if (
+                    'executable' in json_response
+                    and json_response['executable'] is not None
+                    and 'number' in json_response['executable']
+                ):
+                    build_number = json_response['executable']['number']
+                    self.log.info('Job executed on Jenkins side with the build number %s', build_number)
+                    return build_number
+            try_count += 1
+            time.sleep(self.sleep_time)
+
         raise AirflowException(
             "The job hasn't been executed after polling " f"the queue {self.max_try_before_job_appears} times"
         )
