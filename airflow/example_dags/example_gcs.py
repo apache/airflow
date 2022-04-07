@@ -36,16 +36,14 @@ BUCKET_FILE_LOCATION = "example_test.txt"
 # This is the upload file name prefix the sensor will be waiting for.
 PATH_TO_UPLOAD_FILE_PREFIX = "example_"
 
-DEFAULT_ARGS = {
-    "execution_timeout": timedelta(minutes=30),
-}
-
 with DAG(
     "example_gcs_sensors",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_interval=None,
     catchup=False,
-    default_args=DEFAULT_ARGS,
+    default_args={
+        "execution_timeout": timedelta(minutes=30),
+    },
     tags=["example", "gcs"],
 ) as dag:
 
