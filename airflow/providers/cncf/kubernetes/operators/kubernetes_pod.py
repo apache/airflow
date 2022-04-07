@@ -46,7 +46,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
 
 if sys.version_info >= (3, 8):
@@ -545,7 +545,7 @@ class KubernetesPodOperator(BaseOperator):
         one in a dry_run) and excludes all empty elements.
         """
         pod = self.build_pod_request_obj()
-        print(yaml.dump(_prune_dict(pod.to_dict(), mode='strict')))
+        print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
 
 
 class _suppress(AbstractContextManager):
@@ -571,53 +571,3 @@ class _suppress(AbstractContextManager):
             logger = logging.getLogger()
             logger.error(str(excinst), exc_info=True)
         return caught_error
-
-
-def _prune_dict(val: Any, mode='strict'):
-    """
-    Note: this is duplicated from ``airflow.utils.helpers.prune_dict``.  That one should
-    be the one used if possible, but this one is included to avoid having to
-    bump min airflow version.  This function will be removed once the min airflow version
-    is bumped to 2.3.
-
-    Given dict ``val``, returns new dict based on ``val`` with all
-    empty elements removed.
-
-    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
-    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
-    will be removed if ``bool(x) is False``.
-    """
-
-    def is_empty(x):
-        if mode == 'strict':
-            return x is None
-        elif mode == 'truthy':
-            return bool(x) is False
-        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
-
-    if isinstance(val, dict):
-        new_dict = {}
-        for k, v in val.items():
-            if is_empty(v):
-                continue
-            elif isinstance(v, (list, dict)):
-                new_val = _prune_dict(v, mode=mode)
-                if new_val:
-                    new_dict[k] = new_val
-            else:
-                new_dict[k] = v
-        return new_dict
-    elif isinstance(val, list):
-        new_list = []
-        for v in val:
-            if is_empty(v):
-                continue
-            elif isinstance(v, (list, dict)):
-                new_val = _prune_dict(v, mode=mode)
-                if new_val:
-                    new_list.append(new_val)
-            else:
-                new_list.append(v)
-        return new_list
-    else:
-        return val
