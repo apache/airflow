@@ -116,21 +116,20 @@ class ExternalTaskSensor(BaseSensorOperator):
                 'be provided to ExternalTaskSensor; not both.'
             )
 
-        if external_task_id is not None:
-            external_task_ids = [external_task_id]
+        has_invalid_state = not (total_states <= set(State.task_states))
 
-        if external_task_ids:
-            if not total_states <= set(State.task_states):
-                raise ValueError(
-                    f'Valid values for `allowed_states` and `failed_states` '
-                    f'when `external_task_id` or `external_task_ids` is not `None`: {State.task_states}'
-                )
-            if len(external_task_ids) > len(set(external_task_ids)):
-                raise ValueError('Duplicate task_ids passed in external_task_ids parameter')
-        elif not total_states <= set(State.dag_states):
+        if (external_task_ids or external_task_id) and has_invalid_state:
             raise ValueError(
                 f'Valid values for `allowed_states` and `failed_states` '
-                f'when `external_task_id` is `None`: {State.dag_states}'
+                f'when `external_task_id` or `external_task_ids` is not `None`: {State.task_states}'
+            )
+        elif external_task_ids:
+            if len(external_task_ids) > len(set(external_task_ids)):
+                raise ValueError('Duplicate task_ids passed in external_task_ids parameter')
+        elif has_invalid_state:
+            raise ValueError(
+                f'Valid values for `allowed_states` and `failed_states` '
+                f'when `external_task_id` is `None`: {State.task_states}'
             )
 
         if execution_delta is not None and execution_date_fn is not None:
@@ -158,6 +157,9 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         dttm_filter = dttm if isinstance(dttm, list) else [dttm]
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
+
+        if self.external_task_ids is None and self.external_task_id is not None:
+            self.external_task_ids = [self.external_task_id]
 
         self.log.info(
             'Poking for tasks %s in dag %s on %s ... ',
