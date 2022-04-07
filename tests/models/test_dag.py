@@ -51,6 +51,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
+from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
@@ -472,6 +473,19 @@ class TestDag(unittest.TestCase):
         dag = DAG("test-dag", template_undefined=jinja2.Undefined)
         jinja_env = dag.get_template_env()
         assert jinja_env.undefined is jinja2.Undefined
+
+    @parameterized.expand(
+        [
+            (False, True, SandboxedEnvironment),
+            (False, False, SandboxedEnvironment),
+            (True, False, NativeEnvironment),
+            (True, True, SandboxedEnvironment),
+        ],
+    )
+    def test_template_env(self, use_native_obj, force_sandboxed, expected_env):
+        dag = DAG("test-dag", render_template_as_native_obj=use_native_obj)
+        jinja_env = dag.get_template_env(force_sandboxed=force_sandboxed)
+        assert isinstance(jinja_env, expected_env)
 
     def test_resolve_template_files_value(self):
 

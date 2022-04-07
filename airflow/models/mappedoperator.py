@@ -44,7 +44,7 @@ import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
-from airflow.compat.functools import cache
+from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
@@ -83,7 +83,10 @@ if TYPE_CHECKING:
     # any mapping since we need the value to be ordered).
     Mappable = Union[XComArg, Sequence, dict]
 
-ValidationSource = Union[Literal["map"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["partial"]]
+
+
+MAPPABLE_LITERAL_TYPES = (dict, list)
 
 
 # For isinstance() check.
@@ -91,7 +94,7 @@ ValidationSource = Union[Literal["map"], Literal["partial"]]
 def get_mappable_types() -> Tuple[type, ...]:
     from airflow.models.xcom_arg import XComArg
 
-    return (XComArg, dict, list)
+    return (XComArg,) + MAPPABLE_LITERAL_TYPES
 
 
 def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, value: Dict[str, Any]) -> None:
@@ -682,3 +685,20 @@ class MappedOperator(AbstractOperator):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
+
+    @cached_property
+    def parse_time_mapped_ti_count(self) -> Optional[int]:
+        """
+        Number of mapped TaskInstances that can be created at DagRun create time.
+
+        :return: None if non-literal mapped arg encountered, or else total number of mapped TIs this task
+            should have
+        """
+        total = 0
+
+        for value in self._get_expansion_kwargs().values():
+            if not isinstance(value, MAPPABLE_LITERAL_TYPES):
+                # None literal type encountered, so give up
+                return None
+            total += len(value)
+        return total
