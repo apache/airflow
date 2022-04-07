@@ -70,6 +70,16 @@
             "default": "2.3.1",
             "x-docsSection": "Common"
         },
+        "airflowDigestVersion": {
+            "description": "Digest of the image, Only if you want to do version pinning",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Common"
+
+        },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",

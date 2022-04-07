@@ -48,6 +48,8 @@ defaultAirflowRepository: apache/airflow
 # Default airflow tag to deploy
 defaultAirflowTag: "2.3.1"
 
+airflowDigestVersion: ~
+
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 airflowVersion: "2.3.1"
 

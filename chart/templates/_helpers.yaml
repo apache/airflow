@@ -247,11 +247,20 @@ If release name contains chart name it will be used as a full name.
 
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
+{{- if .Values.airflowDigestVersion -}}
+{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- else -}}
 {{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+{{- end }}
 {{- end }}
 
 {{ define "pod_template_image" -}}
+{{- if .Values.airflowDigestVersion -}}
+{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- else -}}
+# This helper will change when customers deploy a new image.
 {{ printf "%s:%s" (.Values.images.pod_template.repository | default .Values.defaultAirflowRepository) (.Values.images.pod_template.tag | default .Values.defaultAirflowTag) }}
+{{- end }}
 {{- end }}
 
 # This helper is used for airflow containers that do not need the users code.
@@ -267,8 +276,13 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 {{- end }}
 
+
 {{ define "flower_image" -}}
+{{- if .Values.airflowDigestVersion -}}
+{{ printf "%s@%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- else -}}
 {{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
+{{- end }}
 {{- end }}
 
 {{ define "statsd_image" -}}
