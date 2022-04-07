@@ -24,7 +24,6 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -79,14 +78,14 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    chain(
+    (
         # TEST SETUP
-        create_bucket,
-        upload_file,
+        create_bucket
+        >> upload_file
         # TEST BODY
-        transform_file,
+        >> transform_file
         # TEST TEARDOWN
-        delete_bucket,
+        >> delete_bucket
     )
 
     from tests.system.utils.watcher import watcher
