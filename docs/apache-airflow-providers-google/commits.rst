@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.8.0
+.....
+
+Latest change: 2022-04-06
+
+=================================================================================================  ===========  ===============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================================================
+`838cf401b9 <https://github.com/apache/airflow/commit/838cf401b9a424ad0fbccd5fb8d3040a8f4a7f44>`_  2022-04-06   ``Fail ''LocalFilesystemToGCSOperator'' if src does not exist (#22772)``
+`99b0211d50 <https://github.com/apache/airflow/commit/99b0211d5087cf486415b5fc8399d3f15d84ed69>`_  2022-04-04   ``Modify transfer operators to handle more data (#22495)``
+`f9e18472c0 <https://github.com/apache/airflow/commit/f9e18472c0c228fc3de7c883c7c3d26d7ee49e81>`_  2022-04-04   ``Add autodetect arg in BQCreateExternalTable Operator (#22710)``
+`327eab3e26 <https://github.com/apache/airflow/commit/327eab3e26a3fb3e40a995facebb512cebb0fec2>`_  2022-03-31   ``Add links for BigQuery Data Transfer (#22280)``
+`02976bef88 <https://github.com/apache/airflow/commit/02976bef885a5da29a8be59b32af51edbf94466c>`_  2022-03-27   ``Refactor: BigQuery to GCS Operator (#22506)``
+`719135ade0 <https://github.com/apache/airflow/commit/719135ade06f4a7017d68dafbd79662a1c1d2948>`_  2022-03-27   ``Remove references to deprecated operators/params in PubSub operators (#22519)``
+`ca4b8d1744 <https://github.com/apache/airflow/commit/ca4b8d1744cd1de9b6af97dacb0e03de0f014006>`_  2022-03-27   ``Create Endpoint and Model Service, Batch Prediction and Hyperparameter Tuning Jobs operators for Vertex AI service (#22088)``
+`388723950d <https://github.com/apache/airflow/commit/388723950de9ca519108e0a8f6818f0fc0dd91d4>`_  2022-03-27   ``PostgresToGoogleCloudStorageOperator - BigQuery schema type for time zone naive fields (#22536)``
+`c063fc688c <https://github.com/apache/airflow/commit/c063fc688cf20c37ed830de5e3dac4a664fd8241>`_  2022-03-25   ``Update black precommit (#22521)``
+`3c7cd47319 <https://github.com/apache/airflow/commit/3c7cd4731937652271fc1180a74e9a3af3dd211d>`_  2022-03-25   ``New design of system tests (#22311)``
+`7ab45d41d6 <https://github.com/apache/airflow/commit/7ab45d41d6c4de322dc8afe8a74b712d0bae4ee7>`_  2022-03-24   ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+`d231e9b448 <https://github.com/apache/airflow/commit/d231e9b448d76cd35fd6b6d04305b86a5c5ad94e>`_  2022-03-24   ``Remove coerce_datetime usage from GCSTimeSpanFileTransformOperator (#22501)``
+`82a26c0591 <https://github.com/apache/airflow/commit/82a26c05913ef1ac323270363e1cd6d15ee651d2>`_  2022-03-24   ``Fix the docstrings (#22497)``
+`38fde2ea79 <https://github.com/apache/airflow/commit/38fde2ea795f69ebd5f4ecc5668e162ce4694ac4>`_  2022-03-23   ``Fix 'download_media' url in 'GoogleDisplayVideo360SDFtoGCSOperator' (#22479)``
+`0f0a1a7d22 <https://github.com/apache/airflow/commit/0f0a1a7d22dffab4487c35d3598b3b6aaf24c4c6>`_  2022-03-23   ``Fix to 'CloudBuildRunBuildTriggerOperator' fails to find build id. (#22419)``
+=================================================================================================  ===========  ===============================================================================================================================
+
 6.7.0
 .....
 
-Latest change: 2022-03-21
+Latest change: 2022-03-22
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
 `7b851edc91 <https://github.com/apache/airflow/commit/7b851edc916281bb5d3a8358c46b013d6cae84b2>`_  2022-03-21   ``Add 'LocalFilesystemToGoogleDriveOperator' (#22219)``
 `14e6b657c2 <https://github.com/apache/airflow/commit/14e6b657c26df6aa3844c4f4531c623cddd143d7>`_  2022-03-21   ``Add timeout and retry to the BigQueryInsertJobOperator (#22395)``
 `a3ffbee7c9 <https://github.com/apache/airflow/commit/a3ffbee7c9b5cd8cc5b7b246116f0254f1daa505>`_  2022-03-20   ``Fix skipping non-GCS located jars (#22302)``

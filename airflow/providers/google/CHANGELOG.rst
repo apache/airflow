@@ -18,6 +18,40 @@
 Changelog
 ---------
 
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add autodetect arg in BQCreateExternalTable Operator (#22710)``
+* ``Add links for BigQuery Data Transfer (#22280)``
+* ``Modify transfer operators to handle more data (#22495)``
+* ``Create Endpoint and Model Service, Batch Prediction and Hyperparameter Tuning Jobs operators for Vertex AI service (#22088)``
+* ``PostgresToGoogleCloudStorageOperator - BigQuery schema type for time zone naive fields (#22536)``
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the docstrings (#22497)``
+* ``Fix 'download_media' url in 'GoogleDisplayVideo360SDFtoGCSOperator' (#22479)``
+* ``Fix to 'CloudBuildRunBuildTriggerOperator' fails to find build id. (#22419)``
+* ``Fail ''LocalFilesystemToGCSOperator'' if src does not exist (#22772)``
+* ``Remove coerce_datetime usage from GCSTimeSpanFileTransformOperator (#22501)``
+
+Misc
+~~~~
+
+* ``Refactor: BigQuery to GCS Operator (#22506)``
+* ``Remove references to deprecated operators/params in PubSub operators (#22519)``
+* ``New design of system tests (#22311)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
 6.7.0
 .....
 

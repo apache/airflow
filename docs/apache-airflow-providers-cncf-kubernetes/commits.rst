@@ -28,6 +28,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2022-03-29
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`67e2723b73 <https://github.com/apache/airflow/commit/67e2723b7364ce1f73aee801522693d12d615310>`_  2022-03-29   ``Log traceback only on ''DEBUG'' for KPO logs read interruption (#22595)``
+`6db30f3207 <https://github.com/apache/airflow/commit/6db30f32074e4ef50993628e810781cd704d4ddd>`_  2022-03-29   ``Update our approach for executor-bound dependencies (#22573)``
+`0d64d66cea <https://github.com/apache/airflow/commit/0d64d66ceab1c5da09b56bae5da339e2f608a2c4>`_  2022-03-28   ``Stop crashing when empty logs are received from kubernetes client (#22566)``
+`0a99be7411 <https://github.com/apache/airflow/commit/0a99be741108470608a81964007aaf0a83f66a9f>`_  2022-03-22   ``Optionally not follow logs in KPO pod_manager (#22412)``
+=================================================================================================  ===========  ==============================================================================
+
 3.1.2
 .....
 
@@ -36,6 +50,7 @@ Latest change: 2022-03-22
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
 `0f977daa3c <https://github.com/apache/airflow/commit/0f977daa3cb0b7e08a33eb86c60220ee53089ece>`_  2022-03-22   ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
 `7bd165fbe2 <https://github.com/apache/airflow/commit/7bd165fbe2cbbfa8208803ec352c5d16ca2bd3ec>`_  2022-03-16   ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
 =================================================================================================  ===========  ==============================================================================
