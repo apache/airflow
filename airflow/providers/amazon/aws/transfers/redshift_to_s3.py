@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -93,7 +93,7 @@ class RedshiftToS3Operator(BaseOperator):
         unload_options: Optional[List] = None,
         autocommit: bool = False,
         include_header: bool = False,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Sequence[Any], Dict[Any, Any]]] = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
         **kwargs,
     ) -> None:
