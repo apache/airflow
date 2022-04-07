@@ -278,6 +278,13 @@ class MappedOperator(AbstractOperator):
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
+        (
+            'parse_time_mapped_ti_count',
+            'operator_class',
+        )
+    )
+
     def __repr__(self):
         return f"<Mapped({self._task_type}): {self.task_id}>"
 
