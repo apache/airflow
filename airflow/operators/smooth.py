@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.operators.dummy import DummyOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.context import Context
 
 
-class SmoothOperator(DummyOperator):
+class SmoothOperator(BaseOperator):
     """
     Operator that does literally nothing but it logs YouTube link to
     Sade song "Smooth Operator".
@@ -28,7 +28,7 @@ class SmoothOperator(DummyOperator):
     """
 
     ui_color = '#e8f7e4'
-    inherits_from_dummy_operator = True
+    inherits_from_dummy_operator = False
     yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
 
     def __init__(self, **kwargs) -> None:

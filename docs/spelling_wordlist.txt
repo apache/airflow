@@ -329,6 +329,7 @@ SIGTERM
 SSHClient
 SSHTunnelForwarder
 SaaS
+Sade
 Sagemaker
 Sasl
 SearchResultGenerator
