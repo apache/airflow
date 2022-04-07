@@ -1459,13 +1459,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     is_mapped: ClassVar[bool] = False
 
     @property
-    def inherits_from_dummy_operator(self):
-        # TODO: remove this function when DumpyOperator is removed
-        is_dummy_val = getattr(self, '_is_dummy', False)
-        setattr(self, '_is_empty', is_dummy_val)
-        return self.inherits_from_empty_operator()
-
-    @property
     def inherits_from_empty_operator(self):
         """Used to determine if an Operator is inherited from EmptyOperator"""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also

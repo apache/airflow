@@ -629,8 +629,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
 
         # Used to determine if an Operator is inherited from EmptyOperator
-        if op.inherits_from_dummy_operator:
-            serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
         serialize_op['_is_empty'] = op.inherits_from_empty_operator
 
         if op.operator_extra_links:
@@ -714,6 +712,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
+            if k == "_is_dummy":
+                k = "is_empty"
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
