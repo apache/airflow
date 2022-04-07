@@ -159,8 +159,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 )
             # we don't want to fail the operator, this will continue to poll
             # until max_try_before_job_appears reached
-            except (HTTPError, JenkinsException) as ex:
-                self.log.info(f'polling failed, retry polling. Failure reason: {ex}')
+            except (HTTPError, JenkinsException):
+                self.log.warning('polling failed, retrying', exc_info=True)
                 try_count += 1
                 time.sleep(self.sleep_time)
                 continue
@@ -179,7 +179,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             time.sleep(self.sleep_time)
 
         raise AirflowException(
-            "The job hasn't been executed after polling " f"the queue {self.max_try_before_job_appears} times"
+            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
         )
 
     def get_hook(self) -> JenkinsHook:
