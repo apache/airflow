@@ -113,6 +113,21 @@ CONFIG = {
     ],
     "endpoint_config": {},
 }
+VIRTUAL_CLUSTER_CONFIG = {
+    "kubernetes_cluster_config": {
+        "gke_cluster_config": {
+            "gke_cluster_target": "projects/project_id/locations/region/clusters/gke_cluster_name",
+            "node_pool_target": [
+                {
+                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",  # noqa
+                    "roles": ["DEFAULT"],
+                }
+            ],
+        },
+        "kubernetes_software_config": {"component_version": {"SPARK": b'3'}},
+    },
+    "staging_bucket": "test-staging-bucket",
+}
 
 CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
     "gce_cluster_config": {
@@ -424,6 +439,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             'metadata': METADATA,
             'cluster_config': CONFIG,
             'labels': LABELS,
+            'run_in_gke_cluster': False,
+            'virtual_cluster_config': None,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().create_cluster(**create_cluster_args),
@@ -436,6 +453,57 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
             cluster_config=CONFIG,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
+
+        # Test whether xcom push occurs before create cluster is called
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
+        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_in_gke(self, mock_hook, to_dict_mock):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.create_cluster.result.return_value = None
+        create_cluster_args = {
+            'region': GCP_LOCATION,
+            'project_id': GCP_PROJECT,
+            'cluster_name': CLUSTER_NAME,
+            'request_id': REQUEST_ID,
+            'retry': RETRY,
+            'timeout': TIMEOUT,
+            'metadata': METADATA,
+            'cluster_config': None,
+            'labels': LABELS,
+            'run_in_gke_cluster': True,
+            'virtual_cluster_config': VIRTUAL_CLUSTER_CONFIG,
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().create_cluster(**create_cluster_args),
+        ]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            run_in_gke_cluster=True,
+            virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
             request_id=REQUEST_ID,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
@@ -488,6 +556,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            run_in_gke_cluster=False,
+            virtual_cluster_config=None,
         )
         mock_hook.return_value.get_cluster.assert_called_once_with(
             region=GCP_LOCATION,
