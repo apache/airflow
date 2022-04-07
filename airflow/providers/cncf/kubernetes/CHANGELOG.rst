@@ -19,6 +19,34 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The provider in version 4.0.0 only works with Airflow 2.3+. Please upgrade
+Airflow to 2.3 version if you want to use the features or fixes in 4.* line
+of the provider.
+
+The main reason for the incompatibility is using latest Kubernetes Libraries.
+The ``cncf.kubernetes`` provider requires newer version of libraries than
+Airflow 2.1 and 2.2 used for Kubernetes Executor and that makes the provider
+incompatible with those Airflow versions.
+
+Features
+~~~~~~~~
+
+* ``Log traceback only on ''DEBUG'' for KPO logs read interruption (#22595)``
+* ``Update our approach for executor-bound dependencies (#22573)``
+* ``Optionally not follow logs in KPO pod_manager (#22412)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop crashing when empty logs are received from kubernetes client (#22566)``
+
 3.1.2
 .....
 

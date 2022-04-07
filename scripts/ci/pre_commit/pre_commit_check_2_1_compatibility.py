@@ -72,6 +72,14 @@ def _check_file(_file: Path):
                 f"[yellow]You should not use coerce_datetime in providers "
                 f"as it is not available in Airflow 2.1[/]"
             )
+        if "ti.map_index" in line:
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                f"(Airflow 2.3+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                f"[yellow]You should not use map_index field in providers "
+                f"as it is not available in Airflow 2.2[/]"
+            )
 
 
 if __name__ == '__main__':

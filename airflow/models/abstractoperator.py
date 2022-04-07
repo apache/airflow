@@ -18,7 +18,21 @@
 
 import datetime
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Type,
+    Union,
+)
 
 from sqlalchemy.orm import Session
 
@@ -82,6 +96,25 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     owner: str
     task_id: str
+
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
+        (
+            'log',
+            'dag',  # We show dag_id, don't need to show this too
+            'node_id',  # Duplicates task_id
+            'task_group',  # Doesn't have a useful repr, no point showing in UI
+            'inherits_from_dummy_operator',  # impl detail
+            # For compatibility with TG, for operators these are just the current task, no point showing
+            'roots',
+            'leaves',
+            # These lists are already shown via *_task_ids
+            'upstream_list',
+            'downstream_list',
+            # Not useful, implementation detail, already shown elsewhere
+            'global_operator_extra_link_dict',
+            'operator_extra_link_dict',
+        )
+    )
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
