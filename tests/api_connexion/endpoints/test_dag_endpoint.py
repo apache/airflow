@@ -287,18 +287,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
-            'edge_info': {},
-            "default_args": {},
             "end_date": None,
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
             'last_loaded': last_loaded,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         assert response.json == expected
 
@@ -336,18 +328,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
-            "default_args": {},
             "end_date": None,
-            'edge_info': {},
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
             'last_loaded': last_loaded,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         assert response.json == expected
 
@@ -385,18 +369,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
-            "default_args": {},
-            'edge_info': {},
             "end_date": None,
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
             'last_loaded': last_loaded,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         assert response.json == expected
 
@@ -444,17 +420,9 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
-            'edge_info': {},
-            "default_args": {},
             "end_date": None,
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
@@ -501,17 +469,9 @@ class TestGetDagDetails(TestDagEndpoint):
             'timezone': "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
-            'edge_info': {},
-            "default_args": {},
             "end_date": None,
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         expected.update({'last_loaded': response.json['last_loaded']})
         assert response.json == expected

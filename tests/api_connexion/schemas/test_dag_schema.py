@@ -191,17 +191,9 @@ class TestDAGDetailSchema:
             'timezone': "Timezone('UTC')",
             'max_active_runs': 16,
             'pickle_id': None,
-            'edge_info': {},
-            "default_args": {},
             "end_date": None,
-            'has_on_failure_callback': False,
-            'has_on_success_callback': False,
             'is_paused_upon_creation': None,
-            'jinja_environment_kwargs': None,
-            'partial': False,
             'render_template_as_native_obj': False,
-            'user_defined_macros': None,
-            'user_defined_filters': None,
         }
         obj = schema.dump(dag)
         expected.update({'last_loaded': obj['last_loaded']})
