@@ -63,9 +63,6 @@ const dateFormat = 'YYYY-MM-DD';
 document.addEventListener('DOMContentLoaded', () => {
   $('span.status_square').tooltip({ html: true });
 
-  // JSON.parse is faster for large payloads than an object literal
-  const rootData = JSON.parse(calendarData);
-
   const dayTip = d3.tip()
     .attr('class', 'tooltip d3-tip')
     .html((toolTipHtml) => toolTipHtml);
@@ -93,12 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .key((dr) => moment.utc(dr.date, dateFormat).month())
       .key((dr) => moment.utc(dr.date, dateFormat).date())
       .key((dr) => dr.state)
-      .map(rootData.dag_states);
+      .map(calendarData.dag_states);
 
     // Make sure we have one year displayed for each year between the start and end dates.
     // This also ensures we do not have show an empty calendar view when no dag runs exist.
-    const startYear = moment.utc(rootData.start_date, dateFormat).year();
-    const endYear = moment.utc(rootData.end_date, dateFormat).year();
+    const startYear = moment.utc(calendarData.start_date, dateFormat).year();
+    const endYear = moment.utc(calendarData.end_date, dateFormat).year();
     for (let y = startYear; y <= endYear; y += 1) {
       dagStates[y] = dagStates[y] || {};
     }

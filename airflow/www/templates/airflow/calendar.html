@@ -51,6 +51,6 @@
       statesColors["{{state}}"] = "{{state_color_mapping[state]}}";
     {% endfor %}
 
-    const calendarData = {{ data|tojson }};
+    const calendarData = {{ data }};
   </script>
 {% endblock %}
