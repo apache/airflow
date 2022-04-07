@@ -1317,9 +1317,10 @@ class TestTaskInstance:
 
         assert params["override"] is False
 
+    @pytest.mark.parametrize("use_native_obj", [True, False])
     @patch('airflow.models.taskinstance.send_email')
-    def test_email_alert(self, mock_send_email, dag_maker):
-        with dag_maker(dag_id='test_failure_email'):
+    def test_email_alert(self, mock_send_email, dag_maker, use_native_obj):
+        with dag_maker(dag_id='test_failure_email', render_template_as_native_obj=use_native_obj):
             task = BashOperator(task_id='test_email_alert', bash_command='exit 1', email='to')
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task

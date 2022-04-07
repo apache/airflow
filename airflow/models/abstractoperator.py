@@ -115,7 +115,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         dag = self.get_dag()
         if dag:
-            return dag.get_template_env()
+            return dag.get_template_env(force_sandboxed=False)
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:
