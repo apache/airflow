@@ -342,7 +342,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 class S3PrefixSensor(S3KeySensor):
     """
     This class is deprecated.
-    Please use `airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
+    Please use :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
     """
 
     template_fields: Sequence[str] = ('prefix', 'bucket_name')
