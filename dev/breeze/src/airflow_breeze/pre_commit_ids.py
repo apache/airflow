@@ -93,6 +93,7 @@ PRE_COMMIT_LIST = [
     'stylelint',
     'trailing-whitespace',
     'ui-lint',
+    'update-breeze-config-hash',
     'update-breeze-file',
     'update-extras',
     'update-local-yml-file',

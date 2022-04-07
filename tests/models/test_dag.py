@@ -51,6 +51,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
+from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
@@ -254,69 +255,6 @@ class TestDag(unittest.TestCase):
         assert self._occur_before('child_dag', 'b_child', topological_list)
         assert self._occur_before('a_child', 'b_parent', topological_list)
         assert self._occur_before('b_child', 'b_parent', topological_list)
-
-    def test_dag_topological_sort1(self):
-        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
-
-        # A -> B
-        # A -> C -> D
-        # ordered: B, D, C, A or D, B, C, A or D, C, B, A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op1.set_upstream([op2, op3])
-            op3.set_upstream(op4)
-
-        topological_list = dag.topological_sort()
-        logging.info(topological_list)
-
-        tasks = [op2, op3, op4]
-        assert topological_list[0] in tasks
-        tasks.remove(topological_list[0])
-        assert topological_list[1] in tasks
-        tasks.remove(topological_list[1])
-        assert topological_list[2] in tasks
-        tasks.remove(topological_list[2])
-        assert topological_list[3] == op1
-
-    def test_dag_topological_sort2(self):
-        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
-
-        # C -> (A u B) -> D
-        # C -> E
-        # ordered: E | D, A | B, C
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op3)
-            op2.set_downstream(op3)
-            op1.set_upstream(op4)
-            op2.set_upstream(op4)
-            op5.set_downstream(op3)
-
-        topological_list = dag.topological_sort()
-        logging.info(topological_list)
-
-        set1 = [op4, op5]
-        assert topological_list[0] in set1
-        set1.remove(topological_list[0])
-
-        set2 = [op1, op2]
-        set2.extend(set1)
-        assert topological_list[1] in set2
-        set2.remove(topological_list[1])
-
-        assert topological_list[2] in set2
-        set2.remove(topological_list[2])
-
-        assert topological_list[3] in set2
-
-        assert topological_list[4] == op3
 
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
@@ -535,6 +473,19 @@ class TestDag(unittest.TestCase):
         dag = DAG("test-dag", template_undefined=jinja2.Undefined)
         jinja_env = dag.get_template_env()
         assert jinja_env.undefined is jinja2.Undefined
+
+    @parameterized.expand(
+        [
+            (False, True, SandboxedEnvironment),
+            (False, False, SandboxedEnvironment),
+            (True, False, NativeEnvironment),
+            (True, True, SandboxedEnvironment),
+        ],
+    )
+    def test_template_env(self, use_native_obj, force_sandboxed, expected_env):
+        dag = DAG("test-dag", render_template_as_native_obj=use_native_obj)
+        jinja_env = dag.get_template_env(force_sandboxed=force_sandboxed)
+        assert isinstance(jinja_env, expected_env)
 
     def test_resolve_template_files_value(self):
 

@@ -52,13 +52,13 @@ def pull_push_all_images(
     target_branch: str,
     target_repo: str,
 ):
-    for python_version in PYTHON_VERSIONS:
+    for python in PYTHON_VERSIONS:
         for image in images:
             source_image = image.format(
-                prefix=source_prefix, branch=source_branch, repo=source_repo, python_version=python_version
+                prefix=source_prefix, branch=source_branch, repo=source_repo, python=python
             )
             target_image = image.format(
-                prefix=target_prefix, branch=target_branch, repo=target_repo, python_version=python_version
+                prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
             )
             print(f"Copying image: {source_image} -> {target_image}")
             subprocess.run(["docker", "pull", source_image], check=True)

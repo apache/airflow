@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Global constants that are used by all other Breeze components.
+"""
 import os
-from pathlib import Path
 from typing import List
 
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 # Commented this out as we are using buildkit and this vars became irrelevant
 # FORCE_PULL_IMAGES = False
@@ -34,88 +36,6 @@ DEFAULT_BACKEND = 'sqlite'
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
-ALLOWED_STATIC_CHECKS = [
-    "all",
-    "airflow-config-yaml",
-    "airflow-providers-available",
-    "airflow-provider-yaml-files-ok",
-    "base-operator",
-    "black",
-    "blacken-docs",
-    "boring-cyborg",
-    "build-providers-dependencies",
-    "chart-schema-lint",
-    "capitalized-breeze",
-    "changelog-duplicates",
-    "check-apache-license",
-    "check-builtin-literals",
-    "check-executables-have-shebangs",
-    "check-extras-order",
-    "check-hooks-apply",
-    "check-integrations",
-    "check-merge-conflict",
-    "check-xml",
-    "check-system-tests",
-    "daysago-import-check",
-    "debug-statements",
-    "detect-private-key",
-    "doctoc",
-    "dont-use-safe-filter",
-    "end-of-file-fixer",
-    "fix-encoding-pragma",
-    "flake8",
-    "flynt",
-    "codespell",
-    "forbid-tabs",
-    "helm-lint",
-    "identity",
-    "incorrect-use-of-LoggingMixin",
-    "insert-license",
-    "isort",
-    "json-schema",
-    "language-matters",
-    "lint-dockerfile",
-    "lint-openapi",
-    "markdownlint",
-    "mermaid",
-    "mixed-line-ending",
-    "mypy",
-    "mypy-helm",
-    "no-providers-in-core-examples",
-    "no-relative-imports",
-    "pre-commit-descriptions",
-    "pre-commit-hook-names",
-    "pretty-format-json",
-    "provide-create-sessions",
-    "providers-changelogs",
-    "providers-init-file",
-    "providers-subpackages-init-file",
-    "provider-yamls",
-    "pydevd",
-    "pydocstyle",
-    "python-no-log-warn",
-    "pyupgrade",
-    "restrict-start_date",
-    "rst-backticks",
-    "setup-order",
-    "setup-extra-packages",
-    "shellcheck",
-    "sort-in-the-wild",
-    "sort-spelling-wordlist",
-    "stylelint",
-    "trailing-whitespace",
-    "ui-lint",
-    "update-breeze-file",
-    "update-extras",
-    "update-local-yml-file",
-    "update-setup-cfg-file",
-    "update-versions",
-    "verify-db-migrations-documented",
-    "version-sync",
-    "www-lint",
-    "yamllint",
-    "yesqa",
-]
 ALLOWED_INTEGRATIONS = [
     'cassandra',
     'kerberos',
@@ -134,8 +54,13 @@ ALLOWED_KIND_VERSIONS = ['v0.12.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
-ALLOWED_INSTALL_AIRFLOW_VERSIONS = ['2.0.2', '2.0.1', '2.0.0', 'wheel', 'sdist']
 ALLOWED_GENERATE_CONSTRAINTS_MODES = ['source-providers', 'pypi-providers', 'no-providers']
+
+MOUNT_SELECTED = "selected"
+MOUNT_ALL = "all"
+MOUNT_NONE = "none"
+
+ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_NONE]
 ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13']
 ALLOWED_MYSQL_VERSIONS = ['5.7', '8']
 ALLOWED_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
@@ -155,8 +80,10 @@ ALLOWED_TEST_TYPES = [
     'Quarantined',
 ]
 ALLOWED_PACKAGE_FORMATS = ['both', 'sdist', 'wheel']
-ALLOWED_USE_AIRFLOW_VERSIONS = ['.', 'apache-airflow']
+ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
 ALLOWED_DEBIAN_VERSIONS = ['buster', 'bullseye']
+ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
+ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
 
 PARAM_NAME_DESCRIPTION = {
     "BACKEND": "backend",
@@ -193,7 +120,7 @@ EXCLUDE_DOCS_PACKAGE_FOLDER = [
 
 
 def get_available_packages() -> List[str]:
-    docs_path_content = Path(get_airflow_sources_root(), 'docs').glob('*/')
+    docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
     return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
 
@@ -235,7 +162,7 @@ SQLITE_URL = "sqlite:////root/airflow/airflow.db"
 
 
 def get_airflow_version():
-    airflow_setup_file = Path(get_airflow_sources_root()) / 'setup.py'
+    airflow_setup_file = AIRFLOW_SOURCES_ROOT / 'setup.py'
     with open(airflow_setup_file) as setup_file:
         for line in setup_file.readlines():
             if "version =" in line:
@@ -243,7 +170,7 @@ def get_airflow_version():
 
 
 def get_airflow_extras():
-    airflow_dockerfile = Path(get_airflow_sources_root()) / 'Dockerfile'
+    airflow_dockerfile = AIRFLOW_SOURCES_ROOT / 'Dockerfile'
     with open(airflow_dockerfile) as dockerfile:
         for line in dockerfile.readlines():
             if "ARG AIRFLOW_EXTRAS=" in line:
@@ -284,12 +211,7 @@ FILES_FOR_REBUILD_CHECK = [
     'airflow/ui/yarn.lock',
 ]
 
-# Initialize mount variables
-MOUNT_SELECTED_LOCAL_SOURCES = True
-MOUNT_ALL_LOCAL_SOURCES = False
-
 ENABLED_SYSTEMS = ""
-
 
 CURRENT_KUBERNETES_MODES = ['image']
 CURRENT_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']

@@ -29,8 +29,8 @@ import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
 import Time from '../../../Time';
 
-const Details = ({ instance, task }) => {
-  const isGroup = !!task.children;
+const Details = ({ instance, group, operator }) => {
+  const isGroup = !!group.children;
   const groupSummary = [];
   const mapSummary = [];
 
@@ -38,16 +38,21 @@ const Details = ({ instance, task }) => {
     taskId,
     runId,
     duration,
-    operator,
     startDate,
     endDate,
     state,
     mappedStates,
   } = instance;
 
+  const {
+    isMapped,
+    children,
+    tooltip,
+  } = group;
+
   if (isGroup) {
     const numMap = finalStatesMap();
-    task.children.forEach((child) => {
+    children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
         const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
@@ -68,7 +73,7 @@ const Details = ({ instance, task }) => {
     });
   }
 
-  if (task.isMapped && mappedStates) {
+  if (isMapped && mappedStates) {
     const numMap = finalStatesMap();
     mappedStates.forEach((s) => {
       const stateKey = s || 'no_status';
@@ -89,12 +94,13 @@ const Details = ({ instance, task }) => {
   }
 
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
+  const isStateFinal = ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Box>
-        {task.tooltip && (
-          <Text>{task.tooltip}</Text>
+        {tooltip && (
+          <Text>{tooltip}</Text>
         )}
         <Flex alignItems="center">
           <Text as="strong">Status:</Text>
@@ -108,7 +114,7 @@ const Details = ({ instance, task }) => {
             {groupSummary}
           </>
         )}
-        {task.isMapped && (
+        {isMapped && (
           <>
             <br />
             <Text as="strong">
@@ -144,16 +150,20 @@ const Details = ({ instance, task }) => {
         </Text>
       </Box>
       <Box>
+        {startDate && (
         <Text>
           Started:
           {' '}
           <Time dateTime={startDate} />
         </Text>
+        )}
+        {endDate && isStateFinal && (
         <Text>
           Ended:
           {' '}
           <Time dateTime={endDate} />
         </Text>
+        )}
       </Box>
     </Flex>
   );

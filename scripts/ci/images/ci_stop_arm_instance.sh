@@ -25,6 +25,7 @@ AUTOSSH_LOGFILE="${WORKING_DIR}/autossh.log"
 
 function stop_arm_instance() {
     INSTANCE_ID=$(jq < "${INSTANCE_INFO}" ".Instances[0].InstanceId" -r)
+    docker buildx rm -f airflow_cache || true
     aws ec2 terminate-instances --instance-ids "${INSTANCE_ID}"
     cat ${AUTOSSH_LOGFILE}
 

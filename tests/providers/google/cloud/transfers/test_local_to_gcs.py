@@ -81,6 +81,17 @@ class TestFileToGcsOperator(unittest.TestCase):
             object_name='test/test1.csv',
         )
 
+    def test_execute_with_empty_src(self):
+        operator = LocalFilesystemToGCSOperator(
+            task_id='local_to_sensor',
+            dag=self.dag,
+            src="no_file.txt",
+            dst='test/no_file.txt',
+            **self._config,
+        )
+        with pytest.raises(FileNotFoundError):
+            operator.execute(None)
+
     @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook', autospec=True)
     def test_execute_multiple(self, mock_hook):
         mock_instance = mock_hook.return_value

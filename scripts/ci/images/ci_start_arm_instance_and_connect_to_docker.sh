@@ -69,6 +69,7 @@ function start_arm_instance() {
 
     bash -c 'echo -n "Waiting port 12357 .."; for _ in `seq 1 40`; do echo -n .; sleep 0.25; nc -z localhost 12357 && echo " Open." && exit ; done; echo " Timeout!" >&2; exit 1'
 
+    docker buildx rm -f airflow_cache || true
     docker buildx create --name airflow_cache
     docker buildx create --name airflow_cache --append localhost:12357
     docker buildx ls

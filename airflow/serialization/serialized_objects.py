@@ -51,7 +51,7 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -796,6 +796,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                expansion_kwargs_attr=encoded_op["_expansion_kwargs_attr"],
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])
@@ -1031,10 +1032,9 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
-
         if "_task_group" in encoded_dag:
-            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # type: ignore
-                encoded_dag["_task_group"], None, dag.task_dict
+            dag._task_group = SerializedTaskGroup.deserialize_task_group(
+                encoded_dag["_task_group"], None, dag.task_dict, dag
             )
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
@@ -1122,14 +1122,6 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
 
-        if isinstance(task_group, MappedTaskGroup):
-            if task_group.mapped_arg:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_arg)
-            if task_group.mapped_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_kwargs)
-            if task_group.partial_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.partial_kwargs)
-
         return serialize_group
 
     @classmethod
@@ -1138,17 +1130,15 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         encoded_group: Dict[str, Any],
         parent_group: Optional[TaskGroup],
         task_dict: Dict[str, Operator],
-    ) -> Optional[TaskGroup]:
+        dag: SerializedDAG,
+    ) -> TaskGroup:
         """Deserializes a TaskGroup from a JSON object."""
-        if not encoded_group:
-            return None
-
         group_id = cls._deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls._deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
-        group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
+        group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
 
         def set_ref(task: Operator) -> Operator:
             task.task_group = weakref.proxy(group)
@@ -1157,7 +1147,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         group.children = {
             label: set_ref(task_dict[val])  # type: ignore
             if _type == DAT.OP  # type: ignore
-            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
+            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict, dag=dag)
             for label, (_type, val) in encoded_group["children"].items()
         }
         group.upstream_group_ids.update(cls._deserialize(encoded_group["upstream_group_ids"]))

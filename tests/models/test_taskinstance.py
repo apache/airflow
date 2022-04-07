@@ -187,6 +187,12 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
+    def test_current_state(self, create_task_instance):
+        ti = create_task_instance()
+        assert ti.current_state() is None
+        ti.run()
+        assert ti.current_state() == State.SUCCESS
+
     def test_set_dag(self, dag_maker):
         """
         Test assigning Operators to Dags, including deferred assignment
@@ -1311,9 +1317,10 @@ class TestTaskInstance:
 
         assert params["override"] is False
 
+    @pytest.mark.parametrize("use_native_obj", [True, False])
     @patch('airflow.models.taskinstance.send_email')
-    def test_email_alert(self, mock_send_email, dag_maker):
-        with dag_maker(dag_id='test_failure_email'):
+    def test_email_alert(self, mock_send_email, dag_maker, use_native_obj):
+        with dag_maker(dag_id='test_failure_email', render_template_as_native_obj=use_native_obj):
             task = BashOperator(task_id='test_email_alert', bash_command='exit 1', email='to')
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -2432,7 +2439,12 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis = (
+            session.query(TI)
+            .filter_by(task_id='show', dag_id=dag_run.dag_id, run_id=dag_run.run_id)
+            .order_by(TI.map_index)
+            .all()
+        )
         assert len(mapped_tis) == len(literal)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -2585,3 +2597,35 @@ class TestMappedTaskInstanceReceiveValue:
         with out.open() as f:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+@mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
+def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterator(mock_deserialize_value, dag_maker, session):
+    """Ensure we access XCom lazily when pulling from a mapped operator."""
+    with dag_maker(dag_id="test_xcom", session=session):
+        task_1 = DummyOperator.partial(task_id="task_1").expand()
+        DummyOperator(task_id="task_2")
+
+    dagrun = dag_maker.create_dagrun()
+
+    ti_1_0 = dagrun.get_task_instance("task_1", session=session)
+    ti_1_0.map_index = 0
+    ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+    session.flush()
+
+    ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
+    ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
+
+    ti_2 = dagrun.get_task_instance("task_2", session=session)
+
+    # Simply pulling the joined XCom value should not deserialize.
+    joined = ti_2.xcom_pull("task_1", session=session)
+    assert mock_deserialize_value.call_count == 0
+
+    # Only when we go through the iterator does deserialization happen.
+    assert next(joined) == "a"
+    assert mock_deserialize_value.call_count == 1
+    assert next(joined) == "b"
+    assert mock_deserialize_value.call_count == 2
+    with pytest.raises(StopIteration):
+        next(joined)
