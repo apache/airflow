@@ -17,6 +17,7 @@
 # under the License.
 """Sync permission command"""
 import click
+from rich import print
 
 from airflow.cli import airflow_cmd
 
