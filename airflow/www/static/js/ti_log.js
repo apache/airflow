@@ -56,8 +56,22 @@ function scrollBottom() {
   $('html, body').animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
 }
 
+function downloadActiveLog() {
+  const tryNumber = $('#ti_log_try_index_list .active a').attr('href').replace(/\D/g,'');
+  const query = new URLSearchParams({
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    try_number: tryNumber,
+    metadata: 'null',
+    format: 'file'
+  });
+  window.location.href = `${logsWithMetadataUrl}?${query}`;
+}
+
 window.toggleWrapLogs = toggleWrap;
 window.scrollBottomLogs = scrollBottom;
+window.downloadActiveLog = downloadActiveLog;
 
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
