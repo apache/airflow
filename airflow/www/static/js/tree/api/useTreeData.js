@@ -23,7 +23,7 @@ import { useQuery } from 'react-query';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { areActiveRuns } from '../treeDataUtils';
+import { parseJSON, areActiveRuns } from '../treeDataUtils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -32,14 +32,12 @@ const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');
 
-const data = JSON.parse(treeData);
-
 const useTreeData = () => {
   const emptyData = {
     dagRuns: [],
     groups: {},
   };
-  const initialData = data && data.groups && data.dagRuns ? data : emptyData;
+  const initialData = parseJSON(treeData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   return useQuery('treeData', async () => {
     try {

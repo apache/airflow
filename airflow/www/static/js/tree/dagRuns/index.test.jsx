@@ -84,10 +84,10 @@ describe('Test DagRuns', () => {
   ];
 
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
-    global.treeData = {
+    global.treeData = JSON.stringify({
       groups: {},
       dagRuns,
-    };
+    });
     const { queryAllByTestId, getByText, queryByText } = render(
       <DagRuns />, { wrapper: Wrapper },
     );
@@ -100,7 +100,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Top date ticks appear when there are 4 or more runs', () => {
-    global.treeData = {
+    global.treeData = JSON.stringify({
       groups: {},
       dagRuns: [
         ...dagRuns,
@@ -125,7 +125,7 @@ describe('Test DagRuns', () => {
           endDate: '2021-11-09T00:22:18.607167+00:00',
         },
       ],
-    };
+    });
     const { getByText } = render(
       <DagRuns />, { wrapper: Wrapper },
     );
@@ -133,10 +133,10 @@ describe('Test DagRuns', () => {
   });
 
   test('Handles empty data correctly', () => {
-    global.treeData = {
+    global.treeData = JSON.stringify({
       groups: {},
       dagRuns: [],
-    };
+    });
     const { queryByTestId } = render(
       <DagRuns />, { wrapper: Wrapper },
     );
@@ -144,7 +144,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Handles no data correctly', () => {
-    global.treeData = {};
+    global.treeData = JSON.stringify({});
     const { queryByTestId } = render(
       <DagRuns />, { wrapper: Wrapper },
     );

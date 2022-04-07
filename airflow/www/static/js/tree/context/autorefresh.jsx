@@ -21,18 +21,21 @@
 
 import React, { useContext, useState, useEffect } from 'react';
 import { getMetaValue } from '../../utils';
-import { areActiveRuns } from '../treeDataUtils';
+import { parseJSON, areActiveRuns } from '../treeDataUtils';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
 const initialIsPaused = getMetaValue('is_paused') === 'True';
 const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
-const data = JSON.parse(treeData);
 
 const AutoRefreshContext = React.createContext(null);
 
 export const AutoRefreshProvider = ({ children }) => {
-  const dagRuns = (data && data.dagRuns) || [];
+  const emptyData = {
+    dagRuns: [],
+    groups: {},
+  };
+  const { dagRuns } = parseJSON(treeData, emptyData);
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isActive = areActiveRuns(dagRuns);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);

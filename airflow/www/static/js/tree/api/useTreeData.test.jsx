@@ -24,22 +24,6 @@ import { AutoRefreshProvider } from '../context/autorefresh';
 
 /* global describe, test, expect, jest, beforeAll */
 
-const pendingTreeData = {
-  groups: {},
-  dagRuns: [
-    {
-      dagId: 'example_python_operator',
-      runId: 'manual__2021-11-08T21:14:17.170046+00:00',
-      startDate: null,
-      endDate: null,
-      state: 'queued',
-      dataIntervalStart: '2021-11-08T21:14:17.170046+00:00',
-      dataIntervalEnd: '2021-11-08T21:14:17.170046+00:00',
-      runType: 'manual',
-    },
-  ],
-};
-
 const Wrapper = ({ children }) => {
   const queryClient = new QueryClient();
   return (
@@ -55,16 +39,6 @@ describe('Test useTreeData hook', () => {
   beforeAll(() => {
     global.autoRefreshInterval = 5;
     global.fetch = jest.fn();
-  });
-
-  test('data is valid camelcase json', () => {
-    global.treeData = pendingTreeData;
-
-    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
-    const { data } = result.current;
-
-    expect(typeof data === 'object').toBe(true);
-    expect(data.dagRuns).toBeDefined();
   });
 
   test('Can handle no treeData', () => {

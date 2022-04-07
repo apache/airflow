@@ -17,5 +17,13 @@
  * under the License.
  */
 
-// eslint-disable-next-line import/prefer-default-export
 export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+
+export const parseJSON = (data, emptyData = {}) => {
+  if (!data) return emptyData;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    return emptyData;
+  }
+};
