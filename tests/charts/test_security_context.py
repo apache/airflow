@@ -153,7 +153,7 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/statsd/statsd-deployment.yaml",
-                "templates/redis/statefulset.yaml",
+                "templates/redis/redis-statefulset.yaml",
             ],
         )
 
