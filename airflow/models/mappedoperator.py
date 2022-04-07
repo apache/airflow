@@ -255,7 +255,7 @@ class MappedOperator(AbstractOperator):
     template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
-    _is_dummy: bool
+    _is_empty: bool
     _task_module: str
     _task_type: str
 
@@ -352,7 +352,7 @@ class MappedOperator(AbstractOperator):
     @property
     def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
-        return self._is_dummy
+        return self._is_empty
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:

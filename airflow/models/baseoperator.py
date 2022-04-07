@@ -1460,6 +1460,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def inherits_from_dummy_operator(self):
+        # TODO: remove this function when DumpyOperator is removed
         return self.inherits_from_empty_operator()
 
     @property
