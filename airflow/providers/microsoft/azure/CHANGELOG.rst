@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Misc
+~~~~
+
+* ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
+
+
 3.7.2
 .....
 

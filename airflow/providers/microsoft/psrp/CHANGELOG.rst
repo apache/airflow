@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+1.1.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``PowerShell Remoting fail on non-zero exitcode (#22503)``
+
 1.1.3
 .....
 
