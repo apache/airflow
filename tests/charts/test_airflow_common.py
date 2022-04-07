@@ -263,6 +263,7 @@ class TestAirflowCommon:
         )
         expected_vars = [
             'AIRFLOW__CORE__FERNET_KEY',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
             'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
             'AIRFLOW_CONN_AIRFLOW_DB',
             'AIRFLOW__WEBSERVER__SECRET_KEY',

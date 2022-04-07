@@ -809,12 +809,12 @@ notacommand = OK
         )
 
     def test_as_dict_respects_sensitive_cmds(self):
-        conf_conn = conf['core']['sql_alchemy_conn']
+        conf_conn = conf['database']['sql_alchemy_conn']
         test_conf = copy.deepcopy(conf)
         test_conf.read_string(
             textwrap.dedent(
                 """
-                [core]
+                [database]
                 sql_alchemy_conn_cmd = echo -n my-super-secret-conn
                 """
             )
@@ -823,17 +823,17 @@ notacommand = OK
         conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
 
-        assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
-        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['database']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['database']
 
-        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
-            assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'my-super-secret-conn'
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert conf_materialize_cmds['database']['sql_alchemy_conn'] == 'my-super-secret-conn'
 
-        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['core']
-        assert conf_maintain_cmds['core']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
+        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['database']
+        assert conf_maintain_cmds['database']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
 
-        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
-            assert 'sql_alchemy_conn' not in conf_maintain_cmds['core']
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert 'sql_alchemy_conn' not in conf_maintain_cmds['database']
         else:
-            assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
-            assert conf_maintain_cmds['core']['sql_alchemy_conn'] == conf_conn
+            assert 'sql_alchemy_conn' in conf_maintain_cmds['database']
+            assert conf_maintain_cmds['database']['sql_alchemy_conn'] == conf_conn
