@@ -45,7 +45,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cache, cached_property
-from airflow.exceptions import UnmappableOperator
+from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -299,6 +299,11 @@ class MappedOperator(AbstractOperator):
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
+        if self.partial_kwargs.get('sla') is not None:
+            raise AirflowException(
+                f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
+                f"{self.task_id!r}."
+            )
 
     @classmethod
     @cache
