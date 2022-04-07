@@ -714,7 +714,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k, v in encoded_op.items():
             # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
             if k == "_is_dummy":
-                k = "is_empty"
+                k = "_is_empty"
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
