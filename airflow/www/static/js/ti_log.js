@@ -25,6 +25,7 @@ import { formatDateTime } from './datetime_utils';
 const executionDate = getMetaValue('execution_date');
 const dagId = getMetaValue('dag_id');
 const taskId = getMetaValue('task_id');
+const mapIndex = getMetaValue('map_index');
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const DELAY = parseInt(getMetaValue('delay'), 10);
 const AUTO_TAILING_OFFSET = parseInt(getMetaValue('auto_tailing_offset'), 10);
@@ -60,8 +61,9 @@ window.scrollBottomLogs = scrollBottom;
 
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
-  console.debug(`Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, \
-   execution_date: ${executionDate}, try_number: ${tryNumber}, metadata: ${JSON.stringify(metadata)}`);
+  console.debug(`Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, `
+   + `execution_date: ${executionDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, `
+   + `metadata: ${JSON.stringify(metadata)}`);
 
   return Promise.resolve(
     $.ajax({
@@ -69,6 +71,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       data: {
         dag_id: dagId,
         task_id: taskId,
+        map_index: mapIndex,
         execution_date: executionDate,
         try_number: tryNumber,
         metadata: JSON.stringify(metadata),

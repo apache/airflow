@@ -100,6 +100,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
+from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
@@ -2191,7 +2192,14 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
         else:
-            jinja_env = self.task.get_template_env()
+            # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+            # the flag to the function on task object -- that function can be
+            # overridden, and adding a flag breaks backward compatibility.
+            dag = self.task.get_dag()
+            if dag:
+                jinja_env = dag.get_template_env(force_sandboxed=True)
+            else:
+                jinja_env = SandboxedEnvironment(cache_size=0)
             jinja_context = self.get_template_context()
             context_merge(jinja_context, additional_context)
 

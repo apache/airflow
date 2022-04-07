@@ -44,7 +44,7 @@ import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
-from airflow.compat.functools import cache
+from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
@@ -83,7 +83,10 @@ if TYPE_CHECKING:
     # any mapping since we need the value to be ordered).
     Mappable = Union[XComArg, Sequence, dict]
 
-ValidationSource = Union[Literal["map"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["partial"]]
+
+
+MAPPABLE_LITERAL_TYPES = (dict, list)
 
 
 # For isinstance() check.
@@ -91,7 +94,7 @@ ValidationSource = Union[Literal["map"], Literal["partial"]]
 def get_mappable_types() -> Tuple[type, ...]:
     from airflow.models.xcom_arg import XComArg
 
-    return (XComArg, dict, list)
+    return (XComArg,) + MAPPABLE_LITERAL_TYPES
 
 
 def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, value: Dict[str, Any]) -> None:
@@ -161,7 +164,6 @@ class OperatorPartial:
     """
 
     operator_class: Type["BaseOperator"]
-    user_supplied_task_id: str
     kwargs: Dict[str, Any]
 
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
@@ -204,7 +206,6 @@ class OperatorPartial:
 
         op = MappedOperator(
             operator_class=self.operator_class,
-            user_supplied_task_id=self.user_supplied_task_id,
             mapped_kwargs=mapped_kwargs,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
@@ -241,7 +242,6 @@ class MappedOperator(AbstractOperator):
     # that can be used to unmap this into a SerializedBaseOperator.
     operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
-    user_supplied_task_id: str  # This is the task_id supplied by the user.
     mapped_kwargs: Dict[str, "Mappable"]
     partial_kwargs: Dict[str, Any]
 
@@ -274,6 +274,13 @@ class MappedOperator(AbstractOperator):
 
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
+
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
+        (
+            'parse_time_mapped_ti_count',
+            'operator_class',
+        )
+    )
 
     def __repr__(self):
         return f"<Mapped({self._task_type}): {self.task_id}>"
@@ -459,7 +466,7 @@ class MappedOperator(AbstractOperator):
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
         return {
-            "task_id": self.user_supplied_task_id,
+            "task_id": self.task_id,
             "dag": self.dag,
             "task_group": self.task_group,
             "params": self.params,
@@ -472,7 +479,13 @@ class MappedOperator(AbstractOperator):
     def unmap(self) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping."""
         if isinstance(self.operator_class, type):
-            return self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
+            # We can't simply specify task_id here because BaseOperator further
+            # mangles the task_id based on the task hierarchy (namely, group_id
+            # is prepended, and '__N' appended to deduplicate). Instead of
+            # recreating the whole logic here, we just overwrite task_id later.
+            op = self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
+            op.task_id = self.task_id
+            return op
 
         # After a mapped operator is serialized, there's no real way to actually
         # unmap it since we've lost access to the underlying operator class.
@@ -682,3 +695,20 @@ class MappedOperator(AbstractOperator):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
+
+    @cached_property
+    def parse_time_mapped_ti_count(self) -> Optional[int]:
+        """
+        Number of mapped TaskInstances that can be created at DagRun create time.
+
+        :return: None if non-literal mapped arg encountered, or else total number of mapped TIs this task
+            should have
+        """
+        total = 0
+
+        for value in self._get_expansion_kwargs().values():
+            if not isinstance(value, MAPPABLE_LITERAL_TYPES):
+                # None literal type encountered, so give up
+                return None
+            total += len(value)
+        return total
