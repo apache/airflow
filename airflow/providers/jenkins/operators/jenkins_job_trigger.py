@@ -169,7 +169,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
                         return build_number
                 try_count += 1
                 time.sleep(self.sleep_time)
-            # we don't want to fail the operator, this will continue to poll 
+
+            # we don't want to fail the operator, this will continue to poll
             # until max_try_before_job_appears reached
             except (HTTPError, JenkinsException) as ex:
                 self.log.info(f'polling failed, retry polling. Failure reason: {ex}')
