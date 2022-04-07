@@ -107,7 +107,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             'dag',  # We show dag_id, don't need to show this too
             'node_id',  # Duplicates task_id
             'task_group',  # Doesn't have a useful repr, no point showing in UI
-            'inherits_from_dummy_operator',  # impl detail
+            'inherits_from_empty_operator',  # impl detail
             # For compatibility with TG, for operators these are just the current task, no point showing
             'roots',
             'leaves',
@@ -128,7 +128,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         raise NotImplementedError()
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
     @property

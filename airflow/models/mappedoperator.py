@@ -350,7 +350,7 @@ class MappedOperator(AbstractOperator):
         return self._task_type
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
         return self._is_dummy
 

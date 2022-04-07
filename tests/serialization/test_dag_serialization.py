@@ -1620,7 +1620,7 @@ def test_mapped_operator_serde():
     serialized = SerializedBaseOperator._serialize(real_op)
 
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'airflow.operators.bash',
         '_task_type': 'BashOperator',
@@ -1677,7 +1677,7 @@ def test_mapped_operator_xcomarg_serde():
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
@@ -1756,7 +1756,7 @@ def test_mapped_decorator_serde():
 
     serialized = SerializedBaseOperator._serialize(original)
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,30 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.operators.empty`."""
 
-import warnings
-
-from airflow.operators.empty import EmptyOperator
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.empty`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+from airflow.models import BaseOperator
+from airflow.utils.context import Context
 
 
-class DummyOperator(EmptyOperator):
+class EmptyOperator(BaseOperator):
     """
-    This class is deprecated.
-    Please use `airflow.operators.empty.Empty`.
+    Operator that does literally nothing. It can be used to group tasks in a
+    DAG.
+
+    The task is evaluated by the scheduler but never processed by the executor.
     """
 
-    def __init__(self, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-           Please use `airflow.operators.empty.Empty`.""",
-            DeprecationWarning,
-            stacklevel=3,
-        )
+    ui_color = '#e8f7e4'
+    inherits_from_empty_operator = True
+
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+
+    def execute(self, context: Context):
+        pass
