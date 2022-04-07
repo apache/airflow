@@ -139,6 +139,7 @@ class TestSecurityContext:
                 "createUserJob": {**component_contexts},
                 "migrateDatabaseJob": {**component_contexts},
                 "triggerer": {**component_contexts},
+                "redis": {**component_contexts},
                 "statsd": {"enabled": True, **component_contexts},
                 "airflowVersion": "2.2.0",
                 "executor": "CeleryKubernetesExecutor",
@@ -152,6 +153,7 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/statefulset.yaml",
             ],
         )
 
