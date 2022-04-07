@@ -145,6 +145,7 @@ FILE_PARSERS = {
     "env": _parse_env_file,
     "json": _parse_json_file,
     "yaml": _parse_yaml_file,
+    "yml": _parse_yaml_file,
 }
 
 
