@@ -801,12 +801,14 @@ webserver:
     timeoutSeconds: 30
     failureThreshold: 20
     periodSeconds: 5
+    scheme: http
 
   readinessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 30
     failureThreshold: 20
     periodSeconds: 5
+    scheme: http
 
   # Number of webservers
   replicas: 1
