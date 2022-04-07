@@ -108,7 +108,7 @@ class DAGDetailSchema(DAGSchema):
     end_date = fields.DateTime(dump_only=True)
     template_search_path = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
-    last_loaded = fields.DateTime(dump_only=True)
+    last_loaded = fields.DateTime(dump_only=True, data_key='last_parsed')
 
     @staticmethod
     def get_concurrency(obj: DAG):

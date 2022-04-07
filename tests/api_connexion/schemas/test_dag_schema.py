@@ -196,5 +196,5 @@ class TestDAGDetailSchema:
             'render_template_as_native_obj': False,
         }
         obj = schema.dump(dag)
-        expected.update({'last_loaded': obj['last_loaded']})
+        expected.update({'last_parsed': obj['last_parsed']})
         assert obj == expected

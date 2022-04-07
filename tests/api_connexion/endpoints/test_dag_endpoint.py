@@ -251,7 +251,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        last_loaded = response.json["last_loaded"]
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -289,7 +289,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "end_date": None,
             'is_paused_upon_creation': None,
-            'last_loaded': last_loaded,
+            'last_parsed': last_parsed,
             'render_template_as_native_obj': False,
         }
         assert response.json == expected
@@ -299,7 +299,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        last_loaded = response.json["last_loaded"]
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -330,7 +330,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "end_date": None,
             'is_paused_upon_creation': None,
-            'last_loaded': last_loaded,
+            'last_parsed': last_parsed,
             'render_template_as_native_obj': False,
         }
         assert response.json == expected
@@ -340,7 +340,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        last_loaded = response.json["last_loaded"]
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -371,7 +371,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "end_date": None,
             'is_paused_upon_creation': None,
-            'last_loaded': last_loaded,
+            'last_parsed': last_parsed,
             'render_template_as_native_obj': False,
         }
         assert response.json == expected
@@ -429,7 +429,7 @@ class TestGetDagDetails(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        expected.update({'last_loaded': response.json['last_loaded']})
+        expected.update({'last_parsed': response.json['last_parsed']})
 
         assert response.json == expected
 
@@ -473,7 +473,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused_upon_creation': None,
             'render_template_as_native_obj': False,
         }
-        expected.update({'last_loaded': response.json['last_loaded']})
+        expected.update({'last_parsed': response.json['last_parsed']})
         assert response.json == expected
 
     def test_should_raises_401_unauthenticated(self):

@@ -2929,13 +2929,13 @@ components:
                 Whether the DAG is paused upon creation.
 
                 *New in version 2.3.0*
-            last_loaded:
+            last_parsed:
               type: string
               format: date-time
               nullable: true
               readOnly: true
               description: |
-                The last time the DAG was loaded.
+                The last time the DAG was parsed.
 
                 *New in version 2.3.0*
             template_search_path:
