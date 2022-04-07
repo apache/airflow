@@ -1065,6 +1065,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = timezone.utcnow()
+        processors_to_remove = []
         for file_path, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self._processor_timeout:
@@ -1079,6 +1080,14 @@ class DagFileProcessorManager(LoggingMixin):
                 # TODO: Remove after Airflow 2.0
                 Stats.incr('dag_file_processor_timeouts')
                 processor.kill()
+
+                # Clean up processor references
+                self.waitables.pop(processor.waitable_handle)
+                processors_to_remove.append(file_path)
+
+        # Clean up `self._processors` after iterating over it
+        for proc in processors_to_remove:
+            self._processors.pop(proc)
 
     def max_runs_reached(self):
         """:return: whether all file paths have been processed max_runs times"""

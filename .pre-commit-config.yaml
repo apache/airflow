@@ -582,6 +582,13 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich']
+      - id: update-breeze-config-hash
+        name: Update Breeze README.md with config files hash
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
+        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        pass_filenames: false
+        require_serial: true
       - id: check-system-tests
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py

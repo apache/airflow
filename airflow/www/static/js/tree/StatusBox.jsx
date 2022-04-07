@@ -29,7 +29,6 @@ import {
 
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from './context/containerRef';
-import { useSelection } from './context/selection';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -46,20 +45,20 @@ export const SimpleStatus = ({ state, ...rest }) => (
 );
 
 const StatusBox = ({
-  group, instance,
+  group, instance, onSelect,
 }) => {
   const containerRef = useContainerRef();
-  const { selected, onSelect } = useSelection();
   const { runId, taskId } = instance;
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    if (selected.runId !== runId) {
-      [...containerRef.current.getElementsByClassName(`js-${runId}`)]
-        .forEach((e) => { e.style.backgroundColor = hoverBlue; });
-    }
+    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
+      .forEach((e) => {
+        // Don't apply hover if it is already selected
+        if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
+      });
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${runId}`)]
@@ -103,7 +102,6 @@ const compareProps = (
 ) => (
   isEqual(prevProps.group, nextProps.group)
   && isEqual(prevProps.instance, nextProps.instance)
-  && prevProps.extraLinks === nextProps.extraLinks
 );
 
 export default React.memo(StatusBox, compareProps);

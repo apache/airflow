@@ -51,7 +51,7 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -780,7 +780,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 mapped_kwargs={},
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
-                user_supplied_task_id=encoded_op["user_supplied_task_id"],
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
@@ -796,6 +795,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                expansion_kwargs_attr=encoded_op["_expansion_kwargs_attr"],
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])
@@ -1120,14 +1120,6 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "upstream_task_ids": cls._serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
-
-        if isinstance(task_group, MappedTaskGroup):
-            if task_group.mapped_arg:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_arg)
-            if task_group.mapped_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_kwargs)
-            if task_group.partial_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.partial_kwargs)
 
         return serialize_group
 

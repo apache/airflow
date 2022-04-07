@@ -134,7 +134,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             data_interval_end=data_interval_end,
             execution_date=execution_date,
             try_number=try_number,
-            map_index=ti.map_index,
+            map_index=getattr(ti, "map_index", ""),
         )
 
     @staticmethod

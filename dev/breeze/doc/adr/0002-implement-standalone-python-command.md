@@ -35,7 +35,7 @@ Date: 2021-11-28
 
 ## Status
 
-Draft
+Accepted
 
 ## Context
 

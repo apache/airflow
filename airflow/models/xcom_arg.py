@@ -22,6 +22,7 @@ from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
@@ -140,17 +141,13 @@ class XComArg(DependencyMixin):
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
-        if not resolved_value:
-            if TYPE_CHECKING:
-                assert self.operator.dag
+        result = context["ti"].xcom_pull(task_ids=self.operator.task_id, key=str(self.key), default=NOTSET)
+        if result is NOTSET:
             raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!'
+                f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
+                f'with key="{self.key}" is not found!'
             )
-        resolved_value = resolved_value[0]
-
-        return resolved_value
+        return result
 
     @staticmethod
     def apply_upstream_relationship(op: "Operator", arg: Any):

@@ -2290,9 +2290,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
                  pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
                  shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
-                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-supported-versions update-versions vendor-k8s-json-schema
-                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 ui-lint update-breeze-config-hash update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file update-supported-versions
+                 update-versions vendor-k8s-json-schema verify-db-migrations-documented version-sync
+                 www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
