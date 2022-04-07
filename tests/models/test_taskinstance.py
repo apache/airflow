@@ -55,6 +55,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -1364,6 +1365,40 @@ class TestTaskInstance:
         assert email == 'to'
         assert 'template: test_email_alert_with_config' == title
         assert 'template: test_email_alert_with_config' == body
+
+    @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
+    @patch('airflow.models.taskinstance.send_email')
+    def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
+        with dag_maker(session=session) as dag:
+
+            @dag.task(email='to')
+            def test_email_alert(x):
+                raise RuntimeError("Fail please")
+
+            test_email_alert.expand(x=["a", "b"])  # This is 'test_email_alert'.
+            test_email_alert.expand(x=[1, 2, 3])  # This is 'test_email_alert__1'.
+
+        dr: DagRun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+
+        ti = dr.get_task_instance(task_id, map_index=0, session=session)
+        assert ti is not None
+
+        # The task will fail and trigger email reporting.
+        with pytest.raises(RuntimeError, match=r"^Fail please$"):
+            ti.run(session=session)
+
+        (email, title, body), _ = mock_send_email.call_args
+        assert email == "to"
+        assert title == f"Airflow alert: <TaskInstance: test_dag.{task_id} test map_index=0 [failed]>"
+        assert body.startswith("Try 1")
+        assert "test_email_alert" in body
+
+        tf = (
+            session.query(TaskFail)
+            .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+            .one_or_none()
+        )
+        assert tf, "TaskFail was recorded"
 
     def test_set_duration(self):
         task = DummyOperator(task_id='op', email='test@test.test')
