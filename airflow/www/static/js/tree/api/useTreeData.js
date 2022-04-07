@@ -32,12 +32,14 @@ const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');
 
+const data = JSON.parse(treeData);
+
 const useTreeData = () => {
   const emptyData = {
     dagRuns: [],
     groups: {},
   };
-  const initialData = treeData && treeData.groups && treeData.dagRuns ? treeData : emptyData;
+  const initialData = data && data.groups && data.dagRuns ? data : emptyData;
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   return useQuery('treeData', async () => {
     try {

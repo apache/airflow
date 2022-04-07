@@ -78,8 +78,7 @@
 {% block tail_js %}
   {{ super() }}
   <script>
-    // Data is already json, there is no need to convert it
-    const treeData = {{ data }};
+    const treeData = {{ data|tojson }};
     const stateColors = {{ state_color_mapping|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>

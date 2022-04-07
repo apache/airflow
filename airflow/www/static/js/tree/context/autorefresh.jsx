@@ -27,11 +27,12 @@ const autoRefreshKey = 'disabledAutoRefresh';
 
 const initialIsPaused = getMetaValue('is_paused') === 'True';
 const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
+const data = JSON.parse(treeData);
 
 const AutoRefreshContext = React.createContext(null);
 
 export const AutoRefreshProvider = ({ children }) => {
-  const dagRuns = (treeData && treeData.dagRuns) || [];
+  const dagRuns = (data && data.dagRuns) || [];
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isActive = areActiveRuns(dagRuns);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);
