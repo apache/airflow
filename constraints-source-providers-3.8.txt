@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-07T00:28:22Z
+# This constraints file was automatically generated on 2022-04-07T11:13:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -253,7 +253,7 @@ json-merge-patch==0.2
 jsondiff==1.3.1
 jsonpath-ng==1.5.3
 jsonschema==4.4.0
-jupyter-client==7.2.1
+jupyter-client==7.2.2
 jupyter-core==4.9.2
 jwcrypto==1.0
 keyring==23.5.0
