@@ -349,6 +349,57 @@ class S3Hook(AwsBaseHook):
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     @provide_bucket_name
+    def get_file_metadata(
+        self,
+        prefix: str,
+        bucket_name: Optional[str] = None,
+        page_size: Optional[int] = None,
+        max_items: Optional[int] = None,
+    ) -> List:
+        """
+        Lists metadata objects in a bucket under prefix
+
+        :param prefix: a key prefix
+        :param bucket_name: the name of the bucket
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of metadata of objects
+        :rtype: list
+        """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
+
+        files = []
+        for page in response:
+            if 'Contents' in page:
+                files += page['Contents']
+        return files
+
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def head_object(self, key: str, bucket_name: Optional[str] = None) -> Optional[dict]:
+        """
+        Retrieves metadata of an object
+
+        :param key: S3 key that will point to the file
+        :param bucket_name: Name of the bucket in which the file is stored
+        :return: metadata of an object
+        :rtype: dict
+        """
+        try:
+            return self.get_conn().head_object(Bucket=bucket_name, Key=key)
+        except ClientError as e:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return None
+            else:
+                raise e
+
+    @provide_bucket_name
     @unify_bucket_name_and_key
     def check_for_key(self, key: str, bucket_name: Optional[str] = None) -> bool:
         """
@@ -359,14 +410,8 @@ class S3Hook(AwsBaseHook):
         :return: True if the key exists and False if not.
         :rtype: bool
         """
-        try:
-            self.get_conn().head_object(Bucket=bucket_name, Key=key)
-            return True
-        except ClientError as e:
-            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                return False
-            else:
-                raise e
+        obj = self.head_object(key, bucket_name)
+        return obj is not None
 
     @provide_bucket_name
     @unify_bucket_name_and_key
