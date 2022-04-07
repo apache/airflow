@@ -30,16 +30,19 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEStartPodOperator,
 )
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
-CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "kubernetes_engine"
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+GCP_LOCATION = "europe-north1-a"
+CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
 with models.DAG(
-    "example_gcp_gke",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -101,3 +104,15 @@ with models.DAG(
     create_cluster >> pod_task >> delete_cluster
     create_cluster >> pod_task_xcom >> delete_cluster
     pod_task_xcom >> pod_task_xcom_result
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

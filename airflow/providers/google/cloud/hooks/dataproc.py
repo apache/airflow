@@ -294,7 +294,7 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         cluster_name: str,
-        cluster_config: Union[Dict, Cluster],
+        cluster_config: Union[Dict, Cluster, None],
         virtual_cluster_config: Optional[Dict] = None,
         run_in_gke_cluster: Optional[bool] = False,
         labels: Optional[Dict[str, str]] = None,

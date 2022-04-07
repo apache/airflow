@@ -58,6 +58,24 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
+For create Dataproc cluster in Google Kubernetes Engine you should enable run_in_gke_cluster flag
+and use this cluster configuration:
+
+.. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_in_gke_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_in_gke_config]
+
+With this configuration we can create the cluster:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
+
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 You can also generate **CLUSTER_CONFIG** using functional API,

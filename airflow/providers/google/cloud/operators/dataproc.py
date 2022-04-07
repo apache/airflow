@@ -459,7 +459,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         cluster_name: str,
         region: Optional[str] = None,
         project_id: Optional[str] = None,
-        cluster_config: Optional[Dict] = None,
+        cluster_config: Optional[Union[Dict, Cluster]] = None,
         virtual_cluster_config: Optional[Dict] = None,
         run_in_gke_cluster: bool = False,
         labels: Optional[Dict] = None,
@@ -482,7 +482,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             region = 'global'
 
         # TODO: remove one day
-        if cluster_config is None:
+        if cluster_config is None and not run_in_gke_cluster:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
