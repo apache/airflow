@@ -222,7 +222,6 @@ def partial(
     from airflow.utils.task_group import TaskGroupContext
 
     validate_mapping_kwargs(operator_class, "partial", kwargs)
-    user_supplied_task_id = task_id
 
     dag = dag or DagContext.get_current_dag()
     if dag:
@@ -286,11 +285,7 @@ def partial(
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
-    return OperatorPartial(
-        operator_class=operator_class,
-        user_supplied_task_id=user_supplied_task_id,
-        kwargs=partial_kwargs,
-    )
+    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
