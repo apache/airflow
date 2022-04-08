@@ -152,7 +152,7 @@ function setDownloadUrl(tryNumber) {
     execution_date: executionDate,
     try_number: tryNumber,
     metadata: 'null',
-    format: 'file'
+    format: 'file',
   });
   const url = `${logsWithMetadataUrl}?${query}`;
   $('#ti_log_download_active').attr('href', url);
