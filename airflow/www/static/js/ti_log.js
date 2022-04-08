@@ -56,22 +56,8 @@ function scrollBottom() {
   $('html, body').animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
 }
 
-function downloadActiveLog() {
-  const tryNumber = $('#ti_log_try_index_list .active a').attr('href').replace(/\D/g,'');
-  const query = new URLSearchParams({
-    dag_id: dagId,
-    task_id: taskId,
-    execution_date: executionDate,
-    try_number: tryNumber,
-    metadata: 'null',
-    format: 'file'
-  });
-  window.location.href = `${logsWithMetadataUrl}?${query}`;
-}
-
 window.toggleWrapLogs = toggleWrap;
 window.scrollBottomLogs = scrollBottom;
-window.downloadActiveLog = downloadActiveLog;
 
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
@@ -154,6 +140,24 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
     ));
   });
 }
+
+function setDownloadUrl(tryNumber) {
+  if (!tryNumber) {
+    // default to the currently selected tab
+    tryNumber = $('#ti_log_try_index_list .active a').attr('href').replace(/\D/g, '');
+  }
+  const query = new URLSearchParams({
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    try_number: tryNumber,
+    metadata: 'null',
+    format: 'file'
+  });
+  const url = `${logsWithMetadataUrl}?${query}`;
+  $('#ti_log_download_active').attr('href', url);
+}
+
 $(document).ready(() => {
   // Lazily load all past task instance logs.
   // TODO: We only need to have recursive queries for
@@ -167,4 +171,10 @@ $(document).ready(() => {
     const autoTailing = i === TOTAL_ATTEMPTS;
     autoTailingLog(i, null, autoTailing);
   }
+
+  setDownloadUrl();
+  $('#ti_log_try_index_list a').click(function () {
+    const tryNumber = $(this).attr('href').replace(/\D/g, '');
+    setDownloadUrl(tryNumber);
+  });
 });
