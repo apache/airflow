@@ -403,7 +403,7 @@ class TestLoadConnection(unittest.TestCase):
                 conn_id: conn.get_uri() for conn_id, conn in yml_conn.items()
             }
 
-            self.assertDictEqual(yaml_conn_uri_by_conn_id, yml_conn_uri_by_conn_id)
+            assert yaml_conn_uri_by_conn_id == yml_conn_uri_by_conn_id
 
 
 class TestLocalFileBackend(unittest.TestCase):
