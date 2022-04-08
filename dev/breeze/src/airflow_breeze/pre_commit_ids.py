@@ -41,6 +41,7 @@ PRE_COMMIT_LIST = [
     'check-hooks-apply',
     'check-integrations',
     'check-merge-conflict',
+    'check-revision-heads-map',
     'check-system-tests',
     'check-xml',
     'codespell',
