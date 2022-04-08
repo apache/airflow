@@ -1614,12 +1614,21 @@ class Airflow(AirflowBaseView):
             ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()
+
+        attrs_to_skip = getattr(task, 'HIDE_ATTRS_FROM_UI', set())
+
+        def include_task_attrs(attr_name):
+            return not (
+                attr_name == 'HIDE_ATTRS_FROM_UI'
+                or attr_name.startswith("_")
+                or attr_name in attr_renderers
+                or attr_name in attrs_to_skip
+            )
+
         task_attrs = [
             (attr_name, attr)
             for attr_name, attr in (
-                (attr_name, getattr(task, attr_name))
-                for attr_name in dir(task)
-                if not attr_name.startswith("_") and attr_name not in attr_renderers
+                (attr_name, getattr(task, attr_name)) for attr_name in filter(include_task_attrs, dir(task))
             )
             if not callable(attr)
         ]

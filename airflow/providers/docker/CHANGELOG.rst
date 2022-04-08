@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout parameter to 'DockerOperator' (#22502)``
+
 2.5.2
 .....
 
