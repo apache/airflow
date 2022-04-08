@@ -37,24 +37,6 @@ TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
 
 
-# [START howto_sensor_s3_key_function_definition]
-def check_fn(files: List) -> bool:
-    """
-    Example of custom check: check if all files are bigger than 1kB
-
-    :param files: List of S3 object attributes.
-    Format: [{
-        'Size': int
-    }]
-    :return: true if the criteria is met
-    :rtype: bool
-    """
-    return all(f.get('Size', 0) > 1024 for f in files)
-
-
-# [END howto_sensor_s3_key_function_definition]
-
-
 with DAG(
     dag_id='example_s3_bucket',
     schedule_interval=None,
@@ -62,6 +44,22 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    # [START howto_sensor_s3_key_function_definition]
+    def check_fn(files: List) -> bool:
+        """
+        Example of custom check: check if all files are bigger than 1kB
+
+        :param files: List of S3 object attributes.
+        Format: [{
+            'Size': int
+        }]
+        :return: true if the criteria is met
+        :rtype: bool
+        """
+        return all(f.get('Size', 0) > 1024 for f in files)
+
+    # [END howto_sensor_s3_key_function_definition]
+
     # [START howto_operator_s3_create_bucket]
     create_bucket = S3CreateBucketOperator(
         task_id='s3_create_bucket',
