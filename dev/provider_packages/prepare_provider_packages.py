@@ -2155,6 +2155,12 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
+    ("This class is deprecated. Please use `airflow.operators.empty.Empty`.", "dbt"),
+    ("This class is deprecated. Please use `airflow.operators.empty.Empty`.", "jdbc"),
+    ("This class is deprecated. Please use `airflow.operators.empty.Empty`.", "azure"),
+    ("This class is deprecated. Please use `airflow.operators.empty.Empty`.", "qubole"),
+    ("This class is deprecated. Please use `airflow.operators.empty.Empty`.", "winrm"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
@@ -2219,8 +2225,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
     "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
-    "This module is deprecated. Please use `airflow.operators.empty`.",
-    "This class is deprecated. Please use `airflow.operators.empty.Empty`.",
 }
 
 
