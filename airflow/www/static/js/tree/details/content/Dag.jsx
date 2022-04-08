@@ -96,7 +96,7 @@ const Dag = () => {
       </Button>
       {durations.length > 0 && (
         <>
-          <Heading size="md" mt={4} mb={2}>DAG Runs Summary</Heading>
+          <Heading size="sm" mt={4} mb={2}>DAG Runs Summary</Heading>
           <Table variant="striped">
             <Tbody>
               <Tr>
@@ -140,7 +140,7 @@ const Dag = () => {
           </Table>
         </>
       )}
-      <Heading size="md" mt={4} mb={2}>DAG Summary</Heading>
+      <Heading size="sm" mt={4} mb={2}>DAG Summary</Heading>
       <Table variant="striped">
         <Tbody>
           {description && (

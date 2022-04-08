@@ -69,7 +69,7 @@ const TaskInstance = ({ taskId, runId }) => {
   const instance = group.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Box fontSize="12px" py="4px">
+    <Box py="4px">
       {!isGroup && (
         <TaskNav
           taskId={taskId}
