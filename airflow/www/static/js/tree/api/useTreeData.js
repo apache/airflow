@@ -17,9 +17,11 @@
  * under the License.
  */
 
-/* global treeData, autoRefreshInterval, fetch */
+/* global treeData, autoRefreshInterval */
 
 import { useQuery } from 'react-query';
+import axios from 'axios';
+import { useToast } from '@chakra-ui/react';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
@@ -39,26 +41,26 @@ const useTreeData = () => {
   };
   const initialData = formatData(treeData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
+  const toast = useToast();
   return useQuery('treeData', async () => {
     try {
       const root = urlRoot ? `&root=${urlRoot}` : '';
       const base = baseDate ? `&base_date=${baseDate}` : '';
-      const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
-      if (resp) {
-        let newData = await resp.json();
-        newData = formatData(newData);
-        // turn off auto refresh if there are no active runs
-        if (!areActiveRuns(newData.dagRuns)) stopRefresh();
-        return newData;
-      }
+      const newData = await axios.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
+      // turn off auto refresh if there are no active runs
+      if (!areActiveRuns(newData.dagRuns)) stopRefresh();
+      return newData;
     } catch (e) {
       stopRefresh();
-      console.error(e);
+      // Display error in a toast message
+      toast({
+        title: 'Auto-refresh Error',
+        description: e.message,
+        isClosable: true,
+        status: 'error',
+      });
+      throw (e);
     }
-    return {
-      groups: {},
-      dagRuns: [],
-    };
   }, {
     // only enabled and refetch if the refresh switch is on
     enabled: isRefreshOn,
