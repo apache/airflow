@@ -49,6 +49,7 @@ def disable_sqlite_fkeys(op):
     is_sqlite = op.get_bind().dialect.name == 'sqlite'
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
-    yield op
-    if is_sqlite:
+        yield op
         op.execute("PRAGMA foreign_keys=on")
+    else:
+        yield op
