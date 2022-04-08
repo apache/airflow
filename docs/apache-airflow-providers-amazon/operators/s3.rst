@@ -119,8 +119,8 @@ To wait for one or multiple keys to be present in an Amazon S3 bucket you can us
 For each key, it calls
 `head_object <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object>`__
 API (or `list_objects_v2 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2>`__
-API if ``check_fn`` is provided) to check whether it is present or not.
-Please keep in mind that it makes one API call per key, especially when used to check a large volume of keys.
+API if ``wildcard_match`` is ``True``) to check whether it is present or not.
+Please keep in mind, especially when used to check a large volume of keys, that it makes one API call per key.
 
 To check one file:
 
