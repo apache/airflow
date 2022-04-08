@@ -37,8 +37,8 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,
-    GCSUploadSessionCompleteSensor,
     GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
