@@ -581,6 +581,33 @@ class TestBackfillJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_backfill_override_conf(self, dag_maker):
+        dag = self._get_dummy_dag(
+            dag_maker, dag_id="test_backfill_override_conf", task_id="test_backfill_override_conf-1"
+        )
+        dr = dag_maker.create_dagrun(
+            start_date=DEFAULT_DATE,
+        )
+
+        executor = MockExecutor()
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            conf={"a": 1},
+        )
+
+        with patch.object(
+            job,
+            "_task_instances_for_dag_run",
+            wraps=job._task_instances_for_dag_run,
+        ) as wrapped_task_instances_for_dag_run:
+            job.run()
+            dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][0]
+            assert dr.conf == {"a": 1}
+
     def test_backfill_rerun_failed_tasks(self, dag_maker):
         dag = self._get_dummy_dag(
             dag_maker, dag_id="test_backfill_rerun_failed", task_id="test_backfill_rerun_failed_task-1"

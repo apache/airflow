@@ -22,7 +22,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import useTreeData from './useTreeData';
 import { AutoRefreshProvider } from '../context/autorefresh';
 
-/* global describe, test, expect, jest, beforeAll */
+/* global describe, test, expect, beforeAll */
 
 const pendingTreeData = {
   groups: {},
@@ -55,7 +55,6 @@ const Wrapper = ({ children }) => {
 describe('Test useTreeData hook', () => {
   beforeAll(() => {
     global.autoRefreshInterval = 5;
-    global.fetch = jest.fn();
   });
 
   test('data is valid camelcase json', () => {
