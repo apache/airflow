@@ -16,6 +16,7 @@
 # under the License.
 
 from collections import defaultdict
+from contextlib import contextmanager
 
 
 def get_mssql_table_constraints(conn, table_name):
@@ -41,9 +42,6 @@ def get_mssql_table_constraints(conn, table_name):
     for constraint, constraint_type, col_name in result:
         constraint_dict[constraint_type][constraint].append(col_name)
     return constraint_dict
-
-
-from contextlib import contextmanager
 
 
 @contextmanager
