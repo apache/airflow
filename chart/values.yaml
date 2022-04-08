@@ -1329,6 +1329,13 @@ redis:
   affinity: {}
   tolerations: []
 
+  # Set to 0 for backwards-compatiblity
+  uid: 0
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 0
+
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
 registry:

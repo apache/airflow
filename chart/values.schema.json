@@ -3774,6 +3774,24 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 999,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "uid": {
+                    "description": "Redis run as user parameter.",
+                    "type": "integer",
+                    "default": 0
                 }
             }
         },
