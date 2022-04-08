@@ -98,6 +98,7 @@ check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
+check-revision-heads-map
 check-xml
 check-system-tests
 daysago-import-check
