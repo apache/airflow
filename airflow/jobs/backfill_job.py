@@ -297,6 +297,8 @@ class BackfillJob(BaseJob):
             run = runs[0]
             if run.state == DagRunState.RUNNING:
                 respect_dag_max_active_limit = False
+            # Fixes --conf overwrite for backfills with already existing DagRuns
+            run.conf = self.conf or {}
         else:
             run = None
 

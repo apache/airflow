@@ -86,6 +86,7 @@ REVISION_HEADS_MAP = {
     "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
     "2.2.4": "587bdf053233",
+    "2.2.5": "587bdf053233",
 }
 
 
@@ -1158,7 +1159,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :rtype: list[str]
     """
     check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
-        check_task_fail_for_duplicates,
+        # todo: check task fail for duplicates
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
