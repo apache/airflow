@@ -83,7 +83,7 @@ const Tree = () => {
         <ResetRoot />
         <FormControl display="flex" width="auto" mr={2}>
           {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-          <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
+          <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
             Auto-refresh
           </FormLabel>
           <Switch
