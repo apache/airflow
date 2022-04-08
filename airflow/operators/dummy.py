@@ -35,6 +35,6 @@ class DummyOperator(EmptyOperator):
         warnings.warn(
             """This class is deprecated. Please use `airflow.operators.empty.Empty`.""",
             DeprecationWarning,
-            stacklevel=4,
+            stacklevel=2,
         )
         super().__init__(**kwargs)
