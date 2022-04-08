@@ -41,3 +41,16 @@ def get_mssql_table_constraints(conn, table_name):
     for constraint, constraint_type, col_name in result:
         constraint_dict[constraint_type][constraint].append(col_name)
     return constraint_dict
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def disable_sqlite_fkeys(op):
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "sqlite":
+        op.execute("PRAGMA foreign_keys=off")
+    yield op
+    if dialect_name == "sqlite":
+        op.execute("PRAGMA foreign_keys=on")
