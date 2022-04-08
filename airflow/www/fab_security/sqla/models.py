@@ -229,12 +229,12 @@ class User(Model):
 
     @property
     def perms(self):
-        if not self._perms_cache:
+        if not self._perms:
             # Using the ORM here is _slow_ (Creating lots of objects to then throw them away) since this is in
             # the path for every request. Avoid it if we can!
             if current_app:
                 sm = current_app.appbuilder.sm
-                self._perms_cache: Set[Tuple[str, str]] = set(
+                self._perms: Set[Tuple[str, str]] = set(
                     sm.get_session.query(sm.action_model.name, sm.resource_model.name)
                     .join(sm.permission_model.action)
                     .join(sm.permission_model.resource)
@@ -243,10 +243,10 @@ class User(Model):
                     .all()
                 )
             else:
-                self._perms_cache = {
+                self._perms = {
                     (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
                 }
-        return self._perms_cache
+        return self._perms
 
     def get_id(self):
         return self.id
@@ -257,7 +257,7 @@ class User(Model):
     def __repr__(self):
         return self.get_full_name()
 
-    _perms_cache = None
+    _perms = None
 
 
 class RegisterUser(Model):
