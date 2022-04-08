@@ -1802,7 +1802,7 @@ def test_mapped_decorator_serde():
 def test_dummy_operator_serde():
     """
     Test to verify that when user uses custom DummyOperator with inherits_from_dummy_operator
-    we will have _is_empty in seralized operator.
+    we will have _is_empty in serialized operator.
     """
 
     # In this test we should NOT switch the DummyOperator to EmptyOperator.
