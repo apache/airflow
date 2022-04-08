@@ -239,7 +239,7 @@ class User(Model):
                     .join(sm.permission_model.action)
                     .join(sm.permission_model.resource)
                     .join(sm.permission_model.role)
-                    .filter(sm.role_model.user.contains(g.user))
+                    .filter(sm.role_model.user.contains(self))
                     .all()
                 )
             else:
