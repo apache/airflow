@@ -18,7 +18,6 @@
 #
 """Utilities module for cli"""
 import functools
-import io
 import json
 import logging
 import os
@@ -29,18 +28,12 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
-from contextlib import redirect_stdout
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
-import pygments
-from pygments.lexers.configs import IniLexer
-
 from airflow import settings
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
-from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
@@ -278,13 +271,6 @@ def sigint_handler(sig, frame):
     sys.exit(0)
 
 
-def sigconf_handler(sig, frame):
-    """Print configuration and source including default values."""
-    config = get_config_with_source(include_default=True)
-    log = logging.getLogger(__name__)
-    log.info(config)
-
-
 def sigquit_handler(sig, frame):
     """
     Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
@@ -342,28 +328,3 @@ def suppress_logs_and_warning(f: T) -> T:
                     logging.disable(logging.NOTSET)
 
     return cast(T, _wrapper)
-
-
-def get_config_with_source(include_default: bool = False) -> str:
-    """Return configuration along with source for each option."""
-    config_dict = conf.as_dict(display_source=True)
-
-    with io.StringIO() as buf, redirect_stdout(buf):
-        for section, options in config_dict.items():
-            if not include_default:
-                options = {
-                    key: (value, source) for key, (value, source) in options.items() if source != "default"
-                }
-
-            # Print the section only when there are options after filtering
-            if options:
-                print(f"[{section}]")
-                for key, (value, source) in options.items():
-                    print(f"{key} = {value} [{source}]")
-                print()
-        code = buf.getvalue()
-
-        if is_terminal_support_colors():
-            code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
-
-        return code
