@@ -156,7 +156,7 @@ The make_list runs as a normal task and must return a list or dict (see `What da
 Mapping with non-TaskFlow operators
 ===================================
 
-It is possible to use partial and expand with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as task_id, queue, pool, and most other arguments to BaseOperator. 
+It is possible to use partial and expand with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as task_id, queue, pool, and most other arguments to BaseOperator.
 
 
 .. code-block:: python
