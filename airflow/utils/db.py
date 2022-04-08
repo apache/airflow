@@ -1159,7 +1159,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :rtype: list[str]
     """
     check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
-        check_task_fail_for_duplicates,
+        # todo: check task fail for duplicates
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
