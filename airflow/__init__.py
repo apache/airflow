@@ -70,7 +70,7 @@ def __getattr__(name):
 
     import operator
 
-    # Strip of the "airflow." prefix because of how `__import__` works (it always returns the top level
+    # Strip off the "airflow." prefix because of how `__import__` works (it always returns the top level
     # module)
     without_prefix = path.split('.', 1)[-1]
 
