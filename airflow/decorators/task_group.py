@@ -20,13 +20,12 @@ A TaskGroup is a collection of closely related tasks on the same DAG that should
 together when the DAG is displayed graphically.
 """
 import functools
-import warnings
 from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, Union, cast, overload
 
 import attr
 
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -80,58 +79,6 @@ class TaskGroupDecorator(Generic[R]):
         #       task_2()
         #   start >> tg >> end
         return task_group
-
-    def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
-        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).partial(**kwargs)
-
-    def expand(self, **kwargs) -> Union[R, TaskGroup]:
-        return MappedTaskGroupDecorator(function=self.function, kwargs=self.kwargs).expand(**kwargs)
-
-
-@attr.define
-class MappedTaskGroupDecorator(TaskGroupDecorator[R]):
-    """:meta private:"""
-
-    partial_kwargs: Dict[str, Any] = attr.ib(factory=dict)
-    """static kwargs for the decorated function"""
-    mapped_kwargs: Dict[str, Any] = attr.ib(factory=dict)
-    """kwargs for the decorated function"""
-
-    def __call__(self, *args, **kwargs):
-        raise RuntimeError("A mapped @task_group cannot be called. Use `.map` and `.partial` instead")
-
-    def _make_task_group(self, **kwargs) -> MappedTaskGroup:
-        tg = MappedTaskGroup(**kwargs)
-        tg.partial_kwargs = self.partial_kwargs
-        tg.mapped_kwargs = self.mapped_kwargs
-        return tg
-
-    def partial(self, **kwargs) -> "MappedTaskGroupDecorator[R]":
-        duplicated_keys = [k for k in kwargs if k in self.partial_kwargs]
-        if len(duplicated_keys) == 1:
-            raise ValueError(f"Cannot overwrite partial argument: {duplicated_keys[0]!r}")
-        elif duplicated_keys:
-            joined = ", ".join(repr(k) for k in duplicated_keys)
-            raise ValueError(f"Cannot overwrite partial arguments: {joined}")
-        self.partial_kwargs.update(kwargs)
-        return self
-
-    def expand(self, **kwargs) -> Union[R, TaskGroup]:
-        if self.mapped_kwargs:
-            raise RuntimeError("Already a mapped task group")
-        self.mapped_kwargs = kwargs
-
-        call_kwargs = self.partial_kwargs.copy()
-        duplicated_keys = set(call_kwargs).intersection(kwargs)
-        if duplicated_keys:
-            raise RuntimeError(f"Cannot map partial arguments: {', '.join(sorted(duplicated_keys))}")
-        call_kwargs.update({k: object() for k in kwargs})
-
-        return super().__call__(**call_kwargs)
-
-    def __del__(self):
-        if not self.mapped_kwargs:
-            warnings.warn(f"Partial task group {self.function.__name__} was never mapped!")
 
 
 class Group(Generic[F]):

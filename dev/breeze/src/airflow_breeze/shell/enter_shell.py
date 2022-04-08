@@ -29,6 +29,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.docker_command_utils import (
     SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
@@ -57,17 +58,14 @@ def build_image_if_needed_steps(verbose: bool, dry_run: bool, shell_params: Shel
     :param shell_params: parameters for the build
     """
     # We import those locally so that click autocomplete works
-    from inputimeout import TimeoutOccurred, inputimeout
+    from inputimeout import TimeoutOccurred
 
     build_needed = md5sum_check_if_build_is_needed(shell_params.md5sum_cache_dir, shell_params.the_image_type)
     if not build_needed:
         return
     try:
-        user_status = inputimeout(
-            prompt='\nDo you want to build image?Press y/n/q in 5 seconds\n',
-            timeout=5,
-        )
-        if user_status in ['y', 'yes', 'Y', 'Yes', 'YES']:
+        answer = user_confirm(message="Do you want to build image?", timeout=5, default_answer=Answer.NO)
+        if answer == answer.YES:
             if is_repo_rebased(shell_params.github_repository, shell_params.airflow_branch):
                 build_image(
                     verbose,
@@ -95,15 +93,10 @@ def build_image_if_needed_steps(verbose: bool, dry_run: bool, shell_params: Shel
                     )
                     console.print('[red]Exiting the process[/]\n')
                     sys.exit(1)
-        elif user_status in ['n', 'no', 'N', 'No', 'NO']:
+        elif answer == Answer.NO:
             instruct_build_image(shell_params.python)
-        elif user_status in ['q', 'quit', 'Q', 'Quit', 'QUIT']:
+        else:  # users_status == Answer.QUIT:
             console.print('\n[bright_yellow]Quitting the process[/]\n')
-            sys.exit()
-        else:
-            console.print(
-                f'\n[red]You have given a wrong choice: {user_status}.' f' Quitting the process[/]\n'
-            )
             sys.exit()
     except TimeoutOccurred:
         console.print('\nTimeout. Considering your response as No\n')

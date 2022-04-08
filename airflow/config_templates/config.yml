@@ -496,7 +496,8 @@
     - name: remote_log_conn_id
       description: |
         Users must supply an Airflow connection id that provides access to the storage
-        location. Note: This is only used for reading logs, not writing logs
+        location. Depending on your remote logging service, this may only be used for
+        reading logs, not writing them.
       version_added: 2.0.0
       type: string
       example: ~

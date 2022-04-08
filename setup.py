@@ -248,13 +248,9 @@ celery = [
     'celery>=5.2.3,<6',
     'flower>=1.0.0',
 ]
-cgroups = [  # type:ignore
-    # Cgroups are now vendored in `airflow/_vendor/cgroupspy` for Python 3.10 compatibility
-    # The vendored code can be removed once cgroupspy released a new version after fixing
-    # the incompatibility https://github.com/cloudsigma/cgroupspy/issues/13 (hopefully >0.2.1 will
-    # be good for that. We should also be able to remove type:ignore above, as MyPy can't derive the type
-    # when this line is commented out
-    # 'cgroupspy>0.2.1',
+cgroups = [
+    # Cgroupspy 0.2.2 added Python 3.10 compatibility
+    'cgroupspy>=0.2.2',
 ]
 cloudant = [
     'cloudant>=2.0',

@@ -44,11 +44,8 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
-from airflow.serialization.serialized_objects import (
-    SerializedBaseOperator,
-    SerializedDAG,
-    SerializedTaskGroup,
-)
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -1196,6 +1193,7 @@ class TestStringifiedDAGs:
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
 
         def check_task_group(node):
+            assert node.dag is serialized_dag
             try:
                 children = node.children.values()
             except AttributeError:
@@ -1237,6 +1235,64 @@ class TestStringifiedDAGs:
             'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
             'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep',
             'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
+        ]
+
+    def test_error_on_unregistered_ti_dep_serialization(self):
+        # trigger rule not registered through the plugin system will not be serialized
+        class DummyTriggerRule(BaseTIDep):
+            pass
+
+        class DummyTask(BaseOperator):
+            deps = frozenset(list(BaseOperator.deps) + [DummyTriggerRule()])
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_error_on_unregistered_ti_dep_serialization", start_date=execution_date) as dag:
+            DummyTask(task_id="task1")
+
+        with pytest.raises(SerializationError):
+            SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+
+    def test_error_on_unregistered_ti_dep_deserialization(self):
+        from airflow.operators.dummy import DummyOperator
+
+        with DAG("test_error_on_unregistered_ti_dep_deserialization", start_date=datetime(2019, 8, 1)) as dag:
+            DummyOperator(task_id="task1")
+        serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+        serialize_op['deps'] = [
+            'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
+            # manually injected noncore ti dep should be ignored
+            'test_plugin.NotATriggerRule',
+        ]
+        with pytest.raises(SerializationError):
+            SerializedBaseOperator.deserialize_operator(serialize_op)
+
+    def test_serialize_and_deserialize_custom_ti_deps(self):
+        from test_plugin import CustomTestTriggerRule
+
+        class DummyTask(BaseOperator):
+            deps = frozenset(list(BaseOperator.deps) + [CustomTestTriggerRule()])
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_serialize_custom_ti_deps", start_date=execution_date) as dag:
+            DummyTask(task_id="task1")
+
+        serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+
+        assert serialize_op["deps"] == [
+            'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
+            'airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep',
+            'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
+            'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
+            'test_plugin.CustomTestTriggerRule',
+        ]
+
+        op = SerializedBaseOperator.deserialize_operator(serialize_op)
+        assert sorted(str(dep) for dep in op.deps) == [
+            '<TIDep(CustomTestTriggerRule)>',
+            '<TIDep(Not In Retry Period)>',
+            '<TIDep(Not Previously Skipped)>',
+            '<TIDep(Previous Dagrun State)>',
+            '<TIDep(Trigger Rule)>',
         ]
 
     def test_task_group_sorted(self):
@@ -1591,7 +1647,7 @@ def test_mapped_operator_serde():
         'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
-        'user_supplied_task_id': 'a',
+        '_expansion_kwargs_attr': 'mapped_kwargs',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1635,7 +1691,7 @@ def test_mapped_operator_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
-        'user_supplied_task_id': 'task_2',
+        '_expansion_kwargs_attr': 'mapped_kwargs',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1722,7 +1778,7 @@ def test_mapped_decorator_serde():
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
         'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
-        'user_supplied_task_id': 'x',
+        '_expansion_kwargs_attr': 'mapped_op_kwargs',
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
@@ -1740,35 +1796,3 @@ def test_mapped_decorator_serde():
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
-
-
-def test_mapped_task_group_serde():
-    execution_date = datetime(2020, 1, 1)
-
-    literal = [1, 2, {'a': 'b'}]
-    with DAG("test", start_date=execution_date) as dag:
-        with TaskGroup("process_one", dag=dag).expand(literal) as process_one:
-            BaseOperator(task_id='one')
-
-    serialized = SerializedTaskGroup.serialize_task_group(process_one)
-
-    assert serialized == {
-        '_group_id': 'process_one',
-        'children': {'process_one.one': ('operator', 'process_one.one')},
-        'downstream_group_ids': [],
-        'downstream_task_ids': [],
-        'prefix_group_id': True,
-        'tooltip': '',
-        'ui_color': 'CornflowerBlue',
-        'ui_fgcolor': '#000',
-        'upstream_group_ids': [],
-        'upstream_task_ids': [],
-        'mapped_arg': [
-            1,
-            2,
-            {"__type": "dict", "__var": {'a': 'b'}},
-        ],
-    }
-
-    with DAG("test", start_date=execution_date):
-        SerializedTaskGroup.deserialize_task_group(serialized, None, dag.task_dict)

@@ -203,6 +203,8 @@ class LocalExecutor(BaseExecutor):
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
+        if self.parallelism < 0:
+            raise AirflowException("parallelism must be bigger than or equal to 0")
         self.manager: Optional[SyncManager] = None
         self.result_queue: Optional['Queue[TaskInstanceStateType]'] = None
         self.workers: List[QueuedLocalWorker] = []

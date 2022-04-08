@@ -19,6 +19,29 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass custom headers through in SES email backend (#22667)``
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+
+Misc
+~~~~
+
+* ``Add doc and sample dag for SqlToS3Operator (#22603)``
+* ``Adds HiveToDynamoDB Transfer Sample DAG and Docs (#22517)``
+* ``Add doc and sample dag for MongoToS3Operator (#22575)``
+* ``Add doc for LocalFilesystemToS3Operator (#22574)``
+* ``Add doc and example dag for AWS CloudFormation Operators (#22533)``
+* ``Add doc and sample dag for S3ToFTPOperator and FTPToS3Operator (#22534)``
+* ``GoogleApiToS3Operator: update sample dag and doc (#22507)``
+* ``SalesforceToS3Operator: update sample dag and doc (#22489)``
+
+
 3.2.0
 .....
 

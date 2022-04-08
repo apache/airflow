@@ -21,7 +21,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [3. Bootstraping the virtual environment](#3-bootstraping-the-virtual-environment)
+- [3. Bootstrapping the virtual environment](#3-bootstrapping-the-virtual-environment)
   - [Status](#status)
   - [Context](#context)
   - [Decision](#decision)
@@ -30,13 +30,13 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 3. Bootstraping the virtual environment
+# 3. Bootstrapping the virtual environment
 
 Date: 2021-12-06
 
 ## Status
 
-Draft
+Superseded by [10. Use pipx to install breeze](0010-use-pipx-to-install-breeze.md)
 
 ## Context
 

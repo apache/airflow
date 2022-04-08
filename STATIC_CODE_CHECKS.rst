@@ -165,6 +165,8 @@ require Breeze Docker images to be installed locally.
 ``check-integrations``                 Checks if integration list is synchronized in code
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
+------------------------------------------------------------------------------------------------------------------
+``check-revision-heads-map``           Checks that REVISION_HEADS_MAP is up-to-date
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -273,6 +275,8 @@ require Breeze Docker images to be installed locally.
 ``ui-lint``                            Static checks of airflow/ui/ folder
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-breeze-file``                 Update output of breeze command in BREEZE.rst
+------------------------------------ ---------------------------------------------------------------- ------------
+``update-breeze-config-hash``          Update Breeze README.md with config files hash
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-extras``                      Updates extras in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
