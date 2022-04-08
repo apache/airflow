@@ -35,7 +35,9 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
+    ContextManager,
     Dict,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -69,6 +71,8 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.sqltypes import BigInteger
@@ -293,6 +297,58 @@ def clear_task_instances(
             if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
+
+
+class _LazyXComAccessIterator(collections.abc.Iterator):
+    def __init__(self, cm: ContextManager[Query]):
+        self._cm = cm
+        self._it = iter(cm.__enter__())
+
+    def __del__(self):
+        self._cm.__exit__()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return XCom.deserialize_value(next(self._it))
+
+
+class _LazyXComAccess(collections.abc.Sequence):
+    """Wrapper to lazily pull XCom with a sequence-like interface.
+
+    Note that since the session bound to the parent query may have died when we
+    actually access the sequence's content, we must create a new fresh session
+    for every function call with ``with_session()``.
+    """
+
+    def __init__(self, query: Query):
+        self._q = query
+
+    def __len__(self):
+        with self._get_bound_query() as query:
+            return query.count()
+
+    def __iter__(self):
+        return _LazyXComAccessIterator(self._get_bound_query())
+
+    def __getitem__(self, key):
+        if not isinstance(key, int):
+            raise ValueError("only support index access for now")
+        try:
+            with self._get_bound_query() as query:
+                r = query.offset(key).limit(1).one()
+        except NoResultFound:
+            raise IndexError(key) from None
+        return XCom.deserialize_value(r)
+
+    @contextlib.contextmanager
+    def _get_bound_query(self) -> Generator[Query, None, None]:
+        session = settings.Session()
+        try:
+            yield self._q.with_session(session)
+        finally:
+            session.close()
 
 
 class TaskInstanceKey(NamedTuple):
@@ -2233,14 +2289,19 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        if not task.has_mapped_dependants():
+        # TODO: We don't push TaskMap for mapped task instances because it's not
+        # currently possible for a downstream to depend on one individual mapped
+        # task instance, only a task as a whole. This will change in AIP-42
+        # Phase 2, and we'll need to further analyze the mapped task case.
+        if task.is_mapped or not task.has_mapped_dependants():
             return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
+        task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if len(value) > max_map_length:
+        if task_map.length > max_map_length:
             raise UnmappableXComLengthPushed(value, max_map_length)
-        session.merge(TaskMap.from_task_instance_xcom(self, value))
+        session.merge(task_map)
 
     @provide_session
     def xcom_push(
@@ -2351,20 +2412,12 @@ class TaskInstance(Base, LoggingMixin):
             # make sure all XComs come from one task and run (for task_ids=None
             # and include_prior_dates=True), and re-order by map index (reset
             # needed because XCom.get_many() orders by XCom timestamp).
-            query = (
+            return _LazyXComAccess(
                 query.with_entities(XCom.value)
-                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id)
+                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id, XCom.map_index >= 0)
                 .order_by(None)
                 .order_by(XCom.map_index.asc())
             )
-
-            def iter_xcom_values(query):
-                # The session passed to xcom_pull() may die before this is
-                # iterated through, so we need to bind to a new session.
-                for r in query.with_session(settings.Session()):
-                    yield XCom.deserialize_value(r)
-
-            return iter_xcom_values(query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
