@@ -308,7 +308,7 @@ class _LazyXComAccessIterator(collections.abc.Iterator):
 
     def __del__(self):
         if self._it:
-            self._cm.__exit__()
+            self._cm.__exit__(None, None, None)
 
     def __iter__(self):
         return self
@@ -323,16 +323,19 @@ class _LazyXComAccess(collections.abc.Sequence):
     """Wrapper to lazily pull XCom with a sequence-like interface.
 
     Note that since the session bound to the parent query may have died when we
-    actually access the sequence's content, we must create a new fresh session
+    actually access the sequence's content, we must a new fresh session
     for every function call with ``with_session()``.
     """
 
     def __init__(self, query: Query):
         self._q = query
+        self._len = None
 
     def __len__(self):
-        with self._get_bound_query() as query:
-            return query.count()
+        if self._len is None:
+            with self._get_bound_query() as query:
+                self._len = query.count()
+        return self._len
 
     def __iter__(self):
         return _LazyXComAccessIterator(self._get_bound_query())
@@ -349,6 +352,11 @@ class _LazyXComAccess(collections.abc.Sequence):
 
     @contextlib.contextmanager
     def _get_bound_query(self) -> Generator[Query, None, None]:
+        # Do we have a valid session already?
+        if self._q.session and self._q.session.is_active:
+            yield self._q
+            return
+
         session = settings.Session()
         try:
             yield self._q.with_session(session)
