@@ -300,17 +300,22 @@ def clear_task_instances(
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
+    __slots__ = ['_cm', '_it']
+
     def __init__(self, cm: ContextManager[Query]):
         self._cm = cm
-        self._it = iter(cm.__enter__())
+        self._it = None
 
     def __del__(self):
-        self._cm.__exit__()
+        if self._it:
+            self._cm.__exit__()
 
     def __iter__(self):
         return self
 
     def __next__(self):
+        if not self._it:
+            self._it = iter(self._cm.__enter__())
         return XCom.deserialize_value(next(self._it))
 
 
