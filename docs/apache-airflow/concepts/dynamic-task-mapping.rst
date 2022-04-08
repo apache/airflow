@@ -21,7 +21,7 @@ Dynamic Task Mapping
 
 Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the DAG author having to know in advance how many tasks would be needed.
 
-This can be thought of as defining your tasks in a for loop, but instead of having to have the DAG file fetch the data and do that itself, the scheduler can do this based on the output of a previous task. Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
+This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of a previous task. Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
 
 It is also possible to have a task operate on the collected output of a mapped task, commonly known as map and reduce.
 
@@ -105,7 +105,7 @@ This is also useful for passing things such as connection IDs, database table na
 Mapping over multiple parameters
 ================================
 
-As well as a single parameter it is possible to pass multiple parameters to expand. This will have the effect of creating a "cross product" effect, calling the mapped task with each combination of parameters.
+As well as a single parameter it is possible to pass multiple parameters to expand. This will have the effect of creating a "cross product", calling the mapped task with each combination of parameters.
 
 For example:
 
@@ -156,7 +156,7 @@ The make_list runs as a normal task and must return a list or dict (see `What da
 Mapping with non-TaskFlow operators
 ===================================
 
-It is possible to use partial and expand with classic style operators as well. Some arguments are not mappable, such as task_id, queue, pool, and most other arguments to BaseOperator and have to be passed to ``partial()``
+It is possible to use partial and expand with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as task_id, queue, pool, and most other arguments to BaseOperator. 
 
 
 .. code-block:: python
