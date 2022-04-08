@@ -65,19 +65,20 @@ __lazy_imports = {
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     path = __lazy_imports.get(name)
-    if path:
-        import operator
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-        # Strip of the "airflow." prefix because of how `__import__` works (it always returns the top level
-        # module)
-        without_prefix = path.split('.', 1)[-1]
+    import operator
 
-        getter = operator.attrgetter(f'{without_prefix}.{name}')
-        val = getter(__import__(path))
-        # Store for next time
-        globals()[name] = val
-        return val
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    # Strip of the "airflow." prefix because of how `__import__` works (it always returns the top level
+    # module)
+    without_prefix = path.split('.', 1)[-1]
+
+    getter = operator.attrgetter(f'{without_prefix}.{name}')
+    val = getter(__import__(path))
+    # Store for next time
+    globals()[name] = val
+    return val
 
 
 if not settings.LAZY_LOAD_PLUGINS:
