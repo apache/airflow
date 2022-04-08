@@ -41,10 +41,10 @@
   <h4>{{ title }}</h4>
   <div class="row">
     <div class="col-md-8">
-      <ul id="ti_log_try_index_list" class="nav nav-pills" role="tablist">
+      <ul id="ti_log_try_number_list" class="nav nav-pills" role="tablist">
         {% for log in logs %}
           <li role="presentation" class="{{ 'active' if loop.last else '' }}">
-            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
+            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab" data-try-number="{{ loop.index }}">
               {{ loop.index }}
             </a>
           </li>

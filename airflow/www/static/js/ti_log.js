@@ -144,7 +144,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 function setDownloadUrl(tryNumber) {
   if (!tryNumber) {
     // default to the currently selected tab
-    tryNumber = $('#ti_log_try_index_list .active a').attr('href').replace(/\D/g, '');
+    tryNumber = $('#ti_log_try_number_list .active a').data('try-number');
   }
   const query = new URLSearchParams({
     dag_id: dagId,
@@ -173,8 +173,8 @@ $(document).ready(() => {
   }
 
   setDownloadUrl();
-  $('#ti_log_try_index_list a').click(function () {
-    const tryNumber = $(this).attr('href').replace(/\D/g, '');
+  $('#ti_log_try_number_list a').click(function () {
+    const tryNumber = $(this).data('try-number');
     setDownloadUrl(tryNumber);
   });
 });
