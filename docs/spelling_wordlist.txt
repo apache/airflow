@@ -852,6 +852,7 @@ github
 gitignore
 gitpython
 gitter
+gke
 globstring
 glyphicon
 golang
