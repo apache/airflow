@@ -23,29 +23,28 @@ import {
   Tbody,
   Tr,
   Td,
-  Tag,
   Link,
   Button,
   Flex,
   Heading,
+  Text,
 } from '@chakra-ui/react';
 import { mean } from 'lodash';
 
 import { getDuration, formatDuration } from '../../../datetime_utils';
 import { finalStatesMap, getMetaValue } from '../../../utils';
-import { useDag, useTasks, useTreeData } from '../../api';
+import { useTasks, useTreeData } from '../../api';
 import Time from '../../Time';
+import { SimpleStatus } from '../../StatusBox';
 
 const dagId = getMetaValue('dag_id');
 const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
-  const { data: dag } = useDag(dagId);
   const { data: taskData } = useTasks(dagId);
   const { data: { dagRuns = [] } } = useTreeData();
-  if (!dag || !taskData) return null;
+  if (!taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
-  const { description, tags } = dag;
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};
@@ -72,9 +71,14 @@ const Dag = () => {
         // eslint-disable-next-line react/no-array-index-key
         <Tr key={val}>
           <Td>
-            Total
-            {' '}
-            {val}
+            <Flex alignItems="center">
+              <SimpleStatus state={val} mr={2} />
+              <Text>
+                Total
+                {' '}
+                {val}
+              </Text>
+            </Flex>
           </Td>
           <Td>
             {key}
@@ -94,61 +98,59 @@ const Dag = () => {
       <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
         DAG Details
       </Button>
-      {durations.length > 0 && (
-        <>
-          <Heading size="sm" mt={4} mb={2}>DAG Runs Summary</Heading>
-          <Table variant="striped">
-            <Tbody>
-              <Tr>
-                <Td>Total Runs Displayed</Td>
-                <Td>
-                  {durations.length}
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>First Run Start</Td>
-                <Td>
-                  <Time dateTime={dagRuns[0].startDate} />
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Last Run Start</Td>
-                <Td>
-                  <Time dateTime={dagRuns[dagRuns.length - 1].startDate} />
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Max Run Duration</Td>
-                <Td>
-                  {formatDuration(max)}
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Mean Run Duration</Td>
-                <Td>
-                  {formatDuration(avg)}
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Min Run Duration</Td>
-                <Td>
-                  {formatDuration(min)}
-                </Td>
-              </Tr>
-              {stateSummary}
-            </Tbody>
-          </Table>
-        </>
-      )}
-      <Heading size="sm" mt={4} mb={2}>DAG Summary</Heading>
       <Table variant="striped">
         <Tbody>
-          {description && (
-          <Tr>
-            <Td>Description</Td>
-            <Td>{description}</Td>
-          </Tr>
+          {durations.length > 0 && (
+          <>
+            <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+              <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
+              <Td />
+            </Tr>
+            <Tr>
+              <Td>Total Runs Displayed</Td>
+              <Td>
+                {durations.length}
+              </Td>
+            </Tr>
+            {stateSummary}
+            <Tr>
+              <Td>First Run Start</Td>
+              <Td>
+                <Time dateTime={dagRuns[0].startDate} />
+              </Td>
+            </Tr>
+            <Tr>
+              <Td>Last Run Start</Td>
+              <Td>
+                <Time dateTime={dagRuns[dagRuns.length - 1].startDate} />
+              </Td>
+            </Tr>
+            <Tr>
+              <Td>Max Run Duration</Td>
+              <Td>
+                {formatDuration(max)}
+              </Td>
+            </Tr>
+            <Tr>
+              <Td>Mean Run Duration</Td>
+              <Td>
+                {formatDuration(avg)}
+              </Td>
+            </Tr>
+            <Tr>
+              <Td>Min Run Duration</Td>
+              <Td>
+                {formatDuration(min)}
+              </Td>
+            </Tr>
+          </>
           )}
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+            <Td>
+              <Heading size="sm">DAG Summary</Heading>
+            </Td>
+            <Td />
+          </Tr>
           <Tr>
             <Td>Total Tasks</Td>
             <Td>{totalEntries}</Td>
@@ -162,20 +164,6 @@ const Dag = () => {
               <Td>{value}</Td>
             </Tr>
           ))}
-          {!!tags.length && (
-          <Tr>
-            <Td>Tags</Td>
-            <Td>
-              <Flex flexWrap="wrap">
-                {tags.map((tag) => (
-                  <Link key={tag.name} href={`/home?tags=${tag.name}`} mr={1}>
-                    <Tag colorScheme="blue" size="lg">{tag.name}</Tag>
-                  </Link>
-                ))}
-              </Flex>
-            </Td>
-          </Tr>
-          )}
         </Tbody>
       </Table>
     </>

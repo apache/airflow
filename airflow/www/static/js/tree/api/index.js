@@ -20,7 +20,6 @@
 import axios from 'axios';
 import camelcaseKeys from 'camelcase-keys';
 
-import useDag from './useDag';
 import useTasks from './useTasks';
 import useClearRun from './useClearRun';
 import useQueueRun from './useQueueRun';
@@ -42,7 +41,6 @@ axios.interceptors.response.use(
 axios.defaults.headers.common.Accept = 'application/json';
 
 export {
-  useDag,
   useTasks,
   useClearRun,
   useQueueRun,
