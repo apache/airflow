@@ -2068,7 +2068,7 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
         console.print(f"[red]ERROR! There were {len(warns)} warnings generated during the import[/]")
         console.print()
         console.print("[yellow]Ideally, fix it, so that no warnings are generated during import.[/]")
-        console.print("[yellow]There are two cases that are legitimate deprecation warnings though:[/]")
+        console.print("[yellow]There are three cases that are legitimate deprecation warnings though:[/]")
         console.print("[yellow] 1) when you deprecate whole module or class and replace it in provider[/]")
         console.print("[yellow] 2) when 3rd-party module generates Deprecation and you cannot upgrade it[/]")
         console.print(
