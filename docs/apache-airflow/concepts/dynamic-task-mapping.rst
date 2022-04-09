@@ -102,11 +102,11 @@ For example:
 
     added_values = add.partial(y=10).expand(x=[1, 2, 3])
     # This results in add function being expanded to
-    # add(x=1,y=10)
-    # add(x=2,y=10)
-    # add(x=3,y=10)
+    # add(x=1, y=10)
+    # add(x=2, y=10)
+    # add(x=3, y=10)
 
-This would result in values of 11, 12, 13.
+This would result in values of 11, 12, and 13.
 
 This is also useful for passing things such as connection IDs, database table names, or bucket names to tasks.
 
@@ -135,7 +135,7 @@ For example:
 
 This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
 
-It is not possible to achieve an effect similar to Python's zip function with mapped arguments.
+It is not possible to achieve an effect similar to Python's ``zip`` function with mapped arguments.
 
 Task-generated Mapping
 ======================
