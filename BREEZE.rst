@@ -1252,7 +1252,1670 @@ which is already in the ``Dockerfile.ci``.
 Recording command output
 ========================
 
+<<<<<<< HEAD
 Breeze uses built-in capability of ``rich`` to record and print the command help as an ``svg`` file.
 It's enabled by setting ``RECORD_BREEZE_OUTPUT_FILE`` to a file name where it will be recorded.
 By default it records the screenshots with default characters width and with "Breeze screenshot" title,
 but you can override it with ``RECORD_BREEZE_WIDTH`` and ``RECORD_BREEZE_TITLE`` variables respectively.
+=======
+Breeze Command-Line Interface Reference
+=======================================
+
+Airflow Breeze Syntax
+---------------------
+
+This is the current syntax for  `./breeze <./breeze>`_:
+
+ .. START BREEZE HELP MARKER
+
+.. code-block:: text
+
+
+  ####################################################################################################
+
+  usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
+
+  By default the script enters the  CI container and drops you to bash shell, but you can choose
+  one of the commands to run specific actions instead.
+
+  Add --help after each command to see details:
+
+  Commands without arguments:
+
+    shell                                    [Default] Enters interactive shell in the container
+    build-docs                               Builds documentation in the container
+    build-image                              Builds CI or Production docker image
+    prepare-build-cache                      Prepares CI or Production build cache
+    cleanup-image                            Cleans up the container image created
+    exec                                     Execs into running breeze container in new terminal
+    generate-constraints                     Generates pinned constraint files
+    initialize-local-virtualenv              Initializes local virtualenv
+    prepare-airflow-packages                 Prepares airflow packages
+    setup-autocomplete                       Sets up autocomplete for breeze
+    start-airflow                            Starts Scheduler and Webserver and enters the shell
+    stop                                     Stops the docker-compose environment
+    restart                                  Stops the docker-compose environment including DB cleanup
+    toggle-suppress-cheatsheet               Toggles on/off cheatsheet
+    toggle-suppress-asciiart                 Toggles on/off asciiart
+
+  Commands with arguments:
+
+    docker-compose                     <ARG>      Executes specified docker-compose command
+    kind-cluster                       <ARG>      Manages KinD cluster on the host
+    prepare-provider-documentation     <ARG>      Prepares provider packages documentation
+    prepare-provider-packages          <ARG>      Prepares provider packages
+    static-check                       <ARG>      Performs selected static check for changed files
+    tests                              <ARG>      Runs selected tests in the container
+
+  Help commands:
+
+    flags                                    Shows all breeze's flags
+    help                                     Shows this help message
+    help-all                                 Shows detailed help for all commands and flags
+
+  ####################################################################################################
+
+  Detailed usage
+
+  ####################################################################################################
+
+
+  Detailed usage for command: shell
+
+
+  breeze shell [FLAGS] [-- <EXTRA_ARGS>]
+
+        This is default subcommand if no subcommand is used.
+
+        Enters interactive shell where you can run all tests, start Airflow webserver, scheduler,
+        workers, interact with the database, run DAGs etc. It is the default command if no command
+        is selected. The shell is executed in the container and in case integrations are chosen,
+        the integrations will be started as separated docker containers - under the docker-compose
+        supervision. Local sources are by default mounted to within the container so you can edit
+        them locally and run tests immediately in the container. Several folders ('files', 'dist')
+        are also mounted so that you can exchange files between the host and container.
+
+        The 'files/airflow-breeze-config/variables.env' file can contain additional variables
+        and setup. This file is automatically sourced when you enter the container. Database
+        and webserver ports are forwarded to appropriate database/webserver so that you can
+        connect to it from your host environment.
+
+        You can also pass <EXTRA_ARGS> after -- they will be passed as bash parameters, this is
+        especially useful to pass bash options, for example -c to execute command:
+
+        'breeze shell -- -c "ls -la"'
+        'breeze -- -c "ls -la"'
+
+        For GitHub repository, the --github-repository flag can be used to specify the repository
+        to pull and push images. You can also use --github-image-id <COMMIT_SHA> in case
+        you want to pull the image with specific COMMIT_SHA tag.
+
+        'breeze shell \
+              --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+        'breeze \
+              --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+
+  Most flags are applicable to the shell command as it will run build when needed.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: build-docs
+
+
+  breeze build-docs [-- <EXTRA_ARGS>]
+
+        Builds Airflow documentation. The documentation is build inside docker container - to
+        maintain the same build environment for everyone. Appropriate sources are mapped from
+        the host to the container so that latest sources are used. The folders where documentation
+        is generated ('docs/_build') are also mounted to the container - this way results of
+        the documentation build is available in the host.
+
+        The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: build-image
+
+
+  breeze build-image [FLAGS]
+
+        Builds docker image (CI or production) without entering the container. You can pass
+        additional options to this command, such as:
+
+        Choosing python version:
+          '--python'
+
+        Choosing cache option:
+           '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
+
+        Choosing whether to force pull images or force build the image:
+            '--force-build-image'
+
+        You can also pass '--production-image' flag to build production image rather than CI image.
+
+        For GitHub repository, the '--github-repository' can be used to choose repository
+        to pull/push images.
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
+          Uses different version of Airflow when building PROD image.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist
+
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
+          Installs Airflow directly from reference in GitHub when building PROD image.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
+
+  --installation-method INSTALLATION_METHOD
+          Method of installing Airflow in PROD image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
+  -F, --force-build-images
+          Forces building of the local docker images. The images are rebuilt
+          automatically for the first time or when changes are detected in
+          package-related files, but you can force it using this flag.
+
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
+
+  Customization options:
+
+  -E, --extras EXTRAS
+          Extras to pass to build images The default are different for CI and production images:
+
+          CI image:
+                 devel_ci
+
+          Production image:
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
+
+  --image-tag TAG
+          Additional tag in the image.
+
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-docker-context-files flag.
+
+  --additional-extras ADDITIONAL_EXTRAS
+          Additional extras to pass to build images The default is no additional extras.
+
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
+          Additional python dependencies to use when building the images.
+
+  --dev-apt-command DEV_APT_COMMAND
+          The basic command executed before dev apt deps are installed.
+
+  --additional-dev-apt-command ADDITIONAL_DEV_APT_COMMAND
+          Additional command executed before dev apt deps are installed.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_APT_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --dev-apt-deps DEV_APT_DEPS
+          The basic apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-envs ADDITIONAL_DEV_APT_ENVS
+          Additional environment variables set when adding dev dependencies.
+
+  --runtime-apt-command RUNTIME_APT_COMMAND
+          The basic command executed before runtime apt deps are installed.
+
+  --additional-runtime-apt-command ADDITIONAL_RUNTIME_APT_COMMAND
+          Additional command executed before runtime apt deps are installed.
+
+  --runtime-apt-deps ADDITIONAL_RUNTIME_APT_DEPS
+          The basic apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-deps ADDITIONAL_RUNTIME_DEPS
+          Additional apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-envs ADDITIONAL_RUNTIME_APT_DEPS
+          Additional environment variables set when adding runtime dependencies.
+
+  Build options:
+
+  --disable-mysql-client-installation
+          Disables installation of the mysql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
+
+  --install-from-docker-context-files
+          This flag is used during image building. If it is used additionally to installing
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
+          in the 'docker-context-files' folder. The same flag can be used during entering the image in
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
+
+  -C, --force-clean-images
+          Force build images with cache disabled. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
+  -L, --build-cache-local
+          Uses local cache to build images. No pulled images will be used, but results of local
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from GitHub Container Registry to build images.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
+
+  -g, --github-repository GITHUB_REPOSITORY
+          GitHub repository used to pull, push images.
+          Default: apache/airflow.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-build-cache
+
+
+  breeze prepare-build-cache [FLAGS]
+
+        Prepares build cache (CI or production) without entering the container. You can pass
+        additional options to this command, such as:
+
+        Choosing python version:
+          '--python'
+
+        You can also pass '--production-image' flag to build production image rather than CI image.
+
+        For GitHub repository, the '--github-repository' can be used to choose repository
+        to pull/push images. Cleanup docker context files and pull cache are forced. This command
+        requires buildx to be installed.
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
+          Uses different version of Airflow when building PROD image.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist
+
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
+          Installs Airflow directly from reference in GitHub when building PROD image.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
+
+  --installation-method INSTALLATION_METHOD
+          Method of installing Airflow in PROD image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
+  -g, --github-repository GITHUB_REPOSITORY
+          GitHub repository used to pull, push images.
+          Default: apache/airflow.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: cleanup-image
+
+
+  breeze cleanup-image [FLAGS]
+
+        Removes the breeze-related images created in your local docker image cache. This will
+        not reclaim space in docker cache. You need to 'docker system prune' (optionally
+        with --all) to reclaim that space.
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: exec
+
+
+  breeze exec [-- <EXTRA_ARGS>]
+
+        Execs into interactive shell to an already running container. The container must be started
+        already by breeze shell command. If you are not familiar with tmux, this is the best
+        way to run multiple processes in the same container at the same time for example scheduler,
+        webserver, workers, database console and interactive terminal.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: generate-constraints
+
+
+  breeze generate-constraints [FLAGS]
+
+        Generates pinned constraint files with all extras from setup.py. Those files are generated in
+        files folder - separate files for different python version. Those constraint files when
+        pushed to orphan constraints-main, constraints-2-0 branches are used
+        to generate repeatable CI test runs as well as run repeatable production image builds and
+        upgrades when you want to include installing or updating some of the released providers
+        released at the time particular airflow version was released. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation or manually fix them - constraints are pushed to the orphan
+        branches by a successful scheduled CRON job in CI automatically, but sometimes manual fix
+        might be needed.
+
+  Flags:
+
+  --generate-constraints-mode GENERATE_CONSTRAINTS_MODE
+          Mode of generating constraints - determines whether providers are installed when generating
+          constraints and which version of them (either the ones from sources are used or the ones
+          from pypi.
+
+          One of:
+
+                 source-providers pypi-providers no-providers
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: initialize-local-virtualenv
+
+
+  breeze initialize-local-virtualenv [FLAGS]
+
+        Initializes locally created virtualenv installing all dependencies of Airflow
+        taking into account the constraints for the version specified.
+        This local virtualenv can be used to aid auto-completion and IDE support as
+        well as run unit tests directly from the IDE. You need to have virtualenv
+        activated before running this command.
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-airflow-packages
+
+
+  breeze prepare-airflow-packages [FLAGS]
+
+        Prepares airflow packages (sdist and wheel) in dist folder. Note that
+        prepare-provider-packages command cleans up the dist folder, so if you want also
+        to generate provider packages, make sure you run prepare-provider-packages first,
+        and prepare-airflow-packages second. You can specify optional
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+        The packages are prepared in dist folder
+
+        Examples:
+
+        'breeze prepare-airflow-packages --package-format wheel' or
+        'breeze prepare-airflow-packages --version-suffix-for-pypi rc1'
+
+  Flags:
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated provider package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: setup-autocomplete
+
+
+  breeze setup-autocomplete
+
+        Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
+        shell and when typing breeze command <TAB> will provide autocomplete for
+        parameters and values.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: start-airflow
+
+
+  breeze start-airflow
+
+        Like the Shell command this will enter the interactive shell, but it will also start
+        automatically the Scheduler and the Webserver. It will leave you in a tmux session where you
+        can also observe what is happening in your Airflow.
+
+        This is a convenient way to setup a development environment. Your dags will be loaded from the
+        folder 'files/dags' on your host machine (it could take some times).
+
+        If you want to load default connections and example dags you can use the dedicated flags.
+
+  Flags:
+
+  --use-airflow-version AIRFLOW_SPECIFICATION
+          In CI image, installs Airflow at runtime from PIP released version or using
+          the installation method specified (sdist, wheel, none). When 'none' is used,
+          airflow is just removed. In this case airflow package should be added to dist folder
+          and --use-packages-from-dist flag should be used.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist none
+
+  --use-packages-from-dist
+          In CI image, if specified it will look for packages placed in dist folder and
+          it will install the packages after entering the image.
+          This is useful for testing provider packages.
+
+  --load-example-dags
+          Include Airflow example dags.
+
+  --load-default-connections
+          Include Airflow Default Connections.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: stop
+
+
+  breeze stop
+
+        Brings down running docker compose environment. When you start the environment, the docker
+        containers will continue running so that startup time is shorter. But they take quite a lot of
+        memory and CPU. This command stops all running containers from the environment.
+
+  Flags:
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: restart
+
+
+  breeze restart [FLAGS]
+
+        Restarts running docker compose environment. When you restart the environment, the docker
+        containers will be restarted. That includes cleaning up the databases. This is
+        especially useful if you switch between different versions of Airflow.
+
+  Flags:
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: toggle-suppress-cheatsheet
+
+
+  breeze toggle-suppress-cheatsheet
+
+        Toggles on/off cheatsheet displayed before starting bash shell.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: toggle-suppress-asciiart
+
+
+  breeze toggle-suppress-asciiart
+
+        Toggles on/off asciiart displayed before starting bash shell.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: docker-compose
+
+
+  breeze docker-compose [FLAGS] COMMAND [-- <EXTRA_ARGS>]
+
+        Run docker-compose command instead of entering the environment. Use 'help' as command
+        to see available commands. The <EXTRA_ARGS> passed after -- are treated
+        as additional options passed to docker-compose. For example
+
+        'breeze docker-compose pull -- --ignore-pull-failures'
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -b, --backend BACKEND
+          Backend to use for tests - it determines which database is used.
+          One of:
+
+                 sqlite mysql postgres mssql
+
+          Default: sqlite
+
+  --postgres-version POSTGRES_VERSION
+          Postgres version used. One of:
+
+                 10 11 12 13
+
+  --mysql-version MYSQL_VERSION
+          MySql version used. One of:
+
+                 5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: kind-cluster
+
+
+  breeze kind-cluster [FLAGS] OPERATION
+
+        Manages host-side Kind Kubernetes cluster that is used to run Kubernetes integration tests.
+        It allows to start/stop/restart/status the Kind Kubernetes cluster and deploy Airflow to it.
+        This enables you to run tests inside the breeze environment with latest airflow images.
+        Note that in case of deploying airflow, the first step is to rebuild the image and loading it
+        to the cluster so you can also pass appropriate build image flags that will influence
+        rebuilding the production image. Operation is one of:
+
+                 start stop restart status deploy test shell k9s
+
+        The last two operations - shell and k9s allow you to perform interactive testing with
+        kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+        another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+        way to debug the kubernetes deployments.
+
+        You can read more about k9s at https://k9scli.io/
+
+  Flags:
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  -F, --force-build-images
+          Forces building of the local docker images. The images are rebuilt
+          automatically for the first time or when changes are detected in
+          package-related files, but you can force it using this flag.
+
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
+
+  Customization options:
+
+  -E, --extras EXTRAS
+          Extras to pass to build images The default are different for CI and production images:
+
+          CI image:
+                 devel_ci
+
+          Production image:
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
+
+  --image-tag TAG
+          Additional tag in the image.
+
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-docker-context-files flag.
+
+  --additional-extras ADDITIONAL_EXTRAS
+          Additional extras to pass to build images The default is no additional extras.
+
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
+          Additional python dependencies to use when building the images.
+
+  --dev-apt-command DEV_APT_COMMAND
+          The basic command executed before dev apt deps are installed.
+
+  --additional-dev-apt-command ADDITIONAL_DEV_APT_COMMAND
+          Additional command executed before dev apt deps are installed.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_APT_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --dev-apt-deps DEV_APT_DEPS
+          The basic apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-envs ADDITIONAL_DEV_APT_ENVS
+          Additional environment variables set when adding dev dependencies.
+
+  --runtime-apt-command RUNTIME_APT_COMMAND
+          The basic command executed before runtime apt deps are installed.
+
+  --additional-runtime-apt-command ADDITIONAL_RUNTIME_APT_COMMAND
+          Additional command executed before runtime apt deps are installed.
+
+  --runtime-apt-deps ADDITIONAL_RUNTIME_APT_DEPS
+          The basic apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-deps ADDITIONAL_RUNTIME_DEPS
+          Additional apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-envs ADDITIONAL_RUNTIME_APT_DEPS
+          Additional environment variables set when adding runtime dependencies.
+
+  Build options:
+
+  --disable-mysql-client-installation
+          Disables installation of the mysql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
+
+  --install-from-docker-context-files
+          This flag is used during image building. If it is used additionally to installing
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
+          in the 'docker-context-files' folder. The same flag can be used during entering the image in
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
+
+  -C, --force-clean-images
+          Force build images with cache disabled. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
+  -L, --build-cache-local
+          Uses local cache to build images. No pulled images will be used, but results of local
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from GitHub Container Registry to build images.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-provider-documentation
+
+
+  breeze prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
+
+        Prepares documentation files for provider packages.
+
+        The command is optionally followed by the list of packages to generate readme for.
+        If the first parameter is not formatted as a date, then today is regenerated.
+        If no packages are specified, readme for all packages are generated.
+        If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
+
+        Examples:
+
+        'breeze prepare-provider-documentation' or
+        'breeze prepare-provider-documentation --version-suffix-for-pypi rc1'
+
+        General form:
+
+        'breeze prepare-provider-documentation <PACKAGE_ID> ...'
+
+        * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+          'google' but in several cases, it might be one level deeper separated with
+          '.' for example 'apache.hive'
+
+  Flags:
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated provider package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  --non-interactive
+
+          Runs the command in non-interactive mode.
+
+  --generate-providers-issue
+
+          Generate providers issue that should be created.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-provider-packages
+
+
+  breeze prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
+
+        Prepares provider packages. You can provide (after --) optional list of packages to prepare.
+        If no packages are specified, readme for all packages are generated. You can specify optional
+        --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+        provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+        dist folder. Note that this command also cleans up dist folder before generating the packages
+        so that you do not have accidental files there. This will delete airflow package if it is
+        prepared there so make sure you run prepare-provider-packages first,
+        and prepare-airflow-packages second.
+
+        Examples:
+
+        'breeze prepare-provider-packages' or
+        'breeze prepare-provider-packages google' or
+        'breeze prepare-provider-packages --package-format wheel google' or
+        'breeze prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
+        'breeze prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
+        'breeze prepare-provider-packages --version-suffix-for-pypi a1
+                                              --version-suffix-for-svn a1 http google amazon'
+
+        General form:
+
+        'breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] \
+              [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
+
+        * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+          'google'), but in several cases, it might be one level deeper separated with '.'
+          for example 'apache.hive'
+
+  Flags:
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated provider package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: static-check
+
+
+  breeze static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
+
+        Run selected static checks for currently changed files. You should specify static check that
+        you would like to run or 'all' to run all checks. One of:
+
+                 all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
+                 autoflake base-operator black blacken-docs boring-cyborg build
+                 build-providers-dependencies chart-schema-lint capitalized-breeze
+                 changelog-duplicates check-2-1-compatibility check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-extras-order
+                 check-hooks-apply check-integrations check-merge-conflict check-revision-heads-map
+                 check-xml check-system-tests daysago-import-check debug-statements
+                 detect-private-key docstring-params doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license inline-dockerfile-scripts isort
+                 json-schema language-matters lint-dockerfile lint-openapi markdownlint mermaid
+                 migration-reference mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports persist-credentials-disabled pre-commit-descriptions
+                 pre-commit-hook-names pretty-format-json provide-create-sessions
+                 providers-changelogs providers-init-file providers-subpackages-init-file
+                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
+                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint
+                 update-breeze-config-hash update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file update-supported-versions update-versions
+                 vendor-k8s-json-schema verify-db-migrations-documented version-sync www-lint
+                 yamllint yesqa
+
+        You can pass extra arguments including options to the pre-commit framework as
+        <EXTRA_ARGS> passed after --. For example:
+
+        'breeze static-check mypy' or
+        'breeze static-check mypy -- --files tests/core.py'
+        'breeze static-check mypy -- --all-files'
+
+        To check all files that differ between you current branch and main run:
+
+        'breeze static-check all -- --from-ref $(git merge-base main HEAD) --to-ref HEAD'
+
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
+
+        You can see all the options by adding --help EXTRA_ARG:
+
+        'breeze static-check mypy -- --help'
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: tests
+
+
+  breeze tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
+
+        Run the specified unit test target. There might be multiple
+        targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
+        as additional options passed to pytest. You can pass 'tests' as target to
+        run all tests. For example:
+
+        'breeze tests tests/core/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests
+
+  Flags:
+
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Always,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,
+                 Quarantined
+
+          Default: All
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: flags
+
+
+        Explains in detail all the flags that can be used with breeze.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: help
+
+
+  breeze help
+
+        Shows general help message for all commands.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: help-all
+
+
+  breeze help-all
+
+        Shows detailed help for all commands and flags.
+
+
+  ####################################################################################################
+
+
+  ####################################################################################################
+
+  Summary of all flags supported by Breeze:
+
+  ****************************************************************************************************
+   Choose Airflow variant
+
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
+          Python version used for the image. This is always major/minor version.
+
+          One of:
+
+                 3.7 3.8 3.9 3.10
+
+  --platform PLATFORM
+          Builds image for the platform specified.
+
+          One of:
+
+                 linux/amd64 linux/arm64 linux/amd64,linux/arm64
+
+
+  -d, --debian DEBIAN_VERSION
+          Debian version used for the image. This is always name of the debian distribution version.
+
+          One of:
+
+                 bullseye buster
+
+  ****************************************************************************************************
+   Choose backend to run for Airflow
+
+  -b, --backend BACKEND
+          Backend to use for tests - it determines which database is used.
+          One of:
+
+                 sqlite mysql postgres mssql
+
+          Default: sqlite
+
+  --postgres-version POSTGRES_VERSION
+          Postgres version used. One of:
+
+                 10 11 12 13
+
+  --mysql-version MYSQL_VERSION
+          MySql version used. One of:
+
+                 5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
+
+  ****************************************************************************************************
+   Enable production image
+
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
+  ****************************************************************************************************
+   Additional actions executed while entering breeze
+
+  -d, --db-reset
+          Resets the database at entry to the environment. It will drop all the tables
+          and data and recreate the DB from scratch even if 'restart' command was not used.
+          Combined with 'restart' command it enters the environment in the state that is
+          ready to start Airflow webserver/scheduler/worker. Without the switch, the database
+          does not have any tables and you need to run reset db manually.
+
+  -i, --integration INTEGRATION
+          Integration to start during tests - it determines which integrations are started
+          for integration tests. There can be more than one integration started, or all to
+          start all integrations. Selected integrations are not saved for future execution.
+          One of:
+
+                 cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all
+
+  --init-script INIT_SCRIPT_FILE
+          Initialization script name - Sourced from files/airflow-breeze-config. Default value
+          init.sh. It will be executed after the environment is configured and started.
+
+  ****************************************************************************************************
+   Additional actions executed while starting Airflow
+
+  --load-example-dags
+          Include Airflow example dags.
+
+  --load-default-connections
+          Include Airflow Default Connections.
+
+  ****************************************************************************************************
+   Cleanup options when stopping Airflow
+
+  --preserve-volumes
+          Use this flag if you would like to preserve data volumes from the databases used
+          by the integrations. By default, those volumes are deleted, so when you run 'stop'
+          or 'restart' commands you start from scratch, but by using this flag you can
+          preserve them. If you want to delete those volumes after stopping Breeze, just
+          run the 'breeze stop' again without this flag.
+
+  ****************************************************************************************************
+   Kind kubernetes and Kubernetes tests configuration(optional)
+
+  Configuration for the KinD Kubernetes cluster and tests:
+
+  -K, --kubernetes-mode KUBERNETES_MODE
+          Kubernetes mode - only used in case one of kind-cluster commands is used.
+          One of:
+
+                 image
+
+          Default: image
+
+  -V, --kubernetes-version KUBERNETES_VERSION
+          Kubernetes version - only used in case one of kind-cluster commands is used.
+          One of:
+
+                 v1.23.4 v1.22.7 v1.21.10 v1.20.15
+
+          Default: v1.23.4
+
+  --kind-version KIND_VERSION
+          Kind version - only used in case one of kind-cluster commands is used.
+          One of:
+
+                 v0.12.0
+
+          Default: v0.12.0
+
+  --helm-version HELM_VERSION
+          Helm version - only used in case one of kind-cluster commands is used.
+          One of:
+
+                 v3.6.3
+
+          Default: v3.6.3
+
+  --executor EXECUTOR
+          Executor to use in a kubernetes cluster.
+          One of:
+
+                 KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+                 LocalKubernetesExecutor
+
+          Default: KubernetesExecutor
+
+  ****************************************************************************************************
+   Manage mounting local files
+
+  -l, --skip-mounting-local-sources
+          Skips mounting local volume with sources - you get exactly what is in the
+          docker image rather than your current local sources of Airflow.
+
+  ****************************************************************************************************
+   Assume answers to questions
+
+  -y, --assume-yes
+          Assume 'yes' answer to all questions.
+
+  -n, --assume-no
+          Assume 'no' answer to all questions.
+
+  -q, --assume-quit
+          Assume 'quit' answer to all questions.
+
+  ****************************************************************************************************
+   Install different Airflow version during PROD image build
+
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
+          Uses different version of Airflow when building PROD image.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist
+
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
+          Installs Airflow directly from reference in GitHub when building PROD image.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
+
+  --installation-method INSTALLATION_METHOD
+          Method of installing Airflow in PROD image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  ****************************************************************************************************
+   Use different Airflow version at runtime in CI image
+
+  --use-airflow-version AIRFLOW_SPECIFICATION
+          In CI image, installs Airflow at runtime from PIP released version or using
+          the installation method specified (sdist, wheel, none). When 'none' is used,
+          airflow is just removed. In this case airflow package should be added to dist folder
+          and --use-packages-from-dist flag should be used.
+
+                 2.0.2 2.0.1 2.0.0 wheel sdist none
+
+  --use-packages-from-dist
+          In CI image, if specified it will look for packages placed in dist folder and
+          it will install the packages after entering the image.
+          This is useful for testing provider packages.
+
+  ****************************************************************************************************
+   Credentials
+
+  -f, --forward-credentials
+          Forwards host credentials to docker container. Use with care as it will make
+          your credentials available to everything you install in Docker.
+
+  ****************************************************************************************************
+   Flags for building Docker images (both CI and production)
+
+  -F, --force-build-images
+          Forces building of the local docker images. The images are rebuilt
+          automatically for the first time or when changes are detected in
+          package-related files, but you can force it using this flag.
+
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
+
+  Customization options:
+
+  -E, --extras EXTRAS
+          Extras to pass to build images The default are different for CI and production images:
+
+          CI image:
+                 devel_ci
+
+          Production image:
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
+
+  --image-tag TAG
+          Additional tag in the image.
+
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-docker-context-files flag.
+
+  --additional-extras ADDITIONAL_EXTRAS
+          Additional extras to pass to build images The default is no additional extras.
+
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
+          Additional python dependencies to use when building the images.
+
+  --dev-apt-command DEV_APT_COMMAND
+          The basic command executed before dev apt deps are installed.
+
+  --additional-dev-apt-command ADDITIONAL_DEV_APT_COMMAND
+          Additional command executed before dev apt deps are installed.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_APT_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --dev-apt-deps DEV_APT_DEPS
+          The basic apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-deps ADDITIONAL_DEV_DEPS
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-dev-apt-envs ADDITIONAL_DEV_APT_ENVS
+          Additional environment variables set when adding dev dependencies.
+
+  --runtime-apt-command RUNTIME_APT_COMMAND
+          The basic command executed before runtime apt deps are installed.
+
+  --additional-runtime-apt-command ADDITIONAL_RUNTIME_APT_COMMAND
+          Additional command executed before runtime apt deps are installed.
+
+  --runtime-apt-deps ADDITIONAL_RUNTIME_APT_DEPS
+          The basic apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-deps ADDITIONAL_RUNTIME_DEPS
+          Additional apt runtime dependencies to use when building the images.
+
+  --additional-runtime-apt-envs ADDITIONAL_RUNTIME_APT_DEPS
+          Additional environment variables set when adding runtime dependencies.
+
+  Build options:
+
+  --disable-mysql-client-installation
+          Disables installation of the mysql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
+
+  --install-from-docker-context-files
+          This flag is used during image building. If it is used additionally to installing
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
+          in the 'docker-context-files' folder. The same flag can be used during entering the image in
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
+
+  -C, --force-clean-images
+          Force build images with cache disabled. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
+  -L, --build-cache-local
+          Uses local cache to build images. No pulled images will be used, but results of local
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from GitHub Container Registry to build images.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
+
+  ****************************************************************************************************
+   Flags for pulling/pushing Docker images (both CI and production)
+
+  -g, --github-repository GITHUB_REPOSITORY
+          GitHub repository used to pull, push images.
+          Default: apache/airflow.
+
+
+
+
+  -s, --github-image-id COMMIT_SHA
+          <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
+          to be able to easily find the image for particular CI runs. Once you know the
+          <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
+          automatically pull and use that image so that you can easily reproduce a problem
+          that occurred in CI.
+
+          Default: latest.
+
+  ****************************************************************************************************
+   Flags for running tests
+
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Always,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,
+                 Quarantined
+
+          Default: All
+
+  ****************************************************************************************************
+   Flags for generation of the provider packages
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated provider package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  ****************************************************************************************************
+   Increase verbosity of the scripts
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
+  ****************************************************************************************************
+   Print detailed help message
+
+  -h, --help
+          Shows detailed help message for the command specified.
+
+ .. END BREEZE HELP MARKER
+>>>>>>> 5c42776f29 (cache and typo fix)
