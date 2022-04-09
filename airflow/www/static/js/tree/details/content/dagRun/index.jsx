@@ -76,12 +76,10 @@ const DagRun = ({ runId }) => {
         <MarkSuccessRun dagId={dagId} runId={runId} />
       </Flex>
       <Divider my={3} />
-      <Flex justifyContent="space-between" alignItems="center">
-        <Text fontWeight="bold" ml="10px">Re-run:</Text>
-        <Flex>
-          <ClearRun dagId={dagId} runId={runId} />
-          <QueueRun dagId={dagId} runId={runId} />
-        </Flex>
+      <Flex justifyContent="flex-end" alignItems="center">
+        <Text fontWeight="bold" mr={2}>Re-run:</Text>
+        <ClearRun dagId={dagId} runId={runId} />
+        <QueueRun dagId={dagId} runId={runId} />
       </Flex>
       <Divider my={3} />
       <Flex alignItems="center">
@@ -114,18 +112,6 @@ const DagRun = ({ runId }) => {
       </Text>
       )}
       <br />
-      <Text as="strong">Data Interval:</Text>
-      <Text>
-        Start:
-        {' '}
-        <Time dateTime={dataIntervalStart} />
-      </Text>
-      <Text>
-        End:
-        {' '}
-        <Time dateTime={dataIntervalEnd} />
-      </Text>
-      <br />
       {startDate && (
       <Text>
         Started:
@@ -140,6 +126,19 @@ const DagRun = ({ runId }) => {
         <Time dateTime={endDate} />
       </Text>
       )}
+      <br />
+      <Text as="strong">Data Interval:</Text>
+      <Text>
+        Start:
+        {' '}
+        <Time dateTime={dataIntervalStart} />
+      </Text>
+      <Text>
+        End:
+        {' '}
+        <Time dateTime={dataIntervalEnd} />
+      </Text>
+
     </Box>
   );
 };
