@@ -122,8 +122,9 @@ class TestLoadVariables(unittest.TestCase):
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
-            variables = local_filesystem.load_variables('a.yaml')
-            assert expected_variables == variables
+            vars_yaml = local_filesystem.load_variables('a.yaml')
+            vars_yml = local_filesystem.load_variables('a.yml')
+            assert expected_variables == vars_yaml == vars_yml
 
 
 class TestLoadConnection(unittest.TestCase):
