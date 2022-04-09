@@ -391,20 +391,20 @@ class TestLoadConnection(unittest.TestCase):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.yaml")
 
-    @parameterized.expand((("conn_a: mysql://hosta"),),)
+    @parameterized.expand(
+        (("conn_a: mysql://hosta"),),
+    )
     def test_yaml_extension_parsers_return_same_result(self, file_content):
         with mock_local_file(file_content):
-            yaml_conn = local_filesystem.load_connections_dict("a.yaml")
-            yaml_conn_uri_by_conn_id = {
-                conn_id: conn.get_uri() for conn_id, conn in yaml_conn.items()
+            conn_uri_by_conn_id_yaml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yaml").items()
             }
-
-            yml_conn = local_filesystem.load_connections_dict("a.yml")
-            yml_conn_uri_by_conn_id = {
-                conn_id: conn.get_uri() for conn_id, conn in yml_conn.items()
+            conn_uri_by_conn_id_yml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yml").items()
             }
-
-            assert yaml_conn_uri_by_conn_id == yml_conn_uri_by_conn_id
+            assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
 
 
 class TestLocalFileBackend(unittest.TestCase):

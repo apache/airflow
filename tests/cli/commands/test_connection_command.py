@@ -638,7 +638,10 @@ class TestCliImportConnections:
         mock_exists.return_value = True
         with pytest.raises(
             AirflowException,
-            match=r"Unsupported file format. The file must have one of the following extensions: .env .json .yaml .yml",
+            match=(
+                "Unsupported file format. The file must have one of the following extensions: "
+                ".env .json .yaml .yml"
+            ),
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
