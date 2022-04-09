@@ -32,11 +32,13 @@ In its simplest form you can map over a list defined directly in your DAG file u
 
 .. code-block:: python
 
+    from datetime import datetime
+
     from airflow import DAG
     from airflow.decorators import task
 
 
-    with DAG(dag_id="simple_mapping", start_date=datetime(2022, 3, 4)):
+    with DAG(dag_id="simple_mapping", start_date=datetime(2022, 3, 4)) as dag:
 
         @task
         def add_one(x: int):
@@ -67,15 +69,11 @@ The grid view also provides visibility into your mapped tasks in the details pan
 Repeated Mapping
 ================
 
-The result of one mapped task can also be used as input to the next mapped task
+The result of one mapped task can also be used as input to the next mapped task.
 
 .. code-block:: python
 
-    from airflow import DAG
-    from airflow.decorators import task
-
-
-    with DAG(dag_id="repeated_mapping", start_date=datetime(2022, 3, 4)):
+    with DAG(dag_id="repeated_mapping", start_date=datetime(2022, 3, 4)) as dag:
 
         @task
         def add_one(x: int):
@@ -84,14 +82,12 @@ The result of one mapped task can also be used as input to the next mapped task
         first = add_one.expand(x=[1, 2, 3])
         second = add_one.expand(x=first)
 
-This would have a result of [3, 4, 5]
+This would have a result of ``[3, 4, 5]``.
 
 Constant parameters
 ===================
 
 As well as passing arguments that get expanded at run-time, it is possible to pass arguments that don't change – in order to clearly differentiate between the two kinds we use different functions, ``expand()`` for mapped arguments, and ``partial()`` for unmapped ones.
-
-For example:
 
 .. code-block:: python
 
@@ -114,8 +110,6 @@ Mapping over multiple parameters
 ================================
 
 As well as a single parameter it is possible to pass multiple parameters to expand. This will have the effect of creating a "cross product", calling the mapped task with each combination of parameters.
-
-For example:
 
 .. code-block:: python
 
@@ -140,7 +134,7 @@ It is not possible to achieve an effect similar to Python's ``zip`` function wit
 Task-generated Mapping
 ======================
 
-Up until now the examples we've shown could all be achieved with a ``for`` loop in the DAG file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over. For example:
+Up until now the examples we've shown could all be achieved with a ``for`` loop in the DAG file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over.
 
 .. code-block:: python
 
@@ -159,7 +153,7 @@ Up until now the examples we've shown could all be achieved with a ``for`` loop 
     with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
         consumer.expand(arg=make_list())
 
-The make_list runs as a normal task and must return a list or dict (see `What data types can be expanded?`_), and then the consumer task will be called four times, once with each value in the return of make_list.
+The ``make_list`` task runs as a normal task and must return a list or dict (see `What data types can be expanded?`_), and then the ``consumer`` task will be called four times, once with each value in the return of ``make_list``.
 
 Mapping with non-TaskFlow operators
 ===================================
@@ -176,7 +170,7 @@ It is possible to use partial and expand with classic style operators as well. S
 Mapping over result of classic operators
 ----------------------------------------
 
-If you want to map over the result of a classic operator you will need to create an XComArg object manually:
+If you want to map over the result of a classic operator you will need to create an ``XComArg`` object manually.
 
 .. code-block:: python
 
@@ -233,11 +227,11 @@ If an upstream task returns an unmappable type, the mapped task will fail at run
 Placing limits on mapped tasks
 ==============================
 
-There are two limits that you can place on a task: how many mapped task instances can be created as the result of expansion, and how many of the mapped task can run at once
+There are two limits that you can place on a task: how many mapped task instances can be created as the result of expansion, and how many of the mapped task can run at once.
 
 - **Limiting number of mapped task**
 
-  The [core] ``max_map_length`` config option is the maximum number of task that expand can create – the default value is 1024.
+  The [core] ``max_map_length`` config option is the maximum number of tasks that ``expand`` can create – the default value is 1024.
 
   If a source task ("make_list" in our earlier example) returns a list longer than this it will result in *that* task failing.
 
@@ -261,4 +255,4 @@ There are two limits that you can place on a task: how many mapped task instance
 Automatically skipping zero-length maps
 =======================================
 
-If the input is empty (zero length), no new tasks will be created and the mapped Task will be marked as SKIPPED.
+If the input is empty (zero length), no new tasks will be created and the mapped task will be marked as ``SKIPPED``.
