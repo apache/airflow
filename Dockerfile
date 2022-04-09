@@ -865,7 +865,11 @@ function wait_for_connection {
 
     echo DB_PORT="${DB_PORT:=${detected_port}}"
     readonly DB_PORT
-    run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    if [[ ! -z "${DB_HOST=}" ]] && [[ ! -z "${DB_PORT=}" ]]; then
+        run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    else:
+        >&2 echo "The connection details to the broker could not be determined. Connectivity checks were skipped."
+    fi
 }
 
 function create_www_user() {
