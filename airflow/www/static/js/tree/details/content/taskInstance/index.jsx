@@ -17,12 +17,14 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   VStack,
   Divider,
   StackDivider,
+  Text,
+  Flex,
 } from '@chakra-ui/react';
 
 import RunAction from './taskActions/Run';
@@ -54,6 +56,7 @@ const getTask = ({ taskId, runId, task }) => {
 };
 
 const TaskInstance = ({ taskId, runId }) => {
+  const [selectedRows, setSelectedRows] = useState([]);
   const { data: { groups = {}, dagRuns = [] } } = useTreeData();
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
@@ -68,6 +71,11 @@ const TaskInstance = ({ taskId, runId }) => {
 
   const instance = group.instances.find((ti) => ti.runId === runId);
 
+  let taskActionsTitle = 'Task Actions';
+  if (isMapped) {
+    taskActionsTitle += ` for ${selectedRows.length || 'all'} mapped task${selectedRows.length !== 1 ? 's' : ''}`;
+  }
+
   return (
     <Box py="4px">
       {!isGroup && (
@@ -80,27 +88,40 @@ const TaskInstance = ({ taskId, runId }) => {
       )}
       {!isGroup && (
         <Box my={3}>
+          <Text as="strong">{taskActionsTitle}</Text>
+          <Flex maxHeight="20px" minHeight="20px">
+            {selectedRows.length ? (
+              <Text color="red.500">
+                Clear, Mark Failed, and Mark Success do not yet work with individual mapped tasks.
+              </Text>
+            ) : <Divider my={2} />}
+          </Flex>
+          {/* visibility={selectedRows.length ? 'visible' : 'hidden'} */}
           <VStack justifyContent="center" divider={<StackDivider my={3} />}>
             <RunAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
+              selectedRows={selectedRows}
             />
             <ClearAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
               executionDate={executionDate}
+              selectedRows={selectedRows}
             />
             <MarkFailedAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
+              selectedRows={selectedRows}
             />
             <MarkSuccessAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
+              selectedRows={selectedRows}
             />
           </VStack>
           <Divider my={2} />
@@ -122,7 +143,7 @@ const TaskInstance = ({ taskId, runId }) => {
         extraLinks={extraLinks}
       />
       {isMapped && (
-        <MappedInstances dagId={dagId} runId={runId} taskId={taskId} />
+        <MappedInstances dagId={dagId} runId={runId} taskId={taskId} selectRows={setSelectedRows} />
       )}
     </Box>
   );

@@ -34,6 +34,7 @@ const Run = ({
   runId,
   taskId,
   executionDate,
+  selectedRows,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -113,6 +114,7 @@ const Run = ({
         colorScheme="blue"
         onClick={onClick}
         isLoading={isLoading}
+        isDisabled={!!selectedRows.length}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear
