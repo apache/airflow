@@ -413,6 +413,7 @@ class ECSOperator(BaseOperator):
         )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
+            self.ecs_task_id = self.arn.split("/")[-1]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
