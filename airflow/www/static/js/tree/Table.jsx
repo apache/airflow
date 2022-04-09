@@ -46,7 +46,7 @@ import {
 } from 'react-icons/ti';
 
 const IndeterminateCheckbox = forwardRef(
-  ({ indeterminate, checked, ...rest }, ref) => {
+  ({ indeterminate, ...rest }, ref) => {
     const defaultRef = useRef();
     const resolvedRef = ref || defaultRef;
 
@@ -55,7 +55,7 @@ const IndeterminateCheckbox = forwardRef(
     }, [resolvedRef, indeterminate]);
 
     return (
-      <Checkbox ref={resolvedRef} isChecked={checked} {...rest} />
+      <Checkbox ref={resolvedRef} {...rest} />
     );
   },
 );

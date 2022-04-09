@@ -34,7 +34,7 @@ const Run = ({
   runId,
   taskId,
   executionDate,
-  mapIndexes,
+  selectedRows,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -74,7 +74,6 @@ const Run = ({
         recursive,
         failed,
         confirmed: false,
-        mapIndexes,
       });
       setAffectedTasks(data);
       onOpen();
@@ -93,7 +92,6 @@ const Run = ({
         recursive,
         failed,
         confirmed: true,
-        mapIndexes,
       });
       setAffectedTasks([]);
       onClose();
@@ -116,6 +114,7 @@ const Run = ({
         colorScheme="blue"
         onClick={onClick}
         isLoading={isLoading}
+        isDisabled={!!selectedRows.length}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear
