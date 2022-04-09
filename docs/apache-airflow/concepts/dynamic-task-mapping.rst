@@ -227,7 +227,9 @@ If an upstream task returns an unmappable type, the mapped task will fail at run
 Placing limits on mapped tasks
 ==============================
 
-There are two limits that you can place on a task: how many mapped task instances can be created as the result of expansion, and how many of the mapped task can run at once.
+There are two limits that you can place on a task: 
+  #. the number of mapped task instances can be created as the result of expansion.
+  #. The number of the mapped task can run at once.
 
 - **Limiting number of mapped task**
 
