@@ -92,6 +92,14 @@ const Details = ({ instance, group, operator }) => {
             <br />
           </>
         )}
+        {mappedStates.length > 0 && (
+        <Text>
+          {mappedStates.length}
+          {' '}
+          {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+          Mapped
+        </Text>
+        )}
         <Flex alignItems="center">
           <Text as="strong">
             {isOverall}
