@@ -65,7 +65,6 @@
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
   <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
-  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
   <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
   <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <!-- End Urls -->
