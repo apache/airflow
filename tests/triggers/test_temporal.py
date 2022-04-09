@@ -17,7 +17,6 @@
 
 import asyncio
 import datetime
-import sys
 
 import pendulum
 import pytest
@@ -62,7 +61,6 @@ def test_timedelta_trigger_serialization():
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No async on 3.6")
 @pytest.mark.asyncio
 async def test_datetime_trigger_timing():
     """
