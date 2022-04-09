@@ -761,7 +761,7 @@ class Airflow(AirflowBaseView):
             sort_column = DagModel.__table__.c.get(arg_sorting_key)
             if sort_column is not None:
                 if arg_sorting_direction == 'desc':
-                    sort_column = desc(sort_column)
+                    sort_column = sort_column.desc()
                 current_dags = current_dags.order_by(sort_column)
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
