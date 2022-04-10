@@ -20,6 +20,7 @@
 from copy import copy
 from typing import Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
@@ -106,7 +107,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         transfer_config: Union[dict, TransferConfig],
         project_id: str = PROVIDE_PROJECT_ID,
         authorization_code: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TransferConfig:
@@ -148,7 +149,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         self,
         transfer_config_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -184,7 +185,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         requested_time_range: Optional[dict] = None,
         requested_run_time: Optional[dict] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> StartManualTransferRunsResponse:
@@ -236,7 +237,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         run_id: str,
         transfer_config_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TransferRun:

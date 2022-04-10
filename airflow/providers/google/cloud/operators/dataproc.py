@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Un
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster
 from google.protobuf.duration_pb2 import Duration
@@ -457,7 +458,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
         use_if_exists: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -790,7 +791,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         project_id: Optional[str] = None,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -950,6 +951,8 @@ class DataprocJobBaseOperator(BaseOperator):
     def execute(self, context: 'Context'):
         if self.job_template:
             self.job = self.job_template.build()
+            if self.job is None:
+                raise Exception("The job should be set here.")
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
@@ -1522,7 +1525,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         region: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1624,7 +1627,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1719,7 +1722,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         region: str,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1806,7 +1809,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1937,7 +1940,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         location: Optional[str] = None,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2038,7 +2041,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2074,6 +2077,8 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            if self.operation is None:
+                raise RuntimeError("The operation should be set here!")
             result = hook.wait_for_operation(timeout=self.timeout, operation=self.operation)
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
@@ -2130,7 +2135,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         batch_id: str,
         region: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2194,8 +2199,8 @@ class DataprocGetBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: Optional[Retry] = None,
-        retry: Optional[Retry] = None,
+        project_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2267,7 +2272,7 @@ class DataprocListBatchesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

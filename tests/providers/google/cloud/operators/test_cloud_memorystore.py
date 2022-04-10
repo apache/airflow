@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
-from google.api_core.retry import Retry
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest
 from google.cloud.redis_v1.types import Instance
@@ -49,14 +48,14 @@ TEST_INSTANCE_ID = "test-instance-id"
 TEST_INSTANCE = Instance(name="instance")
 TEST_INSTANCE_NAME = "test-instance-name"
 TEST_PROJECT_ID = "test-project-id"
-TEST_RETRY = Retry()  # type: Retry
-TEST_TIMEOUT = 10  # type: float
-TEST_INSTANCE_SIZE = 4  # type: int
-TEST_METADATA = [("KEY", "VALUE")]  # type: Sequence[Tuple[str, str]]
-TEST_OUTPUT_CONFIG = {"gcs_destination": {"uri": "gs://test-bucket/file.rdb"}}  # type: Dict
+TEST_RETRY = DEFAULT
+TEST_TIMEOUT = 10.0
+TEST_INSTANCE_SIZE = 4
+TEST_METADATA = [("KEY", "VALUE")]
+TEST_OUTPUT_CONFIG = {"gcs_destination": {"uri": "gs://test-bucket/file.rdb"}}
 TEST_DATA_PROTECTION_MODE = FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS
-TEST_INPUT_CONFIG = {"gcs_source": {"uri": "gs://test-bucket/file.rdb"}}  # type: Dict
-TEST_PAGE_SIZE = 100  # type: int
+TEST_INPUT_CONFIG = {"gcs_source": {"uri": "gs://test-bucket/file.rdb"}}
+TEST_PAGE_SIZE = 100
 TEST_UPDATE_MASK = {"paths": ["memory_size_gb"]}  # TODO: Fill missing value
 TEST_UPDATE_MASK_MEMCACHED = {"displayName": "memcached instance"}
 TEST_PARENT = "test-parent"

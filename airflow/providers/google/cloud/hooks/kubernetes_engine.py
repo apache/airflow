@@ -30,7 +30,7 @@ import warnings
 from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
@@ -146,8 +146,8 @@ class GKEHook(GoogleBaseHook):
         self,
         name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry = DEFAULT,
-        timeout: float = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: _MethodDefault = DEFAULT,
     ) -> Optional[str]:
         """
         Deletes the cluster, including the Kubernetes endpoint and all
@@ -186,8 +186,8 @@ class GKEHook(GoogleBaseHook):
         self,
         cluster: Union[Dict, Cluster],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry = DEFAULT,
-        timeout: float = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: _MethodDefault = DEFAULT,
     ) -> str:
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
@@ -238,8 +238,8 @@ class GKEHook(GoogleBaseHook):
         self,
         name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry = DEFAULT,
-        timeout: float = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: _MethodDefault = DEFAULT,
     ) -> Cluster:
         """
         Gets details of specified cluster

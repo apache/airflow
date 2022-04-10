@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution
 from google.cloud.workflows_v1beta import Workflow
@@ -67,7 +68,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -169,7 +170,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         location: str,
         project_id: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -239,7 +240,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -303,7 +304,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         project_id: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -363,7 +364,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -425,7 +426,7 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         execution: Dict,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -489,7 +490,7 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         execution_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -556,7 +557,7 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         location: str,
         start_date_filter: Optional[datetime] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -618,7 +619,7 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         execution_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

@@ -443,9 +443,6 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^airflow/hooks/.*$|
-          ^airflow/operators/.*$|
-          ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$
         exclude: ^airflow/_vendor/
       - id: provide-create-sessions
