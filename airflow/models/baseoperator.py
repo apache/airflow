@@ -596,8 +596,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     # Implementing Operator.
-    template_fields: Collection[str] = ()
-    template_ext: Collection[str] = ()
+    template_fields: Sequence[str] = ()
+    template_ext: Sequence[str] = ()
 
     template_fields_renderers: Dict[str, str] = {}
 

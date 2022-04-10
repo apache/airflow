@@ -18,6 +18,7 @@
 from typing import Dict, List
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
@@ -1366,7 +1367,7 @@ class TestVertexAIGetHyperparameterTuningJobOperator:
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1392,7 +1393,7 @@ class TestVertexAIDeleteHyperparameterTuningJobOperator:
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

@@ -20,6 +20,7 @@ import copy
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
@@ -82,7 +83,7 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             model=MODEL,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -113,7 +114,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             output_config=OUTPUT_CONFIG,
             params={},
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -139,7 +140,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             params={"TEST_KEY": "TEST_VALUE"},
             payload=PAYLOAD,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -163,7 +164,7 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             location=GCP_LOCATION,
             metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_xcom.assert_called_once_with(None, key="dataset_id", value=DATASET_ID)
@@ -195,7 +196,7 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             metadata=(),
             page_size=page_size,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             table_spec_id=table_spec,
             timeout=None,
         )
@@ -219,7 +220,7 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
         mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset=dataset,
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             update_mask=MASK,
         )
@@ -243,7 +244,7 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
             metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -263,7 +264,7 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
             metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -286,7 +287,7 @@ class TestAutoMLDeployModelOperator(unittest.TestCase):
             metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -308,7 +309,7 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
             metadata=(),
             dataset_id=DATASET_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -335,7 +336,7 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
             metadata=(),
             page_size=page_size,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -350,7 +351,7 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
             location=GCP_LOCATION,
             metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_xcom.assert_called_once_with(None, key="dataset_id_list", value=[])
@@ -371,6 +372,6 @@ class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
             dataset_id=DATASET_ID,
             metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )

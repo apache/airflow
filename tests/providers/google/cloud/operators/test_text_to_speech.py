@@ -20,6 +20,7 @@ import unittest
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -66,7 +67,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_text_to_speech_hook.return_value.synthesize_speech.assert_called_once_with(
-            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
+            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
         )
         mock_gcp_hook.return_value.upload.assert_called_once_with(
             bucket_name=TARGET_BUCKET_NAME, object_name=TARGET_FILENAME, filename=ANY

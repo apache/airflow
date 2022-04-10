@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Un
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Task
 from googleapiclient.errors import HttpError
@@ -84,7 +85,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         dataplex_task_id: str,
         validate_only: Optional[bool] = None,
         api_version: str = "v1",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -198,7 +199,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -297,7 +298,7 @@ class DataplexListTasksOperator(BaseOperator):
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
         api_version: str = "v1",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -384,7 +385,7 @@ class DataplexGetTaskOperator(BaseOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
