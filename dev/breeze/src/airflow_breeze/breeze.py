@@ -145,10 +145,15 @@ try:
                 ],
             },
             {
-                "name": "Preparing cache (for maintainers)",
+                "name": "Preparing cache and push (for maintainers and CI)",
                 "options": [
                     "--platform",
                     "--prepare-buildx-cache",
+                    "--push-image",
+                    "--empty-image",
+                    "--github-token",
+                    "--github-username",
+                    "--login-to-github-registry",
                 ],
             },
         ],
@@ -199,10 +204,15 @@ try:
                 ],
             },
             {
-                "name": "Preparing cache (for maintainers)",
+                "name": "Preparing cache and push (for maintainers and CI)",
                 "options": [
                     "--platform",
                     "--prepare-buildx-cache",
+                    "--push-image",
+                    "--empty-image",
+                    "--github-token",
+                    "--github-username",
+                    "--login-to-github-registry",
                 ],
             },
         ],
@@ -462,6 +472,25 @@ option_github_repository = click.option(
     envvar='GITHUB_REPOSITORY',
 )
 
+option_login_to_github_registry = click.option(
+    '--login-to-github-registry',
+    help='Logs in to GitHub registry.',
+    envvar='LOGIN_TO_GITHUB_REGISTRY',
+)
+
+
+option_github_token = click.option(
+    '--github-token',
+    help='The token used to authenticate to GitHub.',
+    envvar='GITHUB_TOKEN',
+)
+
+option_github_username = click.option(
+    '--github-username',
+    help='The user name used to authenticate to GitHub.',
+    envvar='GITHUB_USERNAME',
+)
+
 option_github_image_id = click.option(
     '-s',
     '--github-image-id',
@@ -569,6 +598,21 @@ option_prepare_buildx_cache = click.option(
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
+
+option_push_image = click.option(
+    '--push-image',
+    help='Push image after building it.',
+    is_flag=True,
+    envvar='PUSH_IMAGE',
+)
+
+option_empty_image = click.option(
+    '--empty-image',
+    help='Prepare empty image tagged with the same name as the Airflow image.',
+    is_flag=True,
+    envvar='EMPTY_IMAGE',
+)
+
 
 option_install_providers_from_sources = click.option(
     '--install-providers-from-sources',
@@ -745,9 +789,14 @@ def start_airflow(
 @option_platform
 @option_debian_version
 @option_github_repository
+@option_github_token
+@option_github_username
+@option_login_to_github_registry
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
+@option_push_image
+@option_empty_image
 @option_install_providers_from_sources
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -782,10 +831,15 @@ def build_ci_image(
     runtime_apt_command: Optional[str],
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
+    github_username: Optional[str],
+    github_token: Optional[str],
+    login_to_github_registry: bool,
     docker_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
     prepare_buildx_cache: bool,
+    push_image: bool,
+    empty_image: bool,
     answer: Optional[str],
     upgrade_to_newer_dependencies: str = "false",
 ):
@@ -815,10 +869,15 @@ def build_ci_image(
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
+        github_token=github_token,
+        login_to_github_registry=login_to_github_registry,
+        github_username=github_username,
         docker_cache=docker_cache,
         platform=platform,
         debian_version=debian_version,
         prepare_buildx_cache=prepare_buildx_cache,
+        push_image=push_image,
+        empty_image=empty_image,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
@@ -831,9 +890,14 @@ def build_ci_image(
 @option_platform
 @option_debian_version
 @option_github_repository
+@option_github_token
+@option_github_username
+@option_login_to_github_registry
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
+@option_push_image
+@option_empty_image
 @click.option(
     '--installation-method',
     help="Install Airflow from: sources or PyPI.",
@@ -905,9 +969,14 @@ def build_prod_image(
     runtime_apt_command: Optional[str],
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
+    github_token: Optional[str],
+    github_username: Optional[str],
+    login_to_github_registry: bool,
     platform: Optional[str],
     debian_version: Optional[str],
     prepare_buildx_cache: bool,
+    push_image: bool,
+    empty_image: bool,
     install_providers_from_sources: bool,
     extras: Optional[str],
     installation_method: Optional[str],
@@ -948,10 +1017,15 @@ def build_prod_image(
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
+        github_token=github_token,
+        github_username=github_username,
+        login_to_github_registry=login_to_github_registry,
         platform=platform,
         debian_version=debian_version,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         prepare_buildx_cache=prepare_buildx_cache,
+        push_image=push_image,
+        empty_image=empty_image,
         install_providers_from_sources=install_providers_from_sources,
         extras=extras,
         installation_method=installation_method,

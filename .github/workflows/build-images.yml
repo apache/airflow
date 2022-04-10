@@ -39,7 +39,7 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
+  LOGIN_TO_GITHUB_REGISTRY: "true"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
 concurrency:
@@ -224,24 +224,19 @@ jobs:
       - run: python -m pip install --editable ./dev/breeze/
       - name: "Free space"
         run: airflow-freespace
-      - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: breeze build-image
-        env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      - name: "Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Build/Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
+        run: >
+          breeze build-image --push-image
+          --upgrade-to-newer-dependencies "${{ needs.build-info.outputs.upgradeToNewerDependencies }}"
+          --docker-cache "${{ needs.build-info.outputs.cacheDirective }}"
+          --image-tag "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
       - name: >
           Push empty CI images to finish waiting jobs:
           ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         if: failure() || cancelled()
-        run: ./scripts/ci/images/ci_push_empty_ci_images.sh
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: >
+          breeze build-image --push-image --empty-image
+          --github-registry-push-image-tag "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
         run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
@@ -339,6 +334,5 @@ jobs:
           Push empty PROD images to finish waiting jobs:
           ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         if: failure() || cancelled()
-        run: ./scripts/ci/images/ci_push_empty_prod_images.sh
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: >
+          breeze build-prod-image --push-image --empty-image --image-tag "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"

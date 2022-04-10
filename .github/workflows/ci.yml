@@ -45,7 +45,7 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
+  LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
@@ -328,19 +328,13 @@ jobs:
       - name: "Free space"
         run: airflow-freespace
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: breeze build-image
+      - name: "Build/Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
+        run: >
+          breeze build-image --push-image
+          --upgrade-to-newer-dependencies "${{ needs.build-info.outputs.upgradeToNewerDependencies }}"
+          --docker-cache "${{ needs.build-info.outputs.cacheDirective }}"
+          --image-tag "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-        env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      - name: "Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
         run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"

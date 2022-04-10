@@ -25,6 +25,7 @@ from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_os
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.registry import login_to_docker_registry
 
 try:
     from packaging import version
@@ -236,7 +237,7 @@ def check_docker_compose_version(verbose: bool):
         )
 
 
-def construct_arguments_for_build_docker_command(
+def construct_arguments_for_docker_build_command(
     image_params: Union[BuildCiParams, BuildProdParams], required_args: List[str], optional_args: List[str]
 ) -> List[str]:
     """
@@ -259,7 +260,7 @@ def construct_arguments_for_build_docker_command(
     return args_command
 
 
-def construct_build_docker_command(
+def construct_docker_build_command(
     image_params: Union[BuildProdParams, BuildCiParams],
     verbose: bool,
     required_args: List[str],
@@ -267,7 +268,7 @@ def construct_build_docker_command(
     production_image: bool,
 ) -> List[str]:
     """
-    Constructs docker compose command based on the parameters passed.
+    Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
     :param verbose: print commands when running
     :param required_args: build argument that are required
@@ -275,7 +276,7 @@ def construct_build_docker_command(
     :param production_image: whether this is production image or ci image
     :return: Command to run as list of string
     """
-    arguments = construct_arguments_for_build_docker_command(
+    arguments = construct_arguments_for_docker_build_command(
         image_params, required_args=required_args, optional_args=optional_args
     )
     build_command = prepare_build_command(
@@ -294,7 +295,66 @@ def construct_build_docker_command(
     return final_command
 
 
+def construct_docker_tag_command(
+    image_params: Union[BuildProdParams, BuildCiParams],
+) -> List[str]:
+    """
+    Constructs docker tag command based on the parameters passed.
+    :param image_params: parameters of the image
+    :return: Command to run as list of string
+    """
+    return ["docker", "tag", image_params.airflow_image_name, image_params.airflow_image_name_with_tag]
+
+
+def construct_docker_push_command(
+    image_params: Union[BuildProdParams, BuildCiParams],
+) -> List[str]:
+    """
+    Constructs docker push command based on the parameters passed.
+    :param image_params: parameters of the image
+    :return: Command to run as list of string
+    """
+    return ["docker", "push", image_params.airflow_image_name_with_tag]
+
+
+def tag_and_push_image(image_params: Union[BuildProdParams, BuildCiParams], dry_run: bool, verbose: bool):
+    """
+    Tag and push the image according to parameters.
+    :param image_params: parameters of the image
+    :param dry_run: whether we are in dry-run mode
+    :param verbose: whethere we produce verbose output
+    :return:
+    """
+    console.print(
+        f"[blue]Tagging and pushing the {image_params.airflow_image_name} as "
+        f"{image_params.airflow_image_name_with_tag}.[/]"
+    )
+    cmd = construct_docker_tag_command(image_params)
+    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=True)
+    login_to_docker_registry(image_params)
+    cmd = construct_docker_push_command(image_params)
+    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=True)
+
+
+def construct_empty_docker_build_command(
+    image_params: Union[BuildProdParams, BuildCiParams],
+) -> List[str]:
+    """
+    Constructs docker build empty image command based on the parameters passed.
+    :param image_params: parameters of the image
+    :return: Command to run as list of string
+    """
+    return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
+
+
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
+    """
+    Set value of name parameter to default (indexed by name) if not set.
+    :param env: dictionary where to set the parameter
+    :param name: name of parameter
+    :param default: default value
+    :return:
+    """
     if env.get(name) is None:
         env[name] = os.environ.get(name, default)
 
@@ -346,7 +406,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
 
 VARIABLES_TO_ENTER_DOCKER_COMPOSE = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
-    "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_ci_image_name_with_tag",
+    "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",

@@ -22,7 +22,11 @@ from typing import Dict
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.utils.cache import synchronize_parameters_with_cache
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.docker_command_utils import construct_build_docker_command
+from airflow_breeze.utils.docker_command_utils import (
+    construct_docker_build_command,
+    construct_empty_docker_build_command,
+    tag_and_push_image,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.registry import login_to_docker_registry
 from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
@@ -163,11 +167,20 @@ def build_production_image(verbose: bool, dry_run: bool, **kwargs):
         check=False,
     )
     console.print(f"\n[blue]Building PROD Image for Python {prod_image_params.python}\n")
-    cmd = construct_build_docker_command(
-        image_params=prod_image_params,
-        verbose=verbose,
-        required_args=REQUIRED_PROD_IMAGE_ARGS,
-        optional_args=OPTIONAL_PROD_IMAGE_ARGS,
-        production_image=True,
-    )
-    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
+    if prod_image_params.empty_image:
+        console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
+        cmd = construct_empty_docker_build_command(image_params=prod_image_params)
+        run_command(
+            cmd, input="FROM scratch\n", verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True
+        )
+    else:
+        cmd = construct_docker_build_command(
+            image_params=prod_image_params,
+            verbose=verbose,
+            required_args=REQUIRED_PROD_IMAGE_ARGS,
+            optional_args=OPTIONAL_PROD_IMAGE_ARGS,
+            production_image=True,
+        )
+        run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
+    if prod_image_params.push_image:
+        tag_and_push_image(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)

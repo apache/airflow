@@ -49,9 +49,12 @@ class BuildCiParams:
     airflow_constraints_reference: Optional[str] = "constraints-main"
     airflow_constraints_location: Optional[str] = ""
     airflow_pre_cached_pip_packages: str = "true"
+    login_to_github_registry: str = "false"
+    github_username: str = ""
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     image_tag: str = ""
+    github_token: str = ""
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
@@ -63,6 +66,8 @@ class BuildCiParams:
     platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
     prepare_buildx_cache: bool = False
+    push_image: bool = False
+    empty_image: bool = False
     skip_rebuild_check: bool = False
 
     @property
@@ -77,7 +82,7 @@ class BuildCiParams:
         return image
 
     @property
-    def airflow_ci_image_name_with_tag(self):
+    def airflow_image_name_with_tag(self):
         """Construct CI image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
         return image if not self.image_tag else image + f":{self.image_tag}"
