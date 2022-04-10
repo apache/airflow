@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-07T11:13:06Z
+# This constraints file was automatically generated on 2022-04-10T15:23:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -83,7 +83,7 @@ apache-airflow-providers-dbt-cloud==1.0.2
 apache-airflow-providers-dingding==2.0.4
 apache-airflow-providers-discord==2.0.4
 apache-airflow-providers-docker==2.5.2
-apache-airflow-providers-elasticsearch==3.0.2
+apache-airflow-providers-elasticsearch==2.2.0
 apache-airflow-providers-exasol==2.1.3
 apache-airflow-providers-facebook==2.2.3
 apache-airflow-providers-google==6.7.0
@@ -161,14 +161,14 @@ azure-storage-file==2.1.0
 backcall==0.2.0
 backoff==1.10.0
 bcrypt==3.2.0
-beautifulsoup4==4.10.0
+beautifulsoup4==4.11.1
 billiard==3.6.4.0
 black==22.3.0
-bleach==4.1.0
+bleach==5.0.0
 blinker==1.4
-boto3==1.21.35
+boto3==1.21.37
 boto==2.49.0
-botocore==1.24.35
+botocore==1.24.37
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -200,7 +200,7 @@ cryptography==36.0.2
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2022.4.0
-databricks-sql-connector==1.0.1
+databricks-sql-connector==1.0.2
 datadog==0.44.0
 db-dtypes==1.0.0
 decorator==5.1.1
@@ -240,12 +240,12 @@ gevent==21.12.0
 gitdb==4.0.9
 github3.py==3.0.0
 google-ads==14.0.0
-google-api-core==1.31.5
+google-api-core==2.7.1
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.1
-google-auth==1.35.0
-google-cloud-aiplatform==1.11.0
+google-auth==2.6.3
+google-cloud-aiplatform==1.12.0
 google-cloud-appengine-logging==1.1.1
 google-cloud-audit-log==0.2.0
 google-cloud-automl==2.7.2
@@ -255,11 +255,11 @@ google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.1
 google-cloud-build==3.8.1
 google-cloud-container==1.0.2
-google-cloud-core==1.7.2
+google-cloud-core==2.2.3
 google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==0.2.1
 google-cloud-dataproc-metastore==1.5.0
-google-cloud-dataproc==4.0.1
+google-cloud-dataproc==4.0.2
 google-cloud-dlp==1.0.1
 google-cloud-kms==2.11.1
 google-cloud-language==1.3.1
@@ -270,20 +270,21 @@ google-cloud-orchestration-airflow==1.3.1
 google-cloud-os-login==2.6.1
 google-cloud-pubsub==2.12.0
 google-cloud-redis==2.8.0
+google-cloud-resource-manager==1.4.1
 google-cloud-secret-manager==1.0.1
-google-cloud-spanner==1.19.1
+google-cloud-spanner==1.19.2
 google-cloud-speech==1.3.3
 google-cloud-storage==1.44.0
 google-cloud-tasks==2.8.1
 google-cloud-texttospeech==1.0.2
 google-cloud-translate==1.7.1
-google-cloud-videointelligence==1.16.1
+google-cloud-videointelligence==1.16.2
 google-cloud-vision==1.0.1
 google-cloud-workflows==1.6.1
 google-crc32c==1.3.0
 google-resumable-media==2.3.2
 googleapis-common-protos==1.56.0
-graphviz==0.19.1
+graphviz==0.19.2
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
@@ -396,7 +397,7 @@ portalocker==2.4.0
 pre-commit==2.18.1
 presto-python-client==0.7.0
 prison==0.2.1
-prometheus-client==0.14.0
+prometheus-client==0.14.1
 prompt-toolkit==3.0.29
 proto-plus==1.18.1
 protobuf==3.20.0
@@ -519,7 +520,7 @@ stack-data==0.2.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
-tableauserverclient==0.17.0
+tableauserverclient==0.18.0
 tabulate==0.8.9
 tblib==1.7.0
 tenacity==8.0.1
