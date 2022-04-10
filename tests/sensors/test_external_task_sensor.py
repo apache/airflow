@@ -125,8 +125,8 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
-                ' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
@@ -191,9 +191,9 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks '
-                '[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
-                'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks '
+                f'[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "

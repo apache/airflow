@@ -917,8 +917,7 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
         with self.assertRaises(AirflowException) as e:
             self._run()
-        assert str(e.exception) == 'Kubernetes failure for {} with code {} and message: {}'.format(
-            raw_object['reason'],
-            raw_object['code'],
-            raw_object['message'],
+        assert str(e.exception) == (
+            f"Kubernetes failure for {raw_object['reason']} "
+            f"with code {raw_object['code']} and message: {raw_object['message']}"
         )
