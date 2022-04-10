@@ -23,12 +23,9 @@ class SmoothOperator(BaseOperator):
     """
     Operator that does literally nothing but it logs YouTube link to
     Sade song "Smooth Operator".
-
-    The task is evaluated by the scheduler but never processed by the executor.
     """
 
     ui_color = '#e8f7e4'
-    inherits_from_dummy_operator = False
     yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
 
     def __init__(self, **kwargs) -> None:
