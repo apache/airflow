@@ -43,7 +43,7 @@ class TestKubernetesDecorator:
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
     def test_task_creation_default_params(self, execute_mock, dag_maker):
-        @task.kubernetes()
+        @task.kubernetes(image='python:3.8-slim-buster')
         def k8s_decorator_func():
             print("decorator func")
 
