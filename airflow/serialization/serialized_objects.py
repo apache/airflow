@@ -51,7 +51,7 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -637,25 +637,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
 
         if include_deps:
-            # Are the deps different to "stock", if so serialize the class names!
-            # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
-            # Fix this for 2.0.x or 2.1
-            deps = []
-            for dep in op.deps:
-                klass = type(dep)
-                module_name = klass.__module__
-                if not module_name.startswith("airflow.ti_deps.deps."):
-                    assert op.dag  # for type checking
-                    raise SerializationError(
-                        f"Cannot serialize {(op.dag.dag_id + '.' + op.task_id)!r} with `deps` from non-core "
-                        f"module {module_name!r}"
-                    )
-
-                deps.append(f'{module_name}.{klass.__name__}')
-            # deps needs to be sorted here, because op.deps is a set, which is unstable when traversing,
-            # and the same call may get different results.
-            # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
-            serialize_op['deps'] = sorted(deps)
+            serialize_op['deps'] = cls._serialize_deps(op.deps)
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
@@ -671,35 +653,33 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
-        """Deserializes an operator from a JSON object."""
-        op: Union[BaseOperator, MappedOperator]
-        if encoded_op.get("_is_mapped", False):
-            # Most of these will be loaded later, these are just some stand-ins.
-            op = MappedOperator(
-                operator_class=f"{encoded_op['_task_module']}.{encoded_op['_task_type']}",
-                mapped_kwargs={},
-                partial_kwargs={},
-                task_id=encoded_op["task_id"],
-                user_supplied_task_id=encoded_op["user_supplied_task_id"],
-                params={},
-                deps=MappedOperator.deps_for(BaseOperator),
-                operator_extra_links=BaseOperator.operator_extra_links,
-                template_ext=BaseOperator.template_ext,
-                template_fields=BaseOperator.template_fields,
-                ui_color=BaseOperator.ui_color,
-                ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_dummy=False,
-                task_module=encoded_op["_task_module"],
-                task_type=encoded_op["_task_type"],
-                dag=None,
-                task_group=None,
-                start_date=None,
-                end_date=None,
-            )
-        else:
-            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+    def _serialize_deps(cls, op_deps: Iterable["BaseTIDep"]) -> List[str]:
+        from airflow import plugins_manager
 
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
+        deps = []
+        for dep in op_deps:
+            klass = type(dep)
+            module_name = klass.__module__
+            qualname = f'{module_name}.{klass.__name__}'
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not serialized, please register it through plugins."
+                )
+            deps.append(qualname)
+        # deps needs to be sorted here, because op_deps is a set, which is unstable when traversing,
+        # and the same call may get different results.
+        # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
+        return sorted(deps)
+
+    @classmethod
+    def populate_operator(cls, op: Operator, encoded_op: Dict[str, Any]) -> None:
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
@@ -796,6 +776,39 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from DummyOperator
         setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
+    @classmethod
+    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Operator:
+        """Deserializes an operator from a JSON object."""
+        op: Operator
+        if encoded_op.get("_is_mapped", False):
+            # Most of these will be loaded later, these are just some stand-ins.
+            op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
+            op = MappedOperator(
+                operator_class=op_data,
+                mapped_kwargs={},
+                partial_kwargs={},
+                task_id=encoded_op["task_id"],
+                params={},
+                deps=MappedOperator.deps_for(BaseOperator),
+                operator_extra_links=BaseOperator.operator_extra_links,
+                template_ext=BaseOperator.template_ext,
+                template_fields=BaseOperator.template_fields,
+                template_fields_renderers=BaseOperator.template_fields_renderers,
+                ui_color=BaseOperator.ui_color,
+                ui_fgcolor=BaseOperator.ui_fgcolor,
+                is_dummy=False,
+                task_module=encoded_op["_task_module"],
+                task_type=encoded_op["_task_type"],
+                dag=None,
+                task_group=None,
+                start_date=None,
+                end_date=None,
+                expansion_kwargs_attr=encoded_op["_expansion_kwargs_attr"],
+            )
+        else:
+            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+
+        cls.populate_operator(op, encoded_op)
         return op
 
     @classmethod
@@ -815,11 +828,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _deserialize_deps(cls, deps: List[str]) -> Set["BaseTIDep"]:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
         instances = set()
         for qualname in set(deps):
-            if not qualname.startswith("airflow.ti_deps.deps."):
-                log.error("Dep class %r not registered", qualname)
-                continue
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not deserialized, please register it through plugins."
+                )
 
             try:
                 instances.add(import_string(qualname)())
@@ -830,7 +853,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> Dict[str, BaseOperatorLink]:
         """
-        Deserialize Operator Links if the Classes  are registered in Airflow Plugins.
+        Deserialize Operator Links if the Classes are registered in Airflow Plugins.
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
@@ -1026,10 +1049,9 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
-
         if "_task_group" in encoded_dag:
-            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # type: ignore
-                encoded_dag["_task_group"], None, dag.task_dict
+            dag._task_group = SerializedTaskGroup.deserialize_task_group(
+                encoded_dag["_task_group"], None, dag.task_dict, dag
             )
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
@@ -1117,14 +1139,6 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
 
-        if isinstance(task_group, MappedTaskGroup):
-            if task_group.mapped_arg:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_arg)
-            if task_group.mapped_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_kwargs)
-            if task_group.partial_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.partial_kwargs)
-
         return serialize_group
 
     @classmethod
@@ -1133,17 +1147,15 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         encoded_group: Dict[str, Any],
         parent_group: Optional[TaskGroup],
         task_dict: Dict[str, Operator],
-    ) -> Optional[TaskGroup]:
+        dag: SerializedDAG,
+    ) -> TaskGroup:
         """Deserializes a TaskGroup from a JSON object."""
-        if not encoded_group:
-            return None
-
         group_id = cls._deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls._deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
-        group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
+        group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
 
         def set_ref(task: Operator) -> Operator:
             task.task_group = weakref.proxy(group)
@@ -1152,7 +1164,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         group.children = {
             label: set_ref(task_dict[val])  # type: ignore
             if _type == DAT.OP  # type: ignore
-            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
+            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict, dag=dag)
             for label, (_type, val) in encoded_group["children"].items()
         }
         group.upstream_group_ids.update(cls._deserialize(encoded_group["upstream_group_ids"]))

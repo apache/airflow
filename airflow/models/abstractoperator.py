@@ -18,7 +18,22 @@
 
 import datetime
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    Union,
+)
 
 from sqlalchemy.orm import Session
 
@@ -68,7 +83,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
-    operator_class: Union[str, Type["BaseOperator"]]
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
     weight_rule: str
     priority_weight: int
@@ -78,10 +93,29 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
 
     owner: str
     task_id: str
+
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
+        (
+            'log',
+            'dag',  # We show dag_id, don't need to show this too
+            'node_id',  # Duplicates task_id
+            'task_group',  # Doesn't have a useful repr, no point showing in UI
+            'inherits_from_dummy_operator',  # impl detail
+            # For compatibility with TG, for operators these are just the current task, no point showing
+            'roots',
+            'leaves',
+            # These lists are already shown via *_task_ids
+            'upstream_list',
+            'downstream_list',
+            # Not useful, implementation detail, already shown elsewhere
+            'global_operator_extra_link_dict',
+            'operator_extra_link_dict',
+        )
+    )
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
@@ -115,7 +149,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         dag = self.get_dag()
         if dag:
-            return dag.get_template_env()
+            return dag.get_template_env(force_sandboxed=False)
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:

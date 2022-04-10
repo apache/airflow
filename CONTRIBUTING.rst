@@ -245,7 +245,7 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
 .. code-block:: bash
 
-   ./breeze
+   breeze
 
 Breeze starts with downloading the Airflow CI image from
 the Docker Hub and installing all required dependencies.
@@ -263,7 +263,7 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   ./breeze initialize-local-virtualenv --python 3.7
+   ./breeze-legacy initialize-local-virtualenv --python 3.7
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
@@ -554,6 +554,13 @@ All details about using and running Airflow Breeze can be found in
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
 
+.. note::
+
+   We are in a process of switching to the new Python-based Breeze from a legacy Bash
+   Breeze. Not all functionality has been ported yet and the old Breeze is still available
+   until then as ``./breeze-legacy`` script. The documentation mentions when the old ./breeze-legacy
+   should be still used.
+
 Benefits:
 
 -   Breeze is a complete environment that includes external components, such as
@@ -581,9 +588,14 @@ Limitations:
     disk space and CPU. You can stop the environment manually after you use it
     or even use a ``bare`` environment to decrease resource usage.
 
-**NOTE:** Breeze CI images are not supposed to be used in production environments.
-They are optimized for repeatability of tests, maintainability and speed of building rather
-than production performance. The production images are not yet officially published.
+
+
+.. note::
+
+   Breeze CI images are not supposed to be used in production environments.
+   They are optimized for repeatability of tests, maintainability and speed of building rather
+   than production performance. The production images are not yet officially published.
+
 
 
 Airflow dependencies
@@ -617,11 +629,11 @@ This is the full list of those extras:
 
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
-apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
-cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api,
-devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch,
-exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
-hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
+apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
+celery, cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud,
+deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid,
+elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth,
+grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
 leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql,
 neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus,
 postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
@@ -644,7 +656,7 @@ and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--skip-installing-airflow-providers-from-sources`` flag to Breeze to skip installing providers when
+but you can add ``--install-providers-from-sources=true`` flag to Breeze to skip installing providers when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from

@@ -21,6 +21,34 @@
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 {% from 'airflow/_messages.html' import show_message %}
 
+{%- macro sortable_column(display_name, attribute_name) -%}
+   {% set curr_ordering_direction = (request.args.get('sorting_direction', 'desc')) %}
+   {% set new_ordering_direction = ('asc' if (request.args.get('sorting_key') != attribute_name or curr_ordering_direction == 'desc') else 'desc') %}
+   <a href="{{ url_for('Airflow.index',
+                       status=request.args.get('status', 'all'),
+                       search=request.args.get('search', None),
+                       tags=request.args.get('tags', None),
+                       sorting_key=attribute_name,
+                       sorting_direction=new_ordering_direction
+                       ) }}"
+   class="js-tooltip"
+   role="tooltip"
+   title="Sort by {{ new_ordering_direction }} {{ attribute_name }}."
+   >
+    {{ display_name }}
+
+    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ display_name }}">
+      {% if curr_ordering_direction == 'desc' and request.args.get('sorting_key') == attribute_name %}
+        expand_more
+      {% elif curr_ordering_direction == 'asc' and request.args.get('sorting_key') == attribute_name %}
+        expand_less
+      {% else %}
+        unfold_more
+      {% endif %}
+    </span>
+  </a>
+{%- endmacro -%}
+
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
 {% endblock %}
@@ -122,8 +150,8 @@
               <th width="12">
                 <span class="material-icons text-muted js-tooltip" title="Use this toggle to pause/unpause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected.">info</span>
               </th>
-              <th>DAG</th>
-              <th>Owner</th>
+              <th>{{ sortable_column("DAG", "dag_id") }}</th>
+              <th>{{ sortable_column("Owner", "owners") }}</th>
               <th>Runs
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Status of all previous DAG runs.">info</span>
               </th>
@@ -131,7 +159,7 @@
               <th style="width:180px;">Last Run
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Date/Time of the latest Dag Run.">info</span>
               </th>
-              <th style="width:180px;">Next Run
+              <th style="width:180px;">{{ sortable_column("Next Run", "next_dagrun") }}
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Expected Date/Time of the next Dag Run.">info</span>
               </th>
               <th>Recent Tasks

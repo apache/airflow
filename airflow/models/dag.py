@@ -26,7 +26,6 @@ import re
 import sys
 import traceback
 import warnings
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -763,12 +762,13 @@ class DAG(LoggingMixin):
         earliest = None
         if start_dates:
             earliest = timezone.coerce_datetime(min(start_dates))
+        latest = self.end_date
         end_dates = [t.end_date for t in self.tasks if t.end_date]
-        if self.end_date is not None:
-            end_dates.append(self.end_date)
-        latest = None
-        if end_dates:
-            latest = timezone.coerce_datetime(max(end_dates))
+        if len(end_dates) == len(self.tasks):  # not exists null end_date
+            if self.end_date is not None:
+                end_dates.append(self.end_date)
+            if end_dates:
+                latest = timezone.coerce_datetime(max(end_dates))
         return TimeRestriction(earliest, latest, self.catchup)
 
     def iter_dagrun_infos_between(
@@ -1074,14 +1074,12 @@ class DAG(LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is active"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_active)
+        return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_paused)
+        return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @property
     def is_paused(self):
@@ -1260,7 +1258,7 @@ class DAG(LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def get_template_env(self) -> jinja2.Environment:
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -1277,7 +1275,7 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
-        if self.render_template_as_native_obj:
+        if self.render_template_as_native_obj and not force_sandboxed:
             env = airflow.templates.NativeEnvironment(**jinja_env_options)
         else:
             env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
@@ -1717,54 +1715,18 @@ class DAG(LoggingMixin):
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
 
-        Heavily inspired by:
-        http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-
-        :param include_subdag_tasks: whether to include tasks in subdags, default to False
-        :return: list of tasks in topological order
+        Deprecated in place of ``task_group.topological_sort``
         """
-        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
+        from airflow.utils.task_group import TaskGroup
 
-        # convert into an OrderedDict to speedup lookup while keeping order the same
-        graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
-
-        graph_sorted: List[Operator] = []
-
-        # special case
-        if len(self.tasks) == 0:
-            return tuple(graph_sorted)
-
-        # Run until the unsorted graph is empty.
-        while graph_unsorted:
-            # Go through each of the node/edges pairs in the unsorted
-            # graph. If a set of edges doesn't contain any nodes that
-            # haven't been resolved, that is, that are still in the
-            # unsorted graph, remove the pair from the unsorted graph,
-            # and append it to the sorted graph. Note here that by using
-            # using the items() method for iterating, a copy of the
-            # unsorted graph is used, allowing us to modify the unsorted
-            # graph as we move through it. We also keep a flag for
-            # checking that graph is acyclic, which is true if any
-            # nodes are resolved during each pass through the graph. If
-            # not, we need to exit as the graph therefore can't be
-            # sorted.
-            acyclic = False
-            for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                # no edges in upstream tasks
+        def nested_topo(group):
+            for node in group.topological_sort(_include_subdag_tasks=include_subdag_tasks):
+                if isinstance(node, TaskGroup):
+                    yield from nested_topo(node)
                 else:
-                    acyclic = True
-                    del graph_unsorted[node.task_id]
-                    graph_sorted.append(node)
-                    if include_subdag_tasks and isinstance(node, SubDagOperator):
-                        graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
+                    yield node
 
-            if not acyclic:
-                raise AirflowException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        return tuple(graph_sorted)
+        return tuple(nested_topo(self.task_group))
 
     @provide_session
     def set_dag_runs_state(
@@ -2209,6 +2171,7 @@ class DAG(LoggingMixin):
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
+        continue_on_failures=False,
     ):
         """
         Runs the DAG.
@@ -2258,6 +2221,7 @@ class DAG(LoggingMixin):
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
         )
         job.run()
 
@@ -2688,7 +2652,7 @@ class DagModel(Base):
     owners = Column(String(2000))
     # Description of the dag
     description = Column(Text)
-    # Default view of the inside the webserver
+    # Default view of the DAG inside the webserver
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)

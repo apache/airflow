@@ -376,6 +376,15 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 404
 
+    def test_should_return_404_for_list_mapped_endpoint(self, session):
+        self.create_task_instances(session)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
+            "taskInstances/print_the_context/listMapped",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @parameterized.expand(

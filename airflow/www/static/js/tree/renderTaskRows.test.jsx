@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect, jest */
+/* global describe, test, expect */
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
@@ -26,12 +26,9 @@ import moment from 'moment';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import renderTaskRows from './renderTaskRows';
+import { ContainerRefProvider } from './context/containerRef';
+import { SelectionProvider } from './context/selection';
 
-// Mock modal open function we take from dag.js
-jest.mock('../dag', () => ({
-  callModalDag: () => {},
-  callModal: () => {},
-}));
 global.moment = moment;
 
 const mockTreeData = {
@@ -103,11 +100,15 @@ const Wrapper = ({ children }) => {
     <React.StrictMode>
       <ChakraProvider>
         <QueryClientProvider client={queryClient}>
-          <Table>
-            <Tbody>
-              {children}
-            </Tbody>
-          </Table>
+          <ContainerRefProvider value={{}}>
+            <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+              <Table>
+                <Tbody>
+                  {children}
+                </Tbody>
+              </Table>
+            </SelectionProvider>
+          </ContainerRefProvider>
         </QueryClientProvider>
       </ChakraProvider>
     </React.StrictMode>
@@ -117,11 +118,11 @@ const Wrapper = ({ children }) => {
 describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
     global.treeData = mockTreeData;
-    const containerRef = {};
     const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
+    const task = mockTreeData.groups;
 
     const { getByTestId, getByText, getAllByTestId } = render(
-      <>{renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds })}</>,
+      <>{renderTaskRows({ task, dagRunIds })}</>,
       { wrapper: Wrapper },
     );
 
@@ -163,12 +164,10 @@ describe('Test renderTaskRows', () => {
       },
       dagRuns: [],
     };
-    const containerRef = {};
+    const task = mockTreeData.groups;
 
     const { queryByTestId, getByText } = render(
-      <>
-        {renderTaskRows({ task: mockTreeData.groups, containerRef, dagRunIds: [] })}
-      </>,
+      <>{renderTaskRows({ task, dagRunIds: [] })}</>,
       { wrapper: Wrapper },
     );
 

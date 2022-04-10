@@ -28,6 +28,10 @@ class LocalFilesystemToS3Operator(BaseOperator):
     """
     Uploads a file from a local filesystem to Amazon S3.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LocalFilesystemToS3Operator`
+
     :param filename: Path to the local file. Path can be either absolute
             (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)
     :param dest_key: The key of the object to copy to. (templated)

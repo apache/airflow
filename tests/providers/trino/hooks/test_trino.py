@@ -46,6 +46,41 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, auth=mock_basic_auth)
         mock_basic_auth.assert_called_once_with('login', 'password')
 
+    @patch('airflow.providers.trino.hooks.trino.generate_trino_client_info')
+    @patch(BASIC_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_http_headers(
+        self,
+        mock_get_connection,
+        mock_connect,
+        mock_basic_auth,
+        mocked_generate_airflow_trino_client_info_header,
+    ):
+        mock_get_connection.return_value = Connection(
+            login='login', password='password', host='host', schema='hive'
+        )
+        client = json.dumps(
+            {
+                "dag_id": "dag-id",
+                "execution_date": "2022-01-01T00:00:00",
+                "task_id": "task-id",
+                "try_number": "1",
+                "dag_run_id": "dag-run-id",
+                "dag_owner": "dag-owner",
+            },
+            sort_keys=True,
+        )
+        http_headers = {'X-Trino-Client-Info': client}
+
+        mocked_generate_airflow_trino_client_info_header.return_value = http_headers['X-Trino-Client-Info']
+
+        conn = TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_basic_auth, http_headers=http_headers)
+
+        mock_basic_auth.assert_called_once_with('login', 'password')
+        assert mock_connect.return_value == conn
+
     @patch(HOOK_GET_CONNECTION)
     def test_get_conn_invalid_auth(self, mock_get_connection):
         extras = {'auth': 'kerberos'}
@@ -108,12 +143,13 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = mocked_connection
 
     @staticmethod
-    def assert_connection_called_with(mock_connect, auth=None, verify=True):
+    def assert_connection_called_with(mock_connect, http_headers=mock.ANY, auth=None, verify=True):
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
             port=None,
             http_scheme='http',
+            http_headers=http_headers,
             schema='hive',
             source='airflow',
             user='login',

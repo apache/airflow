@@ -26,4 +26,4 @@ testing::get_docker_compose_local
 testing::setup_docker_compose_backend "offline-sql-test"
 # We test from 2.0.0 upwards
 testing::run_command_in_docker "offline-sql-test" "airflow db upgrade --from-version 2.0.0 -r heads --show-sql-only \
-    && airflow db downgrade --version 2.0.0 --show-sql-only -y"
+    && airflow db downgrade --to-version 2.0.0 --show-sql-only -y"

@@ -571,7 +571,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_not_called()
 
-    def test_init_exeption_with_job_name_and_job_id(self):
+    def test_init_exception_with_job_name_and_job_id(self):
         exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
 
         with pytest.raises(AirflowException, match=exception_message):

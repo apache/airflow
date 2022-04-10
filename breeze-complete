@@ -28,9 +28,9 @@ _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
 _breeze_allowed_kubernetes_modes="image"
-_breeze_allowed_kubernetes_versions="v1.21.1 v1.20.2"
+_breeze_allowed_kubernetes_versions="v1.23.4 v1.22.7 v1.21.10 v1.20.15"
 _breeze_allowed_helm_versions="v3.6.3"
-_breeze_allowed_kind_versions="v0.11.1"
+_breeze_allowed_kind_versions="v0.12.0"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_mssql_versions="2017-latest 2019-latest"
 _breeze_allowed_postgres_versions="10 11 12 13"
@@ -90,6 +90,7 @@ build-providers-dependencies
 chart-schema-lint
 capitalized-breeze
 changelog-duplicates
+check-2-1-compatibility
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
@@ -97,7 +98,9 @@ check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
+check-revision-heads-map
 check-xml
+check-system-tests
 daysago-import-check
 debug-statements
 detect-private-key
@@ -108,13 +111,13 @@ end-of-file-fixer
 fix-encoding-pragma
 flake8
 flynt
-forbidden-xcom-get-value
 codespell
 forbid-tabs
 helm-lint
 identity
 incorrect-use-of-LoggingMixin
 insert-license
+inline-dockerfile-scripts
 isort
 json-schema
 language-matters
@@ -151,7 +154,9 @@ sort-spelling-wordlist
 stylelint
 trailing-whitespace
 ui-lint
+limit-breeze-dependencies
 update-breeze-file
+update-breeze-config-hash
 update-extras
 update-local-yml-file
 update-setup-cfg-file
@@ -192,7 +197,7 @@ postgres-version: mysql-version: mssql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
 disable-mysql-client-installation disable-mssql-client-installation constraints-location: disable-pip-cache install-from-docker-context-files
-additional-extras: additional-python-deps: disable-pypi-when-building skip-installing-airflow-providers-from-sources
+additional-extras: additional-python-deps: disable-pypi-when-building
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
@@ -478,5 +483,5 @@ function breeze_complete::_comp_breeze {
 breeze_complete::_build_options_breeze
 
 # set autocompletion function for breeze
-complete -F breeze_complete::_comp_breeze breeze
-complete -F breeze_complete::_comp_breeze ./breeze
+complete -F breeze_complete::_comp_breeze breeze-legacy
+complete -F breeze_complete::_comp_breeze ./breeze-legacy

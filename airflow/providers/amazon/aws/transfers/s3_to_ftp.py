@@ -31,6 +31,10 @@ class S3ToFTPOperator(BaseOperator):
     """
     This operator enables the transferring of files from S3 to a FTP server.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToFTPOperator`
+
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket from
         where the file is downloaded.
     :param s3_key: The targeted s3 key. This is the specified file path for

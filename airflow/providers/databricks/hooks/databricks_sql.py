@@ -20,8 +20,8 @@ from contextlib import closing
 from copy import copy
 from typing import Any, Dict, List, Optional, Union
 
-from databricks import sql
-from databricks.sql.client import Connection
+from databricks import sql  # type: ignore[attr-defined]
+from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook

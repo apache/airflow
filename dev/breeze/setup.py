@@ -14,12 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from setuptools import setup
 
 
 def do_setup():
-    """Perform the package setup."""
     setup()
 
 

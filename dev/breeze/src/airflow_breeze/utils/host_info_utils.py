@@ -14,21 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Returns information about Host that should be passed to the docker-compose.
+"""
 import platform
 
 from airflow_breeze.utils.run_utils import run_command
-
-# DIRECTORIES_TO_FIX=(
-#             "/files"
-#             "/root/.aws"
-#             "/root/.azure"
-#             "/root/.config/gcloud"
-#             "/root/.docker"
-#             "/opt/airflow/logs"
-#             "/opt/airflow/docs"
-#             "/opt/airflow/dags"
-#             "${AIRFLOW_SOURCE}"
-#         )
 
 
 def get_host_user_id():

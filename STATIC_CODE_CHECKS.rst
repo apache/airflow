@@ -146,9 +146,9 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``chart-schema-lint``                  Lint chart/values.schema.json file
 ------------------------------------ ---------------------------------------------------------------- ------------
-``capitalized-breeze``                 Breeze has to be Capitalized in Breeze2
------------------------------------- ---------------------------------------------------------------- ------------
 ``changelog-duplicates``               Checks for duplicate changelog entries
+------------------------------------ ---------------------------------------------------------------- ------------
+``check-2-1-compatibility``            Check that providers are 2.1-compatible
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-apache-license``               Checks compatibility with Apache License requirements
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -163,8 +163,12 @@ require Breeze Docker images to be installed locally.
 ``check-integrations``                 Checks if integration list is synchronized in code
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``              Checks that merge conflicts are not being committed
+------------------------------------------------------------------------------------------------------------------
+``check-revision-heads-map``           Checks that REVISION_HEADS_MAP is up-to-date
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-xml``                          Checks XML files with xmllint
+------------------------------------ ---------------------------------------------------------------- ------------
+``check-system-tests``                 Check if system tests have required segments of code
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``daysago-import-check``               Checks if daysago is properly imported
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -186,8 +190,6 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``                Removes encoding header from python files
 ------------------------------------ ---------------------------------------------------------------- ------------
-``forbidden-xcom-get-value``           Check if XCom.get_value is used in backwards-compatible way
------------------------------------- ---------------------------------------------------------------- ------------
 ``pyupgrade``                          Runs pyupgrade
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``flake8``                             Runs flake8                                                          *
@@ -203,6 +205,8 @@ require Breeze Docker images to be installed locally.
 ``identity``                           Prints inputs to the static check hooks for troubleshooting
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``      Checks if LoggingMixin is properly imported
+------------------------------------ ---------------------------------------------------------------- ------------
+``inline-dockerfile-scripts``          Inline Dockerfile and Dockerfile.ci scripts
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``insert-license``                     Adds licenses for most file types
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -268,7 +272,11 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``ui-lint``                            Static checks of airflow/ui/ folder
 ------------------------------------ ---------------------------------------------------------------- ------------
-``update-breeze-file``                 Update output of breeze command in BREEZE.rst
+``update-breeze-file``                 Update output of breeze commands in BREEZE.rst
+------------------------------------ ---------------------------------------------------------------- ------------
+``limit-breeze-dependencies``          Breeze should have small number of top-level dependencies
+------------------------------------ ---------------------------------------------------------------- ------------
+``update-breeze-config-hash``          Update Breeze README.md with config files hash
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-extras``                      Updates extras in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -354,7 +362,7 @@ Running static code checks via Breeze
 
 The static code checks can be launched using the Breeze environment.
 
-You run the static code checks via ``./breeze static-check`` or commands.
+You run the static code checks via ``breeze static-check`` or commands.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option. Note that the ``all`` static check runs all configured static checks.
@@ -363,43 +371,43 @@ Run the ``mypy`` check for the currently staged changes:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy
+     breeze static-check --type mypy
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --all-files
+     breeze static-check --type mypy --all-files
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check flake8 -- --files tests/core.py --verbose
+     breeze static-check --type flake8 --files tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check flake8 -- --files tests/core/* --verbose
+     breeze static-check --type flake8 --files tests/core/* --verbose
 
 Run all tests for the currently staged files:
 
 .. code-block:: bash
 
-     ./breeze static-check all
+     breeze static-check --type all
 
 Run all tests for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check all -- --all-files
+    breeze static-check --type all --all-files
 
 Run all tests for last commit :
 
 .. code-block:: bash
 
-     ./breeze static-check all -- --from-ref HEAD^ --to-ref HEAD
+     breeze static-check --type all --last-commit
 
 
 The ``license`` check is run via a separate script and a separate Docker image containing the
@@ -408,4 +416,4 @@ It does not take pre-commit parameters as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze static-check licenses
+     breeze static-check licenses

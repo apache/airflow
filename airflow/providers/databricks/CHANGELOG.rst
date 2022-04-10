@@ -19,6 +19,37 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``More operators for Databricks Repos (#22422)``
+* ``Add a link to Databricks Job Run (#22541)``
+
+Misc
+~~~~
+
+* ``Refactor 'DatabricksJobRunLink' to not create ad hoc TaskInstances (#22571)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Operator for updating Databricks Repos (#22278)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.4.0
 .....
 

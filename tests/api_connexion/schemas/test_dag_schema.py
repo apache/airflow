@@ -48,6 +48,7 @@ class TestDagSchema(unittest.TestCase):
             tags=[DagTag(name="tag-1"), DagTag(name="tag-2")],
         )
         serialized_dag = DAGSchema().dump(dag_model)
+
         assert {
             "dag_id": "test_dag_id",
             "description": "The description",
@@ -60,6 +61,21 @@ class TestDagSchema(unittest.TestCase):
             "root_dag_id": "test_root_dag_id",
             "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
             "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
+            'next_dagrun': None,
+            'has_task_concurrency_limits': True,
+            'next_dagrun_data_interval_start': None,
+            'next_dagrun_data_interval_end': None,
+            'max_active_runs': 16,
+            'next_dagrun_create_after': None,
+            'last_expired': None,
+            'max_active_tasks': 16,
+            'last_pickled': None,
+            'default_view': None,
+            'last_parsed_time': None,
+            'scheduler_lock': None,
+            'timetable_description': None,
+            'has_import_errors': None,
+            'pickle_id': None,
         } == serialized_dag
 
 
@@ -83,6 +99,21 @@ class TestDAGCollectionSchema(unittest.TestCase):
                     "root_dag_id": None,
                     "schedule_interval": None,
                     "tags": [],
+                    'next_dagrun': None,
+                    'has_task_concurrency_limits': True,
+                    'next_dagrun_data_interval_start': None,
+                    'next_dagrun_data_interval_end': None,
+                    'max_active_runs': 16,
+                    'next_dagrun_create_after': None,
+                    'last_expired': None,
+                    'max_active_tasks': 16,
+                    'last_pickled': None,
+                    'default_view': None,
+                    'last_parsed_time': None,
+                    'scheduler_lock': None,
+                    'timetable_description': None,
+                    'has_import_errors': None,
+                    'pickle_id': None,
                 },
                 {
                     "dag_id": "test_dag_id_b",
@@ -96,6 +127,21 @@ class TestDAGCollectionSchema(unittest.TestCase):
                     "root_dag_id": None,
                     "schedule_interval": None,
                     "tags": [],
+                    'next_dagrun': None,
+                    'has_task_concurrency_limits': True,
+                    'next_dagrun_data_interval_start': None,
+                    'next_dagrun_data_interval_end': None,
+                    'max_active_runs': 16,
+                    'next_dagrun_create_after': None,
+                    'last_expired': None,
+                    'max_active_tasks': 16,
+                    'last_pickled': None,
+                    'default_view': None,
+                    'last_parsed_time': None,
+                    'scheduler_lock': None,
+                    'timetable_description': None,
+                    'has_import_errors': None,
+                    'pickle_id': None,
                 },
             ],
             "total_entries": 2,
@@ -114,6 +160,7 @@ class TestDAGDetailSchema:
             tags=['example1', 'example2'],
         )
         schema = DAGDetailSchema()
+
         expected = {
             'catchup': True,
             'concurrency': 16,
@@ -142,5 +189,12 @@ class TestDAGDetailSchema:
             'start_date': '2020-06-19T00:00:00+00:00',
             'tags': [{'name': "example1"}, {'name': "example2"}],
             'timezone': "Timezone('UTC')",
+            'max_active_runs': 16,
+            'pickle_id': None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'render_template_as_native_obj': False,
         }
-        assert schema.dump(dag) == expected
+        obj = schema.dump(dag)
+        expected.update({'last_parsed': obj['last_parsed']})
+        assert obj == expected

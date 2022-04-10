@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import sys
-
 import sqlalchemy as sa
 from alembic import context
 from lazy_object_proxy import Proxy
@@ -100,9 +98,3 @@ def __getattr__(name):
         return Proxy(lazy_load)
 
     raise AttributeError(f"module {__name__} has no attribute {name}")
-
-
-if sys.version_info < (3, 7):
-    from pep562 import Pep562
-
-    Pep562(__name__)

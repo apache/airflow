@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add recipe for BeamRunGoPipelineOperator (#22296)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 3.2.1
 .....
 

@@ -58,7 +58,7 @@ Package apache-airflow-providers-qubole
 `Qubole <https://www.qubole.com/>`__
 
 
-Release: 2.1.2
+Release: 2.1.3
 
 Provider package
 ----------------

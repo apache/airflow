@@ -1,6 +1,6 @@
 ---
 name: Airflow Doc issue report
-description: Problems and issues with docs of Apache Airflow
+description: Problems and issues with Apache Airflow documentation
 labels: ["kind:bug", "kind:documentation"]
 body:
   - type: markdown
@@ -10,11 +10,11 @@ body:
         <img src='https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
         Thank you for finding the time to report the problem!
 
-        We really appreciate the community efforts to improve Airflow.
+        We really appreciate the community's efforts to improve Airflow.
 
-        Note, that you do not need to create an issue if you have a change ready to submit!
+        Note, you do not need to create an issue if you have a change ready to submit!
 
-        You can open [Pull Request](https://github.com/apache/airflow/pulls) immediately instead.
+        You can open a [pull eequest](https://github.com/apache/airflow/pulls) immediately instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: textarea
@@ -56,7 +56,8 @@ body:
   - type: checkboxes
     attributes:
       label: Code of Conduct
-      description: The Code of Conduct helps create a safe space for everyone. We require
+      description: >
+        The Code of Conduct helps create a safe space for everyone. We require
         that everyone agrees to it.
       options:
         - label: >
