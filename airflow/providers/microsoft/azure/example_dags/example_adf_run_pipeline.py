@@ -17,7 +17,7 @@
 
 from datetime import datetime, timedelta
 
-from airflow.models import DAG
+from airflow.models import DAG, BaseOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
@@ -41,7 +41,7 @@ with DAG(
     end = DummyOperator(task_id="end")
 
     # [START howto_operator_adf_run_pipeline]
-    run_pipeline1 = AzureDataFactoryRunPipelineOperator(
+    run_pipeline1: BaseOperator = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline1",
         pipeline_name="pipeline1",
         parameters={"myParam": "value"},
@@ -49,13 +49,13 @@ with DAG(
     # [END howto_operator_adf_run_pipeline]
 
     # [START howto_operator_adf_run_pipeline_async]
-    run_pipeline2 = AzureDataFactoryRunPipelineOperator(
+    run_pipeline2: BaseOperator = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="pipeline2",
         wait_for_termination=False,
     )
 
-    pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
+    pipeline_run_sensor: BaseOperator = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
         run_id=run_pipeline2.output["run_id"],
     )

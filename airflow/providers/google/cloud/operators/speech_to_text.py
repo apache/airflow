@@ -18,6 +18,7 @@
 """This module contains a Google Speech to Text operator."""
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -79,7 +80,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         config: RecognitionConfig,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,

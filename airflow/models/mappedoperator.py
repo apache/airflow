@@ -250,7 +250,7 @@ class MappedOperator(AbstractOperator):
     params: Optional[dict]
     deps: FrozenSet[BaseTIDep]
     operator_extra_links: Collection["BaseOperatorLink"]
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
     template_fields: Collection[str]
     template_fields_renderers: Dict[str, str]
     ui_color: str
