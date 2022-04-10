@@ -354,7 +354,6 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
     def test_execute(self, mock_temp, gcs_mock_hook, mock_hook):
         operation_name = "operation_name"
-        operation = {"key": "value"}
         operation = {"response": {"resourceName": "test_name"}}
         gzip = False
 
@@ -388,7 +387,9 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
 
         mock_hook.return_value.download_media.assert_called_once()
         mock_hook.return_value.download_media.assert_called_once_with(
-            resource_name=mock_hook.return_value.get_sdf_download_operation.return_value
+            resource_name=mock_hook.return_value.get_sdf_download_operation.return_value["response"][
+                "resourceName"
+            ]
         )
 
         mock_hook.return_value.download_content_from_request.assert_called_once()

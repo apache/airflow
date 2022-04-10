@@ -20,7 +20,7 @@
 
 sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
 
-if [[ ${CI:="false"} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/docs/" ]]; then
+if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/docs/_build/docs/" ]]; then
     rm -rf "/files/documentation"
     cp -r "${AIRFLOW_SOURCES}/docs/_build" "/files/documentation"
 fi

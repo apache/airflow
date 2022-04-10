@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence,
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.api_core.retry import Retry
+from google.cloud.bigquery import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -962,6 +964,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
     :param source_format: File format of the data.
+    :param autodetect: Try to detect schema and format options automatically.
+        The schema_fields and schema_object options will be honored when specified explicitly.
+        https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
         The default value is NONE.
@@ -1026,6 +1031,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         schema_fields: Optional[List] = None,
         schema_object: Optional[str] = None,
         source_format: Optional[str] = None,
+        autodetect: bool = False,
         compression: Optional[str] = None,
         skip_leading_rows: Optional[int] = None,
         field_delimiter: Optional[str] = None,
@@ -1055,6 +1061,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 skip_leading_rows,
                 field_delimiter,
                 max_bad_records,
+                autodetect,
                 quote_character,
                 allow_quoted_newlines,
                 allow_jagged_rows,
@@ -1114,6 +1121,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.autodetect = autodetect
 
         self.src_fmt_configs = src_fmt_configs or {}
         self.labels = labels
@@ -1151,6 +1159,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             schema_fields=schema_fields,
             source_uris=source_uris,
             source_format=self.source_format,
+            autodetect=self.autodetect,
             compression=self.compression,
             skip_leading_rows=self.skip_leading_rows,
             field_delimiter=self.field_delimiter,
@@ -2052,6 +2061,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :param result_retry: How to retry the `result` call that retrieves rows
+    :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     """
 
     template_fields: Sequence[str] = (
@@ -2075,6 +2086,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         cancel_on_kill: bool = True,
+        result_retry: Retry = DEFAULT_RETRY,
+        result_timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2088,6 +2101,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.reattach_states: Set[str] = reattach_states or set()
         self.impersonation_chain = impersonation_chain
         self.cancel_on_kill = cancel_on_kill
+        self.result_retry = result_retry
+        self.result_timeout = result_timeout
         self.hook: Optional[BigQueryHook] = None
 
     def prepare_template(self) -> None:
@@ -2107,6 +2122,8 @@ class BigQueryInsertJobOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             job_id=job_id,
+            timeout=self.result_timeout,
+            retry=self.result_retry,
         )
 
     @staticmethod
@@ -2151,7 +2168,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
-                job.result()
+                job.result(timeout=self.result_timeout, retry=self.result_retry)
                 self._handle_job_error(job)
             else:
                 # Same job configuration so we need force_rerun

@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Presto-Client-Info in presto hook (#22416)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.1.1
 .....
 

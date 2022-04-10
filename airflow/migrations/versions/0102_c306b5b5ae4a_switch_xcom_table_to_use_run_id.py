@@ -122,7 +122,13 @@ def upgrade():
     with op.batch_alter_table("xcom") as batch_op:
         batch_op.create_primary_key("xcom_pkey", ["dag_run_id", "task_id", "map_index", "key"])
         batch_op.create_index("idx_xcom_key", ["key"])
-        batch_op.create_index("idx_xcom_ti_id", ["dag_id", "run_id", "task_id", "map_index"])
+        batch_op.create_foreign_key(
+            "xcom_task_instance_fkey",
+            "task_instance",
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ["dag_id", "task_id", "run_id", "map_index"],
+            ondelete="CASCADE",
+        )
 
 
 def downgrade():

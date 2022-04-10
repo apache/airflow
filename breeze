@@ -1047,11 +1047,6 @@ function breeze::parse_arguments() {
             echo "Extras : ${AIRFLOW_EXTRAS}"
             shift 2
             ;;
-        --skip-installing-airflow-providers-from-sources)
-            export INSTALL_PROVIDERS_FROM_SOURCES="false"
-            echo "Install all Airflow Providers: false"
-            shift
-            ;;
         --additional-extras)
             export ADDITIONAL_AIRFLOW_EXTRAS="${2}"
             echo "Additional extras : ${ADDITIONAL_AIRFLOW_EXTRAS}"
@@ -2700,13 +2695,6 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
---skip-installing-airflow-providers-from-sources
-        By default 'pip install' in Airflow 2.0 installs only the provider packages that
-        are needed by the extras. When you build image during the development (which is
-        default in Breeze) all providers are installed by default from sources.
-        You can disable it by adding this flag but then you have to install providers from
-        wheel packages via --use-packages-from-dist flag.
-
 --disable-pypi-when-building
         Disable installing Airflow from pypi when building. If you use this flag and want
         to install Airflow, you have to install it from packages placed in
@@ -3292,13 +3280,12 @@ function breeze::remove_images() {
                        ${AIRFLOW_CI_IMAGE} \
                        ${AIRFLOW_PROD_IMAGE} \
                        ${AIRFLOW_PROD_BUILD_IMAGE} \
-        2>/dev/null >/dev/null && true
+        2>/dev/null >/dev/null || true
+    docker system prune || true
     echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
+    echo "#########################################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION} and pruned cache."
+    echo "#########################################################################################"
     echo
     rm -f "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
@@ -3526,7 +3513,7 @@ function breeze::run_breeze_command() {
         : "${airflow_testing_container:?"ERROR! Breeze must be running in order to exec into running container"}"
         set -e
         docker exec -it "${airflow_testing_container}" \
-            "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
+            "/opt/airflow/scripts/docker/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
         docker_engine_resources::check_all_resources
@@ -3620,7 +3607,7 @@ function breeze::run_breeze_command() {
 # We have different versions of images depending on the python version used. We keep up with the
 # Latest patch-level changes in Python (this is done automatically during CI test runs) so we have
 # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
-# version of python in X.Y format (3.6, 3.7, 3.8, 3.9).
+# version of python in X.Y format (3.7, 3.8, 3.9, 3.10).
 #
 # In Breeze the precedence of setting the version is as follows:
 #      1. --python flag (if set, it will explicitly override it in the next step)

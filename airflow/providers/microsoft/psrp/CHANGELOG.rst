@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+1.1.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``PowerShell Remoting fail on non-zero exitcode (#22503)``
+
+1.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 1.1.2
 .....
 

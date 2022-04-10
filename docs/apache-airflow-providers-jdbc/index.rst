@@ -59,7 +59,7 @@ Package apache-airflow-providers-jdbc
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 2.1.2
+Release: 2.1.3
 
 Provider package
 ----------------

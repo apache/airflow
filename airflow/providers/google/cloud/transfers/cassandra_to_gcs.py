@@ -169,21 +169,30 @@ class CassandraToGCSOperator(BaseOperator):
 
         cursor = hook.get_conn().execute(self.cql, **query_extra)
 
-        files_to_upload = self._write_local_data_files(cursor)
-
         # If a schema is set, create a BQ schema JSON file.
         if self.schema_filename:
-            files_to_upload.update(self._write_local_schema_file(cursor))
+            self.log.info('Writing local schema file')
+            schema_file = self._write_local_schema_file(cursor)
 
-        # Flush all files before uploading
-        for file_handle in files_to_upload.values():
-            file_handle.flush()
+            # Flush file before uploading
+            schema_file['file_handle'].flush()
 
-        self._upload_to_gcs(files_to_upload)
+            self.log.info('Uploading schema file to GCS.')
+            self._upload_to_gcs(schema_file)
+            schema_file['file_handle'].close()
 
-        # Close all temp file handles.
-        for file_handle in files_to_upload.values():
-            file_handle.close()
+        counter = 0
+        self.log.info('Writing local data files')
+        for file_to_upload in self._write_local_data_files(cursor):
+            # Flush file before uploading
+            file_to_upload['file_handle'].flush()
+
+            self.log.info('Uploading chunk file #%d to GCS.', counter)
+            self._upload_to_gcs(file_to_upload)
+
+            self.log.info('Removing local file')
+            file_to_upload['file_handle'].close()
+            counter += 1
 
         # Close all sessions and connection associated with this Cassandra cluster
         hook.shutdown_cluster()
@@ -197,8 +206,12 @@ class CassandraToGCSOperator(BaseOperator):
             contain the data for the GCS objects.
         """
         file_no = 0
+
         tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
+        file_to_upload = {
+            'file_name': self.filename.format(file_no),
+            'file_handle': tmp_file_handle,
+        }
         for row in cursor:
             row_dict = self.generate_data_dict(row._fields, row)
             content = json.dumps(row_dict).encode('utf-8')
@@ -209,10 +222,14 @@ class CassandraToGCSOperator(BaseOperator):
 
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
-                tmp_file_handle = NamedTemporaryFile(delete=True)
-                tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
 
-        return tmp_file_handles
+                yield file_to_upload
+                tmp_file_handle = NamedTemporaryFile(delete=True)
+                file_to_upload = {
+                    'file_name': self.filename.format(file_no),
+                    'file_handle': tmp_file_handle,
+                }
+        yield file_to_upload
 
     def _write_local_schema_file(self, cursor):
         """
@@ -231,22 +248,26 @@ class CassandraToGCSOperator(BaseOperator):
         json_serialized_schema = json.dumps(schema).encode('utf-8')
 
         tmp_schema_file_handle.write(json_serialized_schema)
-        return {self.schema_filename: tmp_schema_file_handle}
+        schema_file_to_upload = {
+            'file_name': self.schema_filename,
+            'file_handle': tmp_schema_file_handle,
+        }
+        return schema_file_to_upload
 
-    def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
+    def _upload_to_gcs(self, file_to_upload):
+        """Upload a file (data split or schema .json file) to Google Cloud Storage."""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        for obj, tmp_file_handle in files_to_upload.items():
-            hook.upload(
-                bucket_name=self.bucket,
-                object_name=obj,
-                filename=tmp_file_handle.name,
-                mime_type='application/json',
-                gzip=self.gzip,
-            )
+        hook.upload(
+            bucket_name=self.bucket,
+            object_name=file_to_upload.get('file_name'),
+            filename=file_to_upload.get('file_handle').name,
+            mime_type='application/json',
+            gzip=self.gzip,
+        )
 
     @classmethod
     def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict[str, Any]:

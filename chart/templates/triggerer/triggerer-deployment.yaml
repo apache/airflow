@@ -102,6 +102,7 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
+        {{- if .Values.triggerer.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources:
             {{- toYaml .Values.triggerer.resources | nindent 12 }}
@@ -119,6 +120,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+        {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}

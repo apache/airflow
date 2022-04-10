@@ -179,11 +179,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# We limit Pandas to <1.4 because Pandas 1.4 requires SQLAlchemy 1.4 which
-# We should remove the limits as soon as Flask App Builder releases version 3.4.4
-# Release candidate is there: https://pypi.org/project/Flask-AppBuilder/3.4.4rc1/
-# TODO: remove it when we fix all SQLAlchemy 1.4 problems
-pandas_requirement = 'pandas>=0.17.1, <1.4'
+pandas_requirement = 'pandas>=0.17.1'
 
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
@@ -208,6 +204,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.33.0',
 ]
+arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
 async_packages = [
     'eventlet>=0.9.7',
@@ -222,7 +219,7 @@ azure = [
     'azure-cosmos>=4.0.0',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
-    'azure-keyvault>=4.1.0',
+    'azure-keyvault-secrets>=4.1.0,<5.0',
     'azure-kusto-data>=0.0.43,<0.1',
     # Azure integration uses old librarires and the limits below reflect that
     # TODO: upgrade to newer versions of all the below libraries
@@ -239,11 +236,21 @@ cassandra = [
     'cassandra-driver>=3.13.0',
 ]
 celery = [
-    'celery>=5.2.3',
+    # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+    # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
+    # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
+    # This is a crucial component of Airflow, so we should limit it to the next MAJOR version and only
+    # deliberately bump the version when we tested it, and we know it can be bumped.
+    # Bumping this version should also be connected with
+    # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+    # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
+    # core is not hard-limited via install-requirements, only by extra).
+    'celery>=5.2.3,<6',
     'flower>=1.0.0',
 ]
 cgroups = [
-    'cgroupspy>=0.1.4',
+    # Cgroupspy 0.2.2 added Python 3.10 compatibility
+    'cgroupspy>=0.2.2',
 ]
 cloudant = [
     'cloudant>=2.0',
@@ -268,6 +275,10 @@ deprecated_api = [
 doc = [
     'click>=8.0',
     'sphinx>=4.4.0',
+    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
+    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
+    # <section> tags for sections
+    'docutils<0.17.0',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
@@ -414,7 +425,15 @@ kerberos = [
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=21.7.0',
+    # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+    # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
+    # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
+    # So we should limit it to the next MAJOR version and only deliberately bump the version when we
+    # tested it, and we know it can be bumped. Bumping this version should also be connected with
+    # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+    # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
+    # core is not hard-limited via install-requirements, only by extra).
+    'kubernetes>=21.7.0,<24',
 ]
 kylin = ['kylinpy>=2.6']
 ldap = [
@@ -666,6 +685,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'arangodb': arangodb,
     'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
@@ -740,7 +760,7 @@ ADDITIONAL_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'async': async_packages,
-    'celery': celery,  # also has provider, but it extends the core with the Celery executor
+    'celery': celery,  # also has provider, but it extends the core with the CeleryExecutor
     'cgroups': cgroups,
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
@@ -857,6 +877,7 @@ ALL_DB_PROVIDERS = [
     'apache.hdfs',
     'apache.hive',
     'apache.pinot',
+    'arangodb',
     'cloudant',
     'databricks',
     'exasol',
@@ -963,12 +984,8 @@ def get_provider_package_from_package_id(package_id: str) -> str:
 
 
 def get_excluded_providers() -> List[str]:
-    """
-    Returns packages excluded for the current python version.
-    Currently the only excluded provider is apache hive for Python 3.9.
-    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
-    """
-    return ['apache.hive'] if PY39 else []
+    """Returns packages excluded for the current python version."""
+    return []
 
 
 def get_all_provider_packages() -> str:
@@ -1032,17 +1049,29 @@ def replace_extra_requirement_with_provider_packages(extra: str, providers: List
             ['simple-salesforce>=1.0.0', 'tableauserverclient']
 
     So transitively 'salesforce' extra has all the requirements it needs and in case the provider
-    changes it's dependencies, they will transitively change as well.
+    changes its dependencies, they will transitively change as well.
 
     In the constraint mechanism we save both - provider versions and it's dependencies
     version, which means that installation using constraints is repeatable.
 
+    For K8s and Celery which are both "Core executors" and "Providers" we have to
+    add the base dependencies to core as well, in order to mitigate problems where
+    newer version of provider will have less strict limits. This should be done for both
+    extras and their deprecated aliases. This is not a full protection however, the way
+    extras work, this will not add "hard" limits for Airflow and the user who does not use
+    constraints.
+
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    EXTRAS_REQUIREMENTS[extra] = [
-        get_provider_package_from_package_id(package_name) for package_name in providers
-    ]
+    if extra in ['cncf.kubernetes', 'kubernetes', 'celery']:
+        EXTRAS_REQUIREMENTS[extra].extend(
+            [get_provider_package_from_package_id(package_name) for package_name in providers]
+        )
+    else:
+        EXTRAS_REQUIREMENTS[extra] = [
+            get_provider_package_from_package_id(package_name) for package_name in providers
+        ]
 
 
 def add_provider_packages_to_extra_requirements(extra: str, providers: List[str]) -> None:

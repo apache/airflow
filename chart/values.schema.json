@@ -15,7 +15,7 @@
         "Triggerer",
         "Flower",
         "Redis",
-        "Statsd",
+        "StatsD",
         "Jobs",
         "Kubernetes",
         "Ingress",
@@ -67,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.2.4",
+            "default": "2.2.5",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.2.4",
+            "default": "2.2.5",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -532,21 +532,21 @@
                     }
                 },
                 "statsd": {
-                    "description": "Configuration of the statsd image.",
+                    "description": "Configuration of the StatsD image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The statsd image repository.",
+                            "description": "The StatsD image repository.",
                             "type": "string",
                             "default": "apache/airflow"
                         },
                         "tag": {
-                            "description": "The statsd image tag.",
+                            "description": "The StatsD image tag.",
                             "type": "string",
                             "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
                         },
                         "pullPolicy": {
-                            "description": "The statsd image pull policy.",
+                            "description": "The StatsD image pull policy.",
                             "type": "string",
                             "enum": [
                                 "Always",
@@ -1787,6 +1787,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2024,6 +2036,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -2207,6 +2231,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable migrate database job.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "command": {
                     "description": "Command to use when running migrate database job (templated).",
                     "type": [
@@ -2808,6 +2837,18 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -3061,6 +3102,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
                     }
                 },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
                     "type": "object",
@@ -3118,7 +3167,7 @@
         "statsd": {
             "description": "StatsD settings.",
             "type": "object",
-            "x-docsSection": "Statsd",
+            "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -3237,7 +3286,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the statsd pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3386,6 +3435,16 @@
                     "description": "Increase PgBouncer verbosity.",
                     "type": "integer",
                     "default": 0
+                },
+                "auth_type": {
+                    "description": "Method of authenticating users",
+                    "type": "string",
+                    "default": "md5"
+                },
+                "auth_file": {
+                    "description": "The name of the file to load user names and passwords from",
+                    "type": "string",
+                    "default": "/etc/pgbouncer/users.txt"
                 },
                 "logDisconnections": {
                     "description": "Log disconnections with reasons.",
@@ -3716,6 +3775,24 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 999,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "uid": {
+                    "description": "Redis run as user parameter.",
+                    "type": "integer",
+                    "default": 0
                 }
             }
         },
@@ -4138,6 +4215,22 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations for the dag PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "subPath": {
+                            "description": "Subpath within the PVC where dags are located.",
                             "type": [
                                 "string",
                                 "null"

@@ -162,7 +162,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
@@ -460,7 +460,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
@@ -510,7 +510,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)

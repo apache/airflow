@@ -22,6 +22,7 @@ from logging import DEBUG, ERROR, INFO, WARNING
 from typing import Any, Callable, Dict, Iterator, Optional
 from weakref import WeakKeyDictionary
 
+from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
@@ -64,6 +65,9 @@ class PsrpHook(BaseHook):
     :param exchange_keys:
         If true (default), automatically initiate a session key exchange when the
         hook is used as a context manager.
+    :param host:
+        Optional PowerShell host instance. If this is not set, the default
+        implementation will be used.
 
     You can provide an alternative `configuration_name` using either `runspace_options`
     or by setting this key as the extra fields of your connection.
@@ -82,6 +86,7 @@ class PsrpHook(BaseHook):
         wsman_options: Optional[Dict[str, Any]] = None,
         on_output_callback: Optional[OutputCallback] = None,
         exchange_keys: bool = True,
+        host: Optional[PSHost] = None,
     ):
         self.conn_id = psrp_conn_id
         self._logging_level = logging_level
@@ -90,6 +95,7 @@ class PsrpHook(BaseHook):
         self._wsman_options = wsman_options or {}
         self._on_output_callback = on_output_callback
         self._exchange_keys = exchange_keys
+        self._host = host or PSHost(None, None, False, type(self).__name__, None, None, "1.0")
 
     def __enter__(self):
         conn = self.get_conn()
@@ -144,7 +150,7 @@ class PsrpHook(BaseHook):
 
         if extra:
             raise AirflowException(f"Unexpected extra configuration keys: {', '.join(sorted(extra))}")
-        pool = RunspacePool(wsman, **runspace_options)
+        pool = RunspacePool(wsman, host=self._host, **runspace_options)
         self._wsman_ref[pool] = wsman
         return pool
 

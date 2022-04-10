@@ -37,6 +37,8 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,
+    GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
@@ -44,27 +46,34 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 
 START_DATE = datetime(2021, 1, 1)
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
-BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
-GCS_ACL_ENTITY = os.environ.get("GCS_ACL_ENTITY", "allUsers")
+PROJECT_ID = os.getenv("GCP_PROJECT_ID", "example-id")
+BUCKET_1 = os.getenv("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
+GCS_ACL_ENTITY = os.getenv("GCS_ACL_ENTITY", "allUsers")
 GCS_ACL_BUCKET_ROLE = "OWNER"
 GCS_ACL_OBJECT_ROLE = "OWNER"
 
-BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_2", "test-gcs-example-bucket-2")
+BUCKET_2 = os.getenv("GCP_GCS_BUCKET_2", "test-gcs-example-bucket-2")
 
 temp_dir_path = gettempdir()
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
+PATH_TO_TRANSFORM_SCRIPT = os.getenv(
     "GCP_GCS_PATH_TO_TRANSFORM_SCRIPT", os.path.join(temp_dir_path, "transform_script.py")
 )
-PATH_TO_UPLOAD_FILE = os.environ.get(
+PATH_TO_UPLOAD_FILE = os.getenv(
     "GCP_GCS_PATH_TO_UPLOAD_FILE", os.path.join(temp_dir_path, "test-gcs-example-upload.txt")
 )
-PATH_TO_UPLOAD_FILE_PREFIX = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE_PREFIX", "test-gcs-")
-PATH_TO_SAVED_FILE = os.environ.get(
+PATH_TO_UPLOAD_FILE_PREFIX = os.getenv("GCP_GCS_PATH_TO_UPLOAD_FILE_PREFIX", "test-gcs-")
+PATH_TO_SAVED_FILE = os.getenv(
     "GCP_GCS_PATH_TO_SAVED_FILE", os.path.join(temp_dir_path, "test-gcs-example-download.txt")
 )
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
+
+# Upload 'test-gcs-manual-example-upload.txt' manually in the <BUCKET_1> after triggering the DAG.
+PATH_TO_MANUAL_UPLOAD_FILE = os.getenv(
+    "GCP_GCS_PATH_TO_MANUAL_UPLOAD_FILE", os.path.join(temp_dir_path, "test-gcs-manual-example-upload.txt")
+)
+BUCKET_MANUAL_UPLOAD_FILE_LOCATION = PATH_TO_MANUAL_UPLOAD_FILE.rpartition("/")[-1]
+PATH_TO_MANUAL_UPLOAD_FILE_PREFIX = os.getenv("GCP_GCS_PATH_TO_MANUAL_UPLOAD_FILE_PREFIX", "test-gcs-manual-")
 
 with models.DAG(
     "example_gcs",
@@ -208,9 +217,31 @@ with models.DAG(
         task_id="gcs_object_with_prefix_exists_task",
     )
     # [END howto_sensor_object_with_prefix_exists_task]
+
+    # [START howto_sensor_gcs_upload_session_complete_task]
+    gcs_upload_session_complete = GCSUploadSessionCompleteSensor(
+        bucket=BUCKET_1,
+        prefix=PATH_TO_MANUAL_UPLOAD_FILE_PREFIX,
+        inactivity_period=60,
+        min_objects=1,
+        allow_delete=True,
+        previous_objects=set(),
+        task_id="gcs_upload_session_complete_task",
+    )
+    # [END howto_sensor_gcs_upload_session_complete_task]
+
+    # [START howto_sensor_object_update_exists_task]
+    gcs_update_object_exists = GCSObjectUpdateSensor(
+        bucket=BUCKET_1,
+        object=BUCKET_MANUAL_UPLOAD_FILE_LOCATION,
+        task_id="gcs_object_update_sensor_task",
+    )
+    # [END howto_sensor_object_update_exists_task]
+
     delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_1)
 
     create_bucket >> upload_file >> [gcs_object_exists, gcs_object_with_prefix_exists] >> delete_bucket
+    create_bucket >> gcs_upload_session_complete >> gcs_update_object_exists >> delete_bucket
 
 
 if __name__ == '__main__':

@@ -102,8 +102,8 @@ def wait_for_container(container_id: str, timeout: int = 300):
 
 
 def wait_for_terminal_dag_state(dag_id, dag_run_id):
-    # Wait 30 seconds
-    for _ in range(30):
+    # Wait 80 seconds
+    for _ in range(80):
         dag_state = api_request("GET", f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
         print(f"Waiting for DAG Run: dag_state={dag_state}")
         sleep(1)

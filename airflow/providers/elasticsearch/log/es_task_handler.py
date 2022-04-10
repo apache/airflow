@@ -129,12 +129,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return self.log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            run_id=ti.run_id,
+            run_id=getattr(ti, "run_id", ""),
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
             execution_date=execution_date,
             try_number=try_number,
-            map_index=ti.map_index,
+            map_index=getattr(ti, "map_index", ""),
         )
 
     @staticmethod
@@ -286,7 +286,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            record.offset = int(time() * (10 ** 9))
+            record.offset = int(time() * (10**9))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:

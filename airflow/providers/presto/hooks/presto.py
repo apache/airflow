@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import os
 import warnings
 from typing import Any, Callable, Iterable, Optional, overload
@@ -27,6 +28,34 @@ from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+
+try:
+    from airflow.utils.operator_helpers import DEFAULT_FORMAT_PREFIX
+except ImportError:
+    # This is from airflow.utils.operator_helpers,
+    # For the sake of provider backward compatibility, this is hardcoded if import fails
+    # https://github.com/apache/airflow/pull/22416#issuecomment-1075531290
+    DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
+
+
+def generate_presto_client_info() -> str:
+    """Return json string with dag_id, task_id, execution_date and try_number"""
+    context_var = {
+        format_map['default'].replace(DEFAULT_FORMAT_PREFIX, ''): os.environ.get(
+            format_map['env_var_format'], ''
+        )
+        for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
+    }
+    task_info = {
+        'dag_id': context_var['dag_id'],
+        'task_id': context_var['task_id'],
+        'execution_date': context_var['execution_date'],
+        'try_number': context_var['try_number'],
+        'dag_run_id': context_var['dag_run_id'],
+        'dag_owner': context_var['dag_owner'],
+    }
+    return json.dumps(task_info, sort_keys=True)
 
 
 class PrestoException(Exception):
@@ -83,11 +112,13 @@ class PrestoHook(DbApiHook):
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
 
+        http_headers = {"X-Presto-Client-Info": generate_presto_client_info()}
         presto_conn = prestodb.dbapi.connect(
             host=db.host,
             port=db.port,
             user=db.login,
             source=db.extra_dejson.get('source', 'airflow'),
+            http_headers=http_headers,
             http_scheme=db.extra_dejson.get('protocol', 'http'),
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,

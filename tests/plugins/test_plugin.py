@@ -28,6 +28,7 @@ from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base import BaseSensorOperator
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.interval import CronDataIntervalTimetable
 from tests.listeners import empty_listener
 from tests.test_utils.mock_operators import (
@@ -106,6 +107,10 @@ class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
     pass
 
 
+class CustomTestTriggerRule(BaseTIDep):
+    pass
+
+
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -124,6 +129,7 @@ class AirflowTestPlugin(AirflowPlugin):
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
     timetables = [CustomCronDataIntervalTimetable]
     listeners = [empty_listener]
+    ti_deps = [CustomTestTriggerRule()]
 
 
 class MockPluginA(AirflowPlugin):

@@ -779,7 +779,7 @@ class TestRunState(unittest.TestCase):
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
         run_state = RunState('blah', '', '')
         with pytest.raises(AirflowException):
-            run_state.is_terminal
+            assert run_state.is_terminal
 
     def test_is_successful(self):
         run_state = RunState('TERMINATED', 'SUCCESS', '')

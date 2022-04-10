@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
@@ -196,6 +197,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
             source_format=TEST_SOURCE_FORMAT,
+            autodetect=True,
         )
 
         operator.execute(None)
@@ -204,6 +206,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             schema_fields=[],
             source_uris=[f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA],
             source_format=TEST_SOURCE_FORMAT,
+            autodetect=True,
             compression='NONE',
             skip_leading_rows=0,
             field_delimiter=',',
@@ -840,6 +843,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id
@@ -947,7 +952,10 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        job.result.assert_called_once_with()
+        job.result.assert_called_once_with(
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
 
         assert result == real_job_id
 
@@ -988,6 +996,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id

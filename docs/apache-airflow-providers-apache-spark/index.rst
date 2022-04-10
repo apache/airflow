@@ -58,7 +58,7 @@ Package apache-airflow-providers-apache-spark
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 2.1.2
+Release: 2.1.3
 
 Provider package
 ----------------

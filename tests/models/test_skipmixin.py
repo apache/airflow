@@ -20,6 +20,7 @@ import datetime
 from unittest.mock import Mock, patch
 
 import pendulum
+import pytest
 
 from airflow import settings
 from airflow.models.skipmixin import SkipMixin
@@ -94,7 +95,16 @@ class TestSkipMixin:
         assert not session.query.called
         assert not session.commit.called
 
-    def test_skip_all_except(self, dag_maker):
+    @pytest.mark.parametrize(
+        "branch_task_ids, expected_states",
+        [
+            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
+            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
+            (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
+            ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
+        ],
+    )
+    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
         with dag_maker(
             'dag_test_skip_all_except',
         ):
@@ -109,11 +119,12 @@ class TestSkipMixin:
         ti2 = TI(task2, execution_date=DEFAULT_DATE)
         ti3 = TI(task3, execution_date=DEFAULT_DATE)
 
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=['task2'])
+        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
         def get_state(ti):
             ti.refresh_from_db()
             return ti.state
 
-        assert get_state(ti2) == State.NONE
-        assert get_state(ti3) == State.SKIPPED
+        executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
+
+        assert executed_states == expected_states

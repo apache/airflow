@@ -169,6 +169,7 @@ def initial_db_init():
     from airflow.utils import db
 
     db.resetdb()
+    db.bootstrap_dagbag()
 
 
 @pytest.fixture(autouse=True, scope="session")

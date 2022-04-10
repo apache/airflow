@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import datetime
 import unittest
 from unittest.mock import patch
 
 import pytest
+import pytz
+from parameterized import parameterized
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -88,6 +90,28 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         assert not gzip
         with open(tmp_filename, 'rb') as file:
             assert b''.join(NDJSON_LINES) == file.read()
+
+    @parameterized.expand(
+        [
+            ("string", "string"),
+            (32.9, 32.9),
+            (-2, -2),
+            (datetime.date(1970, 1, 2), "1970-01-02"),
+            (datetime.date(1000, 1, 2), "1000-01-02"),
+            (datetime.datetime(1970, 1, 1, 1, 0, tzinfo=None), "1970-01-01T01:00:00"),
+            (
+                datetime.datetime(2022, 1, 1, 2, 0, tzinfo=pytz.UTC),
+                1641002400.0,
+            ),
+            (datetime.time(hour=0, minute=0, second=0), "0:00:00"),
+            (datetime.time(hour=23, minute=59, second=59), "23:59:59"),
+        ]
+    )
+    def test_convert_type(self, value, expected):
+        op = PostgresToGCSOperator(
+            task_id=TASK_ID, postgres_conn_id=POSTGRES_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+        )
+        assert op.convert_type(value, None) == expected
 
     @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class):

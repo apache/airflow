@@ -803,8 +803,8 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
-multiple processors on your local machine to generate such constraints faster.
+the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
@@ -1335,13 +1335,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
@@ -2031,13 +2024,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
-
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
           to install Airflow, you have to install it from packages placed in
@@ -2290,23 +2276,25 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  autoflake base-operator black blacken-docs boring-cyborg build
                  build-providers-dependencies chart-schema-lint capitalized-breeze
-                 changelog-duplicates check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-xml daysago-import-check
-                 debug-statements detect-private-key docstring-params doctoc dont-use-safe-filter
-                 end-of-file-fixer fix-encoding-pragma flake8 flynt forbidden-xcom-get-value
-                 codespell forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
-                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
-                 markdownlint mermaid migration-reference mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports persist-credentials-disabled
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-changelogs providers-init-file
-                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
-                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
-                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
-                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 update-supported-versions update-versions vendor-k8s-json-schema
-                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 changelog-duplicates check-2-1-compatibility check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-extras-order
+                 check-hooks-apply check-integrations check-merge-conflict check-revision-heads-map
+                 check-xml check-system-tests daysago-import-check debug-statements
+                 detect-private-key docstring-params doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license inline-dockerfile-scripts isort
+                 json-schema language-matters lint-dockerfile lint-openapi markdownlint mermaid
+                 migration-reference mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports persist-credentials-disabled pre-commit-descriptions
+                 pre-commit-hook-names pretty-format-json provide-create-sessions
+                 providers-changelogs providers-init-file providers-subpackages-init-file
+                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
+                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint
+                 update-breeze-config-hash update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file update-supported-versions update-versions
+                 vendor-k8s-json-schema verify-db-migrations-documented version-sync www-lint
+                 yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2509,17 +2497,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.21.1 v1.20.2
+                 v1.23.4 v1.22.7 v1.21.10 v1.20.15
 
-          Default: v1.21.1
+          Default: v1.23.4
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v0.11.1
+                 v0.12.0
 
-          Default: v0.11.1
+          Default: v0.12.0
 
   --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.
@@ -2631,13 +2619,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
-
-  --skip-installing-airflow-providers-from-sources
-          By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras. When you build image during the development (which is
-          default in Breeze) all providers are installed by default from sources.
-          You can disable it by adding this flag but then you have to install providers from
-          wheel packages via --use-packages-from-dist flag.
 
   --disable-pypi-when-building
           Disable installing Airflow from pypi when building. If you use this flag and want
