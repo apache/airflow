@@ -851,14 +851,14 @@ key2 = 300.99
 # too large value for C int
 key3 = 999999999999999
 
-# Equals to None
+[valid]
+# negative value
 key4 = -1
 
 # zero
 key5 = 0
 
-[valid]
-# valid seconds
+# positive value
 key6 = 300
 
 [default]
@@ -894,26 +894,10 @@ key7 =
         ):
             test_conf.gettimedelta("invalid", "key3")
 
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to timedelta in `seconds`. '
-                'Value must be greater than zero. '
-                'Please check "key4" key in "invalid" section. Current value: "-1".'
-            ),
-        ):
-            test_conf.gettimedelta("invalid", "key4")
-
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to timedelta in `seconds`. '
-                'Value must be greater than zero. '
-                'Please check "key5" key in "invalid" section. Current value: "0".'
-            ),
-        ):
-            test_conf.gettimedelta("invalid", "key5")
-
+        assert isinstance(test_conf.gettimedelta('valid', 'key4'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key4') == datetime.timedelta(seconds=-1)
+        assert isinstance(test_conf.gettimedelta('valid', 'key5'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key5') == datetime.timedelta(seconds=0)
         assert isinstance(test_conf.gettimedelta('valid', 'key6'), datetime.timedelta)
         assert test_conf.gettimedelta('valid', 'key6') == datetime.timedelta(seconds=300)
         assert isinstance(test_conf.gettimedelta('default', 'key7'), type(None))

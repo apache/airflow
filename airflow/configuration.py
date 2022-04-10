@@ -632,14 +632,6 @@ class AirflowConfigParser(ConfigParser):
                     f'Current value: "{val}".'
                 )
 
-            # the given value must be positive.
-            if int_val <= 0:
-                raise AirflowConfigException(
-                    f'Failed to convert value to timedelta in `seconds`. '
-                    f'Value must be greater than zero. '
-                    f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
-                )
-
             try:
                 return datetime.timedelta(seconds=int_val)
             except OverflowError as err:
