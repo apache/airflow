@@ -95,7 +95,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
-        files: ^breeze$|^breeze-complete$|\.bash$|\.sh$
+        files: ^breeze-legacy$|^breeze-complete$|\.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -266,7 +266,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$
+        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
@@ -320,11 +320,12 @@ repos:
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich']
       - id: update-breeze-file
-        name: Update output of breeze command in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
-        language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$|^Dockerfile$
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$
         pass_filenames: false
+        additional_dependencies: ['rich']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.sh
@@ -525,7 +526,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
         exclude: ^dev/breeze/autocomplete/.*$
       - id: stylelint
         name: stylelint
@@ -591,6 +592,14 @@ repos:
         files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
         pass_filenames: false
         require_serial: true
+      - id: limit-breeze-dependencies
+        name: Breeze should have small number of top-level dependencies
+        language: python
+        entry: ./scripts/tools/check_if_limited_dependencies.py
+        files: ^dev/breeze/.*$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['click', 'rich']
       - id: check-system-tests
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py

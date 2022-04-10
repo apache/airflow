@@ -225,7 +225,7 @@ jobs:
       - name: "Free space"
         run: airflow-freespace
       - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: Breeze2 build-image
+        run: breeze build-image
         env:
           GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
           GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}

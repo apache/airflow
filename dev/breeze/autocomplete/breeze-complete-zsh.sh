@@ -1,12 +1,12 @@
-#compdef Breeze2
+#compdef breeze
 
-_Breeze2_completion() {
+_breeze_completion() {
     local -a completions
     local -a completions_with_descriptions
     local -a response
-    (( ! $+commands[Breeze2] )) && return 1
+    (( ! $+commands[breeze] )) && return 1
 
-    response=("${(@f)$(env COMP_WORDS="${words[*]}" COMP_CWORD=$((CURRENT-1)) _BREEZE2_COMPLETE=zsh_complete Breeze2)}")
+    response=("${(@f)$(env COMP_WORDS="${words[*]}" COMP_CWORD=$((CURRENT-1)) _BREEZE_COMPLETE=zsh_complete breeze)}")
 
     for type key descr in ${response}; do
         if [[ "$type" == "plain" ]]; then
@@ -31,4 +31,4 @@ _Breeze2_completion() {
     fi
 }
 
-compdef _Breeze2_completion Breeze2;
+compdef _breeze_completion breeze;
