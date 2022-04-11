@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-11T10:08:13Z
+# This constraints file was automatically generated on 2022-04-11T11:26:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -502,7 +502,7 @@ urllib3==1.26.9
 userpath==1.8.0
 vertica-python==1.0.5
 vine==5.0.0
-virtualenv==20.14.0
+virtualenv==20.14.1
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
