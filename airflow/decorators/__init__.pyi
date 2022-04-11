@@ -188,8 +188,7 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
         :param python_command: Python command for executing functions, Default: python3
-        :param image: Docker image from which to create the container.
-            If image tag is omitted, "latest" will be used.
+        :param image: Docker image from which to create the container.(Required)
         :param api_version: Remote API version. Set to ``auto`` to automatically
             detect the server's version.
         :param container_name: Name of the container. Optional (templated)
@@ -248,10 +247,9 @@ class TaskDecoratorCollection:
     def kubernetes(
         self,
         *,
-        python_callable: Optional[Callable] = None,
         multiple_outputs: Optional[bool] = None,
         namespace: Optional[str] = None,
-        image: Optional[str] = None,
+        image: str,
         name: Optional[str] = None,
         random_name_suffix: bool = True,
         cmds: Optional[List[str]] = None,
@@ -298,7 +296,6 @@ class TaskDecoratorCollection:
 
         Also accepts any argument that KubernetesPodOperator will via ``kwargs``.
 
-        :param python_callable: Function to decorate
         :param multiple_outputs: if set, function return value will be
             unrolled to multiple XCom values. Dict will unroll to XCom values with keys as XCom keys.
             Defaults to False.

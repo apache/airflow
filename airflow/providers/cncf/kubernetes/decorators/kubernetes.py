@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
 from kubernetes.client import models as k8s
 
-from airflow import AirflowException
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
@@ -74,10 +73,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     ) -> None:
         self.pickling_library = pickle
 
-        # Image, name and namespace are all required.
-        if 'image' not in kwargs:
-            raise AirflowException("Image required for kubernetes decorator")
-
+        # Set defaults for name and namespace.
         if 'name' not in kwargs:
             kwargs['name'] = f'k8s_airflow_pod_{uuid.uuid4().hex}'
 
