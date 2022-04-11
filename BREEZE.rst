@@ -1356,6 +1356,7 @@ You can connect to these ports/databases using:
 * Flower:    http://127.0.0.1:25555
 * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
 * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+* MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
 * Redis:     redis://127.0.0.1:26379/0
 
 If you do not use ``start-airflow`` command, you can start the webserver manually with
