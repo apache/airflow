@@ -763,8 +763,8 @@ class MappedOperator(AbstractOperator):
     @cache
     def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> Optional[int]:
         """
-        Number of mapped TaskInstances that can be created at run time, or None if upstreams are not complete
-        yet.
+        Number of mapped TaskInstances that can be created at run time, or None if upstream tasks are not
+        complete yet.
 
         :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
             should have
