@@ -30,7 +30,7 @@ import ActionButton from './ActionButton';
 import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
 const Run = ({
-  dagId, runId, taskId, selectedRows,
+  dagId, runId, taskId,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -95,7 +95,7 @@ const Run = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading} isDisabled={!!selectedRows.length}>
+      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
         Mark Success
       </Button>
       <ConfirmDialog

@@ -21,7 +21,7 @@
  * Custom wrapper of react-table using Chakra UI components
 */
 
-import React, { useEffect, useRef, forwardRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   Flex,
   Table as ChakraTable,
@@ -33,10 +33,9 @@ import {
   IconButton,
   Text,
   useColorModeValue,
-  Checkbox,
 } from '@chakra-ui/react';
 import {
-  useTable, useSortBy, usePagination, useRowSelect,
+  useTable, useSortBy, usePagination,
 } from 'react-table';
 import {
   MdKeyboardArrowLeft, MdKeyboardArrowRight,
@@ -45,23 +44,8 @@ import {
   TiArrowUnsorted, TiArrowSortedDown, TiArrowSortedUp,
 } from 'react-icons/ti';
 
-const IndeterminateCheckbox = forwardRef(
-  ({ indeterminate, ...rest }, ref) => {
-    const defaultRef = useRef();
-    const resolvedRef = ref || defaultRef;
-
-    useEffect(() => {
-      resolvedRef.current.indeterminate = indeterminate;
-    }, [resolvedRef, indeterminate]);
-
-    return (
-      <Checkbox ref={resolvedRef} {...rest} />
-    );
-  },
-);
-
 const Table = ({
-  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false, selectRows,
+  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false,
 }) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
@@ -82,8 +66,7 @@ const Table = ({
     canNextPage,
     nextPage,
     previousPage,
-    selectedFlatRows,
-    state: { pageIndex, sortBy, selectedRowIds },
+    state: { pageIndex, sortBy },
   } = useTable(
     {
       columns,
@@ -98,20 +81,6 @@ const Table = ({
     },
     useSortBy,
     usePagination,
-    useRowSelect,
-    (hooks) => {
-      hooks.visibleColumns.push((cols) => [
-        {
-          id: 'selection',
-          Cell: ({ row }) => (
-            <div>
-              <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-            </div>
-          ),
-        },
-        ...cols,
-      ]);
-    },
   );
 
   const handleNext = () => {
@@ -127,11 +96,6 @@ const Table = ({
   useEffect(() => {
     if (setSortBy) setSortBy(sortBy);
   }, [sortBy, setSortBy]);
-
-  useEffect(() => {
-    if (selectRows) selectRows(selectedFlatRows.map((row) => row.original.mapIndex));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRowIds, selectRows]);
 
   return (
     <>

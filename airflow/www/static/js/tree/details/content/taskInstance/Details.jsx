@@ -92,7 +92,7 @@ const Details = ({ instance, group, operator }) => {
             <br />
           </>
         )}
-        {mappedStates.length > 0 && (
+        {mappedStates && mappedStates.length > 0 && (
         <Text>
           {mappedStates.length}
           {' '}

@@ -35,7 +35,6 @@ const Run = ({
   dagId,
   runId,
   taskId,
-  selectedRows,
 }) => {
   const containerRef = useContainerRef();
   const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
@@ -50,22 +49,11 @@ const Run = ({
   const { mutate: onRun, isLoading } = useRunTask(dagId, runId, taskId);
 
   const onClick = () => {
-    if (selectedRows.length) {
-      selectedRows.forEach((mapIndex) => {
-        onRun({
-          ignoreAllDeps,
-          ignoreTaskState,
-          ignoreTaskDeps,
-          mapIndex,
-        });
-      });
-    } else {
-      onRun({
-        ignoreAllDeps,
-        ignoreTaskState,
-        ignoreTaskDeps,
-      });
-    }
+    onRun({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+    });
   };
 
   return (
