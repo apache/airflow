@@ -566,7 +566,7 @@ command and it is not yet available in the current ``breeze`` command):
     </div>
 
 
-Additional tools EdithTest
+Additional tools
 ----------------
 
 To shrink the Docker image, not all tools are pre-installed in the Docker image. But we have made sure that there
