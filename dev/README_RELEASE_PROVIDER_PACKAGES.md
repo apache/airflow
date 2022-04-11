@@ -86,7 +86,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 
 ```shell script
-./breeze prepare-provider-documentation [packages]
+./breeze-legacy prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -107,7 +107,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-./breeze --non-interactive prepare-provider-documentation [packages]
+./breeze-legacy --non-interactive prepare-provider-documentation [packages]
 ```
 
 ## Build provider packages for SVN apache upload
@@ -132,13 +132,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both
+./breeze-legacy prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+./breeze-legacy prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -197,13 +197,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
+./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
     PACKAGE PACKAGE ....
 ```
 
@@ -264,10 +264,8 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-*'
+breeze build-docs --for-production --package-filter apache-airflow-providers \
+   --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -278,8 +276,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
+breeze build-docs --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -595,7 +592,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-./breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 

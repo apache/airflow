@@ -18,8 +18,10 @@
 #
 import unittest
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import JobStatus
 
 from airflow.exceptions import AirflowException
@@ -78,7 +80,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -93,7 +95,7 @@ class TestDataprocHook(unittest.TestCase):
             mock_client.assert_called_once_with(
                 credentials=mock_get_credentials.return_value,
                 client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+                client_options=ANY,
             )
             assert warning_message == str(warnings[0].message)
 
@@ -114,7 +116,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -129,7 +131,7 @@ class TestDataprocHook(unittest.TestCase):
             mock_client.assert_called_once_with(
                 credentials=mock_get_credentials.return_value,
                 client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+                client_options=ANY,
             )
             assert warning_message == str(warnings[0].message)
 
@@ -150,7 +152,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -165,7 +167,7 @@ class TestDataprocHook(unittest.TestCase):
             mock_client.assert_called_once_with(
                 credentials=mock_get_credentials.return_value,
                 client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+                client_options=ANY,
             )
             assert warning_message == str(warnings[0].message)
 
@@ -184,9 +186,7 @@ class TestDataprocHook(unittest.TestCase):
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region='region1')
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
-            client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -201,7 +201,7 @@ class TestDataprocHook(unittest.TestCase):
             mock_client.assert_called_once_with(
                 credentials=mock_get_credentials.return_value,
                 client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+                client_options=ANY,
             )
             assert warning_message == str(warnings[0].message)
 
@@ -223,7 +223,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -240,7 +240,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -255,7 +255,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster_name=CLUSTER_NAME,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
@@ -271,7 +271,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster_name=CLUSTER_NAME,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -289,7 +289,7 @@ class TestDataprocHook(unittest.TestCase):
                 page_size=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -315,7 +315,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -346,7 +346,7 @@ class TestDataprocHook(unittest.TestCase):
                     request_id=None,
                 ),
                 metadata=(),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
             )
             assert warning_message == str(warnings[0].message)
@@ -365,7 +365,7 @@ class TestDataprocHook(unittest.TestCase):
         parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
         self.hook.create_workflow_template(region=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
         mock_client.return_value.create_workflow_template.assert_called_once_with(
-            request=dict(parent=parent, template=template), retry=None, timeout=None, metadata=()
+            request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
@@ -381,7 +381,7 @@ class TestDataprocHook(unittest.TestCase):
                 location=GCP_LOCATION, template=template, project_id=GCP_PROJECT
             )
             mock_client.return_value.create_workflow_template.assert_called_once_with(
-                request=dict(parent=parent, template=template), retry=None, timeout=None, metadata=()
+                request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
             )
             assert warning_message == str(warnings[0].message)
 
@@ -397,7 +397,7 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
             request=dict(name=name, version=None, parameters=None, request_id=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -416,7 +416,7 @@ class TestDataprocHook(unittest.TestCase):
             )
             mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
                 request=dict(name=name, version=None, parameters=None, request_id=None),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -434,7 +434,7 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             request=dict(parent=parent, template=template, request_id=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -453,7 +453,7 @@ class TestDataprocHook(unittest.TestCase):
             )
             mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
                 request=dict(parent=parent, template=template, request_id=None),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -511,7 +511,7 @@ class TestDataprocHook(unittest.TestCase):
                 job_id=JOB_ID,
                 project_id=GCP_PROJECT,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -531,7 +531,7 @@ class TestDataprocHook(unittest.TestCase):
                     job_id=JOB_ID,
                     project_id=GCP_PROJECT,
                 ),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -551,7 +551,7 @@ class TestDataprocHook(unittest.TestCase):
                 project_id=GCP_PROJECT,
                 request_id=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -572,7 +572,7 @@ class TestDataprocHook(unittest.TestCase):
                     project_id=GCP_PROJECT,
                     request_id=None,
                 ),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -599,7 +599,7 @@ class TestDataprocHook(unittest.TestCase):
                 job_id=JOB_ID,
                 project_id=GCP_PROJECT,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -615,7 +615,7 @@ class TestDataprocHook(unittest.TestCase):
                 job_id=JOB_ID,
                 project_id=GCP_PROJECT,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -635,7 +635,7 @@ class TestDataprocHook(unittest.TestCase):
                     job_id=JOB_ID,
                     project_id=GCP_PROJECT,
                 ),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -658,7 +658,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -675,7 +675,7 @@ class TestDataprocHook(unittest.TestCase):
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -692,7 +692,7 @@ class TestDataprocHook(unittest.TestCase):
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -710,7 +710,7 @@ class TestDataprocHook(unittest.TestCase):
                 page_token=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 

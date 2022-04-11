@@ -17,6 +17,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.operators.dataplex import DataplexHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -64,7 +66,7 @@ class TestDataplexHook(TestCase):
                 task_id=DATAPLEX_TASK_ID,
                 task=BODY,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -80,7 +82,7 @@ class TestDataplexHook(TestCase):
             request=dict(
                 name=name,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -98,7 +100,7 @@ class TestDataplexHook(TestCase):
                 filter=None,
                 order_by=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -114,7 +116,7 @@ class TestDataplexHook(TestCase):
             request=dict(
                 name=name,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

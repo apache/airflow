@@ -26,9 +26,9 @@ import {
   IconButton,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
-import { FaMicroscope } from 'react-icons/fa';
-import { GiLog } from 'react-icons/gi';
-import { HiTemplate } from 'react-icons/hi';
+import {
+  MdDetails, MdCode, MdSyncAlt, MdReorder,
+} from 'react-icons/md';
 
 import { getMetaValue } from '../../../../utils';
 import { formatDateTime, formatDuration } from '../../../../datetime_utils';
@@ -39,9 +39,10 @@ import Table from '../../../Table';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
+const xcomUrl = getMetaValue('xcom_url');
 
 const IconLink = (props) => (
-  <IconButton as={Link} variant="outline" colorScheme="blue" {...props} />
+  <IconButton as={Link} variant="ghost" colorScheme="blue" fontSize="3xl" {...props} />
 );
 
 const MappedInstances = ({
@@ -73,6 +74,7 @@ const MappedInstances = ({
       const detailsLink = `${taskUrl}&${params}`;
       const renderedLink = `${renderedTemplatesUrl}&${params}`;
       const logLink = `${logUrl}&${params}`;
+      const xcomLink = `${xcomUrl}&${params}`;
       return {
         ...mi,
         state: (
@@ -86,9 +88,10 @@ const MappedInstances = ({
         endDate: mi.endDate && formatDateTime(mi.endDate),
         links: (
           <Flex alignItems="center">
-            <IconLink mr={1} title="Rendered Templates" aria-label="Rendered Templates" icon={<HiTemplate />} href={renderedLink} />
-            <IconLink mr={1} title="Log" aria-label="Log" icon={<GiLog />} href={logLink} />
-            <IconLink title="Details" aria-label="Details" icon={<FaMicroscope />} href={detailsLink} />
+            <IconLink mr={1} title="Details" aria-label="Details" icon={<MdDetails />} href={detailsLink} />
+            <IconLink mr={1} title="Rendered Templates" aria-label="Rendered Templates" icon={<MdCode />} href={renderedLink} />
+            <IconLink mr={1} title="Log" aria-label="Log" icon={<MdReorder />} href={logLink} />
+            <IconLink title="XCom" fontWeight="bold" aria-label="XCom" icon={<MdSyncAlt />} href={xcomLink} />
           </Flex>
         ),
       };

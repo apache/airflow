@@ -25,6 +25,7 @@ This module contains Google PubSub operators.
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
     DeadLetterPolicy,
@@ -130,7 +131,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         labels: Optional[Dict[str, str]] = None,
         message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
         kms_key_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,
@@ -340,7 +341,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         filter_: Optional[str] = None,
         dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
         retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         topic_project: Optional[str] = None,
@@ -491,7 +492,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,
@@ -607,7 +608,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         project: Optional[str] = None,

@@ -154,8 +154,9 @@ sort-spelling-wordlist
 stylelint
 trailing-whitespace
 ui-lint
-update-breeze-config-hash
+limit-breeze-dependencies
 update-breeze-file
+update-breeze-config-hash
 update-extras
 update-local-yml-file
 update-setup-cfg-file
@@ -482,5 +483,5 @@ function breeze_complete::_comp_breeze {
 breeze_complete::_build_options_breeze
 
 # set autocompletion function for breeze
-complete -F breeze_complete::_comp_breeze breeze
-complete -F breeze_complete::_comp_breeze ./breeze
+complete -F breeze_complete::_comp_breeze breeze-legacy
+complete -F breeze_complete::_comp_breeze ./breeze-legacy

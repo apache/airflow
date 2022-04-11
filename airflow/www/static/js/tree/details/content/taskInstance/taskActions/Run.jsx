@@ -22,15 +22,21 @@ import {
   Button,
   Flex,
   ButtonGroup,
+  Tooltip,
 } from '@chakra-ui/react';
 
 import { useRunTask } from '../../../../api';
+import { getMetaValue } from '../../../../../utils';
+import { useContainerRef } from '../../../../context/containerRef';
+
+const canRun = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 
 const Run = ({
   dagId,
   runId,
   taskId,
 }) => {
+  const containerRef = useContainerRef();
   const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
   const onToggleAllDeps = () => setIgnoreAllDeps(!ignoreAllDeps);
 
@@ -52,7 +58,7 @@ const Run = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canRun}>
         <Button
           bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
@@ -75,9 +81,16 @@ const Run = ({
           Ignore Task Deps
         </Button>
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onClick} isLoading={isLoading}>
-        Run
-      </Button>
+      <Tooltip
+        label="Only works with the Celery, CeleryKubernetes or Kubernetes executors"
+        shouldWrapChildren // Will show the tooltip even if the button is disabled
+        disabled={canRun}
+        portalProps={{ containerRef }}
+      >
+        <Button colorScheme="blue" onClick={onClick} isLoading={isLoading} disabled={!canRun}>
+          Run
+        </Button>
+      </Tooltip>
     </Flex>
   );
 };

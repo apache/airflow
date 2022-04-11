@@ -168,19 +168,19 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
+     ./breeze-legacy tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze tests --db-reset
+    ./breeze-legacy tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests --db-reset tests/core/test_core.py::TestCore
+    ./breeze-legacy tests --db-reset tests/core/test_core.py::TestCore
 
 
 Running Tests of a specified type from the Host
@@ -201,13 +201,13 @@ kinds of test types:
 
   .. code-block:: bash
 
-       ./breeze --test-type Core  --db-reset tests
+       ./breeze-legacy --test-type Core  --db-reset tests
 
   Runs all provider tests:
 
   .. code-block:: bash
 
-       ./breeze --test-type Providers --db-reset tests
+       ./breeze-legacy --test-type Providers --db-reset tests
 
 * Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
@@ -219,13 +219,13 @@ kinds of test types:
 
   .. code-block:: bash
 
-       ./breeze --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+       ./breeze-legacy --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
 
   Run all Quarantined tests:
 
   .. code-block:: bash
 
-       ./breeze --test-type Quarantined tests --db-reset
+       ./breeze-legacy --test-type Quarantined tests --db-reset
 
 Helm Unit Tests
 ===============
@@ -273,7 +273,7 @@ To run tests using breeze run the following command
 
 .. code-block:: bash
 
-    ./breeze --test-type Helm tests
+    ./breeze-legacy --test-type Helm tests
 
 Airflow Integration Tests
 =========================
@@ -327,19 +327,19 @@ To start the ``mongo`` integration only, enter:
 
 .. code-block:: bash
 
-    ./breeze --integration mongo
+    breeze --integration mongo
 
 To start ``mongo`` and ``cassandra`` integrations, enter:
 
 .. code-block:: bash
 
-    ./breeze --integration mongo --integration cassandra
+    breeze --integration mongo --integration cassandra
 
 To start all integrations, enter:
 
 .. code-block:: bash
 
-    ./breeze --integration all
+    breeze --integration all
 
 In the CI environment, integrations can be enabled by specifying the ``ENABLED_INTEGRATIONS`` variable
 storing a space-separated list of integrations to start. Thanks to that, we can run integration and
@@ -559,7 +559,7 @@ need to run the following steps:
 
 .. code-block:: bash
 
-     ./breeze prepare-provider-packages [PACKAGE ...]
+     ./breeze-legacy prepare-provider-packages [PACKAGE ...]
 
 If you run this command without packages, you will prepare all packages. However, You can specify
 providers that you would like to build if you just want to build few provider packages.
@@ -570,7 +570,7 @@ before running, so you should run it before generating ``apache-airflow`` packag
 
 .. code-block:: bash
 
-     ./breeze prepare-airflow-packages
+     ./breeze-legacy prepare-airflow-packages
 
 This prepares airflow .whl package in the dist folder.
 
@@ -580,7 +580,7 @@ This installs airflow and enters
 
 .. code-block:: bash
 
-     ./breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
+     ./breeze-legacy --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
 
 
 
@@ -602,7 +602,7 @@ For your testing, you manage Kind cluster with ``kind-cluster`` breeze command:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster [ start | stop | recreate | status | deploy | test | shell | k9s ]
+    ./breeze-legacy kind-cluster [ start | stop | recreate | status | deploy | test | shell | k9s ]
 
 The command allows you to start/stop/recreate/status Kind Kubernetes cluster, deploy Airflow via Helm
 chart as well as interact with the cluster (via test and shell commands).
@@ -623,7 +623,7 @@ Deploying Airflow to the Kubernetes cluster created is also done via ``kind-clus
 
 .. code-block:: bash
 
-    ./breeze kind-cluster deploy
+    ./breeze-legacy kind-cluster deploy
 
 The deploy command performs those steps:
 
@@ -640,10 +640,10 @@ You can also specify a different executor by providing the ``--executor`` option
 
 .. code-block:: bash
 
-    ./breeze kind-cluster deploy --executor CeleryExecutor
+    ./breeze-legacy kind-cluster deploy --executor CeleryExecutor
 
 Note that when you specify the ``--executor`` option, it becomes the default. Therefore, every other operations
-on ``./breeze kind-cluster`` will default to using this executor. To change that, use the ``--executor`` option on the
+on ``./breeze-legacy kind-cluster`` will default to using this executor. To change that, use the ``--executor`` option on the
 subsequent commands too.
 
 
@@ -667,15 +667,15 @@ Running Kubernetes tests via breeze:
 
 .. code-block:: bash
 
-      ./breeze kind-cluster test
-      ./breeze kind-cluster test -- TEST TEST [TEST ...]
+      ./breeze-legacy kind-cluster test
+      ./breeze-legacy kind-cluster test -- TEST TEST [TEST ...]
 
 Optionally add ``--executor``:
 
 .. code-block:: bash
 
-      ./breeze kind-cluster test --executor CeleryExecutor
-      ./breeze kind-cluster test -- TEST TEST [TEST ...] --executor CeleryExecutor
+      ./breeze-legacy kind-cluster test --executor CeleryExecutor
+      ./breeze-legacy kind-cluster test -- TEST TEST [TEST ...] --executor CeleryExecutor
 
 Entering shell with Kubernetes Cluster
 --------------------------------------
@@ -701,13 +701,13 @@ You can enter the shell via those scripts
 
 .. code-block:: bash
 
-      ./breeze kind-cluster shell
+      ./breeze-legacy kind-cluster shell
 
 Optionally add ``--executor``:
 
 .. code-block:: bash
 
-      ./breeze kind-cluster shell --executor CeleryExecutor
+      ./breeze-legacy kind-cluster shell --executor CeleryExecutor
 
 
 K9s CLI - debug Kubernetes in style!
@@ -734,7 +734,7 @@ You can enter the k9s tool via breeze (after you deployed Airflow):
 
 .. code-block:: bash
 
-      ./breeze kind-cluster k9s
+      ./breeze-legacy kind-cluster k9s
 
 You can exit k9s by pressing Ctrl-C.
 
@@ -747,7 +747,7 @@ The typical session for tests with Kubernetes looks like follows:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster start
+    ./breeze-legacy kind-cluster start
 
     Starts Kind Kubernetes cluster
 
@@ -787,7 +787,7 @@ The typical session for tests with Kubernetes looks like follows:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster status
+    ./breeze-legacy kind-cluster status
 
     Checks status of Kind Kubernetes cluster
 
@@ -807,7 +807,7 @@ The typical session for tests with Kubernetes looks like follows:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster deploy
+    ./breeze-legacy kind-cluster deploy
 
 4. Run Kubernetes tests
 
@@ -821,7 +821,7 @@ The virtualenv required will be created automatically when the scripts are run.
 
 .. code-block:: bash
 
-    ./breeze kind-cluster test
+    ./breeze-legacy kind-cluster test
 
 
 4b) You can enter an interactive shell to run tests one-by-one
@@ -830,7 +830,7 @@ This prepares and enters the virtualenv in ``.build/.kubernetes_venv_<YOUR_CURRE
 
 .. code-block:: bash
 
-    ./breeze kind-cluster shell
+    ./breeze-legacy kind-cluster shell
 
 Once you enter the environment, you receive this information:
 
@@ -852,7 +852,7 @@ In a separate terminal you can open the k9s CLI:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster k9s
+    ./breeze-legacy kind-cluster k9s
 
 Use it to observe what's going on in your cluster.
 
@@ -860,7 +860,7 @@ Use it to observe what's going on in your cluster.
 
 It is very easy to running/debug Kubernetes tests with IntelliJ/PyCharm. Unlike the regular tests they are
 in ``kubernetes_tests`` folder and if you followed the previous steps and entered the shell using
-``./breeze kind-cluster shell`` command, you can setup your IDE very easy to run (and debug) your
+``./breeze-legacy kind-cluster shell`` command, you can setup your IDE very easy to run (and debug) your
 tests using the standard IntelliJ Run/Debug feature. You just need a few steps:
 
 a) Add the virtualenv as interpreter for the project:
@@ -889,7 +889,7 @@ c) Run/Debug tests using standard "Run/Debug" feature of IntelliJ
 NOTE! The first time you run it, it will likely fail with
 ``kubernetes.config.config_exception.ConfigException``:
 ``Invalid kube-config file. Expected key current-context in kube-config``. You need to add KUBECONFIG
-environment variable copying it from the result of "./breeze kind-cluster test":
+environment variable copying it from the result of "./breeze-legacy kind-cluster test":
 
 .. code-block:: bash
 
@@ -947,14 +947,14 @@ Airflow to the cluster.
 
 .. code-block:: bash
 
-    ./breeze kind-cluster deploy
+    ./breeze-legacy kind-cluster deploy
 
 
 7. Stop KinD cluster when you are done
 
 .. code-block:: bash
 
-    ./breeze kind-cluster stop
+    ./breeze-legacy kind-cluster stop
 
 
 Airflow System Tests
@@ -1080,12 +1080,12 @@ Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
 To run system tests with the older Airflow version, you need to prepare provider packages. This
-can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
+can be done by running ``./breeze-legacy prepare-provider-packages <PACKAGES TO BUILD>``. For
 example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 
-  ./breeze prepare-provider-packages -- google postgres mysql
+  ./breeze-legacy prepare-provider-packages -- google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
@@ -1099,14 +1099,16 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-   ./breeze --python 3.6 --db-reset --forward-credentials restart
+   breeze stop
+   breeze --python 3.7 --db-reset --forward-credentials
 
 This will:
 
-* restarts the whole environment (i.e. recreates metadata database from the scratch)
-* run Breeze with python 3.6 version
-* reset the Airflow database
-* forward your local credentials to Breeze
+* stop the whole environment (i.e. recreates metadata database from the scratch)
+* run Breeze with:
+  * python 3.7 version
+  * resetting the Airflow database
+  * forward your local credentials to Breeze
 
 3. Run the tests:
 
@@ -1114,7 +1116,6 @@ This will:
 
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
-
 
 Iteration with System Tests if your resources are slow to create
 ----------------------------------------------------------------
@@ -1154,7 +1155,8 @@ Breeze session. They are usually expensive to run.
 
 .. code-block:: bash
 
-   ./breeze --python 3.6 --db-reset --forward-credentials restart
+    breeze stop
+    breeze --python 3.6 --db-reset --forward-credentials
 
 2. Run create action in helper (to create slowly created resources):
 

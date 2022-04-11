@@ -307,7 +307,12 @@ class BaseDatabricksHook(BaseHook):
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
-    def _do_api_call(self, endpoint_info: Tuple[str, str], json: Optional[Dict[str, Any]] = None):
+    def _do_api_call(
+        self,
+        endpoint_info: Tuple[str, str],
+        json: Optional[Dict[str, Any]] = None,
+        wrap_http_errors: bool = True,
+    ):
         """
         Utility function to perform an API call with retries
 
@@ -362,7 +367,12 @@ class BaseDatabricksHook(BaseHook):
         except RetryError:
             raise AirflowException(f'API requests to Databricks failed {self.retry_limit} times. Giving up.')
         except requests_exceptions.HTTPError as e:
-            raise AirflowException(f'Response: {e.response.content}, Status Code: {e.response.status_code}')
+            if wrap_http_errors:
+                raise AirflowException(
+                    f'Response: {e.response.content}, Status Code: {e.response.status_code}'
+                )
+            else:
+                raise e
 
     @staticmethod
     def _get_error_code(exception: BaseException) -> str:

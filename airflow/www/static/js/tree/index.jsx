@@ -21,7 +21,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, extendTheme } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -51,11 +51,21 @@ const queryClient = new QueryClient({
   },
 });
 
+const theme = extendTheme({
+  components: {
+    Tooltip: {
+      baseStyle: {
+        fontSize: 'md',
+      },
+    },
+  },
+});
+
 function App() {
   return (
     <React.StrictMode>
       <CacheProvider value={myCache}>
-        <ChakraProvider>
+        <ChakraProvider theme={theme}>
           <ContainerRefProvider>
             <QueryClientProvider client={queryClient}>
               <TimezoneProvider>

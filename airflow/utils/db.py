@@ -969,12 +969,18 @@ def check_run_id_null(session: Session) -> Iterable[str]:
                 reason="with a NULL dag_id, run_id, or execution_date",
             )
             return
-        _move_dangling_data_to_new_table(
-            session,
-            dagrun_table,
-            dagrun_table.select(invalid_dagrun_filter),
-            dagrun_dangling_table_name,
+
+        bind = session.get_bind()
+        dialect_name = bind.dialect.name
+        _create_table_as(
+            dialect_name=dialect_name,
+            source_query=dagrun_table.select(invalid_dagrun_filter),
+            target_table_name=dagrun_dangling_table_name,
+            source_table_name=dagrun_table.name,
+            session=session,
         )
+        delete = dagrun_table.delete().where(invalid_dagrun_filter)
+        session.execute(delete)
 
 
 def _create_table_as(
@@ -1015,9 +1021,8 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", target_table_name: str
+    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
 ):
-    from sqlalchemy.sql.selectable import Join
 
     bind = session.get_bind()
     dialect_name = bind.dialect.name
@@ -1031,33 +1036,7 @@ def _move_dangling_data_to_new_table(
         session=session,
     )
 
-    # Second: Now delete rows we've moved
-    try:
-        clause = source_query.whereclause
-    except AttributeError:
-        clause = source_query._whereclause
-
-    if dialect_name == "sqlite":
-        subq = source_query.selectable.with_only_columns([text(f'{source_table}.ROWID')])
-        delete = source_table.delete().where(column('ROWID').in_(subq))
-    elif dialect_name in ("mysql", "mssql"):
-        # This is not foolproof! But it works for the limited queries (with no params) that we use here
-        stmt = source_query.selectable
-
-        def _from_name(from_) -> str:
-            if isinstance(from_, Join):
-                return str(from_.compile(bind=bind))
-            return str(from_)
-
-        delete = (
-            f"DELETE {source_table} FROM { ', '.join(_from_name(tbl) for tbl in stmt.froms) }"
-            f" WHERE {clause.compile(bind=bind)}"
-        )
-    else:
-        for frm in source_query.selectable.froms:
-            if hasattr(frm, 'onclause'):  # Table, or JOIN?
-                clause &= frm.onclause
-        delete = source_table.delete(clause)
+    delete = source_table.delete().where(~exists_subquery.exists())
     session.execute(delete)
 
 
@@ -1070,7 +1049,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     from the main table.
     """
     import sqlalchemy.schema
-    from sqlalchemy import and_, outerjoin
+    from sqlalchemy import and_
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -1120,11 +1099,13 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             source_table.c.dag_id == dagrun_table.c.dag_id,
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
-        invalid_rows_query = (
-            session.query(source_table.c.dag_id, source_table.c.execution_date)
-            .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
-            .filter(dagrun_table.c.dag_id.is_(None))
+        exists_subquery = (
+            session.query(text('1')).select_from(dagrun_table).filter(source_to_dag_run_join_cond)
         )
+        invalid_rows_query = session.query(source_table.c.dag_id, source_table.c.execution_date).filter(
+            ~exists_subquery.exists()
+        )
+
         invalid_row_count = invalid_rows_query.count()
         if invalid_row_count <= 0:
             continue
@@ -1143,6 +1124,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             session,
             source_table,
             invalid_rows_query.with_entities(*source_table.columns),
+            exists_subquery,
             dangling_table_name,
         )
 
