@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-11T11:26:35Z
+# This constraints file was automatically generated on 2022-04-11T22:42:30Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -98,9 +98,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.21.37
+boto3==1.21.38
 boto==2.49.0
-botocore==1.24.37
+botocore==1.24.38
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -187,7 +187,7 @@ google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.1
 google-cloud-build==3.8.1
 google-cloud-container==1.0.2
-google-cloud-core==2.2.3
+google-cloud-core==2.3.0
 google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==0.2.1
 google-cloud-dataproc-metastore==1.5.0
@@ -413,7 +413,7 @@ scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.9.7
 sentinels==1.0.0
-sentry-sdk==1.5.8
+sentry-sdk==1.5.9
 setproctitle==1.2.2
 simple-salesforce==1.11.6
 six==1.16.0
