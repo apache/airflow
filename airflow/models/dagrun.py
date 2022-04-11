@@ -697,8 +697,8 @@ class DagRun(Base, LoggingMixin):
                 old_states[schedulable.key] = old_state
                 continue
 
-            # This is called in two places: First (and ideally) is from the mini scheduler at the end of
-            # LocalTaskJob, and then as an "expansion of last resort" this is also called from the scheduler
+            # This is called in two places: First (and ideally) is in the mini scheduler at the end of
+            # LocalTaskJob, and then as an "expansion of last resort" in the scheduler
             # to ensure that the mapped task is correctly expanded before we try to execute it.
             if schedulable.map_index < 0 and schedulable.task.is_mapped:
                 # HACK. This needs a better way, one that copes with multiple upstreams!
@@ -864,7 +864,7 @@ class DagRun(Base, LoggingMixin):
                 total_length = task.run_time_mapped_ti_count(self.run_id, session=session)
 
                 if total_length is None:
-                    # Not all upstreams finished, so we can't tell what should be here. Remove everying
+                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
                     if ti.map_index >= 0:
                         self.log.debug(
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
