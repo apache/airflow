@@ -187,4 +187,4 @@ class GitSyncWebserverTest(unittest.TestCase):
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert {"name": "git-sync-ssh-key"} not in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
