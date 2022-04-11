@@ -24,7 +24,7 @@
 
 .. contents:: :local:
 
-Airflow Breeze CI environment
+Airflow Breeze CI environment Test
 =============================
 
 Airflow Breeze is an easy-to-use development and test environment using
