@@ -940,7 +940,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
 
 
 def check_run_id_null(session: Session) -> Iterable[str]:
-    metadata = reflect_tables([DagRun.__tablename__], session)
+    metadata = reflect_tables([DagRun], session)
 
     # We can't use the model here since it may differ from the db state due to
     # this function is run prior to migration. Use the reflected table instead.
