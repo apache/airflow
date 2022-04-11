@@ -337,6 +337,26 @@ def test_get_logs_with_metadata(log_admin_client, metadata):
     assert 'Log for testing.' in data
 
 
+def test_get_logs_with_invalid_metadata(log_admin_client):
+    """Test invalid metadata JSON returns error message"""
+    metadata = "invalid"
+    url_template = "get_logs_with_metadata?dag_id={}&task_id={}&execution_date={}&try_number={}&metadata={}"
+    response = log_admin_client.get(
+        url_template.format(
+            DAG_ID,
+            TASK_ID,
+            urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+            1,
+            metadata,
+        ),
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid JSON metadata"}
+
+
 @unittest.mock.patch(
     "airflow.utils.log.file_task_handler.FileTaskHandler.read",
     return_value=(['airflow log line'], [{'end_of_log': True}]),

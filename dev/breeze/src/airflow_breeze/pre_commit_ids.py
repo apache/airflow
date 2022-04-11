@@ -64,6 +64,7 @@ PRE_COMMIT_LIST = [
     'isort',
     'json-schema',
     'language-matters',
+    'limit-breeze-dependencies',
     'lint-dockerfile',
     'lint-openapi',
     'markdownlint',

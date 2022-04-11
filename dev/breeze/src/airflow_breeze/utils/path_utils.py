@@ -211,7 +211,6 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         # only print warning and sleep if not producing complete results
         print_warning_if_different_sources(airflow_sources)
         print_warning_if_setup_changed()
-    console.print(f"[bright_blue]Airflow sources: {airflow_sources}[/]")
     os.chdir(str(airflow_sources))
     return airflow_sources
 

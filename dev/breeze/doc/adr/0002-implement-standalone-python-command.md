@@ -130,10 +130,6 @@ There are likely a number of scripts that will remain in Bash, but they should c
 logic, they should not haave common code in form of libraries and only used to execute simple tasks inside
 Docker containers. No Bash should ever be used in the host environment.
 
-The "working" name of the new Breeze is "Breeze2". We might come up with a better name in the future. In
-order to distinguish from the Bash version of Breeze we will always use capitalized form of Breeze as opposed
-to lower-case often used for the Bash version.
-
 There are a few properties of Breeze/CI scripts that should be maintained though
 
 * It should be possible to start Breeze and run any of the CI scripts without having a specially prepared
@@ -160,7 +156,7 @@ There are a few properties of Breeze/CI scripts that should be maintained though
    * we use `pytest` to run automated tests for our code
    * until we are ready to share it with developers the new `Breeze` script resides in `dev/Breeze` folder,
      without yet linking it from main directory of Airflow. Later we will link to it from the main directory
-     likely as `Breeze2` script (in some environments where filesystem is case-insensitive (MacOS) you cannot
+     likely as `breeze` script (in some environments where filesystem is case-insensitive (MacOS) you cannot
      really put two files differing only by case in the same folder.
    * There is enough overlap between the CI and Breeze to reuse a lot of commands for building images and
      other CI actions that they should be shared between Breeze and CI. Therefore `dev/Breeze` will

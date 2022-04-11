@@ -18,7 +18,8 @@
 
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
-from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
@@ -90,7 +91,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -186,7 +187,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -268,7 +269,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -352,7 +353,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self,
         *,
         alerts: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -432,7 +433,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -531,7 +532,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -628,7 +629,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -712,7 +713,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -798,7 +799,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self,
         *,
         channels: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -880,7 +881,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',

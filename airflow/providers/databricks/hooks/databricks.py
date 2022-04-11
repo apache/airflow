@@ -27,6 +27,8 @@ or the ``api/2.1/jobs/runs/submit``
 """
 from typing import Any, Dict, List, Optional
 
+from requests import exceptions as requests_exceptions
+
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
@@ -364,12 +366,16 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_repo_by_path(self, path: str) -> Optional[str]:
         """
-
-        :param path:
-        :return:
+        Obtains Repos ID by path
+        :param path: path to a repository
+        :return: Repos ID if it exists, None if doesn't.
         """
-        result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path})
-        if result.get('object_type', '') == 'REPO':
-            return str(result['object_id'])
+        try:
+            result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path}, wrap_http_errors=False)
+            if result.get('object_type', '') == 'REPO':
+                return str(result['object_id'])
+        except requests_exceptions.HTTPError as e:
+            if e.response.status_code != 404:
+                raise e
 
         return None

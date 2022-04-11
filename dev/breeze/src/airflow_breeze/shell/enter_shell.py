@@ -19,8 +19,6 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-import click
-
 from airflow_breeze import global_constants
 from airflow_breeze.build_image.ci.build_ci_image import build_image
 from airflow_breeze.shell.shell_params import ShellParams
@@ -35,6 +33,7 @@ from airflow_breeze.utils.docker_command_utils import (
     SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
     VARIABLES_IN_CACHE,
     check_docker_compose_version,
+    check_docker_is_running,
     check_docker_resources,
     check_docker_version,
     construct_env_variables_docker_compose_command,
@@ -78,7 +77,10 @@ def build_image_if_needed_steps(verbose: bool, dry_run: bool, shell_params: Shel
                     "\n[bright_yellow]This might take a lot of time, w"
                     "e think you should rebase first.[/]\n"
                 )
-                if click.confirm("But if you really, really want - you can do it"):
+                answer = user_confirm(
+                    "But if you really, really want - you can do it", timeout=5, default_answer=Answer.NO
+                )
+                if answer == Answer.YES:
                     build_image(
                         verbose=verbose,
                         dry_run=dry_run,
@@ -189,6 +191,12 @@ def enter_shell(**kwargs):
     """
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
+    if not check_docker_is_running(verbose):
+        console.print(
+            '[red]Docker is not running.[/]\n'
+            '[bright_yellow]Please make sure Docker is installed and running.[/]'
+        )
+        sys.exit(1)
     check_docker_version(verbose)
     check_docker_compose_version(verbose)
     updated_kwargs = synchronize_cached_params(kwargs)

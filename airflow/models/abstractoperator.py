@@ -29,6 +29,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     Union,
@@ -67,6 +68,9 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+    "core", "default_task_execution_timeout"
+)
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -92,7 +96,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
 
     owner: str
     task_id: str

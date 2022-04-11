@@ -104,9 +104,3 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
-
-
-if not PY37:
-    from pep562 import Pep562
-
-    Pep562(__name__)

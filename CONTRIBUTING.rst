@@ -245,7 +245,7 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
 .. code-block:: bash
 
-   ./breeze
+   breeze
 
 Breeze starts with downloading the Airflow CI image from
 the Docker Hub and installing all required dependencies.
@@ -263,7 +263,7 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   ./breeze initialize-local-virtualenv --python 3.7
+   ./breeze-legacy initialize-local-virtualenv --python 3.7
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
@@ -554,6 +554,13 @@ All details about using and running Airflow Breeze can be found in
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
 
+.. note::
+
+   We are in a process of switching to the new Python-based Breeze from a legacy Bash
+   Breeze. Not all functionality has been ported yet and the old Breeze is still available
+   until then as ``./breeze-legacy`` script. The documentation mentions when the old ./breeze-legacy
+   should be still used.
+
 Benefits:
 
 -   Breeze is a complete environment that includes external components, such as
@@ -581,9 +588,14 @@ Limitations:
     disk space and CPU. You can stop the environment manually after you use it
     or even use a ``bare`` environment to decrease resource usage.
 
-**NOTE:** Breeze CI images are not supposed to be used in production environments.
-They are optimized for repeatability of tests, maintainability and speed of building rather
-than production performance. The production images are not yet officially published.
+
+
+.. note::
+
+   Breeze CI images are not supposed to be used in production environments.
+   They are optimized for repeatability of tests, maintainability and speed of building rather
+   than production performance. The production images are not yet officially published.
+
 
 
 Airflow dependencies

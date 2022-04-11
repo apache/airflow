@@ -103,7 +103,7 @@ class ShellParams:
         return image
 
     @property
-    def airflow_ci_image_name_with_tag(self) -> str:
+    def airflow_image_name_with_tag(self) -> str:
         image = self.airflow_image_name
         return image if not self.tag else image + f":{self.tag}"
 
@@ -155,7 +155,7 @@ class ShellParams:
     def print_badge_info(self):
         console.print(f'Use {self.the_image_type} image')
         console.print(f'Branch Name: {self.airflow_branch}')
-        console.print(f'Docker Image: {self.airflow_ci_image_name_with_tag}')
+        console.print(f'Docker Image: {self.airflow_image_name_with_tag}')
         console.print(f'Airflow source version:{self.airflow_version}')
         console.print(f'Python Version: {self.python}')
         console.print(f'Backend: {self.backend} {self.backend_version}')

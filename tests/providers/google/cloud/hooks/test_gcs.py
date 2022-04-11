@@ -18,6 +18,7 @@
 
 import copy
 import io
+import logging
 import os
 import re
 import tempfile
@@ -110,6 +111,10 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
 
 
 class TestGCSHook(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def setUp(self):
         with mock.patch(
             GCS_STRING.format('GoogleBaseHook.__init__'),
@@ -445,17 +450,17 @@ class TestGCSHook(unittest.TestCase):
         mock_service.return_value.bucket.assert_called_once_with(test_bucket)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
-    @mock.patch(
-        GCS_STRING.format('GCSHook.get_conn'),
-        **{'return_value.bucket.return_value.delete.side_effect': exceptions.NotFound(message="Not Found")},
-    )
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_delete_nonexisting_bucket(self, mock_service):
+        mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
+            message="Not Found"
+        )
         test_bucket = "test bucket"
-
-        self.gcs_hook.delete_bucket(bucket_name=test_bucket)
-
+        with self._caplog.at_level(logging.INFO):
+            self.gcs_hook.delete_bucket(bucket_name=test_bucket)
         mock_service.return_value.bucket.assert_called_once_with(test_bucket)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
+        assert "Bucket test bucket not exist" in self._caplog.text
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_size(self, mock_service):

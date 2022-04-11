@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -58,7 +60,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
@@ -80,7 +82,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
@@ -105,7 +107,7 @@ class TestBatchPredictionJobWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -131,7 +133,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
@@ -153,7 +155,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.batch_prediction_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.batch_prediction_job_path.assert_called_once_with(
@@ -178,7 +180,7 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)

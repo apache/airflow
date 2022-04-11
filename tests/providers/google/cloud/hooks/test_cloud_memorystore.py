@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 from unittest.mock import PropertyMock
 
 import pytest
-from google.api_core.retry import Retry
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.exceptions import NotFound
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1.types import Instance
@@ -37,25 +36,23 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_no_default_project_id,
 )
 
-TEST_GCP_CONN_ID = "test-gcp-conn-id"  # type: str
-TEST_DELEGATE_TO = "test-delegate-to"  # type: str
-TEST_LOCATION = "test-location"  # type: str
-TEST_INSTANCE_ID = "test-instance-id"  # type: str
-TEST_PROJECT_ID = "test-project-id"  # type:  str
-TEST_RETRY = Retry()  # type: Retry
-TEST_TIMEOUT = 10  # type: float
-TEST_METADATA = [("KEY", "VALUE")]  # type:  Sequence[Tuple[str, str]]
-TEST_PAGE_SIZE = 100  # type: int
-TEST_UPDATE_MASK = {"paths": ["memory_size_gb"]}  # type: Dict
-TEST_UPDATE_MASK_MEMCACHED = {"displayName": "updated name"}  # type: Dict
-TEST_PARENT = "projects/test-project-id/locations/test-location"  # type: str
-TEST_NAME = "projects/test-project-id/locations/test-location/instances/test-instance-id"  # type: str
-TEST_PARENT_DEFAULT_PROJECT_ID = (
-    f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/test-location"
-)  # type: str
+TEST_GCP_CONN_ID = "test-gcp-conn-id"
+TEST_DELEGATE_TO = "test-delegate-to"
+TEST_LOCATION = "test-location"
+TEST_INSTANCE_ID = "test-instance-id"
+TEST_PROJECT_ID = "test-project-id"
+TEST_RETRY = DEFAULT
+TEST_TIMEOUT = 10.0
+TEST_METADATA = [("KEY", "VALUE")]
+TEST_PAGE_SIZE = 100
+TEST_UPDATE_MASK = {"paths": ["memory_size_gb"]}
+TEST_UPDATE_MASK_MEMCACHED = {"displayName": "updated name"}
+TEST_PARENT = "projects/test-project-id/locations/test-location"
+TEST_NAME = "projects/test-project-id/locations/test-location/instances/test-instance-id"
+TEST_PARENT_DEFAULT_PROJECT_ID = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/test-location"
 TEST_NAME_DEFAULT_PROJECT_ID = (
     f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/test-location/instances/test-instance-id"
-)  # type: str
+)
 
 
 class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):

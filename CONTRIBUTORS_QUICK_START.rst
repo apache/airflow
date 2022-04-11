@@ -267,14 +267,13 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ ./breeze setup-autocomplete
-  $ source ~/.bash_completion.d/breeze-complete
+  $ breeze setup-autocomplete
 
 3. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
 
-  $ ./breeze --python 3.8 --backend mysql
+  $ breeze --python 3.8 --backend mysql
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -307,7 +306,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ ./breeze stop
+  $ breeze stop
 
 Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -322,7 +321,7 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 
 .. code-block:: bash
 
-  $ ./breeze initialize-local-virtualenv --python 3.8
+  $ ./breeze-legacy initialize-local-virtualenv --python 3.8
 
 3. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
@@ -335,7 +334,7 @@ Using Breeze
 ~~~~~~~~~~~~
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``./breeze --python 3.8 --backend mysql``)
+   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend mysql``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
    and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -1084,14 +1083,14 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ ./breeze setup-autocomplete
+  $ breeze setup-autocomplete
   $ source ~/.bash_completion.d/breeze-complete
 
 3. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
 
-  $ ./breeze --python 3.8 --backend mysql
+  $ breeze --python 3.8 --backend mysql
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -1123,7 +1122,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ ./breeze stop
+  $ breeze stop
 
 Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1133,7 +1132,7 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 .. code-block:: bash
 
   $ sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
-  $ ./breeze initialize-local-virtualenv --python 3.8
+  $ ./breeze-legacy initialize-local-virtualenv --python 3.8
 
 
 2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
@@ -1147,7 +1146,7 @@ Using Breeze
 ~~~~~~~~~~~~
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``./breeze --python 3.8 --backend mysql``)
+   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend mysql``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
    and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -1446,7 +1445,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
+   $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
 
 
 - Running specific test in container using shell scripts. Testing in container scripts are located in
@@ -1477,7 +1476,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
+    $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
 
 
 - Running Integration test for specific test type
@@ -1486,7 +1485,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo
+   $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|
@@ -1625,7 +1624,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
   $ pre-commit run  --files airflow/decorators.py tests/utils/test_task_group.py
 
 
-
 6. Running specific hook for selected files
 
 .. code-block:: bash
@@ -1634,8 +1632,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     black...............................................................Passed
   $ pre-commit run flake8 --files airflow/decorators.py tests/utils/test_task_group.py
     Run flake8..........................................................Passed
-
-
 
 
 7. Running specific checks in container using shell scripts. Scripts are located in ``./scripts/in_container``
@@ -1878,7 +1874,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ ./breeze stop
+  $ breeze stop
 
 
 Installing Airflow with Breeze.
@@ -2009,7 +2005,7 @@ All Tests are inside ``./tests`` directory.
 
 .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
+   $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
 
 
 - Running specific test in container using shell scripts. Testing in container scripts are located in
@@ -2048,7 +2044,7 @@ All Tests are inside ``./tests`` directory.
 
   .. code-block:: bash
 
-    $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
+    $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
 
 
 - Running Integration test for specific test type
@@ -2057,4 +2053,4 @@ All Tests are inside ``./tests`` directory.
 
   .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo
+   $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo

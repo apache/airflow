@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import atexit
 import os
 import shutil
 import subprocess
@@ -23,8 +24,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import rich
+
 from airflow_breeze import NAME, VERSION
 from airflow_breeze.shell.shell_params import ShellParams
+from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
 from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
 
 try:
@@ -39,7 +43,7 @@ try:
         "\nTo find out more, visit [bright_blue]https://github.com/apache/airflow/blob/main/BREEZE.rst[/]\n"
     )
     click.rich_click.OPTION_GROUPS = {
-        "Breeze2": [
+        "breeze": [
             {
                 "name": "Basic flags for the default (shell) command",
                 "options": [
@@ -62,7 +66,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 shell": [
+        "breeze shell": [
             {
                 "name": "Basic flags",
                 "options": [
@@ -85,7 +89,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 start-airflow": [
+        "breeze start-airflow": [
             {
                 "name": "Basic flags",
                 "options": [
@@ -110,7 +114,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 build-image": [
+        "breeze build-image": [
             {
                 "name": "Basic usage",
                 "options": [
@@ -141,14 +145,19 @@ try:
                 ],
             },
             {
-                "name": "Preparing cache (for maintainers)",
+                "name": "Preparing cache and push (for maintainers and CI)",
                 "options": [
                     "--platform",
                     "--prepare-buildx-cache",
+                    "--push-image",
+                    "--empty-image",
+                    "--github-token",
+                    "--github-username",
+                    "--login-to-github-registry",
                 ],
             },
         ],
-        "Breeze2 build-prod-image": [
+        "breeze build-prod-image": [
             {
                 "name": "Basic usage",
                 "options": [
@@ -195,14 +204,19 @@ try:
                 ],
             },
             {
-                "name": "Preparing cache (for maintainers)",
+                "name": "Preparing cache and push (for maintainers and CI)",
                 "options": [
                     "--platform",
                     "--prepare-buildx-cache",
+                    "--push-image",
+                    "--empty-image",
+                    "--github-token",
+                    "--github-username",
+                    "--login-to-github-registry",
                 ],
             },
         ],
-        "Breeze2 static-check": [
+        "breeze static-checks": [
             {
                 "name": "Pre-commit flags",
                 "options": [
@@ -214,7 +228,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 build-docs": [
+        "breeze build-docs": [
             {
                 "name": "Doc flags",
                 "options": [
@@ -224,7 +238,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 stop": [
+        "breeze stop": [
             {
                 "name": "Stop flags",
                 "options": [
@@ -232,7 +246,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 setup-autocomplete": [
+        "breeze setup-autocomplete": [
             {
                 "name": "Setup autocomplete flags",
                 "options": [
@@ -240,7 +254,7 @@ try:
                 ],
             },
         ],
-        "Breeze2 config": [
+        "breeze config": [
             {
                 "name": "Config flags",
                 "options": [
@@ -254,7 +268,7 @@ try:
     }
 
     click.rich_click.COMMAND_GROUPS = {
-        "Breeze2": [
+        "breeze": [
             {
                 "name": "Developer tools",
                 "commands": [
@@ -264,7 +278,7 @@ try:
                     "build-image",
                     "build-prod-image",
                     "build-docs",
-                    "static-check",
+                    "static-checks",
                 ],
             },
             {
@@ -301,7 +315,13 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.shell.enter_shell import enter_shell
-from airflow_breeze.utils.cache import delete_cache, touch_cache_file, write_to_cache_file
+from airflow_breeze.utils.cache import (
+    check_if_cache_exists,
+    delete_cache,
+    read_from_cache_file,
+    touch_cache_file,
+    write_to_cache_file,
+)
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
@@ -318,11 +338,14 @@ from airflow_breeze.utils.path_utils import (
     get_package_setup_metadata_hash,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
+    in_autocomplete,
 )
 from airflow_breeze.utils.run_utils import check_pre_commit_installed, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 find_airflow_sources_root_to_operate_on()
+
+output_file_for_recording = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
 
 option_verbose = click.option(
     "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
@@ -336,6 +359,13 @@ option_dry_run = click.option(
     envvar='DRY_RUN',
 )
 
+option_answer = click.option(
+    "-a",
+    "--answer",
+    type=click.Choice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    help="Force answer to questions.",
+    envvar='FORCE_ANSWER_TO_QUESTIONS',
+)
 
 option_python = click.option(
     '-p',
@@ -373,7 +403,7 @@ option_mssql_version = click.option(
 
 option_executor = click.option(
     '--executor',
-    help='Executor to use in a kubernetes cluster. Default is KubernetesExecutor.',
+    help='Executor to use for a kubernetes cluster. Default is KubernetesExecutor.',
     type=click.Choice(ALLOWED_EXECUTORS),
 )
 
@@ -382,9 +412,9 @@ option_forward_credentials = click.option(
 )
 
 option_use_airflow_version = click.option(
-    '-a',
+    '-V',
     '--use-airflow-version',
-    help="Use (reinstall) specified Airflow version after entering the container.",
+    help="Use (reinstall at entry) Airflow version from PyPI.",
     envvar='USE_AIRFLOW_VERSION',
 )
 
@@ -392,7 +422,7 @@ option_mount_sources = click.option(
     '--mount-sources',
     type=click.Choice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
-    help="Choose which local sources should be mounted (default = selected)",
+    help="Choose scope of local sources should be mounted (default = selected).",
 )
 
 option_force_build = click.option('--force-build', help="Force image build before running.", is_flag=True)
@@ -400,7 +430,7 @@ option_force_build = click.option('--force-build', help="Force image build befor
 option_db_reset = click.option(
     '-d',
     '--db-reset',
-    help="Resets DB when entering the container.",
+    help="Reset DB when entering the container.",
     is_flag=True,
     envvar='DB_RESET',
 )
@@ -420,6 +450,7 @@ option_db_reset = click.option(
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_answer
 @click.pass_context
 def main(ctx: Context, **kwargs):
     create_directories()
@@ -441,6 +472,25 @@ option_github_repository = click.option(
     envvar='GITHUB_REPOSITORY',
 )
 
+option_login_to_github_registry = click.option(
+    '--login-to-github-registry',
+    help='Logs in to GitHub registry.',
+    envvar='LOGIN_TO_GITHUB_REGISTRY',
+)
+
+
+option_github_token = click.option(
+    '--github-token',
+    help='The token used to authenticate to GitHub.',
+    envvar='GITHUB_TOKEN',
+)
+
+option_github_username = click.option(
+    '--github-username',
+    help='The user name used to authenticate to GitHub.',
+    envvar='GITHUB_USERNAME',
+)
+
 option_github_image_id = click.option(
     '-s',
     '--github-image-id',
@@ -454,7 +504,7 @@ option_image_tag = click.option(
 
 option_platform = click.option(
     '--platform',
-    help='Builds image for the platform specified.',
+    help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=click.Choice(ALLOWED_PLATFORMS),
 )
@@ -469,12 +519,13 @@ option_debian_version = click.option(
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     '--upgrade-to-newer-dependencies',
-    help='If set to anything else than false, upgrades PIP packages to latest versions available.',
+    default="false",
+    help='When other than "false", upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
 option_additional_extras = click.option(
     '--additional-extras',
-    help='This installs additional extra package while installing airflow in the image.',
+    help='Additional extra package while installing Airflow in the image.',
     envvar='ADDITIONAL_AIRFLOW_EXTRAS',
 )
 option_additional_dev_apt_deps = click.option(
@@ -514,22 +565,22 @@ option_additional_runtime_apt_env = click.option(
 )
 option_dev_apt_command = click.option(
     '--dev-apt-command',
-    help='The basic command executed before dev apt deps are installed.',
+    help='Command executed before dev apt deps are installed.',
     envvar='DEV_APT_COMMAND',
 )
 option_dev_apt_deps = click.option(
     '--dev-apt-deps',
-    help='The basic apt dev dependencies to use when building the images.',
+    help='Apt dev dependencies to use when building the images.',
     envvar='DEV_APT_DEPS',
 )
 option_runtime_apt_command = click.option(
     '--runtime-apt-command',
-    help='The basic command executed before runtime apt deps are installed.',
+    help='Command executed before runtime apt deps are installed.',
     envvar='RUNTIME_APT_COMMAND',
 )
 option_runtime_apt_deps = click.option(
     '--runtime-apt-deps',
-    help='The basic apt runtime dependencies to use when building the images.',
+    help='Apt runtime dependencies to use when building the images.',
     envvar='RUNTIME_APT_DEPS',
 )
 
@@ -547,6 +598,21 @@ option_prepare_buildx_cache = click.option(
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
+
+option_push_image = click.option(
+    '--push-image',
+    help='Push image after building it.',
+    is_flag=True,
+    envvar='PUSH_IMAGE',
+)
+
+option_empty_image = click.option(
+    '--empty-image',
+    help='Prepare empty image tagged with the same name as the Airflow image.',
+    is_flag=True,
+    envvar='EMPTY_IMAGE',
+)
+
 
 option_install_providers_from_sources = click.option(
     '--install-providers-from-sources',
@@ -613,6 +679,7 @@ def version(verbose: bool):
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
     verbose: bool,
@@ -628,10 +695,11 @@ def shell(
     use_airflow_version: str,
     force_build: bool,
     db_reset: bool,
+    answer: Optional[str],
     extra_args: Tuple,
 ):
-    """Enters breeze.py environment. this is the default command use when no other is selected."""
-
+    """Enter breeze.py environment. this is the default command use when no other is selected."""
+    set_forced_answer(answer)
     if verbose:
         console.print("\n[green]Welcome to breeze.py[/]\n")
         console.print(f"\n[green]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -669,6 +737,7 @@ def shell(
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def start_airflow(
     verbose: bool,
@@ -686,9 +755,11 @@ def start_airflow(
     use_airflow_version: str,
     force_build: bool,
     db_reset: bool,
+    answer: Optional[str],
     extra_args: Tuple,
 ):
-    """Enters breeze.py environment and starts all Airflow components in the tmux session."""
+    """Enter breeze.py environment and starts all Airflow components in the tmux session."""
+    set_forced_answer(answer)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -718,9 +789,14 @@ def start_airflow(
 @option_platform
 @option_debian_version
 @option_github_repository
+@option_github_token
+@option_github_username
+@option_login_to_github_registry
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
+@option_push_image
+@option_empty_image
 @option_install_providers_from_sources
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -735,6 +811,7 @@ def start_airflow(
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@option_answer
 def build_ci_image(
     verbose: bool,
     dry_run: bool,
@@ -754,14 +831,20 @@ def build_ci_image(
     runtime_apt_command: Optional[str],
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
+    github_username: Optional[str],
+    github_token: Optional[str],
+    login_to_github_registry: bool,
     docker_cache: Optional[str],
     platform: Optional[str],
     debian_version: Optional[str],
     prepare_buildx_cache: bool,
+    push_image: bool,
+    empty_image: bool,
+    answer: Optional[str],
     upgrade_to_newer_dependencies: str = "false",
 ):
-    """Builds docker CI image."""
-
+    """Build CI image."""
+    set_forced_answer(answer)
     if verbose:
         console.print(
             f"\n[bright_blue]Building image of airflow from {AIRFLOW_SOURCES_ROOT} "
@@ -786,10 +869,15 @@ def build_ci_image(
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
+        github_token=github_token,
+        login_to_github_registry=login_to_github_registry,
+        github_username=github_username,
         docker_cache=docker_cache,
         platform=platform,
         debian_version=debian_version,
         prepare_buildx_cache=prepare_buildx_cache,
+        push_image=push_image,
+        empty_image=empty_image,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
     )
 
@@ -802,38 +890,45 @@ def build_ci_image(
 @option_platform
 @option_debian_version
 @option_github_repository
+@option_github_token
+@option_github_username
+@option_login_to_github_registry
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
+@option_push_image
+@option_empty_image
 @click.option(
     '--installation-method',
-    help="Whether to install airflow from sources ('.') or PyPI ('apache-airflow')",
+    help="Install Airflow from: sources or PyPI.",
     type=click.Choice(ALLOWED_INSTALLATION_METHODS),
 )
 @option_install_providers_from_sources
 @click.option(
     '--install-from-docker-context-files',
-    help='Install wheels from local docker-context-files when building image',
+    help='Install wheels from local docker-context-files when building image.',
     is_flag=True,
 )
 @click.option(
     '--cleanup-docker-context-files',
-    help='Cleans up docker context files before running build.',
+    help='Clean up docker context files before running build.',
     is_flag=True,
 )
-@click.option('--extras', help="Extras to install by default")
-@click.option('--disable-mysql-client-installation', help="Do not install MySQL client", is_flag=True)
-@click.option('--disable-mssql-client-installation', help="Do not install MsSQl client", is_flag=True)
-@click.option('--disable-postgres-client-installation', help="Do not install Postgres client", is_flag=True)
+@click.option('--extras', help="Extras to install by default.")
+@click.option('--disable-mysql-client-installation', help="Do not install MySQL client.", is_flag=True)
+@click.option('--disable-mssql-client-installation', help="Do not install MsSQl client.", is_flag=True)
+@click.option('--disable-postgres-client-installation', help="Do not install Postgres client.", is_flag=True)
 @click.option(
-    '--disable-airflow-repo-cache', help="Disable cache from Airflow repository during building", is_flag=True
+    '--disable-airflow-repo-cache',
+    help="Disable cache from Airflow repository during building.",
+    is_flag=True,
 )
-@click.option('--disable-pypi', help="Disable pypi during building", is_flag=True)
+@click.option('--disable-pypi', help="Disable PyPI during building.", is_flag=True)
 @click.option(
     '--install-airflow-reference',
-    help="Install airflow using specified reference (tag/branch) from GitHub",
+    help="Install Airflow using GitHub tag or branch.",
 )
-@click.option('-a', '--install-airflow-version', help="Install specified version of airflow")
+@click.option('-V', '--install-airflow-version', help="Install version of Airflow from PyPI.")
 @option_additional_extras
 @option_additional_dev_apt_deps
 @option_additional_runtime_apt_deps
@@ -846,6 +941,7 @@ def build_ci_image(
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@option_answer
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
@@ -873,16 +969,23 @@ def build_prod_image(
     runtime_apt_command: Optional[str],
     runtime_apt_deps: Optional[str],
     github_repository: Optional[str],
+    github_token: Optional[str],
+    github_username: Optional[str],
+    login_to_github_registry: bool,
     platform: Optional[str],
     debian_version: Optional[str],
     prepare_buildx_cache: bool,
+    push_image: bool,
+    empty_image: bool,
     install_providers_from_sources: bool,
     extras: Optional[str],
     installation_method: Optional[str],
     install_from_docker_context_files: bool,
+    answer: Optional[str],
     upgrade_to_newer_dependencies: str = "false",
 ):
-    """Builds docker Production image."""
+    """Build Production image."""
+    set_forced_answer(answer)
     if verbose:
         console.print("\n[bright_blue]Building image[/]\n")
     if prepare_buildx_cache:
@@ -914,10 +1017,15 @@ def build_prod_image(
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
         github_repository=github_repository,
+        github_token=github_token,
+        github_username=github_username,
+        login_to_github_registry=login_to_github_registry,
         platform=platform,
         debian_version=debian_version,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         prepare_buildx_cache=prepare_buildx_cache,
+        push_image=push_image,
+        empty_image=empty_image,
         install_providers_from_sources=install_providers_from_sources,
         extras=extras,
         installation_method=installation_method,
@@ -1002,12 +1110,13 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
     is_flag=True,
     help='Force autocomplete setup even if already setup before (overrides the setup).',
 )
+@option_answer
 @main.command(name='setup-autocomplete')
-def setup_autocomplete(verbose: bool, dry_run: bool, force: bool):
+def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Optional[str]):
     """
-    Enables autocompletion of Breeze2 commands.
+    Enables autocompletion of breeze commands.
     """
-
+    set_forced_answer(answer)
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get('SHELL')
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
@@ -1019,12 +1128,9 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool):
         AIRFLOW_SOURCES_ROOT / "dev" / "breeze" / "autocomplete" / f"{NAME}-complete-{detected_shell}.sh"
     )
     console.print(f"[bright_blue]Activation command script is available here: {autocomplete_path}[/]\n")
-    console.print(
-        f"[bright_yellow]We need to add above script to your {detected_shell} profile and "
-        "install 'click' package in your default python installation destination.[/]\n"
-    )
-    if click.confirm("Should we proceed ?"):
-        run_command(['pip', 'install', '--upgrade', 'click'], verbose=True, dry_run=dry_run, check=False)
+    console.print(f"[bright_yellow]We need to add above script to your {detected_shell} profile.[/]\n")
+    answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
+    if answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
             command_to_execute = f"source {autocomplete_path}"
@@ -1053,42 +1159,60 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool):
             )
             command_to_execute = f". {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
-    else:
+    elif answer == Answer.NO:
         console.print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
             "to setup autocompletion for breeze manually if you want to use it.\n"
         )
+    else:
+        sys.exit(0)
 
 
 @main.command(name='config')
 @option_python
 @option_backend
-@click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet", default=None)
-@click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart", default=None)
+@click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
+@click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
 def change_config(python, backend, cheatsheet, asciiart):
     """
-    Toggles on/off cheatsheet, asciiart. Sets default Python and backend.
+    Show/update configuration (Python, Backend, Cheatsheet, ASCIIART).
     """
-    if asciiart:
-        console.print('[bright_blue] ASCIIART enabled')
-        delete_cache('suppress_asciiart')
-    elif asciiart is not None:
-        touch_cache_file('suppress_asciiart')
-    else:
-        pass
-    if cheatsheet:
-        console.print('[bright_blue] Cheatsheet enabled')
-        delete_cache('suppress_cheatsheet')
-    elif cheatsheet is not None:
-        touch_cache_file('suppress_cheatsheet')
-    else:
-        pass
+    asciiart_file = "suppress_asciiart"
+    cheatsheet_file = "suppress_cheatsheet"
+    python_file = 'PYTHON_MAJOR_MINOR_VERSION'
+    backend_file = 'BACKEND'
+    if asciiart is not None:
+        if asciiart:
+            delete_cache(asciiart_file)
+            console.print('[bright_blue]Enable ASCIIART![/]')
+        else:
+            touch_cache_file(asciiart_file)
+            console.print('[bright_blue]Disable ASCIIART![/]')
+    if cheatsheet is not None:
+        if cheatsheet:
+            delete_cache(cheatsheet_file)
+            console.print('[bright_blue]Enable Cheatsheet[/]')
+        elif cheatsheet is not None:
+            touch_cache_file(cheatsheet_file)
+            console.print('[bright_blue]Disable Cheatsheet[/]')
     if python is not None:
-        write_to_cache_file('PYTHON_MAJOR_MINOR_VERSION', python)
-        console.print(f'[bright_blue]Python cached_value {python}')
+        write_to_cache_file(python_file, python)
+        console.print(f'[bright_blue]Python default value set to: {python}[/]')
     if backend is not None:
-        write_to_cache_file('BACKEND', backend)
-        console.print(f'[bright_blue]Backend cached_value {backend}')
+        write_to_cache_file(backend_file, backend)
+        console.print(f'[bright_blue]Backend default value set to: {backend}[/]')
+
+    def get_status(file: str):
+        return "disabled" if check_if_cache_exists(file) else "enabled"
+
+    console.print()
+    console.print("[bright_blue]Current configuration:[/]")
+    console.print()
+    console.print(f"[bright_blue]* Python: {read_from_cache_file(python_file)}[/]")
+    console.print(f"[bright_blue]* Backend: {read_from_cache_file(backend_file)}[/]")
+    console.print(f"[bright_blue]* ASCIIART: {get_status(asciiart_file)}[/]")
+    console.print(f"[bright_blue]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
+    console.print()
 
 
 @dataclass
@@ -1113,25 +1237,19 @@ class DocParams:
 @main.command(name='build-docs')
 @option_verbose
 @option_dry_run
-@click.option('-d', '--docs-only', help="Only build documentation", is_flag=True)
-@click.option('-s', '--spellcheck-only', help="Only run spell checking", is_flag=True)
+@click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
+@click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
     '-p',
     '--package-filter',
-    help="List of packages to consider",
+    help="List of packages to consider.",
     type=click.Choice(get_available_packages()),
     multiple=True,
 )
 def build_docs(
     verbose: bool, dry_run: bool, docs_only: bool, spellcheck_only: bool, package_filter: Tuple[str]
 ):
-    """
-    Builds documentation in the container.
-
-    * figures out CI image name
-    * checks if there are enough resources
-    * converts parameters into a DocParams class
-    """
+    """Build documentation in the container."""
     params = BuildCiParams()
     ci_image_name = params.airflow_image_name
     check_docker_resources(verbose, ci_image_name)
@@ -1152,7 +1270,7 @@ def build_docs(
 
 
 @main.command(
-    name="static-check",
+    name="static-checks",
     help="Run static checks.",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -1162,18 +1280,20 @@ def build_docs(
 @click.option(
     '-t',
     '--type',
-    help="Type(s) of the static checks to run",
+    help="Type(s) of the static checks to run (multiple can be added).",
     type=click.Choice(PRE_COMMIT_LIST),
     multiple=True,
 )
-@click.option('-a', '--all-files', help="Run checks on all files", is_flag=True)
-@click.option('-f', '--files', help="List of files to run the checks on", multiple=True)
-@click.option('-s', '--show-diff-on-failure', help="Show diff for files modified by the checks", is_flag=True)
-@click.option('-c', '--last-commit', help="Run check for all files in all commits", is_flag=True)
+@click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
+@click.option('-f', '--files', help="List of files to run the checks on.", multiple=True)
+@click.option(
+    '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
+)
+@click.option('-c', '--last-commit', help="Run checks for all files in last commit.", is_flag=True)
 @option_verbose
 @option_dry_run
 @click.argument('precommit_args', nargs=-1, type=click.UNPROCESSED)
-def static_check(
+def static_checks(
     verbose: bool,
     dry_run: bool,
     all_files: bool,
@@ -1209,13 +1329,13 @@ def static_check(
         )
 
 
-@main.command(name="stop", help="Stops running breeze environment.")
+@main.command(name="stop", help="Stop running breeze environment.")
 @option_verbose
 @option_dry_run
 @click.option(
     "-p",
     "--preserve-volumes",
-    help="By default the stop command removes volumes with data. " "Specifying the flag will preserve them.",
+    help="Skip removing volumes when stopping Breeze.",
     is_flag=True,
 )
 def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
@@ -1236,12 +1356,15 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
 @click.option(
     '--use-current-airflow-sources',
     is_flag=True,
-    help=f'Use current Airflow sources for upgrade rather than from {get_installation_airflow_sources()}.',
+    help='Use current workdir Airflow sources for upgrade'
+    + (f" rather than from {get_installation_airflow_sources()}." if not output_file_for_recording else "."),
 )
 @main.command(
     name='self-upgrade',
     help="Self upgrade Breeze. By default it re-installs Breeze "
-    f"from {get_installation_airflow_sources()}.",
+    f"from {get_installation_airflow_sources()}."
+    if not output_file_for_recording
+    else "Self upgrade Breeze.",
 )
 def self_upgrade(force: bool, use_current_airflow_sources: bool):
     if use_current_airflow_sources:
@@ -1259,12 +1382,28 @@ def self_upgrade(force: bool, use_current_airflow_sources: bool):
         sys.exit(1)
 
 
-@main.command(name="cleanup", help="Removes the cache of parameters, images and cleans up docker cache.")
+@main.command(
+    name="cleanup",
+    help=" the cache of parameters, docker cache and optionally - currently downloaded images.",
+)
+@click.option(
+    '--also-remove-current-images',
+    is_flag=True,
+    help='Also remove currently downloaded Breeze images.',
+)
 @option_verbose
+@option_answer
 @option_dry_run
-def cleanup(verbose: bool, dry_run: bool):
-    console.print("\n[bright_yellow]Removing cache of parameters, images, and cleans up docker cache[/]")
-    if click.confirm("Are you sure?"):
+def cleanup(verbose: bool, dry_run: bool, also_remove_current_images: bool, answer: Optional[str]):
+    set_forced_answer(answer)
+    if also_remove_current_images:
+        console.print(
+            "\n[bright_yellow]Removing cache of parameters, clean up docker cache "
+            "and remove locally downloaded images[/]"
+        )
+    else:
+        console.print("\n[bright_yellow]Removing cache of parameters, and cleans up docker cache[/]")
+    if also_remove_current_images:
         docker_images_command_to_execute = [
             'docker',
             'images',
@@ -1288,16 +1427,64 @@ def cleanup(verbose: bool, dry_run: bool):
                 '--force',
             ]
             docker_rmi_command_to_execute.extend(images)
-            run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
+            answer = user_confirm("Are you sure?", timeout=None)
+            if answer == Answer.YES:
+                run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
+            elif answer == Answer.QUIT:
+                sys.exit(0)
         else:
-            console.print("[light_blue]No images to remote[/]\n")
+            console.print("[light_blue]No locally downloaded images to remove[/]\n")
+    console.print("Pruning docker images")
+    answer = user_confirm("Are you sure?", timeout=None)
+    if answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
-        console.print("Pruning docker images")
         run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
-        console.print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    elif answer == Answer.QUIT:
+        sys.exit(0)
+    console.print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    answer = user_confirm("Are you sure?", timeout=None)
+    if answer == Answer.YES:
         if not dry_run:
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
+    elif answer == Answer.QUIT:
+        sys.exit(0)
 
+
+help_console = None
+
+
+def enable_recording_of_help_output(path: str, title: Optional[str], width: Optional[str]):
+    if not title:
+        title = "Breeze screenshot"
+    if not width:
+        width_int = 120
+    else:
+        width_int = int(width)
+
+    def save_ouput_as_svg():
+        if help_console:
+            help_console.save_svg(path=path, title=title)
+
+    class RecordingConsole(rich.console.Console):
+        def __init__(self, **kwargs):
+            super().__init__(record=True, width=width_int, force_terminal=True, **kwargs)
+            global help_console
+            help_console = self
+
+    atexit.register(save_ouput_as_svg)
+    click.rich_click.MAX_WIDTH = width_int
+    click.formatting.FORCED_WIDTH = width_int
+    click.rich_click.COLOR_SYSTEM = "standard"
+    # monkeypatch rich_click console to record help (rich_click does not allow passing extra args to console)
+    click.rich_click.Console = RecordingConsole
+
+
+if output_file_for_recording and not in_autocomplete():
+    enable_recording_of_help_output(
+        path=output_file_for_recording,
+        title=os.environ.get('RECORD_BREEZE_TITLE'),
+        width=os.environ.get('RECORD_BREEZE_WIDTH'),
+    )
 
 if __name__ == '__main__':
     main()

@@ -1,8 +1,8 @@
-_Breeze2_completion() {
+_breeze_completion() {
     local IFS=$'\n'
     local response
 
-    response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=$COMP_CWORD _BREEZE2_COMPLETE=bash_complete $1)
+    response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=$COMP_CWORD _BREEZE_COMPLETE=bash_complete $1)
 
     for completion in $response; do
         IFS=',' read type value <<< "$completion"
@@ -21,8 +21,8 @@ _Breeze2_completion() {
     return 0
 }
 
-_Breeze2_completion_setup() {
-    complete -o nosort -F _Breeze2_completion Breeze2
+_breeze_completion_setup() {
+    complete -o nosort -F _breeze_completion breeze
 }
 
-_Breeze2_completion_setup;
+_breeze_completion_setup;

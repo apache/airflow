@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -59,7 +61,7 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
@@ -81,7 +83,7 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
@@ -106,7 +108,7 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -132,7 +134,7 @@ class TestHyperparameterTuningJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
@@ -154,7 +156,7 @@ class TestHyperparameterTuningJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
@@ -179,7 +181,7 @@ class TestHyperparameterTuningJobWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)

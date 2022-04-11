@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import datetime
 import io
 import os
 import re
@@ -837,3 +838,67 @@ notacommand = OK
         else:
             assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
             assert conf_maintain_cmds['core']['sql_alchemy_conn'] == conf_conn
+
+    def test_gettimedelta(self):
+        test_config = '''
+[invalid]
+# non-integer value
+key1 = str
+
+# fractional value
+key2 = 300.99
+
+# too large value for C int
+key3 = 999999999999999
+
+[valid]
+# negative value
+key4 = -1
+
+# zero
+key5 = 0
+
+# positive value
+key6 = 300
+
+[default]
+# Equals to None
+key7 =
+'''
+        test_conf = AirflowConfigParser(default_config=test_config)
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key1")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key2" key in "invalid" section. '
+                'Current value: "300.99".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key2")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to timedelta in `seconds`. '
+                'Python int too large to convert to C int. '
+                'Please check "key3" key in "invalid" section. Current value: "999999999999999".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key3")
+
+        assert isinstance(test_conf.gettimedelta('valid', 'key4'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key4') == datetime.timedelta(seconds=-1)
+        assert isinstance(test_conf.gettimedelta('valid', 'key5'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key5') == datetime.timedelta(seconds=0)
+        assert isinstance(test_conf.gettimedelta('valid', 'key6'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key6') == datetime.timedelta(seconds=300)
+        assert isinstance(test_conf.gettimedelta('default', 'key7'), type(None))
+        assert test_conf.gettimedelta('default', 'key7') is None
