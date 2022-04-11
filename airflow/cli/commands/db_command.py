@@ -24,7 +24,7 @@ from packaging.version import parse as parse_version
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.db import REVISION_HEADS_MAP
+from airflow.utils.db import VERSION_REVISION_MAP
 from airflow.utils.db_cleanup import config_dict, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
@@ -64,12 +64,12 @@ def upgradedb(args):
     elif args.from_version:
         if parse_version(args.from_version) < parse_version('2.0.0'):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = VERSION_REVISION_MAP.get(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = VERSION_REVISION_MAP.get(args.to_version)
         if not to_revision:
             raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
@@ -102,11 +102,11 @@ def downgrade(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = VERSION_REVISION_MAP.get(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = VERSION_REVISION_MAP.get(args.to_version)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:

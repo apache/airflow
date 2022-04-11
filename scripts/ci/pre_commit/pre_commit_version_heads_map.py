@@ -28,18 +28,18 @@ DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 SETUP_FILE = PROJECT_SOURCE_ROOT_DIR / "setup.py"
 
 
-def read_revision_heads_map():
-    revision_heads_map_ast_obj = ast.parse(open(DB_FILE).read())
+def read_version_revision_map():
+    version_revision_map_ast_obj = ast.parse(open(DB_FILE).read())
 
-    revision_heads_map_ast = [
+    version_revision_map_ast = [
         a
-        for a in revision_heads_map_ast_obj.body
-        if isinstance(a, ast.Assign) and a.targets[0].id == "REVISION_HEADS_MAP"
+        for a in version_revision_map_ast_obj.body
+        if isinstance(a, ast.Assign) and a.targets[0].id == "VERSION_REVISION_MAP"
     ][0]
 
-    revision_heads_map = ast.literal_eval(revision_heads_map_ast.value)
+    version_revision_map = ast.literal_eval(version_revision_map_ast.value)
 
-    return revision_heads_map.keys()
+    return version_revision_map.keys()
 
 
 def read_current_airflow_version():
@@ -53,10 +53,10 @@ def read_current_airflow_version():
 
 
 if __name__ == '__main__':
-    versions = read_revision_heads_map()
+    versions = read_version_revision_map()
     airflow_version = read_current_airflow_version()
     if 'dev' not in airflow_version and airflow_version not in versions:
-        print("Current airflow version is not in the REVISION_HEADS_MAP")
+        print("Current airflow version is not in the VERSION_REVISION_MAP")
         print("Current airflow version:", airflow_version)
-        print("Please add the version to the REVISION_HEADS_MAP at:", DB_FILE)
+        print("Please add the version to the VERSION_REVISION_MAP at:", DB_FILE)
         sys.exit(3)

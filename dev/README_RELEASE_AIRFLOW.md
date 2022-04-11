@@ -206,7 +206,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
 - Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
+- Update the `VERSION_REVISION_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
 - Check out the 'stable' branch

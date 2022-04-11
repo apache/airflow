@@ -29,6 +29,7 @@ Revises: 4eaab2fe6582
 Create Date: 2022-03-14 10:31:11.220720
 """
 
+
 from typing import List
 
 import sqlalchemy as sa
