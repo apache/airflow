@@ -178,6 +178,12 @@ def check_docker_version(verbose: bool):
             capture_output=True,
             text=True,
         )
+        if not docker_version_output:
+            console.print(
+                '[red]ERROR[/] Docker version could not be determined. Please make sure Docker is installed '
+                'and running.'
+            )
+            return
         if docker_version_output.returncode == 0:
             docker_version = docker_version_output.stdout.strip()
         if docker_version == '':
