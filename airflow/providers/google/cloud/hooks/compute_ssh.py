@@ -226,33 +226,24 @@ class ComputeEngineSSHHook(SSHHook):
             self._authorize_compute_engine_instance_metadata(pubkey)
 
         proxy_command = None
+
+        proxy_command_args = [
+            'gcloud',
+            'compute',
+            'start-iap-tunnel',
+            str(self.instance_name),
+            '22',
+            '--listen-on-stdin',
+            f'--project={self.project_id}',
+            f'--zone={self.zone}',
+            '--verbosity=warning',
+        ]
+
         if self.use_iap_tunnel and self.impersonation_chain:
-            proxy_command_args = [
-                'gcloud',
-                'compute',
-                'start-iap-tunnel',
-                str(self.instance_name),
-                '22',
-                '--listen-on-stdin',
-                f'--project={self.project_id}',
-                f'--zone={self.zone}',
-                '--verbosity=warning',
-                f'--impersonate-service-account={self.impersonation_chain}',
-            ]
+            proxy_command_args.append(f'--impersonate-service-account={self.impersonation_chain}')
             proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
 
         elif self.use_iap_tunnel:
-            proxy_command_args = [
-                'gcloud',
-                'compute',
-                'start-iap-tunnel',
-                str(self.instance_name),
-                '22',
-                '--listen-on-stdin',
-                f'--project={self.project_id}',
-                f'--zone={self.zone}',
-                '--verbosity=warning',
-            ]
             proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
 
         sshclient = self._connect_to_instance(user, hostname, privkey, proxy_command)
