@@ -641,7 +641,7 @@ def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     upgradedb(session=session)
 
-    if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
+    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):

@@ -60,111 +60,6 @@
       type: string
       example: ~
       default: "SequentialExecutor"
-    - name: sql_alchemy_conn
-      description: |
-        The SqlAlchemy connection string to the metadata database.
-        SqlAlchemy supports many different database engines.
-        More information here:
-        http://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
-    - name: sql_alchemy_engine_args
-      description: |
-        Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
-      version_added: 2.3.0
-      type: string
-      sensitive: true
-      example: '{"arg1": True}'
-      default: ~
-    - name: sql_engine_encoding
-      description: |
-        The encoding for the databases
-      version_added: 1.10.1
-      type: string
-      example: ~
-      default: "utf-8"
-    - name: sql_engine_collation_for_ids
-      description: |
-        Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
-        By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
-        the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
-        the maximum size of allowed index when collation is set to ``utf8mb4`` variant
-        (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618).
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ~
-    - name: sql_alchemy_pool_enabled
-      description: |
-        If SqlAlchemy should pool database connections.
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
-    - name: sql_alchemy_pool_size
-      description: |
-        The SqlAlchemy pool size is the maximum number of database connections
-        in the pool. 0 indicates no limit.
-      version_added: ~
-      type: string
-      example: ~
-      default: "5"
-    - name: sql_alchemy_max_overflow
-      description: |
-        The maximum overflow size of the pool.
-        When the number of checked-out connections reaches the size set in pool_size,
-        additional connections will be returned up to this limit.
-        When those additional connections are returned to the pool, they are disconnected and discarded.
-        It follows then that the total number of simultaneous connections the pool will allow
-        is pool_size + max_overflow,
-        and the total number of "sleeping" connections the pool will allow is pool_size.
-        max_overflow can be set to ``-1`` to indicate no overflow limit;
-        no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "10"
-    - name: sql_alchemy_pool_recycle
-      description: |
-        The SqlAlchemy pool recycle is the number of seconds a connection
-        can be idle in the pool before it is invalidated. This config does
-        not apply to sqlite. If the number of DB connections is ever exceeded,
-        a lower config value will allow the system to recover faster.
-      version_added: ~
-      type: string
-      example: ~
-      default: "1800"
-    - name: sql_alchemy_pool_pre_ping
-      description: |
-        Check connection at the start of each connection pool checkout.
-        Typically, this is a simple statement like "SELECT 1".
-        More information here:
-        https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: "True"
-    - name: sql_alchemy_schema
-      description: |
-        The schema to use for the metadata database.
-        SqlAlchemy supports databases with the concept of multiple schemas.
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: ""
-    - name: sql_alchemy_connect_args
-      description: |
-        Import path for connect args in SqlAlchemy. Defaults to an empty dict.
-        This is useful when you want to configure db engine args that SqlAlchemy won't parse
-        in connection string.
-        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
-      version_added: 1.10.11
-      type: string
-      example: ~
-      default: ~
     - name: parallelism
       description: |
         This defines the maximum number of task instances that can run concurrently in Airflow
@@ -209,15 +104,6 @@
         get started, but you probably want to set this to ``False`` in a production
         environment
       version_added: ~
-      type: string
-      example: ~
-      default: "True"
-    - name: load_default_connections
-      description: |
-        Whether to load the default connections that ship with Airflow. It's good to
-        get started, but you probably want to set this to ``False`` in a production
-        environment
-      version_added: 1.10.10
       type: string
       example: ~
       default: "True"
@@ -435,15 +321,6 @@
       type: boolean
       example: ~
       default: "True"
-    - name: max_db_retries
-      description: |
-        Number of times the code should be retried in case of DB Operational Errors.
-        Not all transactions will be retried as it can cause undesired state.
-        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "3"
     - name: hide_sensitive_var_conn_fields
       description: |
         Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
@@ -479,6 +356,133 @@
       type: integer
       example: ~
       default: "1024"
+
+- name: database
+  description: ~
+  options:
+    - name: sql_alchemy_conn
+      description: |
+        The SqlAlchemy connection string to the metadata database.
+        SqlAlchemy supports many different database engines.
+        More information here:
+        http://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri
+      version_added: 2.3.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    - name: sql_alchemy_engine_args
+      description: |
+        Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
+      version_added: 2.3.0
+      type: string
+      sensitive: true
+      example: '{"arg1": True}'
+      default: ~
+    - name: sql_engine_encoding
+      description: |
+        The encoding for the databases
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "utf-8"
+    - name: sql_engine_collation_for_ids
+      description: |
+        Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
+        By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
+        the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
+        the maximum size of allowed index when collation is set to ``utf8mb4`` variant
+        (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618).
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
+    - name: sql_alchemy_pool_enabled
+      description: |
+        If SqlAlchemy should pool database connections.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "True"
+    - name: sql_alchemy_pool_size
+      description: |
+        The SqlAlchemy pool size is the maximum number of database connections
+        in the pool. 0 indicates no limit.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "5"
+    - name: sql_alchemy_max_overflow
+      description: |
+        The maximum overflow size of the pool.
+        When the number of checked-out connections reaches the size set in pool_size,
+        additional connections will be returned up to this limit.
+        When those additional connections are returned to the pool, they are disconnected and discarded.
+        It follows then that the total number of simultaneous connections the pool will allow
+        is pool_size + max_overflow,
+        and the total number of "sleeping" connections the pool will allow is pool_size.
+        max_overflow can be set to ``-1`` to indicate no overflow limit;
+        no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "10"
+    - name: sql_alchemy_pool_recycle
+      description: |
+        The SqlAlchemy pool recycle is the number of seconds a connection
+        can be idle in the pool before it is invalidated. This config does
+        not apply to sqlite. If the number of DB connections is ever exceeded,
+        a lower config value will allow the system to recover faster.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "1800"
+    - name: sql_alchemy_pool_pre_ping
+      description: |
+        Check connection at the start of each connection pool checkout.
+        Typically, this is a simple statement like "SELECT 1".
+        More information here:
+        https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "True"
+    - name: sql_alchemy_schema
+      description: |
+        The schema to use for the metadata database.
+        SqlAlchemy supports databases with the concept of multiple schemas.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ""
+    - name: sql_alchemy_connect_args
+      description: |
+        Import path for connect args in SqlAlchemy. Defaults to an empty dict.
+        This is useful when you want to configure db engine args that SqlAlchemy won't parse
+        in connection string.
+        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: ~
+    - name: load_default_connections
+      description: |
+        Whether to load the default connections that ship with Airflow. It's good to
+        get started, but you probably want to set this to ``False`` in a production
+        environment
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "True"
+    - name: max_db_retries
+      description: |
+        Number of times the code should be retried in case of DB Operational Errors.
+        Not all transactions will be retried as it can cause undesired state.
+        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: "3"
 
 - name: logging
   description: ~

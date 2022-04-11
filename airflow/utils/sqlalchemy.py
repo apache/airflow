@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 utc = pendulum.tz.timezone('UTC')
 
-using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
+using_mysql = conf.get('database', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
 class UtcDateTime(TypeDecorator):
@@ -100,7 +100,7 @@ class ExtendedJSON(TypeDecorator):
 
     def db_supports_json(self):
         """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
-        return not conf.get("core", "sql_alchemy_conn").startswith("mssql")
+        return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
     def load_dialect_impl(self, dialect) -> "TypeEngine":
         if self.db_supports_json():

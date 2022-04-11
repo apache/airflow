@@ -2090,7 +2090,7 @@ Improvements
 - [AIRFLOW-5583] Extend the 'DAG Details' page to display the start_date / end_date (#6235)
 - [AIRFLOW-6250] Ensure on_failure_callback always has a populated context (#6812)
 - [AIRFLOW-6222] http hook logs response body for any failure (#6779)
-- [AIRFLOW-6260] Drive _cmd config option by env var (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD`` for example) (#6801)
+- [AIRFLOW-6260] Drive _cmd config option by env var (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD`` for example) (#6801)
 - [AIRFLOW-6168] Allow proxy_fix middleware of webserver to be configurable (#6723)
 - [AIRFLOW-5931] Use os.fork when appropriate to speed up task execution. (#6627)
 - [AIRFLOW-4145] Allow RBAC roles permissions, ViewMenu to be over-rideable (#4960)

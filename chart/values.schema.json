@@ -741,6 +741,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
+                    "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
                 "AIRFLOW_CONN_AIRFLOW_DB": {
                     "description": "Enable ``AIRFLOW_CONN_AIRFLOW_DB`` variable to be read from the Metadata Secret",
                     "type": "boolean",
@@ -2710,7 +2715,7 @@
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
-                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
                     ]
                 },
                 "service": {

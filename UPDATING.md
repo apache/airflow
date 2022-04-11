@@ -243,6 +243,23 @@ Smart sensors, an "early access" feature added in Airflow 2, are now deprecated 
 
 See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
+### Database configuration moved to new section
+
+The following configurations have been moved from `[core]` to the new `[database]` section. However when reading new option, the old option will be checked to see if it exists. If it does a DeprecationWarning will be issued and the old option will be used instead.
+
+- sql_alchemy_conn
+- sql_engine_encoding
+- sql_engine_collation_for_ids
+- sql_alchemy_pool_enabled
+- sql_alchemy_pool_size
+- sql_alchemy_max_overflow
+- sql_alchemy_pool_recycle
+- sql_alchemy_pool_pre_ping
+- sql_alchemy_schema
+- sql_alchemy_connect_args
+- load_default_connections
+- max_db_retries
+
 ## Airflow 2.2.3
 
 No breaking changes.

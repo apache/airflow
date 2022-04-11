@@ -132,7 +132,7 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
     sensitive_config_values = {
-        ('core', 'sql_alchemy_conn'),
+        ('database', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'flower_basic_auth'),
@@ -188,6 +188,18 @@ class AirflowConfigParser(ConfigParser):
         ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
         ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
         ('api', 'auth_backends'): ('api', 'auth_backend', '2.3'),
+        ('database', 'sql_alchemy_conn'): ('core', 'sql_alchemy_conn', '2.3'),
+        ('database', 'sql_engine_encoding'): ('core', 'sql_engine_encoding', '2.3'),
+        ('database', 'sql_engine_collation_for_ids'): ('core', 'sql_engine_collation_for_ids', '2.3'),
+        ('database', 'sql_alchemy_pool_enabled'): ('core', 'sql_alchemy_pool_enabled', '2.3'),
+        ('database', 'sql_alchemy_pool_size'): ('core', 'sql_alchemy_pool_size', '2.3'),
+        ('database', 'sql_alchemy_max_overflow'): ('core', 'sql_alchemy_max_overflow', '2.3'),
+        ('database', 'sql_alchemy_pool_recycle'): ('core', 'sql_alchemy_pool_recycle', '2.3'),
+        ('database', 'sql_alchemy_pool_pre_ping'): ('core', 'sql_alchemy_pool_pre_ping', '2.3'),
+        ('database', 'sql_alchemy_schema'): ('core', 'sql_alchemy_schema', '2.3'),
+        ('database', 'sql_alchemy_connect_args'): ('core', 'sql_alchemy_connect_args', '2.3'),
+        ('database', 'load_default_connections'): ('core', 'load_default_connections', '2.3'),
+        ('database', 'max_db_retries'): ('core', 'max_db_retries', '2.3'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -323,7 +335,7 @@ class AirflowConfigParser(ConfigParser):
 
     def _upgrade_postgres_metastore_conn(self):
         """As of sqlalchemy 1.4, scheme `postgres+psycopg2` must be replaced with `postgresql`"""
-        section, key = 'core', 'sql_alchemy_conn'
+        section, key = 'database', 'sql_alchemy_conn'
         old_value = self.get(section, key)
         bad_scheme = 'postgres+psycopg2'
         good_scheme = 'postgresql'
@@ -360,7 +372,7 @@ class AirflowConfigParser(ConfigParser):
             'DebugExecutor',
             'SequentialExecutor',
         )
-        is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
+        is_sqlite = "sqlite" in self.get('database', 'sql_alchemy_conn')
         if is_sqlite and is_executor_without_sqlite_support:
             raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
         if is_sqlite:
