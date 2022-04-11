@@ -1,4 +1,4 @@
-<svg width="1720.0" height="648" viewBox="0 0 1720.0 648"
+<svg width="1720.0" height="670" viewBox="0 0 1720.0 670"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -117,10 +117,11 @@
                         <div><span class="r2">                                                                                                                        </span></div>
 <div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze stop [OPTIONS]                                                                                           </span></div>
 <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Stop running breeze environment.                                                                                      </span><span class="r1"> </span></div>
+<div><span class="r1"> </span><span class="r1">Stops running breeze environment.                                                                                     </span><span class="r1"> </span></div>
 <div><span class="r1">                                                                                                                        </span></div>
 <div><span class="r4">╭─ Stop flags ─────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--preserve-volumes</span><span class="r1">  </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Skip removing volumes when stopping Breeze.                                               </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--preserve-volumes</span><span class="r1">  </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">By default the stop command removes volumes with data. Specifying the flag will preserve  </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                          </span><span class="r1">them.                                                                                     </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">  </span><span class="r6">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                                                   </span><span class="r1">  </span><span class="r4">│</span></div>
