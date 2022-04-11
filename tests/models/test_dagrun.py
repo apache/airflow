@@ -1045,7 +1045,7 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     assert query.all() == [(-1, None)]
 
     # Verify_integrity shouldn't change the result now that the TIs exist
-    dr.verify_integrity()
+    dr.verify_integrity(session=session)
     assert query.all() == [(-1, None)]
 
 
