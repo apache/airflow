@@ -18,7 +18,7 @@ import shlex
 import sys
 import time
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, Sequence
 
 import paramiko
 
@@ -82,6 +82,7 @@ class ComputeEngineSSHHook(SSHHook):
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :param impersonation_chain: the service account to impersonate, if any.
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -109,6 +110,7 @@ class ComputeEngineSSHHook(SSHHook):
         use_oslogin: bool = True,
         expire_time: int = 300,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         # Ignore original constructor
         # super().__init__()
@@ -123,15 +125,24 @@ class ComputeEngineSSHHook(SSHHook):
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self._conn: Optional[Any] = None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
-        return OSLoginHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return OSLoginHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
     def _load_connection_config(self):
         def _boolify(value):
@@ -215,7 +226,22 @@ class ComputeEngineSSHHook(SSHHook):
             self._authorize_compute_engine_instance_metadata(pubkey)
 
         proxy_command = None
-        if self.use_iap_tunnel:
+        if self.use_iap_tunnel and self.impersonation_chain:
+            proxy_command_args = [
+                'gcloud',
+                'compute',
+                'start-iap-tunnel',
+                str(self.instance_name),
+                '22',
+                '--listen-on-stdin',
+                f'--project={self.project_id}',
+                f'--zone={self.zone}',
+                '--verbosity=warning',
+                f'--impersonate-service-account={self.impersonation_chain}',
+            ]
+            proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
+
+        elif self.use_iap_tunnel:
             proxy_command_args = [
                 'gcloud',
                 'compute',
