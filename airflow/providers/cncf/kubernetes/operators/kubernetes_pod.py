@@ -47,7 +47,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
     PodPhase,
-    get_container_termination_message
+    get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
