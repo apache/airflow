@@ -173,8 +173,9 @@ class S3KeySizeSensor(S3KeySensor):
             stacklevel=2,
         )
 
-        super().__init__(check_fn=check_fn if check_fn is not None else S3KeySizeSensor.default_check_fn,
-                         **kwargs)
+        super().__init__(
+            check_fn=check_fn if check_fn is not None else S3KeySizeSensor.default_check_fn, **kwargs
+        )
 
     @staticmethod
     def default_check_fn(data: List) -> bool:
