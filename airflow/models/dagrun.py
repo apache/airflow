@@ -697,8 +697,9 @@ class DagRun(Base, LoggingMixin):
                 old_states[schedulable.key] = old_state
                 continue
 
-            # Expansion of last resort! This is ideally handled in the mini-scheduler in LocalTaskJob, but if
-            # for any reason it wasn't, we need to expand it now
+            # This is called in two places: First (and ideally) is in the mini scheduler at the end of
+            # LocalTaskJob, and then as an "expansion of last resort" in the scheduler
+            # to ensure that the mapped task is correctly expanded before we try to execute it.
             if schedulable.map_index < 0 and schedulable.task.is_mapped:
                 # HACK. This needs a better way, one that copes with multiple upstreams!
                 for ti in finished_tis:
@@ -838,14 +839,47 @@ class DagRun(Base, LoggingMixin):
                     ti.state = State.REMOVED
                 continue
 
-            if task.is_mapped:
-                task = cast("MappedOperator", task)
-                num_mapped_tis = task.parse_time_mapped_ti_count
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed
-                if not num_mapped_tis or ti.map_index >= num_mapped_tis:
+            if not task.is_mapped:
+                continue
+            task = cast("MappedOperator", task)
+            num_mapped_tis = task.parse_time_mapped_ti_count
+            # Check if the number of mapped literals has changed and we need to mark this TI as removed
+            if num_mapped_tis is not None:
+                if ti.map_index >= num_mapped_tis:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
+                        ti,
+                        num_mapped_tis,
+                    )
                     ti.state = State.REMOVED
                 elif ti.map_index < 0:
+                    self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = State.REMOVED
+                else:
+                    self.log.info("Restoring mapped task '%s'", ti)
+                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                    ti.state = State.NONE
+            else:
+                #  What if it is _now_ dynamically mapped, but wasn't before?
+                total_length = task.run_time_mapped_ti_count(self.run_id, session=session)
+
+                if total_length is None:
+                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
+                    if ti.map_index >= 0:
+                        self.log.debug(
+                            "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
+                        )
+                        ti.state = State.REMOVED
+                    continue
+                # Upstreams finished, check there aren't any extras
+                if ti.map_index >= total_length:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                        ti,
+                        total_length,
+                    )
+                    ti.state = State.REMOVED
+                    ...
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
@@ -884,7 +918,9 @@ class DagRun(Base, LoggingMixin):
             if not task.is_mapped:
                 return (task, (-1,))
             task = cast("MappedOperator", task)
-            count = task.parse_time_mapped_ti_count
+            count = task.parse_time_mapped_ti_count or task.run_time_mapped_ti_count(
+                self.run_id, session=session
+            )
             if not count:
                 return (task, (-1,))
             return (task, range(count))
