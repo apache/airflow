@@ -838,14 +838,24 @@ class DagRun(Base, LoggingMixin):
                     ti.state = State.REMOVED
                 continue
 
-            if task.is_mapped:
-                task = cast("MappedOperator", task)
-                num_mapped_tis = task.parse_time_mapped_ti_count
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed
-                if not num_mapped_tis or ti.map_index >= num_mapped_tis:
+            if not task.is_mapped:
+                continue
+            task = cast("MappedOperator", task)
+            num_mapped_tis = task.parse_time_mapped_ti_count
+            # Check if the number of mapped literals has changed and we need to mark this TI as removed
+            if num_mapped_tis is not None:
+                if ti.map_index >= num_mapped_tis:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the literal list (%s)",
+                        ti,
+                        num_mapped_tis,
+                    )
                     ti.state = State.REMOVED
                 elif ti.map_index < 0:
+                    self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = State.REMOVED
+            # TODO: What if it is _now_ None, but wasn't before? How do we detect that? And how do we detect
+            # when these tasks have already been expanded at runtime!
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
