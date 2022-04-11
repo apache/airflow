@@ -940,14 +940,7 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
 
 
 def check_run_id_null(session: Session) -> Iterable[str]:
-    import sqlalchemy.schema
-
-    metadata = sqlalchemy.schema.MetaData(session.bind)
-    try:
-        metadata.reflect(only=[DagRun.__tablename__], extend_existing=True, resolve_fks=False)
-    except exc.InvalidRequestError:
-        # Table doesn't exist -- empty db
-        return
+    metadata = reflect_tables([DagRun.__tablename__], session)
 
     # We can't use the model here since it may differ from the db state due to
     # this function is run prior to migration. Use the reflected table instead.
@@ -1048,12 +1041,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
     """
-    import sqlalchemy.schema
     from sqlalchemy import and_
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-    metadata = sqlalchemy.schema.MetaData(session.bind)
     models_to_dagrun: List[Tuple[Base, str]] = [
         (mod, ver)
         for ver, models in {
@@ -1062,15 +1053,8 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         }.items()
         for mod in models
     ]
-    for model, _ in [*models_to_dagrun, (DagRun, '2.2')]:
-        try:
-            metadata.reflect(
-                only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
-            )
-        except exc.InvalidRequestError:
-            # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
-            # version
-            pass
+
+    metadata = reflect_tables([*[x[0] for x in models_to_dagrun], DagRun], session)
 
     # Key table doesn't exist -- likely empty DB.
     if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
