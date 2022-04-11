@@ -285,7 +285,7 @@
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
               <span class="col-xs-12 col-sm-9 text-danger" style="font-size: 12px">
-                {{ "Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry" if not k8s_or_k8scelery_executor else "" }}
+                {{ "Only works with the Celery, CeleryKubernetes or Kubernetes executors" if not k8s_or_k8scelery_executor else "" }}
             </span>
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label

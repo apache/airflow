@@ -58,7 +58,7 @@ const Run = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline" disabled={!canRun}>
+      <ButtonGroup isAttached variant="outline" isDisabled={!canRun}>
         <Button
           bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
