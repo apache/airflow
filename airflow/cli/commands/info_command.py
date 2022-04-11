@@ -304,7 +304,7 @@ class AirflowInfo:
 
     @property
     def _providers_info(self):
-        return [(p.provider_info['package-name'], p.version) for p in ProvidersManager().providers.values()]
+        return [(p.data['package-name'], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: Optional[AirflowConsole] = None) -> None:
         """Shows information about Airflow instance"""

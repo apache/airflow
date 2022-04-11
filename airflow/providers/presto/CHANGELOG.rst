@@ -19,6 +19,59 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Presto-Client-Info in presto hook (#22416)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GCSToPrestoOperator (#21084)``
+* ``Quick Update GCS Presto (#21855)``
+* ``Replaced hql references to sql in TrinoHook and PrestoHook (#21630)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+* ``Fix K8S changelog to be PyPI-compatible (#20614)``
+* ``Fix MyPy Errors for Presto provider (#20244)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.0.1
 .....
 

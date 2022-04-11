@@ -22,6 +22,35 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+2.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.2.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.2.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Make DbApiHook use get_uri from Connection (#21764)``
+* ``Update MySqlOperator example dag (#21434)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.2.0
 .....
 

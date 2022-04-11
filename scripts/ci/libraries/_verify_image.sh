@@ -16,14 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+function verify_image::check_not_empty {
+    image_size=$(docker inspect "${1}" -f '{{.Size}}')
+    if [[ ${image_size} == "0" ]]; then
+        echo "${COLOR_RED}The image ${1} is empty - which means it failed to build. See 'Build Image' step for details. Exiting!${COLOR_RESET}"
+        exit 1
+    fi
+}
+
 function verify_image::verify_prod_image {
-    DOCKER_IMAGE="${1}"
-    export DOCKER_IMAGE
+    verify_image::check_not_empty "${1}"
+    export DOCKER_IMAGE="${1}"
     python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_prod_image.py"
 }
 
 function verify_image::verify_ci_image {
-    DOCKER_IMAGE="${1}"
-    export DOCKER_IMAGE
+    verify_image::check_not_empty "${1}"
+    export DOCKER_IMAGE="${1}"
     python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_ci_image.py"
 }

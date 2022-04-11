@@ -19,6 +19,8 @@
 from collections import Counter
 from typing import TYPE_CHECKING
 
+from sqlalchemy import func
+
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -26,7 +28,9 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
-    from airflow.settings import SASession as Session
+    from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 class TriggerRuleDep(BaseTIDep):
@@ -40,7 +44,7 @@ class TriggerRuleDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @staticmethod
-    def _get_states_count_upstream_ti(ti, finished_tis):
+    def _get_states_count_upstream_ti(task, finished_tis):
         """
         This function returns the states of the upstream tis for a specific ti in order to determine
         whether this ti can run in this iteration
@@ -48,7 +52,7 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        counter = Counter(task.state for task in finished_tis if task.task_id in ti.task.upstream_task_ids)
+        counter = Counter(ti.state for ti in finished_tis if ti.task_id in task.upstream_task_ids)
         return (
             counter.get(State.SUCCESS, 0),
             counter.get(State.SKIPPED, 0),
@@ -69,7 +73,7 @@ class TriggerRuleDep(BaseTIDep):
             return
         # see if the task name is in the task upstream for our task
         successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
-            ti=ti, finished_tis=dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            task=ti.task, finished_tis=dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
         )
 
         yield from self._evaluate_trigger_rule(
@@ -82,6 +86,31 @@ class TriggerRuleDep(BaseTIDep):
             flag_upstream_failed=dep_context.flag_upstream_failed,
             session=session,
         )
+
+    @staticmethod
+    def _count_upstreams(ti: "TaskInstance", *, session: "Session"):
+        from airflow.models.taskinstance import TaskInstance
+
+        # Optimization: Don't need to hit the database if no upstreams are mapped.
+        upstream_task_ids = ti.task.upstream_task_ids
+        if ti.task.dag and not any(ti.task.dag.get_task(tid).is_mapped for tid in upstream_task_ids):
+            return len(upstream_task_ids)
+
+        # We don't naively count task instances because it is not guaranteed
+        # that all upstreams have been created in the database at this point.
+        # Instead, we look for already-expanded tasks, and add them to the raw
+        # task count without considering mapping.
+        mapped_tis_addition = (
+            session.query(func.count())
+            .filter(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.run_id == ti.run_id,
+                TaskInstance.task_id.in_(upstream_task_ids),
+                TaskInstance.map_index > 0,
+            )
+            .scalar()
+        )
+        return len(upstream_task_ids) + mapped_tis_addition
 
     @provide_session
     def _evaluate_trigger_rule(
@@ -112,8 +141,8 @@ class TriggerRuleDep(BaseTIDep):
         :param session: database session
         """
         task = ti.task
-        upstream = len(task.upstream_task_ids)
-        trigger_rule = task.trigger_rule
+        upstream = self._count_upstreams(ti, session=session)
+        trigger_rule: TR = task.trigger_rule
         upstream_done = done >= upstream
         upstream_tasks_state = {
             "total": upstream,
@@ -156,6 +185,9 @@ class TriggerRuleDep(BaseTIDep):
                     ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
+                    ti.set_state(State.SKIPPED, session)
+            elif trigger_rule == TR.ALL_SKIPPED:
+                if successes or failed:
                     ti.set_state(State.SKIPPED, session)
 
         if trigger_rule == TR.ONE_SUCCESS:
@@ -236,6 +268,17 @@ class TriggerRuleDep(BaseTIDep):
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to not have been "
                         f"skipped, but found {skipped} task(s) skipped. "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
+                    )
+                )
+        elif trigger_rule == TR.ALL_SKIPPED:
+            num_non_skipped = upstream - skipped
+            if num_non_skipped > 0:
+                yield self._failing_status(
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have been "
+                        f"skipped, but found {num_non_skipped} task(s) in non skipped state. "
                         f"upstream_tasks_state={upstream_tasks_state}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )

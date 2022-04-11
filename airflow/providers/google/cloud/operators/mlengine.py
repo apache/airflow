@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud MLEngine operators."""
+import datetime
 import logging
 import re
 import warnings
@@ -26,6 +27,7 @@ from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -978,10 +980,22 @@ class AIPlatformConsoleLink(BaseOperatorLink):
 
     name = "AI Platform Console"
 
-    def get_link(self, operator, dttm):
-        gcp_metadata_dict = XCom.get_one(
-            key="gcp_metadata", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime.datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key is not None:
+            gcp_metadata_dict = XCom.get_value(key="gcp_metadata", ti_key=ti_key)
+        else:
+            assert dttm is not None
+            gcp_metadata_dict = XCom.get_one(
+                key="gcp_metadata",
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
         if not gcp_metadata_dict:
             return ''
         job_id = gcp_metadata_dict['job_id']

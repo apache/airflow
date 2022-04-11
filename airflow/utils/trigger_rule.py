@@ -33,6 +33,7 @@ class TriggerRule(str, Enum):
     DUMMY = 'dummy'
     ALWAYS = 'always'
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
+    ALL_SKIPPED = 'all_skipped'
 
     @classmethod
     def is_valid(cls, trigger_rule: str) -> bool:

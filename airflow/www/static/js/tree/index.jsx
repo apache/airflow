@@ -21,10 +21,16 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, extendTheme } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
+import { QueryClient, QueryClientProvider } from 'react-query';
+
 import Tree from './Tree';
+import { SelectionProvider } from './context/selection';
+import { ContainerRefProvider } from './context/containerRef';
+import { TimezoneProvider } from './context/timezone';
+import { AutoRefreshProvider } from './context/autorefresh';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -36,12 +42,41 @@ const myCache = createCache({
 const mainElement = document.getElementById('react-container');
 shadowRoot.appendChild(mainElement);
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 0,
+    },
+  },
+});
+
+const theme = extendTheme({
+  components: {
+    Tooltip: {
+      baseStyle: {
+        fontSize: 'md',
+      },
+    },
+  },
+});
+
 function App() {
   return (
     <React.StrictMode>
       <CacheProvider value={myCache}>
-        <ChakraProvider>
-          <Tree />
+        <ChakraProvider theme={theme}>
+          <ContainerRefProvider>
+            <QueryClientProvider client={queryClient}>
+              <TimezoneProvider>
+                <AutoRefreshProvider>
+                  <SelectionProvider>
+                    <Tree />
+                  </SelectionProvider>
+                </AutoRefreshProvider>
+              </TimezoneProvider>
+            </QueryClientProvider>
+          </ContainerRefProvider>
         </ChakraProvider>
       </CacheProvider>
     </React.StrictMode>

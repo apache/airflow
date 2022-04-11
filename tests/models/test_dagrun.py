@@ -27,6 +27,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
@@ -878,15 +879,16 @@ class TestDagRun:
     ('run_type', 'expected_tis'),
     [
         pytest.param(DagRunType.MANUAL, 1, id='manual'),
-        pytest.param(DagRunType.BACKFILL_JOB, 2, id='backfill'),
+        pytest.param(DagRunType.BACKFILL_JOB, 3, id='backfill'),
     ],
 )
 @mock.patch.object(Stats, 'incr')
-def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expected_tis):
-    """Test that tasks with specific start dates are only created for backfill runs"""
+def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
+    """Test that tasks with specific dates are only created for backfill runs"""
     with DAG('test', start_date=DEFAULT_DATE) as dag:
         DummyOperator(task_id='without')
-        DummyOperator(task_id='with_startdate', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_start_date', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        DummyOperator(task_id='with_end_date', end_date=DEFAULT_DATE - datetime.timedelta(1))
 
     dag_run = DagRun(
         dag_id=dag.dag_id,
@@ -906,11 +908,132 @@ def test_verify_integrity_task_start_date(Stats_incr, session, run_type, expecte
     Stats_incr.assert_called_with('task_instance_created-DummyOperator', expected_tis)
 
 
-@pytest.mark.xfail(reason="TODO: Expand mapped literals at verify_integrity time!")
-def test_expand_mapped_task_instance(dag_maker, session):
-    literal = [1, 2, {'a': 'b'}]
+@pytest.mark.parametrize('is_noop', [True, False])
+def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
+    with mock.patch('airflow.settings.task_instance_mutation_hook') as mock_mut:
+        mock_mut.is_noop = is_noop
+        literal = [1, 2, 3, 4]
+        with dag_maker(session=session, dag_id='test_dag'):
+            mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+
+        dr = dag_maker.create_dagrun()
+        indices = (
+            session.query(TI.map_index)
+            .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+            .order_by(TI.map_index)
+            .all()
+        )
+        assert indices == [(0,), (1,), (2,), (3,)]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize('is_noop', [True, False])
+def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session):
+    with mock.patch('airflow.settings.task_instance_mutation_hook') as mock_mut:
+        mock_mut.is_noop = is_noop
+
+        @task
+        def mynameis(arg):
+            print(arg)
+
+        literal = [1, 2, 3, 4]
+        with dag_maker(session=session, dag_id='test_dag'):
+            mynameis.expand(arg=literal)
+
+        dr = dag_maker.create_dagrun()
+        indices = (
+            session.query(TI.map_index)
+            .filter_by(task_id='mynameis', dag_id=dr.dag_id, run_id=dr.run_id)
+            .order_by(TI.map_index)
+            .all()
+        )
+        assert indices == [(0,), (1,), (2,), (3,)]
+
+
+def test_mapped_literal_verify_integrity(dag_maker, session):
+    """Test that when the length of a mapped literal changes we remove extra TIs"""
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
+
+    dr = dag_maker.create_dagrun()
+
+    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
+    dag._remove_task('task_2')
+
+    with dag:
+        mapped = task_2.expand(arg2=[1, 2]).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+    dr.verify_integrity()
+
+    indices = (
+        session.query(TI.map_index, TI.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+        .all()
+    )
+
+    assert indices == [(0, None), (1, None), (2, TaskInstanceState.REMOVED), (3, TaskInstanceState.REMOVED)]
+
+
+def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
+    """Test that when we change from literal to a XComArg the TIs are removed"""
+
+    with dag_maker(session=session) as dag:
+        t1 = BaseOperator(task_id='task_1')
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
+
+    dr = dag_maker.create_dagrun()
+
+    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
+    dag._remove_task('task_2')
+
+    with dag:
+        mapped = task_2.expand(arg2=XComArg(t1)).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+    dr.verify_integrity()
+
+    indices = (
+        session.query(TI.map_index, TI.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+        .all()
+    )
+
+    assert indices == [
+        (0, TaskInstanceState.REMOVED),
+        (1, TaskInstanceState.REMOVED),
+        (2, TaskInstanceState.REMOVED),
+        (3, TaskInstanceState.REMOVED),
+    ]
+
+
+@pytest.mark.need_serialized_dag
+def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
+    literal = [1, 2, 3, 4]
     with dag_maker(session=session):
-        mapped = MockOperator(task_id='task_2').apply(arg2=literal)
+        task = BaseOperator(task_id='task_1')
+        mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=XComArg(task))
 
     dr = dag_maker.create_dagrun()
     indices = (
@@ -920,13 +1043,13 @@ def test_expand_mapped_task_instance(dag_maker, session):
         .all()
     )
 
-    assert indices == [0, 1, 2]
+    assert indices == [(-1,)]
 
 
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
 
     dr: DagRun = dag_maker.create_dagrun()
     ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
@@ -946,3 +1069,88 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_upstream_failed(dag_maker, session):
+    from airflow.operators.python import PythonOperator
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {'a': 'b'}]))
+
+        def consumer(*args):
+            print(repr(args))
+
+        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+
+    dr = dag_maker.create_dagrun()
+    _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    make_list_ti.state = TaskInstanceState.FAILED
+    session.flush()
+
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+
+    assert sorted((ti.task_id, ti.map_index, ti.state) for ti in tis) == [
+        ("consumer", -1, TaskInstanceState.UPSTREAM_FAILED),
+        ("make_list", -1, TaskInstanceState.FAILED),
+    ]
+    # Bug/possible source of optimization: The DR isn't marked as failed until
+    # in the loop that marks the last task as UPSTREAM_FAILED
+    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    assert tis == []
+    assert dr.state == DagRunState.FAILED
+
+
+def test_mapped_task_all_finish_before_downstream(dag_maker, session):
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_list():
+            return [1, 2]
+
+        @dag.task
+        def double(value):
+            return value * 2
+
+        @dag.task
+        def consumer(value):
+            nonlocal result
+            result = list(value)
+
+        consumer(value=double.expand(value=make_list()))
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _task_ids(tis):
+        return [ti.task_id for ti in tis]
+
+    # The first task is always make_list.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["make_list"]
+
+    # After make_list is run, double is expanded.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["double", "double"]
+
+    # Running just one of the mapped tis does not make downstream schedulable.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["double"]
+
+    # Downstream is schedulable after all mapped tis are run.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == ["consumer"]
+
+    # We should be able to get all values aggregated from mapped upstreams.
+    decision.schedulable_tis[0].run(verbose=False, session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis == []
+    assert result == [2, 4]

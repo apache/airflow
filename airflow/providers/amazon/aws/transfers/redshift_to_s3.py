@@ -31,6 +31,10 @@ class RedshiftToS3Operator(BaseOperator):
     """
     Executes an UNLOAD command to s3 as a CSV with headers
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftToS3Operator`
+
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
@@ -135,8 +139,6 @@ class RedshiftToS3Operator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-
-        credentials_block = None
         if conn.extra_dejson.get('role_arn', False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:

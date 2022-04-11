@@ -76,9 +76,8 @@
   {{ super() }}
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
-  <script src="{{ url_for_asset('gantt.js') }}"></script>
   <script>
-    // Loading data via <meta> wasn't loading extra_links in a task
-    const data = JSON.parse('{{ data|tojson }}');
+    const data = {{ data|tojson }};
   </script>
+  <script src="{{ url_for_asset('gantt.js') }}"></script>
 {% endblock %}

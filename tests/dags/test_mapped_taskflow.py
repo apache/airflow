@@ -28,4 +28,4 @@ with DAG(dag_id='test_mapped_taskflow', start_date=days_ago(2)) as dag:
     def consumer(value):
         print(repr(value))
 
-    consumer.apply(value=make_list())
+    consumer.expand(value=make_list())

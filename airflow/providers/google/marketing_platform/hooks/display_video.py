@@ -27,7 +27,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleDisplayVideo360Hook(GoogleBaseHook):
     """Hook for Google Display & Video 360."""
 
-    _conn = None  # type: Optional[Any]
+    _conn: Optional[Resource] = None
 
     def __init__(
         self,

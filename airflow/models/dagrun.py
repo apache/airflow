@@ -20,7 +20,20 @@ import os
 import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 from sqlalchemy import (
     Boolean,
@@ -668,9 +681,21 @@ class DagRun(Base, LoggingMixin):
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
         expanded_tis: List[TI] = []
+        dep_context = DepContext(
+            flag_upstream_failed=True,
+            ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
+            finished_tis=finished_tis,
+        )
 
         # Check dependencies
         for schedulable in itertools.chain(schedulable_tis, expanded_tis):
+
+            old_state = schedulable.state
+            if schedulable.are_dependencies_met(session=session, dep_context=dep_context):
+                ready_tis.append(schedulable)
+            else:
+                old_states[schedulable.key] = old_state
+                continue
 
             # Expansion of last resort! This is ideally handled in the mini-scheduler in LocalTaskJob, but if
             # for any reason it wasn't, we need to expand it now
@@ -687,15 +712,6 @@ class DagRun(Base, LoggingMixin):
                         assert new_tis[0] is schedulable
                         expanded_tis.extend(new_tis[1:])
                         break
-
-            old_state = schedulable.state
-            if schedulable.are_dependencies_met(
-                dep_context=DepContext(flag_upstream_failed=True, finished_tis=finished_tis),
-                session=session,
-            ):
-                ready_tis.append(schedulable)
-            else:
-                old_states[schedulable.key] = old_state
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states.keys())
@@ -807,6 +823,12 @@ class DagRun(Base, LoggingMixin):
             task = None
             try:
                 task = dag.get_task(ti.task_id)
+
+                should_restore_task = (task is not None) and ti.state == State.REMOVED
+                if should_restore_task:
+                    self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
+                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                    ti.state = State.NONE
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
@@ -814,17 +836,22 @@ class DagRun(Base, LoggingMixin):
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED
+                continue
 
-            should_restore_task = (task is not None) and ti.state == State.REMOVED
-            if should_restore_task:
-                self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
-                ti.state = State.NONE
-            session.merge(ti)
+            if task.is_mapped:
+                task = cast("MappedOperator", task)
+                num_mapped_tis = task.parse_time_mapped_ti_count
+                # Check if the number of mapped literals has changed and we need to mark this TI as removed
+                if not num_mapped_tis or ti.map_index >= num_mapped_tis:
+                    ti.state = State.REMOVED
+                elif ti.map_index < 0:
+                    ti.state = State.REMOVED
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill or task.start_date <= self.execution_date
+                self.is_backfill
+                or task.start_date <= self.execution_date
+                and (task.end_date is None or self.execution_date <= task.end_date)
             )
 
         created_counts: Dict[str, int] = defaultdict(int)
@@ -834,25 +861,42 @@ class DagRun(Base, LoggingMixin):
 
         if hook_is_noop:
 
-            def create_ti_mapping(task: "Operator") -> dict:
+            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
                 created_counts[task.task_type] += 1
-                return TI.insert_mapping(self.run_id, task, map_index=-1)
+                for map_index in indexes:
+                    yield TI.insert_mapping(self.run_id, task, map_index=map_index)
+
+            creator = create_ti_mapping
 
         else:
 
-            def create_ti(task: "Operator") -> TI:
-                ti = TI(task, run_id=self.run_id)
-                task_instance_mutation_hook(ti)
-                created_counts[ti.operator] += 1
-                return ti
+            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+                for map_index in indexes:
+                    ti = TI(task, run_id=self.run_id, map_index=map_index)
+                    task_instance_mutation_hook(ti)
+                    created_counts[ti.operator] += 1
+                    yield ti
 
-        # Create missing tasks
-        tasks = list(filter(task_filter, dag.task_dict.values()))
+            creator = create_ti
+
+        # Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
+        def expand_mapped_literals(task: "Operator") -> Tuple["Operator", Sequence[int]]:
+            if not task.is_mapped:
+                return (task, (-1,))
+            task = cast("MappedOperator", task)
+            count = task.parse_time_mapped_ti_count
+            if not count:
+                return (task, (-1,))
+            return (task, range(count))
+
+        tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
+        tasks = itertools.chain.from_iterable(itertools.starmap(creator, tasks_and_map_idxs))
+
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, map(create_ti_mapping, tasks))
+                session.bulk_insert_mappings(TI, tasks)
             else:
-                session.bulk_save_objects(map(create_ti, tasks))
+                session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)

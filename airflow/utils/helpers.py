@@ -43,7 +43,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.models import TaskInstance
+    from airflow.models.taskinstance import TaskInstance
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')

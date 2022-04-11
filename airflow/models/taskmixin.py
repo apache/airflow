@@ -54,16 +54,29 @@ class DependencyMixin:
         raise NotImplementedError()
 
     @abstractmethod
-    def set_upstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def set_upstream(
+        self,
+        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ):
         """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
-    def set_downstream(self, other: Union["DependencyMixin", Sequence["DependencyMixin"]]):
+    def set_downstream(
+        self,
+        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ):
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
-    def update_relative(self, other: "DependencyMixin", upstream=True) -> None:
+    def update_relative(
+        self,
+        other: "DependencyMixin",
+        upstream=True,
+        edge_modifier: Optional["EdgeModifier"] = None,
+    ) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
         Override if necessary.
@@ -134,6 +147,13 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return self.dag is not None
 
     @property
+    def dag_id(self) -> str:
+        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        if self.dag:
+            return self.dag.dag_id
+        return "_in_memory_dag_"
+
+    @property
     def log(self) -> "Logger":
         raise NotImplementedError()
 
@@ -163,7 +183,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         task_list: List[Operator] = []
         for task_object in task_or_task_list:
-            task_object.update_relative(self, not upstream)
+            task_object.update_relative(self, not upstream, edge_modifier=edge_modifier)
             relatives = task_object.leaves if upstream else task_object.roots
             for task in relatives:
                 if not isinstance(task, (BaseOperator, MappedOperator)):
@@ -279,7 +299,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         provide a way to record an DAG node's all downstream nodes instead.
         """
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+        from airflow.utils.task_group import TaskGroup
 
         def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
             """Recursively walk children in a task group.
@@ -298,7 +318,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         for key, child in _walk_group(tg):
             if key == self.node_id:
                 continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+            if not isinstance(child, MappedOperator):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child

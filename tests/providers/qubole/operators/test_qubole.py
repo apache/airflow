@@ -120,10 +120,10 @@ class TestQuboleOperator:
             task.get_hook().create_cmd_args({'run_id': 'dummy'})[5] == "s3n://airflow/destination_hadoopcmd"
         )
 
-    def test_get_redirect_url(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator):
         ti = create_task_instance_of_operator(
             QuboleOperator,
-            dag_id="test_get_redirect_url",
+            dag_id="test_get_link",
             execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             qubole_conn_id=TEST_CONN,
@@ -132,7 +132,7 @@ class TestQuboleOperator:
         )
         ti.xcom_push('qbol_cmd_id', 12345)
 
-        url = ti.task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
+        url = ti.task.get_extra_links(ti, 'Go to QDS')
         assert url == 'http://localhost/v2/analyze?command_id=12345'
 
     @pytest.mark.need_serialized_dag
@@ -156,7 +156,7 @@ class TestQuboleOperator:
         assert isinstance(list(simple_task.operator_extra_links)[0], QDSLink)
 
         ti.xcom_push('qbol_cmd_id', 12345)
-        url = simple_task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
+        url = simple_task.get_extra_links(ti, 'Go to QDS')
         assert url == 'http://localhost/v2/analyze?command_id=12345'
 
     def test_parameter_pool_passed(self):

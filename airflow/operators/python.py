@@ -29,7 +29,7 @@ from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Opt
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.context import Context, context_copy_partial, context_merge
@@ -133,6 +133,8 @@ class PythonOperator(BaseOperator):
         'op_kwargs',
     )
 
+    mapped_arguments_validated_by_init = True
+
     def __init__(
         self,
         *,
@@ -208,8 +210,10 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
             branches = {branch}
         elif isinstance(branch, list):
             branches = set(branch)
+        elif branch is None:
+            branches = set()
         else:
-            raise AirflowException("Branch callable must return either a task ID or a list of IDs")
+            raise AirflowException("Branch callable must return either None, a task ID, or a list of IDs")
         valid_task_ids = set(context["dag"].task_ids)
         invalid_task_ids = branches - valid_task_ids
         if invalid_task_ids:
@@ -308,6 +312,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :param system_site_packages: Whether to include
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
+    :param pip_install_options: a list of pip install options when installing requirements
+        See 'pip install -h' for available options
     :param op_args: A list of positional arguments to pass to python_callable.
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :param string_args: Strings that are present in the global var virtualenv_string_args,
@@ -365,6 +371,7 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
+        pip_install_options: Optional[List[str]] = None,
         op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
@@ -407,6 +414,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        self.pip_install_options = pip_install_options
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Context) -> Any:
@@ -445,6 +453,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements_file_path=requirements_file_name,
+                pip_install_options=self.pip_install_options,
             )
 
             self._write_args(input_filename)

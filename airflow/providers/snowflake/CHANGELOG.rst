@@ -19,6 +19,38 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for private key in connection for Snowflake (#22266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Snowflake limits (#22181)``
+
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.5.0
 .....
 

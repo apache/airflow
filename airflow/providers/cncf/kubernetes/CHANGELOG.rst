@@ -19,6 +19,76 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The provider in version 4.0.0 only works with Airflow 2.3+. Please upgrade
+Airflow to 2.3 version if you want to use the features or fixes in 4.* line
+of the provider.
+
+The main reason for the incompatibility is using latest Kubernetes Libraries.
+The ``cncf.kubernetes`` provider requires newer version of libraries than
+Airflow 2.1 and 2.2 used for Kubernetes Executor and that makes the provider
+incompatible with those Airflow versions.
+
+Features
+~~~~~~~~
+
+* ``Log traceback only on ''DEBUG'' for KPO logs read interruption (#22595)``
+* ``Update our approach for executor-bound dependencies (#22573)``
+* ``Optionally not follow logs in KPO pod_manager (#22412)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop crashing when empty logs are received from kubernetes client (#22566)``
+
+3.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+Misc
+~~~~
+
+* ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
+
+3.1.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add map_index label to mapped KubernetesPodOperator (#21916)``
+* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Fix Kubernetes example with wrong operator casing (#21898)``
+* ``Remove types from KPO docstring (#21826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
 3.0.2
 .....
 

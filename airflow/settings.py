@@ -120,7 +120,20 @@ def custom_show_warning(message, category, filename, lineno, file=None, line=Non
     write_console.print(msg, soft_wrap=True)
 
 
-warnings.showwarning = custom_show_warning
+def replace_showwarning(replacement):
+    """Replace ``warnings.showwarning``, returning the original.
+
+    This is useful since we want to "reset" the ``showwarning`` hook on exit to
+    avoid lazy-loading issues. If a warning is emitted after Python cleaned up
+    the import system, we would no longer be able to import ``rich``.
+    """
+    original = warnings.showwarning
+    warnings.showwarning = replacement
+    return original
+
+
+original_show_warning = replace_showwarning(custom_show_warning)
+atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
 
 def task_policy(task) -> None:
@@ -599,6 +612,7 @@ LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallbac
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
+    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')

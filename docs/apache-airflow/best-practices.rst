@@ -247,18 +247,26 @@ each parameter by following the links):
 Example of watcher pattern with trigger rules
 ---------------------------------------------
 
-The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks. It's primary purpose is to fail a DAG Run when any other task fail.
+The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
+It's primary purpose is to fail a DAG Run when any other task fail.
 The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
 
-Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But when we use trigger rules, we can disrupt the normal flow of running tasks and the whole DAG may represent different status that we expect.
-For example, we can have a teardown task (with trigger rule set to ``"all_done"``) that will be executed regardless of the state of the other tasks (e.g. to clean up the resources). In such situation, the DAG would always run this task and the DAG Run will get the status of this particular task, so we can potentially lose the information about failing tasks.
-If we want to ensure that the DAG with teardown task would fail if any task fails, we need to use the watcher pattern.
-The watcher task is a task that will always fail if triggered, but it needs to be triggered only if any other task fails. It needs to have a trigger rule set to ``"one_failed"`` and it needs also to be a downstream task for all other tasks in the DAG.
-Thanks to this, if every other task will pass, the watcher will be skipped, but when something fails, the watcher task will be executed and fail making the DAG Run fail too.
+Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But
+when we use trigger rules, we can disrupt the normal flow of running tasks and the whole DAG may represent different
+status that we expect. For example, we can have a teardown task (with trigger rule set to ``TriggerRule.ALL_DONE``)
+that will be executed regardless of the state of the other tasks (e.g. to clean up the resources). In such
+situation, the DAG would always run this task and the DAG Run will get the status of this particular task, so we can
+potentially lose the information about failing tasks. If we want to ensure that the DAG with teardown task would fail
+if any task fails, we need to  use the watcher pattern. The watcher task is a task that will always fail if
+triggered, but it needs to be triggered only if any other task fails. It needs to have a trigger rule set to
+``TriggerRule.ONE_FAILED`` and it needs also to be a  downstream task for all other tasks in the DAG. Thanks to
+this, if every other task will pass, the watcher will be skipped, but when something fails, the watcher task will be
+executed and fail making the DAG Run fail too.
 
 .. note::
 
-    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``one_failed`` will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
+    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``TriggerRule.ONE_FAILED``
+    will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
 
 It's easier to grab the concept with an example. Let's say that we have the following DAG:
 
@@ -270,9 +278,10 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from airflow.exceptions import AirflowException
     from airflow.operators.bash import BashOperator
     from airflow.operators.python import PythonOperator
+    from airflow.utils.trigger_rule import TriggerRule
 
 
-    @task(trigger_rule="one_failed", retries=0)
+    @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
     def watcher():
         raise AirflowException("Failing task because one or more upstream tasks failed.")
 
@@ -290,7 +299,9 @@ It's easier to grab the concept with an example. Let's say that we have the foll
             task_id="passing_task", bash_command="echo passing_task"
         )
         teardown = BashOperator(
-            task_id="teardown", bash_command="echo teardown", trigger_rule="all_done"
+            task_id="teardown",
+            bash_command="echo teardown",
+            trigger_rule=TriggerRule.ALL_DONE,
         )
 
         failing_task >> passing_task >> teardown
@@ -337,7 +348,7 @@ want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG generate simpler structure. Every task dependency adds additional processing overhead for
   scheduling and execution. The DAG that has simple linear structure ``A -> B -> C`` will experience
-  less delays in task scheduling that DAG that has a deeply nested tree structure with exponentially growing
+  less delays in task scheduling than DAG that has a deeply nested tree structure with exponentially growing
   number of depending tasks for example. If you can make your DAGs more linear - where at single point in
   execution there are as few potential candidates to run among the tasks, this will likely improve overall
   scheduling performance.
@@ -577,3 +588,43 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
         assert "cat" == Connection.get("my_conn").login
+
+Metadata DB maintenance
+-----------------------
+
+Over time, the metadata database will increase its storage footprint as more DAG and task runs and event logs accumulate.
+
+You can use the Airflow CLI to purge old data with the command ``airflow db clean``.
+
+See :ref:`db clean usage<cli-db-clean>` for more details.
+
+Upgrades and downgrades
+-----------------------
+
+Backup your database
+^^^^^^^^^^^^^^^^^^^^
+
+It's always a wise idea to backup the metadata database before undertaking any operation modifying the database.
+
+Disable the scheduler
+^^^^^^^^^^^^^^^^^^^^^
+
+You might consider disabling the Airflow cluster while you perform such maintenance.
+
+One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running DAGs to complete; after this no new DAG runs will be created unless externally triggered.
+
+A *better* way (though it's a bit more manual) is to use the ``dags pause`` command.  You'll need to keep track of the DAGs that are paused before you begin this operation so that you know which ones to unpause after maintenance is complete.  First run ``airflow dags list`` and store the list of unpaused DAGs.  Then use this same list to run both ``dags pause`` for each DAG prior to maintenance, and ``dags unpause`` after.  A benefit of this is you can try un-pausing just one or two DAGs (perhaps dedicated :ref:`test dags <integration-test-dags>`) after the upgrade to make sure things are working before turning everything back on.
+
+.. _integration-test-dags:
+
+Add "integration test" DAGs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+
+For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
+
+Prune data before upgrading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some database migrations can be time-consuming.  If your metadata database is very large, consider pruning some of the old data with the :ref:`db clean<cli-db-clean>` command prior to performing the upgrade.  *Use with caution.*

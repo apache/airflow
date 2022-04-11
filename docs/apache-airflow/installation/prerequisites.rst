@@ -20,7 +20,7 @@ Prerequisites
 
 Airflow is tested with:
 
-* Python: 3.6, 3.7, 3.8, 3.9
+* Python: 3.7, 3.8, 3.9, 3.10
 
 * Databases:
 
@@ -29,7 +29,7 @@ Airflow is tested with:
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.20.2 1.21.1
+* Kubernetes: 1.20.2 1.21.1 1.22.0, 1.23.0
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
@@ -51,4 +51,4 @@ The work to add Windows support is tracked via `#10388 <https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-``Debian Buster``.
+``Debian Bullseye``.

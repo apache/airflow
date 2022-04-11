@@ -23,7 +23,7 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_docker_lint() {
-    IMAGE_NAME="hadolint/hadolint:2.3.0-alpine"
+    IMAGE_NAME="hadolint/hadolint:2.10.0-beta-alpine"
     if [[ "${#@}" == "0" ]]; then
         echo
         echo "Running docker lint for all Dockerfiles"

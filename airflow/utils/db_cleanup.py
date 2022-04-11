@@ -35,7 +35,8 @@ from airflow.models import (
     Base,
     DagModel,
     DagRun,
-    ImportError,
+    DbCallbackRequest,
+    ImportError as models_ImportError,
     Log,
     RenderedTaskInstanceFields,
     SensorInstance,
@@ -102,7 +103,7 @@ config_list: List[_TableConfig] = [
         keep_last_filters=[DagRun.external_trigger == false()],
         keep_last_group_by=DagRun.dag_id,
     ),
-    _TableConfig(orm_model=ImportError, recency_column=ImportError.timestamp),
+    _TableConfig(orm_model=models_ImportError, recency_column=models_ImportError.timestamp),
     _TableConfig(orm_model=Log, recency_column=Log.dttm),
     _TableConfig(
         orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date
@@ -115,6 +116,7 @@ config_list: List[_TableConfig] = [
     _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
     _TableConfig(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
     _TableConfig(orm_model=XCom, recency_column=XCom.timestamp),
+    _TableConfig(orm_model=DbCallbackRequest, recency_column=XCom.timestamp),
 ]
 try:
     from celery.backends.database.models import Task, TaskSet

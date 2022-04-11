@@ -16,16 +16,15 @@
 # under the License.
 
 """This module contains Google DataFusion operators."""
-from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
+from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,11 +46,12 @@ class DataFusionPipelineLinkHelper:
         return project_id
 
 
-class DataFusionInstanceLink(BaseOperatorLink):
+class DataFusionInstanceLink(BaseGoogleLink):
     """Helper class for constructing Data Fusion Instance link"""
 
     name = "Data Fusion Instance"
     key = "instance_conf"
+    format_str = DATAFUSION_INSTANCE_LINK
 
     @staticmethod
     def persist(
@@ -74,29 +74,13 @@ class DataFusionInstanceLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        instance_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionInstanceLink.key,
-        )
-        return (
-            DATAFUSION_INSTANCE_LINK.format(
-                region=instance_conf["region"],
-                instance_name=instance_conf["instance_name"],
-                project_id=instance_conf["project_id"],
-            )
-            if instance_conf
-            else ""
-        )
 
-
-class DataFusionPipelineLink(BaseOperatorLink):
+class DataFusionPipelineLink(BaseGoogleLink):
     """Helper class for constructing Data Fusion Pipeline link"""
 
     name = "Data Fusion Pipeline"
     key = "pipeline_conf"
+    format_str = DATAFUSION_PIPELINE_LINK
 
     @staticmethod
     def persist(
@@ -117,28 +101,13 @@ class DataFusionPipelineLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        pipeline_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionPipelineLink.key,
-        )
-        return (
-            DATAFUSION_PIPELINE_LINK.format(
-                uri=pipeline_conf["uri"],
-                pipeline_name=pipeline_conf["pipeline_name"],
-            )
-            if pipeline_conf
-            else ""
-        )
 
-
-class DataFusionPipelinesLink(BaseOperatorLink):
+class DataFusionPipelinesLink(BaseGoogleLink):
     """Helper class for constructing list of Data Fusion Pipelines link"""
 
     name = "Data Fusion Pipelines"
     key = "pipelines_conf"
+    format_str = DATAFUSION_PIPELINES_LINK
 
     @staticmethod
     def persist(
@@ -152,21 +121,6 @@ class DataFusionPipelinesLink(BaseOperatorLink):
             value={
                 "uri": uri,
             },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        pipelines_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionPipelinesLink.key,
-        )
-        return (
-            DATAFUSION_PIPELINES_LINK.format(
-                uri=pipelines_conf["uri"],
-            )
-            if pipelines_conf
-            else ""
         )
 
 

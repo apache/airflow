@@ -26,6 +26,7 @@ from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -40,6 +41,10 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 class EmrAddStepsOperator(BaseOperator):
     """
     An operator that adds steps to an existing EMR job_flow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrAddStepsOperator`
 
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
     :param job_flow_name: name of the JobFlow to add steps to. Use as an alternative to passing
@@ -230,7 +235,12 @@ class EmrClusterLink(BaseOperatorLink):
 
     name = 'EMR Cluster'
 
-    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
         """
         Get link to EMR cluster.
 
@@ -238,9 +248,13 @@ class EmrClusterLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
-        flow_id = XCom.get_one(
-            key="return_value", dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+        if ti_key is not None:
+            flow_id = XCom.get_value(key="return_value", ti_key=ti_key)
+        else:
+            assert dttm
+            flow_id = XCom.get_one(
+                key="return_value", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
+            )
         return (
             f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
             if flow_id
@@ -253,6 +267,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
     Creates an EMR JobFlow, reading the config from the EMR connection.
     A dictionary of JobFlow overrides can be passed that override
     the config from the connection.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrCreateJobFlowOperator`
 
     :param aws_conn_id: aws connection to uses
     :param emr_conn_id: emr connection to use
@@ -310,6 +328,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
 class EmrModifyClusterOperator(BaseOperator):
     """
     An operator that modifies an existing EMR cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrModifyClusterOperator`
+
     :param cluster_id: cluster identifier
     :param step_concurrency_level: Concurrency of the cluster
     :param aws_conn_id: aws connection to uses
@@ -353,6 +376,10 @@ class EmrModifyClusterOperator(BaseOperator):
 class EmrTerminateJobFlowOperator(BaseOperator):
     """
     Operator to terminate EMR JobFlows.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrTerminateJobFlowOperator`
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
     :param aws_conn_id: aws connection to uses

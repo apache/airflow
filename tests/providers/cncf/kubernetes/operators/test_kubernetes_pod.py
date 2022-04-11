@@ -14,38 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import ApiClient, models as k8s
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
-from airflow.operators.dummy import DummyOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
-    KubernetesPodOperator,
-    _prune_dict,
-    _suppress,
-)
+from airflow.models.xcom import XCom
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 
 
 def create_context(task):
     dag = DAG(dag_id="dag")
-    task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
-    task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
+    dag_run = DagRun(
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), run_type=DagRunType.MANUAL
+    )
+    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
+    task_instance.dag_run = dag_run
     return {
         "dag": dag,
         "ts": DEFAULT_DATE.isoformat(),
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
+        "run_id": "test",
     }
 
 
@@ -53,7 +51,8 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 class TestKubernetesPodOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, dag_maker):
         self.create_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
         self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
@@ -62,29 +61,26 @@ class TestKubernetesPodOperator:
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self.client_mock = self.client_patch.start()
+        self.dag_maker = dag_maker
 
-    def teardown_method(self):
+        yield
+
         self.create_pod_patch.stop()
         self.await_pod_patch.stop()
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
 
-    @staticmethod
-    def create_context(task):
-        dag = DAG(dag_id="dag")
-        task_instance = TaskInstance(task=task, run_id=IN_MEMORY_DAGRUN_ID)
-        task_instance.dag_run = DagRun(run_id=IN_MEMORY_DAGRUN_ID)
-        return {
-            "dag": dag,
-            "ts": DEFAULT_DATE.isoformat(),
-            "task": task,
-            "ti": task_instance,
-            "task_instance": task_instance,
-        }
+    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
+        with self.dag_maker(dag_id='dag') as dag:
+            operator.dag = dag
 
-    def run_pod(self, operator, context=None) -> k8s.V1Pod:
-        if context is None:
-            context = create_context(operator)
+        dr = self.dag_maker.create_dagrun(run_id='test')
+        (ti,) = dr.task_instances
+        ti.map_index = map_index
+        self.dag_run = dr
+        context = ti.get_template_context(session=self.dag_maker.session)
+        self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
+
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
@@ -113,8 +109,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
         self.client_mock.list_namespaced_pod.return_value = []
-        context = create_context(k)
-        k.execute(context=context)
+        self.run_pod(k)
         self.client_mock.assert_called_once_with(
             in_cluster=False,
             cluster_context="default",
@@ -178,7 +173,26 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
+        }
+
+    def test_labels_mapped(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+        )
+        pod = self.run_pod(k, map_index=10)
+        assert pod.metadata.labels == {
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "run_id": "test",
+            "map_index": "10",
         }
 
     def test_find_pod_labels(self):
@@ -195,10 +209,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         self.client_mock.return_value.list_namespaced_pod.assert_called_once()
         _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
-        assert (
-            kwargs['label_selector']
-            == 'dag_id=dag,execution_date=2016-01-01T0100000000-26816529d,task_id=task,already_checked!=True'
-        )
+        assert kwargs['label_selector'] == 'dag_id=dag,run_id=test,task_id=task,already_checked!=True'
 
     def test_image_pull_secrets_correctly_set(self):
         fake_pull_secrets = "fakeSecret"
@@ -291,13 +302,10 @@ class TestKubernetesPodOperator:
                 cluster_context="default",
             )
 
-    @parameterized.expand([[True], [False]])
-    def test_full_pod_spec(self, randomize_name):
-        pod_spec_name_base = "hello"
-        pod_spec = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name=pod_spec_name_base, labels={"foo": "bar"}, namespace="mynamespace"
-            ),
+    @pytest.fixture
+    def pod_spec(self):
+        return k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="hello", labels={"foo": "bar"}, namespace="mynamespace"),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
@@ -308,6 +316,10 @@ class TestKubernetesPodOperator:
                 ]
             ),
         )
+
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_full_pod_spec(self, randomize_name, pod_spec):
+        pod_spec_name_base = pod_spec.metadata.name
 
         k = KubernetesPodOperator(
             task_id="task",
@@ -336,9 +348,11 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_full_pod_spec_kwargs(self, randomize_name, pod_spec):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
         name_base = "world"
@@ -372,11 +386,11 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
-            "execution_date": mock.ANY,
+            "run_id": "test",
         }
 
-    @parameterized.expand([[True], [False]])
-    def test_pod_template_file(self, randomize_name):
+    @pytest.fixture
+    def pod_template_file(self, tmp_path):
         pod_template_yaml = b"""
             apiVersion: v1
             kind: Pod
@@ -414,104 +428,109 @@ class TestKubernetesPodOperator:
                     - something
         """
 
-        with NamedTemporaryFile() as tpl_file:
-            tpl_file.write(pod_template_yaml)
-            tpl_file.flush()
+        tpl_file = tmp_path / "template.yaml"
+        tpl_file.write_bytes(pod_template_yaml)
 
-            k = KubernetesPodOperator(
-                task_id="task",
-                random_name_suffix=randomize_name,
-                pod_template_file=tpl_file.name,
-            )
-            pod = self.run_pod(k)
+        yield tpl_file
 
-            if randomize_name:
-                assert pod.metadata.name.startswith("hello")
-                assert pod.metadata.name != "hello"
-            else:
-                pod.metadata.name == "hello"
-            # Check labels are added from pod_template_file and
-            # the pod identifying labels including Airflow version
-            assert pod.metadata.labels == {
-                "foo": "bar",
-                "dag_id": "dag",
-                "kubernetes_pod_operator": "True",
-                "task_id": "task",
-                "try_number": "1",
-                "airflow_version": mock.ANY,
-                "execution_date": mock.ANY,
-            }
-            assert pod.metadata.namespace == "mynamespace"
-            assert pod.spec.containers[0].image == "ubuntu:16.04"
-            assert pod.spec.containers[0].image_pull_policy == "Always"
-            assert pod.spec.containers[0].command == ["something"]
-            assert pod.spec.service_account_name == "foo"
-            affinity = {
-                'node_affinity': {
-                    'preferred_during_scheduling_ignored_during_execution': [
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_pod_template_file(self, randomize_name, pod_template_file):
+        k = KubernetesPodOperator(
+            task_id="task",
+            random_name_suffix=randomize_name,
+            pod_template_file=pod_template_file,
+        )
+        pod = self.run_pod(k)
+
+        if randomize_name:
+            assert pod.metadata.name.startswith("hello")
+            assert pod.metadata.name != "hello"
+        else:
+            pod.metadata.name == "hello"
+        # Check labels are added from pod_template_file and
+        # the pod identifying labels including Airflow version
+        assert pod.metadata.labels == {
+            "foo": "bar",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "run_id": "test",
+        }
+        assert pod.metadata.namespace == "mynamespace"
+        assert pod.spec.containers[0].image == "ubuntu:16.04"
+        assert pod.spec.containers[0].image_pull_policy == "Always"
+        assert pod.spec.containers[0].command == ["something"]
+        assert pod.spec.service_account_name == "foo"
+        affinity = {
+            'node_affinity': {
+                'preferred_during_scheduling_ignored_during_execution': [
+                    {
+                        'preference': {
+                            'match_expressions': [
+                                {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                            ],
+                            'match_fields': None,
+                        },
+                        'weight': 1,
+                    }
+                ],
+                'required_during_scheduling_ignored_during_execution': {
+                    'node_selector_terms': [
                         {
-                            'preference': {
-                                'match_expressions': [
-                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
-                                ],
-                                'match_fields': None,
-                            },
-                            'weight': 1,
+                            'match_expressions': [
+                                {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                            ],
+                            'match_fields': None,
                         }
-                    ],
-                    'required_during_scheduling_ignored_during_execution': {
-                        'node_selector_terms': [
-                            {
-                                'match_expressions': [
-                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
-                                ],
-                                'match_fields': None,
-                            }
-                        ]
-                    },
+                    ]
                 },
-                'pod_affinity': None,
-                'pod_anti_affinity': None,
-            }
+            },
+            'pod_affinity': None,
+            'pod_anti_affinity': None,
+        }
 
-            assert pod.spec.affinity.to_dict() == affinity
+        assert pod.spec.affinity.to_dict() == affinity
 
-            # kwargs take precedence, however
-            image = "some.custom.image:andtag"
-            name_base = "world"
-            k = KubernetesPodOperator(
-                task_id="task",
-                pod_template_file=tpl_file.name,
-                name=name_base,
-                random_name_suffix=randomize_name,
-                image=image,
-                labels={"hello": "world"},
-            )
-            pod = self.run_pod(k)
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_pod_template_file_kwargs_override(self, randomize_name, pod_template_file):
+        # kwargs take precedence, however
+        image = "some.custom.image:andtag"
+        name_base = "world"
+        k = KubernetesPodOperator(
+            task_id="task",
+            pod_template_file=pod_template_file,
+            name=name_base,
+            random_name_suffix=randomize_name,
+            image=image,
+            labels={"hello": "world"},
+        )
+        pod = self.run_pod(k)
 
-            # make sure the kwargs takes precedence (and that name is randomized when expected)
-            if randomize_name:
-                assert pod.metadata.name.startswith(name_base)
-                assert pod.metadata.name != name_base
-            else:
-                assert pod.metadata.name == name_base
-            assert pod.spec.containers[0].image == image
-            # Check labels are added from pod_template_file, the operator itself and
-            # the pod identifying labels including Airflow version
-            assert pod.metadata.labels == {
-                "foo": "bar",
-                "hello": "world",
-                "dag_id": "dag",
-                "kubernetes_pod_operator": "True",
-                "task_id": "task",
-                "try_number": "1",
-                "airflow_version": mock.ANY,
-                "execution_date": mock.ANY,
-            }
+        # make sure the kwargs takes precedence (and that name is randomized when expected)
+        if randomize_name:
+            assert pod.metadata.name.startswith(name_base)
+            assert pod.metadata.name != name_base
+        else:
+            assert pod.metadata.name == name_base
+        assert pod.spec.containers[0].image == image
+        # Check labels are added from pod_template_file, the operator itself and
+        # the pod identifying labels including Airflow version
+        assert pod.metadata.labels == {
+            "foo": "bar",
+            "hello": "world",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "run_id": "test",
+        }
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_describes_pod_on_failure(self, await_container_mock, follow_container_mock):
+    def test_describes_pod_on_failure(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -526,7 +545,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             cluster_context="default",
         )
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Failed'
         self.await_pod_mock.return_value = remote_pod_mock
@@ -537,9 +556,9 @@ class TestKubernetesPodOperator:
 
         assert not self.client_mock.return_value.read_namespaced_pod.called
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_no_handle_failure_on_success(self, await_container_mock, follow_container_mock):
+    def test_no_handle_failure_on_success(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -555,15 +574,13 @@ class TestKubernetesPodOperator:
             cluster_context="default",
         )
 
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
 
-        context = create_context(k)
-
         # assert does not raise
-        k.execute(context=context)
+        self.run_pod(k)
 
     def test_create_with_affinity(self):
         name_base = "test"
@@ -724,31 +741,24 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
-    def test_push_xcom_pod_info(self, mock_extract_xcom, dag_maker, do_xcom_push):
+    def test_push_xcom_pod_info(self, mock_extract_xcom, do_xcom_push):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         mock_extract_xcom.return_value = '{}'
-        with dag_maker():
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                name="test",
-                task_id="task",
-                in_cluster=False,
-                do_xcom_push=do_xcom_push,
-            )
-            DummyOperator(task_id='task_to_pull_xcom')
-        dagrun = dag_maker.create_dagrun()
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-
-        pod = self.run_pod(
-            tis["task"].task,
-            context=tis["task"].get_template_context(session=dag_maker.session),
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=do_xcom_push,
         )
-        pod_name = tis["task_to_pull_xcom"].xcom_pull(task_ids="task", key='pod_name')
-        pod_namespace = tis["task_to_pull_xcom"].xcom_pull(task_ids="task", key='pod_namespace')
-        assert pod_name and pod_name == pod.metadata.name
-        assert pod_namespace and pod_namespace == pod.metadata.namespace
+
+        pod = self.run_pod(k)
+        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key='pod_name')
+        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key='pod_namespace')
+        assert pod_name == pod.metadata.name
+        assert pod_namespace == pod.metadata.namespace
 
     def test_previous_pods_ignored_for_reattached(self):
         """
@@ -844,32 +854,3 @@ def test__suppress():
             raise ValueError("failure")
 
         mock_error.assert_called_once_with("failure", exc_info=True)
-
-
-@pytest.mark.parametrize(
-    'mode, expected',
-    [
-        (
-            'strict',
-            {
-                'b': '',
-                'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
-                'd': ['', 0, '1'],
-                'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
-            },
-        ),
-        (
-            'truthy',
-            {
-                'c': {'c': 'hi', 'd': ['1']},
-                'd': ['1'],
-                'e': [{'c': 'hi', 'd': ['1']}, ['1']],
-            },
-        ),
-    ],
-)
-def test__prune_dict(mode, expected):
-    l1 = ['', 0, '1', None]
-    d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
-    d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
-    assert _prune_dict(d2, mode=mode) == expected

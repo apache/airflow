@@ -105,12 +105,12 @@ HTTP monitoring for Celery Cluster
 
 You can use Flower to monitor the health of the Celery cluster. It also provides an HTTP API that you can use to build a health check for your environment.
 
-For details about installation, see: :ref:`executor:CeleryExecutor`. For details about usage, see: `The Flower project documentation <https://flower.readthedocs.io/en/stable/>`__.
+For details about installation, see: :ref:`executor:CeleryExecutor`. For details about usage, see: `The Flower project documentation <https://flower.readthedocs.io/>`__.
 
 CLI Check for Celery Workers
 ----------------------------
 
-To verify that the database is working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
+To verify that the Celery workers are working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
 with a non-zero error code.
 
 To check if the worker running on the local host is working correctly, run:

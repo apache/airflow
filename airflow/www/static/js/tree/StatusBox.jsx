@@ -20,66 +20,87 @@
 /* global stateColors */
 
 import React from 'react';
+import { isEqual } from 'lodash';
 import {
-  Flex,
   Box,
   Tooltip,
+  useTheme,
 } from '@chakra-ui/react';
 
-import { callModal } from '../dag';
 import InstanceTooltip from './InstanceTooltip';
+import { useContainerRef } from './context/containerRef';
+
+export const boxSize = 10;
+export const boxSizePx = `${boxSize}px`;
+
+export const SimpleStatus = ({ state, ...rest }) => (
+  <Box
+    width={boxSizePx}
+    height={boxSizePx}
+    backgroundColor={stateColors[state] || 'white'}
+    borderRadius="2px"
+    borderWidth={state ? 0 : 1}
+    {...rest}
+  />
+);
 
 const StatusBox = ({
-  group, instance, containerRef, extraLinks = [], ...rest
+  group, instance, onSelect,
 }) => {
-  const {
-    executionDate, taskId, tryNumber = 0, operator, runId,
-  } = instance;
-  const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined, runId);
+  const containerRef = useContainerRef();
+  const { runId, taskId } = instance;
+  const { colors } = useTheme();
+  const hoverBlue = `${colors.blue[100]}50`;
 
   // Fetch the corresponding column element and set its background color when hovering
-  const onMouseOver = () => {
+  const onMouseEnter = () => {
     [...containerRef.current.getElementsByClassName(`js-${runId}`)]
-      .forEach((e) => { e.style.backgroundColor = 'rgba(113, 128, 150, 0.1)'; });
+      .forEach((e) => {
+        // Don't apply hover if it is already selected
+        if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
+      });
   };
   const onMouseLeave = () => {
     [...containerRef.current.getElementsByClassName(`js-${runId}`)]
       .forEach((e) => { e.style.backgroundColor = null; });
   };
 
+  const onClick = () => {
+    onMouseLeave();
+    onSelect({ taskId, runId });
+  };
+
   return (
     <Tooltip
       label={<InstanceTooltip instance={instance} group={group} />}
-      fontSize="md"
       portalProps={{ containerRef }}
       hasArrow
       placement="top"
       openDelay={400}
     >
-      <Flex
-        p="1px"
-        my="1px"
-        mx="2px"
-        justifyContent="center"
-        alignItems="center"
-        onClick={onClick}
-        cursor={!group.children && 'pointer'}
-        data-testid="task-instance"
-        zIndex={1}
-        onMouseEnter={onMouseOver}
-        onMouseLeave={onMouseLeave}
-        {...rest}
-      >
-        <Box
-          width="10px"
-          height="10px"
-          backgroundColor={stateColors[instance.state] || 'white'}
-          borderRadius="2px"
-          borderWidth={instance.state ? 0 : 1}
+      <Box>
+        <SimpleStatus
+          state={instance.state}
+          onClick={onClick}
+          cursor="pointer"
+          data-testid="task-instance"
+          zIndex={1}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
-      </Flex>
+      </Box>
     </Tooltip>
   );
 };
 
-export default StatusBox;
+// The default equality function is a shallow comparison and json objects will return false
+// This custom compare function allows us to do a deeper comparison
+const compareProps = (
+  prevProps,
+  nextProps,
+) => (
+  isEqual(prevProps.group, nextProps.group)
+  && isEqual(prevProps.instance, nextProps.instance)
+);
+
+export default React.memo(StatusBox, compareProps);
