@@ -23,7 +23,6 @@ import {
   VStack,
   Divider,
   StackDivider,
-  Text,
 } from '@chakra-ui/react';
 
 import RunAction from './taskActions/Run';
