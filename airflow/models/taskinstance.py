@@ -323,7 +323,7 @@ class _LazyXComAccess(collections.abc.Sequence):
     """Wrapper to lazily pull XCom with a sequence-like interface.
 
     Note that since the session bound to the parent query may have died when we
-    actually access the sequence's content, we must a new fresh session
+    actually access the sequence's content, we must create a new session
     for every function call with ``with_session()``.
     """
 
