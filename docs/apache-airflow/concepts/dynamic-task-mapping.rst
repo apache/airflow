@@ -158,7 +158,7 @@ The ``make_list`` task runs as a normal task and must return a list or dict (see
 Mapping with non-TaskFlow operators
 ===================================
 
-It is possible to use partial and expand with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as task_id, queue, pool, and most other arguments to BaseOperator.
+It is possible to use ``partial`` and ``expand`` with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as ``task_id``, ``queue``, ``pool``, and most other arguments to ``BaseOperator``.
 
 
 .. code-block:: python
@@ -235,7 +235,7 @@ There are two limits that you can place on a task:
 
   The [core] ``max_map_length`` config option is the maximum number of tasks that ``expand`` can create – the default value is 1024.
 
-  If a source task ("make_list" in our earlier example) returns a list longer than this it will result in *that* task failing.
+  If a source task (``make_list`` in our earlier example) returns a list longer than this it will result in *that* task failing.
 
 - **Limiting parallel copies of a mapped task**
 
