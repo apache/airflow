@@ -89,7 +89,6 @@ with models.DAG(
         project_id=PROJECT_ID,
         region=REGION,
         cluster_name=CLUSTER_NAME,
-        run_in_gke_cluster=True,
         virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
     )
     # [END how_to_cloud_dataproc_create_cluster_operator_in_gke]

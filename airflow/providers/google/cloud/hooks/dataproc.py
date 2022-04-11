@@ -294,9 +294,8 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         cluster_name: str,
-        cluster_config: Union[Dict, Cluster, None],
+        cluster_config: Union[Dict, Cluster, None] = None,
         virtual_cluster_config: Optional[Dict] = None,
-        run_in_gke_cluster: Optional[bool] = False,
         labels: Optional[Dict[str, str]] = None,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
@@ -317,8 +316,6 @@ class DataprocHook(GoogleBaseHook):
             cluster that does not directly control the underlying compute resources, for example, when
             creating a `Dataproc-on-GKE cluster`
             :class:`~google.cloud.dataproc_v1.types.VirtualClusterConfig`
-        :param run_in_gke_cluster: Optional. If true run in Google Kubernetes Engine cluster with virtual
-            cluster config
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -334,20 +331,15 @@ class DataprocHook(GoogleBaseHook):
         labels = labels or {}
         labels.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
 
-        cluster = (
-            {
-                "project_id": project_id,
-                "cluster_name": cluster_name,
-                "virtual_cluster_config": virtual_cluster_config,
-            }
-            if run_in_gke_cluster
-            else {
-                "project_id": project_id,
-                "cluster_name": cluster_name,
-                "config": cluster_config,
-                "labels": labels,
-            }
-        )
+        cluster = {
+            "project_id": project_id,
+            "cluster_name": cluster_name,
+        }
+        if virtual_cluster_config is not None:
+            cluster['virtual_cluster_config'] = virtual_cluster_config  # type: ignore
+        if cluster_config is not None:
+            cluster['config'] = cluster_config  # type: ignore
+            cluster['labels'] = labels  # type: ignore
 
         client = self.get_cluster_client(region=region)
         result = client.create_cluster(

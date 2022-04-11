@@ -416,7 +416,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         cluster that does not directly control the underlying compute resources, for example, when creating a
         `Dataproc-on-GKE cluster
         <https://cloud.google.com/dataproc/docs/concepts/jobs/dataproc-gke#create-a-dataproc-on-gke-cluster>`
-    :param run_in_gke_cluster: If true run in Google Kubernetes Engine cluster with virtual cluster config
     :param region: The specified region where the dataproc cluster is created.
     :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
@@ -461,7 +460,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         project_id: Optional[str] = None,
         cluster_config: Optional[Union[Dict, Cluster]] = None,
         virtual_cluster_config: Optional[Dict] = None,
-        run_in_gke_cluster: bool = False,
         labels: Optional[Dict] = None,
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
@@ -482,7 +480,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             region = 'global'
 
         # TODO: remove one day
-        if cluster_config is None and not run_in_gke_cluster:
+        if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
@@ -525,7 +523,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
         self.virtual_cluster_config = virtual_cluster_config
-        self.run_in_gke_cluster = run_in_gke_cluster
 
     def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(
@@ -535,7 +532,6 @@ class DataprocCreateClusterOperator(BaseOperator):
             labels=self.labels,
             cluster_config=self.cluster_config,
             virtual_cluster_config=self.virtual_cluster_config,
-            run_in_gke_cluster=self.run_in_gke_cluster,
             request_id=self.request_id,
             retry=self.retry,
             timeout=self.timeout,

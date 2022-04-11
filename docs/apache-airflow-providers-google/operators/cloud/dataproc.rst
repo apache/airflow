@@ -58,8 +58,7 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
-For create Dataproc cluster in Google Kubernetes Engine you should enable run_in_gke_cluster flag
-and use this cluster configuration:
+For create Dataproc cluster in Google Kubernetes Engine you should use this cluster configuration:
 
 .. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_gke.py
     :language: python
