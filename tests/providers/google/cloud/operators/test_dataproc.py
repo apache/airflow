@@ -439,7 +439,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             'metadata': METADATA,
             'cluster_config': CONFIG,
             'labels': LABELS,
-            'run_in_gke_cluster': False,
             'virtual_cluster_config': None,
         }
         expected_calls = self.extra_links_expected_calls_base + [
@@ -489,7 +488,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             'metadata': METADATA,
             'cluster_config': None,
             'labels': LABELS,
-            'run_in_gke_cluster': True,
             'virtual_cluster_config': VIRTUAL_CLUSTER_CONFIG,
         }
         expected_calls = self.extra_links_expected_calls_base + [
@@ -502,7 +500,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             labels=LABELS,
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
-            run_in_gke_cluster=True,
             virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
             request_id=REQUEST_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -556,7 +553,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
-            run_in_gke_cluster=False,
             virtual_cluster_config=None,
         )
         mock_hook.return_value.get_cluster.assert_called_once_with(
