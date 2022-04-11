@@ -201,7 +201,6 @@ class TestS3KeySizeSensor(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [None, False],
             [{"ContentLength": 0}, False],
             [{"ContentLength": 10}, True],
         ]
@@ -214,21 +213,3 @@ class TestS3KeySizeSensor(unittest.TestCase):
 
         mock_head_object.return_value = head_object_return_value
         assert op.poke(None) is poke_return_value
-
-    @parameterized.expand(
-        [
-            [[], False],
-            [[{'Size': 0}], False],
-            [[{'Size': 0}, {'Size': 10}], False],
-            [[{'Size': 20}, {'Size': 10}], True],
-        ]
-    )
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata')
-    def test_poke_wildcard(self, get_file_metadata_return_value, poke_return_value, mock_get_file_metadata):
-        op = S3KeySizeSensor(
-            task_id='s3_key_sensor', bucket_key='s3://test_bucket/file*', wildcard_match=True
-        )
-
-        mock_get_file_metadata.return_value = get_file_metadata_return_value
-        assert op.poke(None) is poke_return_value
-        mock_get_file_metadata.assert_called_once_with("file", "test_bucket")

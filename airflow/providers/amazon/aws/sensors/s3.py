@@ -152,14 +152,6 @@ class S3KeySensor(BaseSensorOperator):
         return self.hook
 
 
-def default_check_fn(data: List) -> bool:
-    """Default function for checking that S3 Objects have size more than 0
-
-    :param data: List of the objects in S3 bucket.
-    """
-    return all(f.get('Size', 0) > 0 for f in data)
-
-
 class S3KeySizeSensor(S3KeySensor):
     """
     This class is deprecated.
@@ -181,7 +173,16 @@ class S3KeySizeSensor(S3KeySensor):
             stacklevel=2,
         )
 
-        super().__init__(check_fn=check_fn if check_fn is not None else default_check_fn, **kwargs)
+        super().__init__(check_fn=check_fn if check_fn is not None else S3KeySizeSensor.default_check_fn,
+                         **kwargs)
+
+    @staticmethod
+    def default_check_fn(data: List) -> bool:
+        """Default function for checking that S3 Objects have size more than 0
+
+        :param data: List of the objects in S3 bucket.
+        """
+        return all(f.get('Size', 0) > 0 for f in data)
 
 
 @poke_mode_only
