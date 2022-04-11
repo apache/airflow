@@ -510,6 +510,11 @@ class MappedOperator(AbstractOperator):
         return getattr(self, self._expansion_kwargs_attr)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+        """Return dict of argument name to map length.
+
+        If any arguments are not known right now (upstream task not finished) they will not be present in the
+        dict.
+        """
         # TODO: Find a way to cache this.
         from airflow.models.taskmap import TaskMap
         from airflow.models.xcom import XCom
