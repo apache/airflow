@@ -28,6 +28,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dlp_v2.types import DlpJob
 
 from airflow.exceptions import AirflowException
@@ -75,7 +76,7 @@ class TestCloudDLPHook(unittest.TestCase):
         self.hook.cancel_dlp_job(dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.cancel_dlp_job.assert_called_once_with(
-            name=DLP_JOB_PATH, retry=None, timeout=None, metadata=()
+            name=DLP_JOB_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
@@ -108,7 +109,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             deidentify_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -123,7 +124,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             deidentify_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -149,7 +150,7 @@ class TestCloudDLPHook(unittest.TestCase):
             inspect_job=None,
             risk_job=None,
             job_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -174,7 +175,7 @@ class TestCloudDLPHook(unittest.TestCase):
         self.hook.create_dlp_job(project_id=PROJECT_ID)
 
         get_conn.return_value.get_dlp_job.assert_called_once_with(
-            name=DLP_JOB_PATH, retry=None, timeout=None, metadata=()
+            name=DLP_JOB_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -192,7 +193,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             inspect_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -207,7 +208,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             inspect_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -232,7 +233,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             job_trigger=None,
             trigger_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -262,7 +263,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             config=None,
             stored_info_type_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -277,7 +278,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             config=None,
             stored_info_type_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -305,7 +306,7 @@ class TestCloudDLPHook(unittest.TestCase):
             item=None,
             inspect_template_name=None,
             deidentify_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -331,7 +332,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_deidentify_template.assert_called_once_with(
             name=DEIDENTIFY_TEMPLATE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -342,7 +343,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_deidentify_template.assert_called_once_with(
             name=DEIDENTIFY_TEMPLATE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -367,7 +368,7 @@ class TestCloudDLPHook(unittest.TestCase):
         self.hook.delete_dlp_job(dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.delete_dlp_job.assert_called_once_with(
-            name=DLP_JOB_PATH, retry=None, timeout=None, metadata=()
+            name=DLP_JOB_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
@@ -396,7 +397,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_inspect_template.assert_called_once_with(
             name=INSPECT_TEMPLATE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -407,7 +408,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_inspect_template.assert_called_once_with(
             name=INSPECT_TEMPLATE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -432,7 +433,7 @@ class TestCloudDLPHook(unittest.TestCase):
         self.hook.delete_job_trigger(job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.delete_job_trigger.assert_called_once_with(
-            name=JOB_TRIGGER_PATH, retry=None, timeout=None, metadata=()
+            name=JOB_TRIGGER_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
@@ -463,7 +464,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_stored_info_type.assert_called_once_with(
             name=STORED_INFO_TYPE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -474,7 +475,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         get_conn.return_value.delete_stored_info_type.assert_called_once_with(
             name=STORED_INFO_TYPE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -507,7 +508,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_deidentify_template.assert_called_once_with(
             name=DEIDENTIFY_TEMPLATE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -520,7 +521,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_deidentify_template.assert_called_once_with(
             name=DEIDENTIFY_TEMPLATE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -547,7 +548,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         assert result is API_RESPONSE
         get_conn.return_value.get_dlp_job.assert_called_once_with(
-            name=DLP_JOB_PATH, retry=None, timeout=None, metadata=()
+            name=DLP_JOB_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
@@ -578,7 +579,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_inspect_template.assert_called_once_with(
             name=INSPECT_TEMPLATE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -591,7 +592,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_inspect_template.assert_called_once_with(
             name=INSPECT_TEMPLATE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -618,7 +619,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         assert result is API_RESPONSE
         get_conn.return_value.get_job_trigger.assert_called_once_with(
-            name=JOB_TRIGGER_PATH, retry=None, timeout=None, metadata=()
+            name=JOB_TRIGGER_PATH, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
@@ -651,7 +652,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_stored_info_type.assert_called_once_with(
             name=STORED_INFO_TYPE_ORGANIZATION_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -666,7 +667,7 @@ class TestCloudDLPHook(unittest.TestCase):
         assert result is API_RESPONSE
         get_conn.return_value.get_stored_info_type.assert_called_once_with(
             name=STORED_INFO_TYPE_PROJECT_PATH,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -697,7 +698,7 @@ class TestCloudDLPHook(unittest.TestCase):
             inspect_config=None,
             item=None,
             inspect_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -726,7 +727,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -740,7 +741,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -766,7 +767,7 @@ class TestCloudDLPHook(unittest.TestCase):
             page_size=None,
             type_=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -788,7 +789,7 @@ class TestCloudDLPHook(unittest.TestCase):
 
         assert result is API_RESPONSE
         get_conn.return_value.list_info_types.assert_called_once_with(
-            language_code=None, filter_=None, retry=None, timeout=None, metadata=()
+            language_code=None, filter_=None, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -805,7 +806,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -819,7 +820,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -844,7 +845,7 @@ class TestCloudDLPHook(unittest.TestCase):
             page_size=None,
             order_by=None,
             filter_=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -873,7 +874,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=ORGANIZATION_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -887,7 +888,7 @@ class TestCloudDLPHook(unittest.TestCase):
             parent=PROJECT_PATH,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -914,7 +915,7 @@ class TestCloudDLPHook(unittest.TestCase):
             image_redaction_configs=None,
             include_findings=None,
             byte_item=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -942,7 +943,7 @@ class TestCloudDLPHook(unittest.TestCase):
             item=None,
             inspect_template_name=None,
             reidentify_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -974,7 +975,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=DEIDENTIFY_TEMPLATE_ORGANIZATION_PATH,
             deidentify_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -989,7 +990,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=DEIDENTIFY_TEMPLATE_PROJECT_PATH,
             deidentify_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1024,7 +1025,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=INSPECT_TEMPLATE_ORGANIZATION_PATH,
             inspect_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1039,7 +1040,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=INSPECT_TEMPLATE_PROJECT_PATH,
             inspect_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1069,7 +1070,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=JOB_TRIGGER_PATH,
             job_trigger=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1106,7 +1107,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=STORED_INFO_TYPE_ORGANIZATION_PATH,
             config=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1123,7 +1124,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=STORED_INFO_TYPE_PROJECT_PATH,
             config=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

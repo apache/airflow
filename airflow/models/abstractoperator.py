@@ -29,6 +29,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     Union,
@@ -92,7 +93,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
 
     owner: str
     task_id: str

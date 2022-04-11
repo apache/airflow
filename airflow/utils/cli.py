@@ -41,7 +41,7 @@ from airflow.utils.session import provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 
 def _check_cli_args(args):

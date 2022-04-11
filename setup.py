@@ -264,7 +264,7 @@ dask = [
 ]
 databricks = [
     'requests>=2.26.0, <3',
-    'databricks-sql-connector>=1.0.0, <2.0.0',
+    'databricks-sql-connector>=1.0.2, <2.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -328,7 +328,7 @@ google = [
     # google-api-core>=2.0.0 which cannot be used yet (see below comment)
     # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
     'google-ads>=12.0.0,<14.0.1',
-    'google-api-core>=1.25.1,<3.0.0',
+    'google-api-core>=2.7.0,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0',
     'google-auth-httplib2>=0.0.1',

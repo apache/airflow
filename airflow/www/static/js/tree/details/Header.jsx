@@ -24,6 +24,7 @@ import {
   BreadcrumbLink,
   Box,
   Heading,
+  Text,
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
@@ -72,22 +73,22 @@ const Header = () => {
   const isTaskDetails = runId && taskId;
 
   return (
-    <Breadcrumb color="gray.300" mt={4}>
+    <Breadcrumb mt={4} separator={<Text color="gray.300">/</Text>}>
       <BreadcrumbItem isCurrentPage={isDagDetails}>
-        <BreadcrumbLink onClick={clearSelection} color="black" _hover={isDagDetails ? { cursor: 'default' } : undefined}>
+        <BreadcrumbLink onClick={clearSelection} _hover={isDagDetails ? { cursor: 'default' } : undefined}>
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
         <BreadcrumbItem isCurrentPage={isRunDetails}>
-          <BreadcrumbLink onClick={() => onSelect({ runId })} color="black" _hover={isRunDetails ? { cursor: 'default' } : undefined}>
+          <BreadcrumbLink onClick={() => onSelect({ runId })} _hover={isRunDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
         <BreadcrumbItem isCurrentPage>
-          <BreadcrumbLink color="black" _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
+          <BreadcrumbLink _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>
         </BreadcrumbItem>

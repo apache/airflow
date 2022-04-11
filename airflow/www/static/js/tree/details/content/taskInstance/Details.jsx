@@ -31,8 +31,7 @@ import Time from '../../../Time';
 
 const Details = ({ instance, group, operator }) => {
   const isGroup = !!group.children;
-  const groupSummary = [];
-  const mapSummary = [];
+  const summary = [];
 
   const {
     taskId,
@@ -50,8 +49,8 @@ const Details = ({ instance, group, operator }) => {
     tooltip,
   } = group;
 
+  const numMap = finalStatesMap();
   if (isGroup) {
-    const numMap = finalStatesMap();
     children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -59,72 +58,58 @@ const Details = ({ instance, group, operator }) => {
         if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        groupSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
-  }
-
-  if (isMapped && mappedStates) {
-    const numMap = finalStatesMap();
+  } else if (isMapped && mappedStates) {
     mappedStates.forEach((s) => {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        mapSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
   }
+
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      summary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Flex key={val} ml="10px" alignItems="center">
+          <SimpleStatus state={val} mx={2} />
+          {val}
+          {': '}
+          {key}
+        </Flex>,
+      );
+    }
+  });
 
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
   const isStateFinal = ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
+  const isOverall = (isMapped || isGroup) && 'Overall ';
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Box>
         {tooltip && (
-          <Text>{tooltip}</Text>
+          <>
+            <Text>{tooltip}</Text>
+            <br />
+          </>
+        )}
+        {mappedStates.length > 0 && (
+        <Text>
+          {mappedStates.length}
+          {' '}
+          {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+          Mapped
+        </Text>
         )}
         <Flex alignItems="center">
-          <Text as="strong">Status:</Text>
+          <Text as="strong">
+            {isOverall}
+            Status:
+          </Text>
           <SimpleStatus state={state} mx={2} />
           {state || 'no status'}
         </Flex>
-        {isGroup && (
-          <>
-            <br />
-            <Text as="strong">Task Group Summary</Text>
-            {groupSummary}
-          </>
-        )}
-        {isMapped && (
-          <>
-            <br />
-            <Text as="strong">
-              {mappedStates.length}
-              {' '}
-              {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
-              Mapped
-            </Text>
-            {mapSummary}
-          </>
+        {summary.length > 0 && (
+          summary
         )}
         <br />
         <Text>
@@ -143,13 +128,13 @@ const Details = ({ instance, group, operator }) => {
             {operator}
           </Text>
         )}
+        <br />
         <Text>
+          {isOverall}
           Duration:
           {' '}
           {formatDuration(duration || getDuration(startDate, endDate))}
         </Text>
-      </Box>
-      <Box>
         {startDate && (
         <Text>
           Started:

@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -65,7 +67,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 dataset=TEST_DATASET,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -83,7 +85,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -105,7 +107,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 export_config=TEST_EXPORT_CONFIG,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -127,7 +129,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.annotation_spec_path.assert_called_once_with(
@@ -148,7 +150,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -170,7 +172,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 import_configs=TEST_IMPORT_CONFIGS,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -196,7 +198,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.data_item_path.assert_called_once_with(
@@ -221,7 +223,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -245,7 +247,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -266,7 +268,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
                 update_mask=TEST_UPDATE_MASK,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -295,7 +297,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 dataset=TEST_DATASET,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -313,7 +315,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.dataset_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -335,7 +337,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 export_config=TEST_EXPORT_CONFIG,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -357,7 +359,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.annotation_spec_path.assert_called_once_with(
@@ -378,7 +380,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -400,7 +402,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 import_configs=TEST_IMPORT_CONFIGS,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -426,7 +428,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.data_item_path.assert_called_once_with(
@@ -451,7 +453,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(
@@ -475,7 +477,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -496,7 +498,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
                 update_mask=TEST_UPDATE_MASK,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.dataset_path.assert_called_once_with(

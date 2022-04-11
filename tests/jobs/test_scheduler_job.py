@@ -1760,7 +1760,7 @@ class TestSchedulerJob:
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=dagrun_info.logical_date,
-            state=State.RUNNING,
+            state=None,
             session=session,
         )
 
@@ -1769,7 +1769,7 @@ class TestSchedulerJob:
             dr = dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=dr.data_interval_end,
-                state=State.RUNNING,
+                state=None,
                 session=session,
             )
         ex_date = dr.execution_date
@@ -1851,7 +1851,7 @@ class TestSchedulerJob:
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
+            state=None,
         )
         self.null_exec.mock_task_fail(dag_id, 'test_dagrun_fail', dr.run_id)
 

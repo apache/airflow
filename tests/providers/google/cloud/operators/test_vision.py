@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.vision_v1.types import Product, ProductSet, ReferenceImage
 
 from airflow.providers.google.cloud.operators.vision import (
@@ -75,7 +76,7 @@ class TestCloudVisionProductSetCreate(unittest.TestCase):
             product_set=PRODUCTSET_TEST,
             product_set_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -112,7 +113,7 @@ class TestCloudVisionProductSetUpdate(unittest.TestCase):
             product_set=PRODUCTSET_TEST,
             product_set_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
             update_mask=None,
@@ -135,7 +136,7 @@ class TestCloudVisionProductSetGet(unittest.TestCase):
             location=LOCATION_TEST,
             product_set_id=PRODUCTSET_ID_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -157,7 +158,7 @@ class TestCloudVisionProductSetDelete(unittest.TestCase):
             location=LOCATION_TEST,
             product_set_id=PRODUCTSET_ID_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -178,7 +179,7 @@ class TestCloudVisionProductCreate(unittest.TestCase):
             product=PRODUCT_TEST,
             product_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -212,7 +213,7 @@ class TestCloudVisionProductGet(unittest.TestCase):
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -233,7 +234,7 @@ class TestCloudVisionProductUpdate(unittest.TestCase):
             product=PRODUCT_TEST,
             product_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
             update_mask=None,
@@ -256,7 +257,7 @@ class TestCloudVisionProductDelete(unittest.TestCase):
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -285,17 +286,15 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             reference_image=REFERENCE_IMAGE_TEST,
             reference_image_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @mock.patch(
-        'airflow.providers.google.cloud.operators.vision.CloudVisionHook',
-        **{'return_value.create_reference_image.side_effect': AlreadyExists("MESSAGe")},
-    )
+    @mock.patch('airflow.providers.google.cloud.operators.vision.CloudVisionHook')
     def test_already_exists(self, mock_hook):
         # Exception AlreadyExists not raised, caught in the operator's execute() - idempotence
+        mock_hook.return_value.create_reference_image.side_effect = AlreadyExists("MESSAGEe")
         op = CloudVisionCreateReferenceImageOperator(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -313,7 +312,7 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             reference_image=REFERENCE_IMAGE_TEST,
             reference_image_id=None,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -341,7 +340,7 @@ class TestCloudVisionReferenceImageDelete(unittest.TestCase):
             product_id=PRODUCT_ID_TEST,
             reference_image_id=REFERENCE_IMAGE_ID_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -366,7 +365,7 @@ class TestCloudVisionAddProductToProductSetOperator(unittest.TestCase):
             product_id=PRODUCT_ID_TEST,
             location=LOCATION_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -391,7 +390,7 @@ class TestCloudVisionRemoveProductFromProductSetOperator(unittest.TestCase):
             product_id=PRODUCT_ID_TEST,
             location=LOCATION_TEST,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -407,7 +406,7 @@ class TestCloudVisionAnnotateImageOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.annotate_image.assert_called_once_with(
-            request=ANNOTATE_REQUEST_TEST, retry=None, timeout=None
+            request=ANNOTATE_REQUEST_TEST, retry=DEFAULT, timeout=None
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.vision.CloudVisionHook')
@@ -419,7 +418,7 @@ class TestCloudVisionAnnotateImageOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.batch_annotate_images.assert_called_once_with(
-            requests=ANNOTATE_REQUEST_BATCH_TEST, retry=None, timeout=None
+            requests=ANNOTATE_REQUEST_BATCH_TEST, retry=DEFAULT, timeout=None
         )
 
 
@@ -433,7 +432,7 @@ class TestCloudVisionDetectTextOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.text_detection.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None, additional_properties=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.vision.CloudVisionHook")
@@ -456,7 +455,7 @@ class TestCloudVisionDetectTextOperator(unittest.TestCase):
         mock_hook.return_value.text_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE,
             max_results=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             additional_properties={
                 'additional_property_2': 'add_2',
@@ -479,7 +478,7 @@ class TestCloudVisionDetectDocumentTextOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.document_text_detection.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None, additional_properties=None
         )
 
 
@@ -493,7 +492,7 @@ class TestCloudVisionDetectImageLabelsOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.label_detection.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None, additional_properties=None
         )
 
 
@@ -507,5 +506,5 @@ class TestCloudVisionDetectImageSafeSearchOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         mock_hook.return_value.safe_search_detection.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None, additional_properties=None
         )

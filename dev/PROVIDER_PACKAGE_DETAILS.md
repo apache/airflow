@@ -62,7 +62,7 @@ Details to be hashed out in [the related issue](https://github.com/apache/airflo
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze prepare-provider-documentation <PACKAGE_ID> ...
+./breeze-legacy prepare-provider-documentation <PACKAGE_ID> ...
 ```
 
 The version for each package is going to be updated separately for each package when we agree to the
@@ -80,7 +80,7 @@ release date without providing
 the date (to update the existing release notes)
 
 ```
-./breeze prepare-provider-documentation google
+./breeze-legacy prepare-provider-documentation google
 ```
 
 
@@ -119,7 +119,7 @@ the folders (for example Apache Hive's PACKAGE_ID is `apache.hive` ). You can se
 providers by running:
 
 ```bash
-./breeze prepare-provider-packages -- --help
+./breeze-legacy prepare-provider-packages -- --help
 ```
 
 The examples below show how you can build selected packages, but you can also build all packages by
@@ -128,38 +128,38 @@ omitting the package ids altogether.
 * To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
+./breeze-legacy prepare-provider-packages package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 http ...
+./breeze-legacy prepare-provider-packages package-format both --version-suffix-for-svn=rc1 http ...
 ```
 
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+./breeze-legacy prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 http ...
+./breeze-legacy prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 http ...
 ```
 
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-provider-packages package-format both [PACKAGE_ID] ...
+./breeze-legacy prepare-provider-packages package-format both [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages package-format both http ...
+./breeze-legacy prepare-provider-packages package-format both http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with

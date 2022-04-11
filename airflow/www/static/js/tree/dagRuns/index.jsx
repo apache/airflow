@@ -32,7 +32,7 @@ import { getDuration, formatDuration } from '../../datetime_utils';
 import { useSelection } from '../context/selection';
 
 const DurationTick = ({ children, ...rest }) => (
-  <Text fontSize={10} color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
+  <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );

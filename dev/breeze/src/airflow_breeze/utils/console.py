@@ -18,12 +18,23 @@
 Console used by all processes. We are forcing colors and terminal output as Breeze is supposed
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
+import os
+
 try:
     from rich.console import Console
     from rich.theme import Theme
 
+    recording_width = os.environ.get("RECORD_BREEZE_WIDTH")
+    recording_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
+
     custom_theme = Theme({"info": "blue", "warning": "magenta", "error": "red"})
-    console = Console(force_terminal=True, color_system="standard", width=180, theme=custom_theme)
+    console = Console(
+        force_terminal=True,
+        color_system="standard",
+        width=180 if not recording_width else int(recording_width),
+        theme=custom_theme,
+        record=True if recording_file else False,
+    )
 
 except ImportError:
     # We handle the ImportError so that autocomplete works with just click installed

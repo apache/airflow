@@ -637,25 +637,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
 
         if include_deps:
-            # Are the deps different to "stock", if so serialize the class names!
-            # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
-            # Fix this for 2.0.x or 2.1
-            deps = []
-            for dep in op.deps:
-                klass = type(dep)
-                module_name = klass.__module__
-                if not module_name.startswith("airflow.ti_deps.deps."):
-                    assert op.dag  # for type checking
-                    raise SerializationError(
-                        f"Cannot serialize {(op.dag.dag_id + '.' + op.task_id)!r} with `deps` from non-core "
-                        f"module {module_name!r}"
-                    )
-
-                deps.append(f'{module_name}.{klass.__name__}')
-            # deps needs to be sorted here, because op.deps is a set, which is unstable when traversing,
-            # and the same call may get different results.
-            # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
-            serialize_op['deps'] = sorted(deps)
+            serialize_op['deps'] = cls._serialize_deps(op.deps)
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
@@ -669,6 +651,32 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op['params'] = cls._serialize_params_dict(op.params)
 
         return serialize_op
+
+    @classmethod
+    def _serialize_deps(cls, op_deps: Iterable["BaseTIDep"]) -> List[str]:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
+        deps = []
+        for dep in op_deps:
+            klass = type(dep)
+            module_name = klass.__module__
+            qualname = f'{module_name}.{klass.__name__}'
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not serialized, please register it through plugins."
+                )
+            deps.append(qualname)
+        # deps needs to be sorted here, because op_deps is a set, which is unstable when traversing,
+        # and the same call may get different results.
+        # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
+        return sorted(deps)
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: Dict[str, Any]) -> None:
@@ -820,11 +828,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _deserialize_deps(cls, deps: List[str]) -> Set["BaseTIDep"]:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
         instances = set()
         for qualname in set(deps):
-            if not qualname.startswith("airflow.ti_deps.deps."):
-                log.error("Dep class %r not registered", qualname)
-                continue
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not deserialized, please register it through plugins."
+                )
 
             try:
                 instances.add(import_string(qualname)())
@@ -835,7 +853,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> Dict[str, BaseOperatorLink]:
         """
-        Deserialize Operator Links if the Classes  are registered in Airflow Plugins.
+        Deserialize Operator Links if the Classes are registered in Airflow Plugins.
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link

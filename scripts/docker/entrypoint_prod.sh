@@ -97,7 +97,7 @@ function wait_for_connection {
     local detected_backend
     detected_backend=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).scheme)" "${connection_url}")
     local detected_host
-    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname)" "${connection_url}")
+    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname or '')" "${connection_url}")
     local detected_port
     detected_port=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).port or '')" "${connection_url}")
 
@@ -126,7 +126,11 @@ function wait_for_connection {
 
     echo DB_PORT="${DB_PORT:=${detected_port}}"
     readonly DB_PORT
-    run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    if [[ -n "${DB_HOST=}" ]] && [[ -n "${DB_PORT=}" ]]; then
+        run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    else
+        >&2 echo "The connection details to the broker could not be determined. Connectivity checks were skipped."
+    fi
 }
 
 function create_www_user() {

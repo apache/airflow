@@ -20,7 +20,11 @@ from typing import Dict
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.utils.cache import synchronize_parameters_with_cache, touch_cache_file
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.docker_command_utils import construct_build_docker_command
+from airflow_breeze.utils.docker_command_utils import (
+    construct_docker_build_command,
+    construct_empty_docker_build_command,
+    tag_and_push_image,
+)
 from airflow_breeze.utils.md5_build_check import calculate_md5_checksum_for_files
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.registry import login_to_docker_registry
@@ -102,17 +106,24 @@ def build_image(verbose: bool, dry_run: bool, **kwargs) -> None:
         text=True,
         check=False,
     )
-    cmd = construct_build_docker_command(
+    if ci_image_params.prepare_buildx_cache:
+        login_to_docker_registry(ci_image_params)
+    cmd = construct_docker_build_command(
         image_params=ci_image_params,
         verbose=verbose,
         required_args=REQUIRED_CI_IMAGE_ARGS,
         optional_args=OPTIONAL_CI_IMAGE_ARGS,
         production_image=False,
     )
-    if ci_image_params.prepare_buildx_cache:
-        login_to_docker_registry(ci_image_params)
-    console.print(f"\n[blue]Building CI Image for Python {ci_image_params.python}\n")
-    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
+    if ci_image_params.empty_image:
+        console.print(f"\n[blue]Building empty CI Image for Python {ci_image_params.python}\n")
+        cmd = construct_empty_docker_build_command(image_params=ci_image_params)
+        run_command(
+            cmd, input="FROM scratch\n", verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True
+        )
+    else:
+        console.print(f"\n[blue]Building CI Image for Python {ci_image_params.python}\n")
+        run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
     if not dry_run:
         ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
         ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -120,3 +131,5 @@ def build_image(verbose: bool, dry_run: bool, **kwargs) -> None:
         calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
     else:
         console.print("[blue]Not updating build cache because we are in `dry_run` mode.[/]")
+    if ci_image_params.push_image:
+        tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)

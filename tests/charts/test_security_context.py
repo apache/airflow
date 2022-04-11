@@ -139,6 +139,7 @@ class TestSecurityContext:
                 "createUserJob": {**component_contexts},
                 "migrateDatabaseJob": {**component_contexts},
                 "triggerer": {**component_contexts},
+                "redis": {**component_contexts},
                 "statsd": {"enabled": True, **component_contexts},
                 "airflowVersion": "2.2.0",
                 "executor": "CeleryKubernetesExecutor",
@@ -152,6 +153,7 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
             ],
         )
 
@@ -160,14 +162,22 @@ class TestSecurityContext:
             assert 9000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[index])
             assert 90 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[index])
 
-    # Test containerSecurity priority over uid under statsd
-    def test_check_statsd_uid(self):
+    # Test containerSecurity priority over uid under components using localSecurityContext
+    def test_check_local_uid(self):
+        component_contexts = {"uid": 3000, "securityContext": {"runAsUser": 7000}}
         docs = render_chart(
-            values={"statsd": {"enabled": True, "uid": 3000, "securityContext": {"runAsUser": 7000}}},
-            show_only=["templates/statsd/statsd-deployment.yaml"],
+            values={
+                "redis": {**component_contexts},
+                "statsd": {"enabled": True, **component_contexts},
+            },
+            show_only=[
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
         )
 
-        assert 7000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        for doc in docs:
+            assert 7000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
 
     # Test containerSecurity priority over uid under dags.gitSync
     def test_gitsync_sidecar_and_init_container(self):

@@ -686,6 +686,8 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
+        arg_sorting_key = request.args.get('sorting_key', 'dag_id')
+        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -756,13 +758,13 @@ class Airflow(AirflowBaseView):
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
 
-            dags = (
-                current_dags.order_by(DagModel.dag_id)
-                .options(joinedload(DagModel.tags))
-                .offset(start)
-                .limit(dags_per_page)
-                .all()
-            )
+            sort_column = DagModel.__table__.c.get(arg_sorting_key)
+            if sort_column is not None:
+                if arg_sorting_direction == 'desc':
+                    sort_column = sort_column.desc()
+                current_dags = current_dags.order_by(sort_column)
+
+            dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
@@ -890,6 +892,8 @@ class Airflow(AirflowBaseView):
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
             tags_filter=arg_tags_filter,
+            sorting_key=arg_sorting_key,
+            sorting_direction=arg_sorting_direction,
         )
 
     @expose('/dag_stats', methods=['POST'])

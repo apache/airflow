@@ -78,16 +78,16 @@ CHEATSHEET = f"""
 
     [bright_blue]* Installation[/]
 
-        When you have multiple copies of Airflow, it's better if you use `./Breeze2` from those
-        repository as it will have the latest version of Breeze2 and it's dependencies.
+        When you have multiple copies of Airflow, it's better if you use `./breeze` from those
+        repository as it will have the latest version of breeze and it's dependencies.
 
         However if you only have one Airflow repository and you have `pipx` installed, you can use
-        `pipx` to install `Breeze2` command in your path (`Breeze2` command is run from this repository then)
+        `pipx` to install `breeze` command in your path (`breeze` command is run from this repository then)
 
             pipx install -e ./dev/breeze --force
 
-        In case you use `pipx`, you might need to occasionally reinstall `Breeze2` with the `--force` flag
-        when dependencies change for it. You do not have to do it when you use it via `./Breeze2`
+        In case you use `pipx`, you might need to occasionally reinstall `breeze` with the `--force` flag
+        when dependencies change for it. You do not have to do it when you use it via `./breeze`
 
     [bright_blue]* Port forwarding:[/]
 
@@ -128,7 +128,7 @@ CHEATSHEET = f"""
 
         [bright_blue]* Other options[/]
 
-        Check out `--help` for ./Breeze2 commands. It will show you other options, such as running
+        Check out `--help` for ./breeze commands. It will show you other options, such as running
         integration or starting complete Airflow using `start-airflow` command as well as ways
         of cleaning up the installation.
 
@@ -137,7 +137,7 @@ CHEATSHEET = f"""
 
         You can disable this cheatsheet by running:
 
-            ./Breeze2 config --no-cheatsheet
+            ./breeze config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"
