@@ -1056,8 +1056,11 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
 
     metadata = reflect_tables([*[x[0] for x in models_to_dagrun], DagRun], session)
 
-    # Key table doesn't exist -- likely empty DB.
-    if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
+    if (
+        metadata.tables.get(DagRun.__tablename__) is None
+        or metadata.metadata.tables.get(TaskInstance.__tablename__) is None
+    ):
+        # Key table doesn't exist -- likely empty DB.
         return
 
     # We can't use the model here since it may differ from the db state due to
