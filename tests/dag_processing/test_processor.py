@@ -568,6 +568,34 @@ class TestDagFileProcessor:
 
         session.rollback()
 
+    def test_import_error_record_is_updated_not_deleted_and_recreated(self, tmpdir):
+        """
+        Test that existing import error is updated and new record not created
+        for a dag with the same filename
+        """
+        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+        session = settings.Session()
+        self._process_file(filename_to_parse, session)
+
+        import_error_1 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # process the file multiple times
+        for _ in range(10):
+            self._process_file(filename_to_parse, session)
+
+        import_error_2 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # assert that the ID of the import error did not change
+        assert import_error_1.id == import_error_2.id
+
     def test_remove_error_clears_import_error(self, tmpdir):
         filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
 

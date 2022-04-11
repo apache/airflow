@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import copy
 import datetime
 import logging
 import multiprocessing
@@ -528,23 +529,34 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with import errors
         """
-        # Clear the errors of the processed files
-        for dagbag_file in dagbag.file_last_changed:
-            session.query(errors.ImportError).filter(
-                errors.ImportError.filename.startswith(dagbag_file)
-            ).delete(synchronize_session="fetch")
+        last_changed = copy.copy(dagbag.file_last_changed)
+        import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
+            if filename in import_error_files:
+                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
+                    dict(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace),
+                    synchronize_session='fetch',
+                )
+            else:
+                session.add(
+                    errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
+                )
+            if filename in last_changed:
+                del last_changed[filename]
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)
                 .update({'has_import_errors': True}, synchronize_session='fetch')
             )
 
-            session.add(
-                errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
-            )
+        # Clear the errors of the processed files
+        for dagbag_file in last_changed:
+            session.query(errors.ImportError).filter(
+                errors.ImportError.filename.startswith(dagbag_file)
+            ).delete(synchronize_session="fetch")
+
         session.commit()
 
     @provide_session
