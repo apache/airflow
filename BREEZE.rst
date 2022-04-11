@@ -299,7 +299,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup-autocomplete --force
 
-Those are all available flags of ``setu-autocomplete`` command:
+Those are all available flags of ``setup-autocomplete`` command:
 
 .. image:: ./images/breeze/output-setup-autocomplete.svg
   :width: 100%
