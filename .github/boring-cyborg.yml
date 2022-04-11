@@ -23,6 +23,7 @@ labelPRBasedOnFilePath:
     - airflow/providers/google/**/*
     - docs/apache-airflow-providers-google/**/*
     - tests/providers/google/**/*
+    - tests/system/providers/google/**/*
 
   provider:AWS:
     - airflow/providers/amazon/aws/**/*
