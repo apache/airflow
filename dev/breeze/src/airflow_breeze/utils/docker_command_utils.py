@@ -174,9 +174,9 @@ def check_docker_is_running(verbose: bool) -> bool:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
     )
-
     if not response:
         return False
+    return True
 
 
 def check_docker_version(verbose: bool):

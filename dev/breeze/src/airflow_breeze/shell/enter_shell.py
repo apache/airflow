@@ -192,7 +192,10 @@ def enter_shell(**kwargs):
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
     if not check_docker_is_running(verbose):
-        console.print(f'[red]Docker is not running. Please make sure Docker is installed ' 'and running.[/]')
+        console.print(
+            '[red]Docker is not running.[/]\n'
+            '[bright_yellow]Please make sure Docker is installed and running.[/]'
+        )
         sys.exit(1)
     check_docker_version(verbose)
     check_docker_compose_version(verbose)
