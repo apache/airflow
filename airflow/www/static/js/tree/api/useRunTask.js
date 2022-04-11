@@ -36,6 +36,7 @@ export default function useRunTask(dagId, runId, taskId) {
       ignoreAllDeps,
       ignoreTaskState,
       ignoreTaskDeps,
+      mapIndex = -1,
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -45,6 +46,7 @@ export default function useRunTask(dagId, runId, taskId) {
         ignore_all_deps: ignoreAllDeps,
         ignore_task_deps: ignoreTaskDeps,
         ignore_ti_state: ignoreTaskState,
+        map_index: mapIndex,
       }).toString();
 
       return axios.post(runUrl, params, {
