@@ -19,7 +19,7 @@
 set -euo pipefail
 rm -rf docker-context-files/*.whl
 rm -rf docker-context-files/*.tgz
-export FORCE_ANSWER_TO_QUESTIONS="true"
+export FORCE_ANSWER_TO_QUESTIONS="yes"
 export CI="true"
 
 if [[ $1 == "" ]]; then

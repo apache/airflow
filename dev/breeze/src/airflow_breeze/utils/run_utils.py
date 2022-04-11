@@ -39,6 +39,7 @@ def run_command(
     no_output_dump_on_exception: bool = False,
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
+    input: Optional[str] = None,
     **kwargs,
 ) -> Optional[subprocess.CompletedProcess]:
     """
@@ -59,6 +60,7 @@ def run_command(
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
+    :param input: input string to pass to stdin of the process
     :param kwargs: kwargs passed to POpen
     """
     workdir: str = str(cwd) if cwd else os.getcwd()
@@ -77,7 +79,7 @@ def run_command(
         cmd_env = os.environ.copy()
         if env:
             cmd_env.update(env)
-        return subprocess.run(cmd, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
             if ex.stdout:

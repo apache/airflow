@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import functools
 import json
 import logging
@@ -607,6 +608,40 @@ class AirflowConfigParser(ConfigParser):
             return json.loads(data)
         except JSONDecodeError as e:
             raise AirflowConfigException(f'Unable to parse [{section}] {key!r} as valid json') from e
+
+    def gettimedelta(self, section, key, fallback=None, **kwargs) -> Optional[datetime.timedelta]:
+        """
+        Gets the config value for the given section and key, and converts it into datetime.timedelta object.
+        If the key is missing, then it is considered as `None`.
+
+        :param section: the section from the config
+        :param key: the key defined in the given section
+        :param fallback: fallback value when no config value is given, defaults to None
+        :raises AirflowConfigException: raised because ValueError or OverflowError
+        :return: datetime.timedelta(seconds=<config_value>) or None
+        """
+        val = self.get(section, key, fallback=fallback, **kwargs)
+
+        if val:
+            # the given value must be convertible to integer
+            try:
+                int_val = int(val)
+            except ValueError:
+                raise AirflowConfigException(
+                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                    f'Current value: "{val}".'
+                )
+
+            try:
+                return datetime.timedelta(seconds=int_val)
+            except OverflowError as err:
+                raise AirflowConfigException(
+                    f'Failed to convert value to timedelta in `seconds`. '
+                    f'{err}. '
+                    f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
+                )
+
+        return fallback
 
     def read(self, filenames, encoding=None):
         super().read(filenames=filenames, encoding=encoding)

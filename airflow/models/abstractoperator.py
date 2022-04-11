@@ -68,6 +68,9 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+    "core", "default_task_execution_timeout"
+)
 
 
 class AbstractOperator(LoggingMixin, DAGNode):

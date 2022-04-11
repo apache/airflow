@@ -361,6 +361,15 @@
       type: string
       example: ~
       default: "downstream"
+    - name: default_task_execution_timeout
+      description: |
+        The default task execution_timeout value for the operators. Expected an integer value to
+        be passed into timedelta as seconds. If not specified, then the value is considered as None,
+        meaning that the operators are never timed out by default.
+      version_added: 2.3.0
+      type: integer
+      example: ~
+      default: ""
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.

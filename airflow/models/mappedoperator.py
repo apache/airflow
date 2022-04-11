@@ -509,6 +509,7 @@ class MappedOperator(AbstractOperator):
     def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
         # TODO: Find a way to cache this.
         from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
         from airflow.models.xcom_arg import XComArg
 
         expansion_kwargs = self._get_expansion_kwargs()
@@ -518,19 +519,45 @@ class MappedOperator(AbstractOperator):
         map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
 
         # Build a reverse mapping of what arguments each task contributes to.
-        dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        non_mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
         for k, v in expansion_kwargs.items():
             if not isinstance(v, XComArg):
                 continue
-            dep_keys[v.operator.task_id].add(k)
+            if v.operator.is_mapped:
+                mapped_dep_keys[v.operator.task_id].add(k)
+            else:
+                non_mapped_dep_keys[v.operator.task_id].add(k)
+            # TODO: It's not possible now, but in the future (AIP-42 Phase 2)
+            # we will add support for depending on one single mapped task
+            # instance. When that happens, we need to further analyze the mapped
+            # case to contain only tasks we depend on "as a whole", and put
+            # those we only depend on individually to the non-mapped lookup.
 
+        # Collect lengths from unmapped upstreams.
         taskmap_query = session.query(TaskMap.task_id, TaskMap.length).filter(
             TaskMap.dag_id == self.dag_id,
             TaskMap.run_id == run_id,
-            TaskMap.task_id.in_(list(dep_keys)),
+            TaskMap.task_id.in_(non_mapped_dep_keys),
+            TaskMap.map_index < 0,
         )
         for task_id, length in taskmap_query:
-            for mapped_arg_name in dep_keys[task_id]:
+            for mapped_arg_name in non_mapped_dep_keys[task_id]:
+                map_lengths[mapped_arg_name] += length
+
+        # Collect lengths from mapped upstreams.
+        xcom_query = (
+            session.query(XCom.task_id, func.count(XCom.map_index))
+            .group_by(XCom.task_id)
+            .filter(
+                XCom.dag_id == self.dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id.in_(mapped_dep_keys),
+                XCom.map_index >= 0,
+            )
+        )
+        for task_id, length in xcom_query:
+            for mapped_arg_name in mapped_dep_keys[task_id]:
                 map_lengths[mapped_arg_name] += length
 
         if len(map_lengths) < len(expansion_kwargs):

@@ -20,6 +20,8 @@
 Dynamic DAG Generation
 ======================
 
+To have a task repeated based on the output/result of a previous task see :doc:`/concepts/dynamic-task-mapping`.
+
 Dynamic DAGs with environment variables
 .......................................
 
