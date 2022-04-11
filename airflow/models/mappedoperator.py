@@ -766,8 +766,13 @@ class MappedOperator(AbstractOperator):
         """
 
         lengths = self._get_map_lengths(run_id, session=session)
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        if not lengths or not expansion_kwargs:
+            return None
+
         total = 1
-        for name in self._get_expansion_kwargs():
+        for name in expansion_kwargs:
             val = lengths.get(name)
             if val is None:
                 return None
