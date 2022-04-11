@@ -70,7 +70,7 @@
             "default": "2.3.1",
             "x-docsSection": "Common"
         },
-        "airflowDigestVersion": {
+        "defaultAirflowDigest": {
             "description": "Digest of the image, Only if you want to do version pinning",
             "type": [
                 "string",
@@ -476,6 +476,14 @@
                             ],
                             "default": null
                         },
+                        "digest": {
+                            "description": "The airflow image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
                             "type": "string",
@@ -520,6 +528,14 @@
                             ],
                             "default": null
                         },
+                        "digest": {
+                            "description": "The pod_template image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The pod_template image pull policy.",
                             "type": "string",
@@ -552,6 +568,14 @@
                             ],
                             "default": null
                         },
+                        "digest": {
+                            "description": "The flower image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The flower image pull policy.",
                             "type": "string",
@@ -577,6 +601,14 @@
                             "description": "The StatsD image tag.",
                             "type": "string",
                             "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
+                        },
+                        "digest": {
+                            "description": "The StatsD image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -604,6 +636,14 @@
                             "type": "string",
                             "default": "6-bullseye"
                         },
+                        "digest": {
+                            "description": "The redis image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
                             "type": "string",
@@ -629,6 +669,14 @@
                             "description": "The PgBouncer image tag.",
                             "type": "string",
                             "default": "airflow-pgbouncer-2021.04.28-1.14.0"
+                        },
+                        "digest": {
+                            "description": "The PgBouncer image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -656,6 +704,14 @@
                             "type": "string",
                             "default": "airflow-pgbouncer-exporter-2021.09.22-0.12.0"
                         },
+                        "digest": {
+                            "description": "The PgBouncer exporter image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
                             "type": "string",
@@ -681,6 +737,14 @@
                             "description": "The gitSync image tag.",
                             "type": "string",
                             "default": "v3.4.0"
+                        },
+                        "digest": {
+                            "description": "The gitSync image digest.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",

@@ -247,16 +247,16 @@ If release name contains chart name it will be used as a full name.
 
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
-{{- if .Values.airflowDigestVersion -}}
-{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- if or (.Values.images.airflow.digest) (.Values.defaultAirflowDigest) -}}
+{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.digest | default .Values.defaultAirflowDigest) }}
 {{- else -}}
 {{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 {{- end }}
 
 {{ define "pod_template_image" -}}
-{{- if .Values.airflowDigestVersion -}}
-{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- if or (.Values.images.pod_template.digest) (.Values.defaultAirflowDigest) -}}
+{{ printf "%s@%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.pod_template.digest | default .Values.defaultAirflowDigest) }}
 {{- else -}}
 # This helper will change when customers deploy a new image.
 {{ printf "%s:%s" (.Values.images.pod_template.repository | default .Values.defaultAirflowRepository) (.Values.images.pod_template.tag | default .Values.defaultAirflowTag) }}
@@ -278,31 +278,51 @@ If release name contains chart name it will be used as a full name.
 
 
 {{ define "flower_image" -}}
-{{- if .Values.airflowDigestVersion -}}
-{{ printf "%s@%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.airflowDigestVersion) }}
+{{- if or (.Values.images.flower.digest) (.Values.defaultAirflowDigest) -}}
+{{ printf "%s@%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.digest | .Values.defaultAirflowDigest) }}
 {{- else -}}
 {{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 {{- end }}
 
 {{ define "statsd_image" -}}
+{{- if .Values.images.statsd.digest -}}
+{{ printf "%s@%s" .Values.images.statsd.repository .Values.images.statsd.digest }}
+{{- else -}}
 {{ printf "%s:%s" .Values.images.statsd.repository .Values.images.statsd.tag }}
+{{- end }}
 {{- end }}
 
 {{ define "redis_image" -}}
+{{- if .Values.images.redis.digest -}}
+{{ printf "%s@%s" .Values.images.redis.repository .Values.images.redis.digest }}
+{{- else -}}
 {{ printf "%s:%s" .Values.images.redis.repository .Values.images.redis.tag }}
+{{- end }}
 {{- end }}
 
 {{ define "pgbouncer_image" -}}
+{{- if .Values.images.pgbouncer.digest -}}
+{{ printf "%s@%s" .Values.images.pgbouncer.repository .Values.images.pgbouncer.digest }}
+{{- else -}}
 {{ printf "%s:%s" .Values.images.pgbouncer.repository .Values.images.pgbouncer.tag }}
+{{- end }}
 {{- end }}
 
 {{ define "pgbouncer_exporter_image" -}}
+{{- if .Values.images.pgbouncerExporter.digest -}}
+{{ printf "%s@%s" .Values.images.pgbouncerExporter.repository .Values.images.pgbouncerExporter.digest }}
+{{- else -}}
 {{ printf "%s:%s" .Values.images.pgbouncerExporter.repository .Values.images.pgbouncerExporter.tag }}
+{{- end }}
 {{- end }}
 
 {{ define "git_sync_image" -}}
+{{- if .Values.images.gitSync.digest -}}
+{{ printf "%s@%s" .Values.images.gitSync.repository .Values.images.gitSync.digest }}
+{{- else -}}
 {{ printf "%s:%s" .Values.images.gitSync.repository .Values.images.gitSync.tag }}
+{{- end }}
 {{- end }}
 
 {{ define "fernet_key_secret" -}}

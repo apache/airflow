@@ -48,7 +48,7 @@ defaultAirflowRepository: apache/airflow
 # Default airflow tag to deploy
 defaultAirflowTag: "2.3.1"
 
-airflowDigestVersion: ~
+defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 airflowVersion: "2.3.1"
@@ -58,6 +58,7 @@ images:
   airflow:
     repository: ~
     tag: ~
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
@@ -69,30 +70,37 @@ images:
   pod_template:
     repository: ~
     tag: ~
+    digest: ~
     pullPolicy: IfNotPresent
   flower:
     repository: ~
     tag: ~
+    digest: ~
     pullPolicy: IfNotPresent
   statsd:
     repository: apache/airflow
     tag: airflow-statsd-exporter-2021.04.28-v0.17.0
+    digest: ~
     pullPolicy: IfNotPresent
   redis:
     repository: redis
     tag: 6-bullseye
+    digest: ~
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
     tag: airflow-pgbouncer-2021.04.28-1.14.0
+    digest: ~
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
     tag: airflow-pgbouncer-exporter-2021.09.22-0.12.0
+    digest: ~
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
     tag: v3.4.0
+    digest: ~
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
