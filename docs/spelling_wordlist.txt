@@ -343,7 +343,6 @@ SIGTERM
 SSHClient
 SSHTunnelForwarder
 SaaS
-Sade
 Sagemaker
 Sasl
 SearchResultGenerator
@@ -1266,6 +1265,7 @@ runAsUser
 runnable
 runspace
 runtime
+sade
 sagemaker
 salesforce
 samesite
