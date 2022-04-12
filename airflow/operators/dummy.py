@@ -32,8 +32,8 @@ class DummyOperator(EmptyOperator):
     """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`."""
 
     @property
-    def inherits_from_dummy_operator(cls):
-        return cls.inherits_from_dummy_operator
+    def inherits_from_dummy_operator(self):
+        return True
 
     def __init__(self, **kwargs):
         warnings.warn(

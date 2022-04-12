@@ -22,4 +22,4 @@ def test_deprecation_warnings_generated():
     from airflow.operators.dummy import DummyOperator
 
     with pytest.warns(expected_warning=DeprecationWarning):
-        DummyOperator(task_id='s3_prefix')
+        DummyOperator(task_id='my_task')
