@@ -17,7 +17,8 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, autoRefreshInterval,
+ localStorage */
 
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
@@ -354,38 +355,6 @@ function showSvgTooltip(text, circ) {
 function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
-
-$(window).on('load', () => {
-  initAutoRefresh();
-
-  $('body').on('mouseover', '.has-svg-tooltip', (e) => {
-    const elem = e.target;
-    const text = elem.getAttribute('title');
-    const circ = elem.getBoundingClientRect();
-    showSvgTooltip(text, circ);
-  });
-
-  $('body').on('mouseout', '.has-svg-tooltip', () => {
-    hideSvgTooltip();
-  });
-});
-
-$('.js-next-run-tooltip').each((i, run) => {
-  $(run).on('mouseover', () => {
-    $(run).attr('data-original-title', () => {
-      const nextRunData = $(run).attr('data-nextrun');
-      const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
-      let newTitle = '';
-      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br>`;
-      newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
-      newTitle += '<strong>Data Interval</strong><br>';
-      newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
-      newTitle += `End: ${formatDateTime(intervalEnd)}`;
-      return newTitle;
-    });
-  });
-});
-
 function RefreshDagRunsAndTasks(selector, dagId, states) {
   d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .selectAll('circle')
@@ -425,6 +394,7 @@ function refreshTaskStateHandler(error, ts) {
     RefreshDagRunsAndTasks('task-run', dagId, states);
   });
 }
+
 function refreshDagRuns(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
@@ -432,37 +402,6 @@ function refreshDagRuns(error, json) {
     RefreshDagRunsAndTasks('dag-run', dagId, states);
   });
 }
-$('#auto_refresh').change(() => {
-  if ($('#auto_refresh').is(':checked')) {
-    // Run an initial refresh before starting interval if manually turned on
-    handleRefresh();
-    localStorage.removeItem('dagsDisableAutoRefresh');
-  } else {
-    localStorage.setItem('dagsDisableAutoRefresh', 'true');
-    $('#loading-dots').css('display', 'none');
-  }
-  startOrStopRefresh();
-});
-
-function initAutoRefresh() {
-  const isDisabled = localStorage.getItem('dagsDisableAutoRefresh');
-  $('#auto_refresh').prop('checked', !(isDisabled));
-  startOrStopRefresh();
-  d3.select('#refresh_button').on('click', () => handleRefresh());
-}
-
-let refreshInterval;
-
-function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
-    refreshInterval = setInterval(() => {
-      handleRefresh();
-    }, autoRefreshInterval * 2000);
-  } else {
-    clearInterval(refreshInterval);
-  }
-}
-
 function handleRefresh() {
   $('#loading-dots').css('display', 'inline-block');
   d3.json(lastDagRunsUrl)
@@ -478,3 +417,63 @@ function handleRefresh() {
     $('#loading-dots').css('display', 'none');
   }, 2000);
 }
+
+let refreshInterval;
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * 2000);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+function initAutoRefresh() {
+  const isDisabled = localStorage.getItem('dagsDisableAutoRefresh');
+  $('#auto_refresh').prop('checked', !(isDisabled));
+  startOrStopRefresh();
+  d3.select('#refresh_button').on('click', () => handleRefresh());
+}
+$(window).on('load', () => {
+  initAutoRefresh();
+
+  $('body').on('mouseover', '.has-svg-tooltip', (e) => {
+    const elem = e.target;
+    const text = elem.getAttribute('title');
+    const circ = elem.getBoundingClientRect();
+    showSvgTooltip(text, circ);
+  });
+
+  $('body').on('mouseout', '.has-svg-tooltip', () => {
+    hideSvgTooltip();
+  });
+});
+
+$('.js-next-run-tooltip').each((i, run) => {
+  $(run).on('mouseover', () => {
+    $(run).attr('data-original-title', () => {
+      const nextRunData = $(run).attr('data-nextrun');
+      const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
+      let newTitle = '';
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(createAfter)}<br><br>`;
+      newTitle += '<strong>Data Interval</strong><br>';
+      newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
+      newTitle += `End: ${formatDateTime(intervalEnd)}`;
+      return newTitle;
+    });
+  });
+});
+
+$('#auto_refresh').change(() => {
+  if ($('#auto_refresh').is(':checked')) {
+    // Run an initial refresh before starting interval if manually turned on
+    handleRefresh();
+    localStorage.removeItem('dagsDisableAutoRefresh');
+  } else {
+    localStorage.setItem('dagsDisableAutoRefresh', 'true');
+    $('#loading-dots').css('display', 'none');
+  }
+  startOrStopRefresh();
+});
