@@ -2310,7 +2310,7 @@ class Airflow(AirflowBaseView):
 
         altered = dag.set_task_instance_state(
             task_id=task_id,
-            map_index=map_indexes,
+            map_indexes=map_indexes,
             run_id=dag_run_id,
             state=state,
             upstream=upstream,
