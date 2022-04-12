@@ -492,12 +492,12 @@ class DagBag(LoggingMixin):
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
 
-        Note that if an ``.airflowignore`` file is found while processing
+        Note that if a ``.airflowignore`` file is found while processing
         the directory, it will behave much like a ``.gitignore``,
         ignoring files that match any of the patterns specified
         in the file.
 
-        **Note**: The patterns in .airflowignore are interpreted as either
+        **Note**: The patterns in ``.airflowignore`` are interpreted as either
         un-anchored regexes or gitignore-like glob expressions, depending on
         the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
         """

@@ -206,7 +206,7 @@ def _find_path_from_directory(
     :param ignore_file_name: the file name containing regular expressions for files that should be ignored.
     :param ignore_rule_type: the concrete class for ignore rules, which implements the _IgnoreRule interface.
 
-    :return : a generator of file paths which should not be ignored.
+    :return: a generator of file paths which should not be ignored.
     """
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
@@ -255,7 +255,7 @@ def find_path_from_directory(
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
     :param ignore_file_syntax: the syntax of patterns in the ignore file: regexp or glob
 
-    :return : a generator of file paths.
+    :return: a generator of file paths.
     """
     if ignore_file_syntax == "glob":
         return _find_path_from_directory(base_dir_path, ignore_file_name, _GlobIgnoreRule)
