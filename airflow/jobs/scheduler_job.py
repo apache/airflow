@@ -370,7 +370,7 @@ class SchedulerJob(BaseJob):
                     continue
 
                 # Make sure to emit metrics if pool has no starving tasks
-                pool_num_starving_tasks[pool_name] += 0
+                pool_num_starving_tasks.setdefault(pool_name, 0)
 
                 pool_total = pools[pool]["total"]
                 open_slots = pools[pool]["open"]
