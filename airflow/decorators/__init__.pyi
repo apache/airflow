@@ -188,7 +188,7 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param use_dill: Whether to use dill or pickle for serialization
         :param python_command: Python command for executing functions, Default: python3
-        :param image: Docker image from which to create the container.(Required)
+        :param image: Docker image from which to create the container. (Required)
         :param api_version: Remote API version. Set to ``auto`` to automatically
             detect the server's version.
         :param container_name: Name of the container. Optional (templated)
