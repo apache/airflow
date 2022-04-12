@@ -529,12 +529,22 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with import errors
         """
-        last_changed = copy.copy(dagbag.file_last_changed)
-        import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
+        all_parsed_files = copy.copy(dagbag.file_last_changed)
+        files_without_error = all_parsed_files - dagbag.import_errors.keys()
+
+        # Clear the errors of the processed files
+        # that no longer have errors
+        for dagbag_file in files_without_error:
+            session.query(errors.ImportError).filter(
+                errors.ImportError.filename.startswith(dagbag_file)
+            ).delete(synchronize_session="fetch")
+
+        # files that still have errors
+        existing_import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
-            if filename in import_error_files:
+            if filename in existing_import_error_files:
                 session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
                     dict(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace),
                     synchronize_session='fetch',
@@ -543,19 +553,11 @@ class DagFileProcessor(LoggingMixin):
                 session.add(
                     errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
                 )
-            if filename in last_changed:
-                del last_changed[filename]
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)
                 .update({'has_import_errors': True}, synchronize_session='fetch')
             )
-
-        # Clear the errors of the processed files
-        for dagbag_file in last_changed:
-            session.query(errors.ImportError).filter(
-                errors.ImportError.filename.startswith(dagbag_file)
-            ).delete(synchronize_session="fetch")
 
         session.commit()
 
