@@ -369,6 +369,9 @@ class SchedulerJob(BaseJob):
                     starved_pools.add(pool_name)
                     continue
 
+                # Make sure to emit metrics if pool has no starving tasks
+                pool_num_starving_tasks[pool_name] += 0
+
                 pool_total = pools[pool]["total"]
                 open_slots = pools[pool]["open"]
 
@@ -407,6 +410,8 @@ class SchedulerJob(BaseJob):
                             pool,
                         )
 
+                        pool_num_starving_tasks[pool_name] += 1
+                        num_starving_tasks_total += 1
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
 
