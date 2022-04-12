@@ -24,7 +24,6 @@ import {
   Divider,
   StackDivider,
   Text,
-  Flex,
 } from '@chakra-ui/react';
 
 import RunAction from './taskActions/Run';
@@ -89,39 +88,32 @@ const TaskInstance = ({ taskId, runId }) => {
       {!isGroup && (
         <Box my={3}>
           <Text as="strong">{taskActionsTitle}</Text>
-          <Flex maxHeight="20px" minHeight="20px">
-            {selectedRows.length ? (
-              <Text color="red.500">
-                Clear, Mark Failed, and Mark Success do not yet work with individual mapped tasks.
-              </Text>
-            ) : <Divider my={2} />}
-          </Flex>
-          {/* visibility={selectedRows.length ? 'visible' : 'hidden'} */}
+          <Divider my={2} />
           <VStack justifyContent="center" divider={<StackDivider my={3} />}>
             <RunAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
-              selectedRows={selectedRows}
+              mapIndexes={selectedRows}
             />
             <ClearAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
               executionDate={executionDate}
-              selectedRows={selectedRows}
+              mapIndexes={selectedRows}
             />
             <MarkFailedAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
-              selectedRows={selectedRows}
+              mapIndexes={selectedRows}
             />
             <MarkSuccessAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
-              selectedRows={selectedRows}
+              mapIndexes={selectedRows}
             />
           </VStack>
           <Divider my={2} />
@@ -143,7 +135,12 @@ const TaskInstance = ({ taskId, runId }) => {
         extraLinks={extraLinks}
       />
       {isMapped && (
-        <MappedInstances dagId={dagId} runId={runId} taskId={taskId} selectRows={setSelectedRows} />
+        <MappedInstances
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          selectRows={setSelectedRows}
+        />
       )}
     </Box>
   );

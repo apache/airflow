@@ -29,8 +29,8 @@ import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
 import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
-const Run = ({
-  dagId, runId, taskId, selectedRows,
+const MarkSuccess = ({
+  dagId, runId, taskId, mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -64,6 +64,7 @@ const Run = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks(data);
       onOpen();
@@ -79,6 +80,7 @@ const Run = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks([]);
       onClose();
@@ -95,7 +97,7 @@ const Run = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading} isDisabled={!!selectedRows.length}>
+      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
         Mark Success
       </Button>
       <ConfirmDialog
@@ -109,4 +111,4 @@ const Run = ({
   );
 };
 
-export default Run;
+export default MarkSuccess;
