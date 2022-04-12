@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from sqlalchemy import func
 
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -66,6 +68,24 @@ class PrevDagrunDep(BaseTIDep):
 
         previous_ti = last_dagrun.get_task_instance(ti.task_id, session=session)
         if not previous_ti:
+            if ti.task.ignore_first_depends_on_past:
+                has_historical_ti = (
+                    session.query(func.count(TI.dag_id))
+                    .filter(
+                        TI.dag_id == ti.dag_id,
+                        TI.task_id == ti.task_id,
+                        TI.execution_date < ti.execution_date,
+                    )
+                    .scalar()
+                    > 0
+                )
+                if not has_historical_ti:
+                    yield self._passing_status(
+                        reason="ignore_first_depends_on_past is true for this task "
+                        "and it is the first task instance for its task."
+                    )
+                    return
+
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "
                 "task instance has not run yet."

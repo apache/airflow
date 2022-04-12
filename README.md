@@ -85,7 +85,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)      | Stable version (2.2.4)   |
+|                     | Main version (dev)      | Stable version (2.2.5)   |
 |---------------------|-------------------------|--------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10     | 3.6, 3.7, 3.8, 3.9       |
 | Platform            | AMD64/ARM64(\*)         | AMD64                    |
@@ -104,7 +104,8 @@ MariaDB is not tested/recommended.
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-**Note**: Python v3.10 is not supported yet. For details, see [#19059](https://github.com/apache/airflow/issues/19059).
+**Note**: Support for Python v3.10 will be available from Airflow 2.3.0. The `main` (development) branch
+already supports Python 3.10.
 
 **Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
 tested on fairly modern Linux Distros and recent versions of MacOS.
@@ -159,15 +160,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.2.4' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.7.txt"
+pip install 'apache-airflow==2.2.5' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.2.4' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.2.5' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -272,7 +273,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.2.4                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.2.5                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -302,7 +303,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.2.4` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.2.5` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -379,6 +380,14 @@ The important dependencies are:
    are very likely to introduce breaking changes across those so limiting it to MAJOR version makes sense
 * `werkzeug`: the library is known to cause problems in new versions. It is tightly coupled with Flask
    libraries, and we should update them together
+* `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
+   [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
+   we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
+   we should make sure Celery Provider minimum Airflow version is updated).
+* `kubernetes`: Kubernetes is a crucial component of Airflow as it is used for the KubernetesExecutor
+   (and similar). Kubernetes Python library [follows SemVer](https://github.com/kubernetes-client/python#compatibility),
+   so we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
+   we should make sure Kubernetes Provider minimum Airflow version is updated.
 
 ### Approach for dependencies in Airflow Providers and extras
 

@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
 2.1.4
 .....
 

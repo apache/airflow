@@ -36,32 +36,34 @@ try:
 except ImportError:
     log.warning("Could not import DAGs in example_local_kubernetes_executor.py", exc_info=True)
     log.warning("Install Kubernetes dependencies with: pip install apache-airflow[cncf.kubernetes]")
+    k8s = None
 
-with DAG(
-    dag_id='example_local_kubernetes_executor',
-    schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-    tags=['example3'],
-) as dag:
-    # You can use annotations on your kubernetes pods!
-    start_task_executor_config = {
-        "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
-    }
+if k8s:
+    with DAG(
+        dag_id='example_local_kubernetes_executor',
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+        tags=['example3'],
+    ) as dag:
+        # You can use annotations on your kubernetes pods!
+        start_task_executor_config = {
+            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
+        }
 
-    @task(
-        executor_config=start_task_executor_config,
-        queue='kubernetes',
-        task_id='task_with_kubernetes_executor',
-    )
-    def task_with_template():
-        print_stuff()
+        @task(
+            executor_config=start_task_executor_config,
+            queue='kubernetes',
+            task_id='task_with_kubernetes_executor',
+        )
+        def task_with_template():
+            print_stuff()
 
-    @task(task_id='task_with_local_executor')
-    def task_with_local(ds=None, **kwargs):
-        """Print the Airflow context and ds variable from the context."""
-        print(kwargs)
-        print(ds)
-        return 'Whatever you return gets printed in the logs'
+        @task(task_id='task_with_local_executor')
+        def task_with_local(ds=None, **kwargs):
+            """Print the Airflow context and ds variable from the context."""
+            print(kwargs)
+            print(ds)
+            return 'Whatever you return gets printed in the logs'
 
-    task_with_local() >> task_with_template()
+        task_with_local() >> task_with_template()

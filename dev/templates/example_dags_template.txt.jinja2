@@ -1,0 +1,10 @@
+There is a new design of system tests that was introduced by the [AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests).
+
+All current example dags need to be migrated and converted into system tests, so they can be run in the CI process automatically before releases.
+
+This is an aggregated issue for all example DAGs related to `{{ rows[0][0] }}` provider. It is created to track progress of their migration.
+
+List of paths to example DAGs:
+{%- for row in rows %}
+- [ ] airflow/providers/{{ row[3]}}
+{%- endfor %}

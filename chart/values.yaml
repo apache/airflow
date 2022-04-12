@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.4"
+defaultAirflowTag: "2.2.5"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.4"
+airflowVersion: "2.2.5"
 
 # Images
 images:
@@ -1118,7 +1118,7 @@ flower:
 
   podAnnotations: {}
 
-# Statsd settings
+# StatsD settings
 statsd:
   enabled: true
 
@@ -1133,7 +1133,8 @@ statsd:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # When not set, the values defined in the global securityContext will be used
+  uid: 65534
+  # When not set, `statsd.uid` will be used
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0
@@ -1152,17 +1153,15 @@ statsd:
   service:
     extraAnnotations: {}
 
-  # Select certain nodes for statsd pods.
+  # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
 
   priorityClassName: ~
 
-  # Additional mappings for statsd exporter.
+  # Additional mappings for StatsD exporter.
   extraMappings: []
-
-  uid: 65534
 
 # PgBouncer settings
 pgbouncer:
@@ -1172,6 +1171,8 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
+  auth_type: md5
+  auth_file: /etc/pgbouncer/users.txt
 
   # Create ServiceAccount
   serviceAccount:
@@ -1327,6 +1328,13 @@ redis:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  # Set to 0 for backwards-compatiblity
+  uid: 0
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 0
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -1529,6 +1537,8 @@ dags:
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
     existingClaim:
+    ## optional subpath for dag volume mount
+    subPath: ~
   gitSync:
     enabled: false
 

@@ -181,9 +181,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             self.on_retry_callback,
             self.on_failure_callback,
         ]
-        for status in check_list:
-            if status:
-                return False
+        if any(check_list):
+            return False
 
         operator = self.__class__.__name__
         return operator in self.sensors_support_sensor_service

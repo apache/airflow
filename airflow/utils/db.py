@@ -21,11 +21,11 @@ import logging
 import os
 import sys
 import time
+import warnings
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple
 
-from bcrypt import warnings
-from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy import Table, column, exc, func, inspect, literal, or_, table, text
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -36,6 +36,7 @@ from airflow.jobs.base_job import BaseJob  # noqa: F401
 from airflow.models import (  # noqa: F401
     DAG,
     XCOM_RETURN_KEY,
+    Base,
     BaseOperator,
     BaseOperatorLink,
     Connection,
@@ -85,6 +86,7 @@ REVISION_HEADS_MAP = {
     "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
     "2.2.4": "587bdf053233",
+    "2.2.5": "587bdf053233",
 }
 
 
@@ -644,13 +646,6 @@ def initdb(session: Session = NEW_SESSION):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
 
-        dagbag = DagBag()
-        # Save DAGs in the ORM
-        dagbag.sync_to_db(session=session)
-
-        # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
-
         from flask_appbuilder.models.sqla import Base
 
         Base.metadata.create_all(settings.engine)
@@ -742,7 +737,7 @@ def check_and_run_migrations():
     if len(db_heads) < 1:
         db_command = initdb
         command_name = "init"
-        verb = "initialization"
+        verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
         command_name = "upgrade"
@@ -843,6 +838,72 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
+def reflect_tables(models, session):
+    """
+    When running checks prior to upgrades, we use reflection to determine current state of the
+    database.
+    This function gets the current state of each table in the set of models provided and returns
+    a SqlAlchemy metadata object containing them.
+    """
+
+    import sqlalchemy.schema
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+
+    for model in models:
+        try:
+            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
+        except exc.InvalidRequestError:
+            continue
+    return metadata
+
+
+def check_task_fail_for_duplicates(session):
+    """Check that there are no duplicates in the task_fail table before creating FK"""
+    metadata = reflect_tables([TaskFail], session)
+    task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
+    if task_fail is None:  # table not there
+        return
+    if "run_id" in task_fail.columns:  # upgrade already applied
+        return
+    yield from check_table_for_duplicates(
+        table_name=task_fail.name,
+        uniqueness=['dag_id', 'task_id', 'execution_date'],
+        session=session,
+    )
+
+
+def check_table_for_duplicates(table_name: str, uniqueness: List[str], session: Session) -> Iterable[str]:
+    """
+    Check table for duplicates, given a list of columns which define the uniqueness of the table.
+
+    Call from ``run_duplicates_checks``.
+
+    :param table_name: table name to check
+    :param uniqueness: uniqueness constraint to evaluate against
+    :param session:  session of the sqlalchemy
+    :rtype: str
+    """
+    table_obj = table(table_name, *[column(x) for x in uniqueness])
+    dupe_count = 0
+    try:
+        subquery = (
+            session.query(table_obj, func.count().label('dupe_count'))
+            .group_by(*[text(x) for x in uniqueness])
+            .having(func.count() > literal(1))
+            .subquery()
+        )
+        dupe_count = session.query(func.sum(subquery.c.dupe_count)).scalar()
+    except (exc.OperationalError, exc.ProgrammingError):
+        # fallback if tables hasn't been created yet
+        session.rollback()
+    if dupe_count:
+        yield (
+            f"Found {dupe_count} duplicate records in table {table_name}. You must de-dupe these "
+            f"records before upgrading.  The uniqueness constraint for this table is {uniqueness!r}"
+        )
+
+
 def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
@@ -908,24 +969,34 @@ def check_run_id_null(session: Session) -> Iterable[str]:
                 reason="with a NULL dag_id, run_id, or execution_date",
             )
             return
-        _move_dangling_data_to_new_table(
-            session,
-            dagrun_table,
-            dagrun_table.select(invalid_dagrun_filter),
-            dagrun_dangling_table_name,
+
+        bind = session.get_bind()
+        dialect_name = bind.dialect.name
+        _create_table_as(
+            dialect_name=dialect_name,
+            source_query=dagrun_table.select(invalid_dagrun_filter),
+            target_table_name=dagrun_dangling_table_name,
+            source_table_name=dagrun_table.name,
+            session=session,
         )
+        delete = dagrun_table.delete().where(invalid_dagrun_filter)
+        session.execute(delete)
 
 
-def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", target_table_name: str
+def _create_table_as(
+    *,
+    session,
+    dialect_name: str,
+    source_query: "Query",
+    target_table_name: str,
+    source_table_name: str,
 ):
+    """
+    Create a new table with rows from query.
+    We have to handle CTAS differently for different dialects.
+    """
     from sqlalchemy import column, select, table
-    from sqlalchemy.sql.selectable import Join
 
-    bind = session.get_bind()
-    dialect_name = bind.dialect.name
-
-    # First: Create moved rows from new table
     if dialect_name == "mssql":
         cte = source_query.cte("source")
         moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
@@ -938,7 +1009,7 @@ def _move_dangling_data_to_new_table(
     elif dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table.name}")
+        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table_name}")
         session.execute(
             f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
         )
@@ -948,45 +1019,50 @@ def _move_dangling_data_to_new_table(
             f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
         )
 
-    # Second: Now delete rows we've moved
-    try:
-        clause = source_query.whereclause
-    except AttributeError:
-        clause = source_query._whereclause
 
-    if dialect_name == "sqlite":
-        subq = source_query.selectable.with_only_columns([text(f'{source_table}.ROWID')])
-        delete = source_table.delete().where(column('ROWID').in_(subq))
-    elif dialect_name in ("mysql", "mssql"):
-        # This is not foolproof! But it works for the limited queries (with no params) that we use here
-        stmt = source_query.selectable
+def _move_dangling_data_to_new_table(
+    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
+):
 
-        def _from_name(from_) -> str:
-            if isinstance(from_, Join):
-                return str(from_.compile(bind=bind))
-            return str(from_)
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
 
-        delete = (
-            f"DELETE {source_table} FROM { ', '.join(_from_name(tbl) for tbl in stmt.froms) }"
-            f" WHERE {clause.compile(bind=bind)}"
-        )
-    else:
-        for frm in source_query.selectable.froms:
-            if hasattr(frm, 'onclause'):  # Table, or JOIN?
-                clause &= frm.onclause
-        delete = source_table.delete(clause)
+    # First: Create moved rows from new table
+    _create_table_as(
+        dialect_name=dialect_name,
+        source_query=source_query,
+        target_table_name=target_table_name,
+        source_table_name=source_table.name,
+        session=session,
+    )
+
+    delete = source_table.delete().where(~exists_subquery.exists())
     session.execute(delete)
 
 
 def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
+    """
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id`
+    in many tables.
+    Here we go through each table and look for records that can't be mapped to a dag run.
+    When we find such "dangling" rows we back them up in a special table and delete them
+    from the main table.
+    """
     import sqlalchemy.schema
-    from sqlalchemy import and_, outerjoin
+    from sqlalchemy import and_
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule, XCom, RenderedTaskInstanceFields]
-    for model in models_to_dagrun + [DagRun]:
+    models_to_dagrun: List[Tuple[Base, str]] = [
+        (mod, ver)
+        for ver, models in {
+            '2.2': [TaskInstance, TaskReschedule],
+            '2.3': [RenderedTaskInstanceFields, TaskFail, XCom],
+        }.items()
+        for mod in models
+    ]
+    for model, _ in [*models_to_dagrun, (DagRun, '2.2')]:
         try:
             metadata.reflect(
                 only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
@@ -1007,7 +1083,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     existing_table_names = set(inspect(session.get_bind()).get_table_names())
     errored = False
 
-    for model in models_to_dagrun:
+    for model, change_version in models_to_dagrun:
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
         source_table = metadata.tables.get(model.__tablename__)  # type: ignore
@@ -1018,20 +1094,23 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         if "run_id" in source_table.columns:
             continue
 
+        # find rows in source table which don't have a matching dag run
         source_to_dag_run_join_cond = and_(
             source_table.c.dag_id == dagrun_table.c.dag_id,
             source_table.c.execution_date == dagrun_table.c.execution_date,
         )
-        invalid_rows_query = (
-            session.query(source_table.c.dag_id, source_table.c.execution_date)
-            .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
-            .filter(dagrun_table.c.dag_id.is_(None))
+        exists_subquery = (
+            session.query(text('1')).select_from(dagrun_table).filter(source_to_dag_run_join_cond)
         )
+        invalid_rows_query = session.query(source_table.c.dag_id, source_table.c.execution_date).filter(
+            ~exists_subquery.exists()
+        )
+
         invalid_row_count = invalid_rows_query.count()
         if invalid_row_count <= 0:
             continue
 
-        dangling_table_name = _format_airflow_moved_table_name(source_table.name, "2.2")
+        dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version)
         if dangling_table_name in existing_table_names:
             yield _format_dangling_error(
                 source_table=source_table.name,
@@ -1045,6 +1124,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
             session,
             source_table,
             invalid_rows_query.with_entities(*source_table.columns),
+            exists_subquery,
             dangling_table_name,
         )
 
@@ -1061,13 +1141,14 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :rtype: list[str]
     """
     check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
+        # todo: check task fail for duplicates
         check_conn_id_duplicates,
         check_conn_type_null,
         check_run_id_null,
         check_task_tables_without_matching_dagruns,
     )
     for check_fn in check_functions:
-        yield from check_fn(session)
+        yield from check_fn(session=session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
 
@@ -1208,6 +1289,17 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
 
     initdb(session=session)
+
+
+@provide_session
+def bootstrap_dagbag(session: Session = NEW_SESSION):
+
+    dagbag = DagBag()
+    # Save DAGs in the ORM
+    dagbag.sync_to_db(session=session)
+
+    # Deactivate the unknown ones
+    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
 @provide_session

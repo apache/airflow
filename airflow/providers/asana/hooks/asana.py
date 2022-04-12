@@ -20,8 +20,8 @@
 import sys
 from typing import Any, Dict, Optional
 
-from asana import Client
-from asana.error import NotFoundError
+from asana import Client  # type: ignore[attr-defined]
+from asana.error import NotFoundError  # type: ignore[attr-defined]
 
 if sys.version_info >= (3, 8):
     from functools import cached_property

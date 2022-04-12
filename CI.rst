@@ -59,7 +59,7 @@ Container Registry used as cache
 We are using GitHub Container Registry to store the results of the ``Build Images``
 workflow which is used in the ``Tests`` workflow.
 
-Currently in main version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
+Currently in main version of Airflow we run tests in 4 different versions of Python (3.7, 3.8, 3.9, 3.10)
 which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``pull_request_target`` feature of GitHub Actions.
@@ -491,7 +491,7 @@ running, GitHub Actions will cancel the old workflow run automatically.
 Build Images Workflow
 ---------------------
 
-This workflow builds images for the CI Workflow.
+This workflow builds images for the CI Workflow for Pull Requests coming from forks.
 
 It's a special type of workflow: ``pull_request_target`` which means that it is triggered when a pull request
 is opened. This also means that the workflow has Write permission to push to the GitHub registry the images
@@ -499,8 +499,14 @@ used by CI jobs which means that the images can be built only once and reused by
 (including the matrix jobs). We've implemented it so that the ``Tests`` workflow waits
 until the images are built by the ``Build Images`` workflow before running.
 
-This workflow is also triggered on normal pushes to our "main" branches, i.e. after a
-pull request is merged and whenever ``scheduled`` run is triggered.
+Those "Build Image" steps are skipped in case Pull Requests do not come from "forks" (i.e. those
+are internal PRs for Apache Airflow repository. This is because in case of PRs coming from
+Apache Airflow (only committers can create those) the "pull_request" workflows have enough
+permission to push images to Github Registry.
+
+This workflow is not triggered on normal pushes to our "main" branches, i.e. after a
+pull request is merged and whenever ``scheduled`` run is triggered. Again in this case the "CI" workflow
+has enough permissions to push the images. In this case we simply do not run this workflow.
 
 The workflow has the following jobs:
 
@@ -674,7 +680,7 @@ cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  ./breeze-legacy --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -701,13 +707,7 @@ In order to add a new version the following operations should be done (example u
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.10
-
-* push image as cache to GitHub:
-
-.. code-block:: bash
-
-  ./breeze push-image --python 3.10
+  breeze build-image --python 3.10
 
 * Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_

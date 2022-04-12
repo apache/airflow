@@ -58,7 +58,7 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
 # This constraints file was automatically generated on $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 # via "eager-upgrade" mechanism of PIP. For the "${DEFAULT_BRANCH}" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
-# 'apache-airflow' package nd all available community provider packages.
+# 'apache-airflow' package and all available community provider packages.
 #
 # Those constraints represent the dependencies that are used by all pull requests when they are build in CI.
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should

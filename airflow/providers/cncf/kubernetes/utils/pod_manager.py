@@ -214,9 +214,14 @@ class PodManager(LoggingMixin):
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
-            except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
+            except BaseHTTPError as e:
                 self.log.warning(
-                    'Failed to read logs for pod %s',
+                    "Reading of logs interrupted with error %r; will retry. "
+                    "Set log level to DEBUG for traceback.",
+                    e,
+                )
+                self.log.debug(
+                    "Traceback for interrupted logs read for pod %r",
                     pod.metadata.name,
                     exc_info=True,
                 )
@@ -269,7 +274,11 @@ class PodManager(LoggingMixin):
         """
         split_at = line.find(' ')
         if split_at == -1:
-            raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
+            self.log.error(
+                f"Error parsing timestamp (no timestamp in message '${line}'). "
+                "Will continue execution but won't update timestamp"
+            )
+            return None, line
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         try:

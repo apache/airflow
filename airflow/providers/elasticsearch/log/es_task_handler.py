@@ -86,7 +86,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
+        self.client = elasticsearch.Elasticsearch([host], **es_kwargs)  # type: ignore[attr-defined]
 
         self.log_id_template = log_id_template
         self.frontend = frontend
@@ -134,7 +134,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             data_interval_end=data_interval_end,
             execution_date=execution_date,
             try_number=try_number,
-            map_index=ti.map_index,
+            map_index=getattr(ti, "map_index", ""),
         )
 
     @staticmethod
@@ -286,7 +286,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            record.offset = int(time() * (10 ** 9))
+            record.offset = int(time() * (10**9))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:

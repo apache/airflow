@@ -153,12 +153,12 @@ def get_classes_from_file(filepath: str):
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
-        ('cloud', 'adls_to_gcs'),
-        ('cloud', 'sql_to_gcs'),
-        ('cloud', 'bigquery_to_mysql'),
-        ('cloud', 'cassandra_to_gcs'),
-        ('suite', 'drive'),
-        ('ads', 'ads_to_gcs'),
+        'adls_to_gcs',
+        'sql_to_gcs',
+        'bigquery_to_mysql',
+        'cassandra_to_gcs',
+        'drive',
+        'ads_to_gcs',
     }
 
     # Those operators are deprecated and we do not need examples for them
@@ -192,6 +192,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
     # Please at the examples to those operators at the earliest convenience :)
     MISSING_EXAMPLES_FOR_OPERATORS = {
+        'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator',
         'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
@@ -217,87 +218,36 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
     }
 
-    def test_example_dags(self):
-        operators_modules = itertools.chain(
-            *(self.find_resource_files(resource_type=d) for d in ["operators", "sensors", "transfers"])
-        )
-        example_dags_files = self.find_resource_files(resource_type="example_dags")
-        # Generate tuple of department and service e.g. ('marketing_platform', 'display_video')
-        operator_sets = [(f.split("/")[-3], f.split("/")[-1].rsplit(".")[0]) for f in operators_modules]
-        example_sets = [
-            (f.split("/")[-3], f.split("/")[-1].rsplit(".")[0].replace("example_", "", 1))
-            for f in example_dags_files
-        ]
-
-        def has_example_dag(operator_set):
-            for e in example_sets:
-                if e[0] != operator_set[0]:
-                    continue
-                if e[1].startswith(operator_set[1]):
-                    return True
-
-            return False
-
-        with self.subTest("Detect missing example dags"):
-            missing_example = {s for s in operator_sets if not has_example_dag(s)}
-            missing_example -= self.MISSING_EXAMPLE_DAGS
-            assert set() == missing_example
-
-        with self.subTest("Keep update missing example dags list"):
-            new_example_dag = set(example_sets).intersection(set(self.MISSING_EXAMPLE_DAGS))
-            if new_example_dag:
-                new_example_dag_text = '\n'.join(str(f) for f in new_example_dag)
-                self.fail(
-                    "You've added a example dag currently listed as missing:\n"
-                    f"{new_example_dag_text}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of missing example, please?"
-                )
-
-        with self.subTest("Remove extra elements"):
-            extra_example_dags = set(self.MISSING_EXAMPLE_DAGS) - set(operator_sets)
-            if extra_example_dags:
-                new_example_dag_text = '\n'.join(str(f) for f in extra_example_dags)
-                self.fail(
-                    "You've added a example dag currently listed as missing:\n"
-                    f"{new_example_dag_text}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of missing example, please?"
-                )
-
     def test_missing_example_for_operator(self):
-        missing_operators = []
-
+        """
+        Assert that all operators defined under operators, sensors and transfers directories
+        are used in any of the example dags
+        """
+        all_operators = set()
+        services = set()
         for resource_type in ["operators", "sensors", "transfers"]:
             operator_files = set(
                 self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
             )
             for filepath in operator_files:
                 service_name = os.path.basename(filepath)[: -(len(".py"))]
-                example_dags = list(
-                    glob.glob(
-                        f"{ROOT_FOLDER}/airflow/providers/google/*/example_dags/example_{service_name}*.py"
-                    )
-                )
-                if not example_dags:
-                    # Ignore. We have separate tests that detect this.
+                if service_name in self.MISSING_EXAMPLE_DAGS:
                     continue
-                example_paths = {
-                    path for example_dag in example_dags for path in get_imports_from_file(example_dag)
-                }
-                example_paths = {
-                    path for path in example_paths if f'.{resource_type}.{service_name}.' in path
-                }
-                print("example_paths=", example_paths)
+                services.add(service_name)
                 operators_paths = set(get_classes_from_file(f"{ROOT_FOLDER}/{filepath}"))
-                missing_operators.extend(operators_paths - example_paths)
-        full_set = set()
-        full_set.update(self.MISSING_EXAMPLES_FOR_OPERATORS)
-        full_set.update(self.DEPRECATED_OPERATORS)
-        full_set.update(self.BASE_OPERATORS)
-        assert set(missing_operators) == full_set
+                all_operators.update(operators_paths)
+
+        for service in services:
+            example_dags = self.examples_for_service(service)
+            example_paths = {
+                path for example_dag in example_dags for path in get_imports_from_file(example_dag)
+            }
+            all_operators -= example_paths
+
+        all_operators -= self.MISSING_EXAMPLES_FOR_OPERATORS
+        all_operators -= self.DEPRECATED_OPERATORS
+        all_operators -= self.BASE_OPERATORS
+        assert set() == all_operators
 
     @parameterized.expand(
         itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers"])
@@ -329,6 +279,13 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Exclude __init__.py and pycache
         resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
         return resource_files
+
+    @staticmethod
+    def examples_for_service(service_name):
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/airflow/providers/google/*/example_dags/example_{service_name}*.py"
+        )
+        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/google/{service_name}/example_*.py")
 
 
 class TestOperatorsHooks(unittest.TestCase):
