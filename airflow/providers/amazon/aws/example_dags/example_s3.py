@@ -22,23 +22,25 @@ from typing import List
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
+    S3CopyObjectOperator,
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
     S3DeleteBucketTaggingOperator,
+    S3DeleteObjectsOperator,
     S3GetBucketTaggingOperator,
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
+BUCKET_NAME_2 = os.environ.get('BUCKET_NAME_2', 'test-airflow-123456')
 KEY = os.environ.get('KEY', 'key')
 KEY_2 = os.environ.get('KEY_2', 'key2')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
 
-
 with DAG(
-    dag_id='example_s3_bucket',
+    dag_id='example_s3',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -118,6 +120,24 @@ with DAG(
     )
     # [END howto_sensor_s3_key_function]
 
+    # [START howto_operator_s3_copy_object]
+    s3_copy_object = S3CopyObjectOperator(
+        task_id="s3_copy_object",
+        source_bucket_name=BUCKET_NAME,
+        dest_bucket_name=BUCKET_NAME_2,
+        source_bucket_key=KEY,
+        dest_bucket_key=KEY_2,
+    )
+    # [END howto_operator_s3_copy_object]
+
+    # [START howto_operator_s3_delete_objects]
+    s3_delete_objects = S3DeleteObjectsOperator(
+        task_id="s3_delete_objects",
+        bucket=BUCKET_NAME_2,
+        keys=KEY_2,
+    )
+    # [END howto_operator_s3_delete_objects]
+
     # [START howto_operator_s3_delete_bucket]
     delete_bucket = S3DeleteBucketOperator(
         task_id='s3_delete_bucket', bucket_name=BUCKET_NAME, force_delete=True
@@ -130,5 +150,7 @@ with DAG(
         get_tagging,
         delete_tagging,
         [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
+        s3_copy_object,
+        s3_delete_objects,
         delete_bucket,
     )
