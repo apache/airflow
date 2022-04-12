@@ -33,6 +33,7 @@ from airflow_breeze.utils.docker_command_utils import (
     SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
     VARIABLES_IN_CACHE,
     check_docker_compose_version,
+    check_docker_is_running,
     check_docker_resources,
     check_docker_version,
     construct_env_variables_docker_compose_command,
@@ -190,6 +191,12 @@ def enter_shell(**kwargs):
     """
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
+    if not check_docker_is_running(verbose):
+        console.print(
+            '[red]Docker is not running.[/]\n'
+            '[bright_yellow]Please make sure Docker is installed and running.[/]'
+        )
+        sys.exit(1)
     check_docker_version(verbose)
     check_docker_compose_version(verbose)
     updated_kwargs = synchronize_cached_params(kwargs)

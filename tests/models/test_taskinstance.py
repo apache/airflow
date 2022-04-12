@@ -1121,6 +1121,31 @@ class TestTaskInstance:
         ti.run(ignore_all_deps=True)
         assert ti.xcom_pull(task_ids='test_xcom', key=key) is None
 
+    def test_xcom_pull_after_deferral(self, create_task_instance, session):
+        """
+        tests xcom will not clear before a task runs its next method after deferral.
+        """
+
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        ti = create_task_instance(
+            dag_id='test_xcom',
+            schedule_interval='@monthly',
+            task_id='test_xcom',
+            pool='test_xcom',
+        )
+
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+
+        ti.next_method = "execute"
+        session.merge(ti)
+        session.commit()
+
+        ti.run(ignore_all_deps=True)
+        assert ti.xcom_pull(task_ids='test_xcom', key=key) == value
+
     def test_xcom_pull_different_execution_date(self, create_task_instance):
         """
         tests xcom fetch behavior with different execution dates, using

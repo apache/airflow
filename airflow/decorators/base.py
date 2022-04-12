@@ -406,6 +406,9 @@ class DecoratedMappedOperator(MappedOperator):
     # in partial_kwargs, and MappedOperator prevents duplication.
     mapped_op_kwargs: Dict[str, "Mappable"]
 
+    def __hash__(self):
+        return id(self)
+
     @classmethod
     @cache
     def get_serialized_fields(cls):

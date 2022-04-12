@@ -231,6 +231,23 @@ To support operator-mapping (AIP 42), the `deps` attribute on operator class mus
 
 If you set the `dag_default_view` config option or the `default_view` argument to `DAG()` to `tree` you will need to update your deployment. The old name will continue to work but will issue warnings.
 
+### Database configuration moved to new section
+
+The following configurations have been moved from `[core]` to the new `[database]` section. However when reading the new option, the old option will be checked to see if it exists. If it does a DeprecationWarning will be issued and the old option will be used instead.
+
+- sql_alchemy_conn
+- sql_engine_encoding
+- sql_engine_collation_for_ids
+- sql_alchemy_pool_enabled
+- sql_alchemy_pool_size
+- sql_alchemy_max_overflow
+- sql_alchemy_pool_recycle
+- sql_alchemy_pool_pre_ping
+- sql_alchemy_schema
+- sql_alchemy_connect_args
+- load_default_connections
+- max_db_retries
+
 ## Airflow 2.2.5
 
 No breaking changes

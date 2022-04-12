@@ -395,7 +395,7 @@ class DagFileProcessorManager(LoggingMixin):
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
-        if conf.get('core', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
+        if conf.get('database', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d) when using sqlite. So we set parallelism to 1.",
