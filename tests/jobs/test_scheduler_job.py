@@ -1117,7 +1117,10 @@ class TestSchedulerJob:
         assert 0 == len(res)
 
         mock_stats_gauge.assert_has_calls(
-            [mock.call('scheduler.tasks.starving', 1), mock.call('pool.starving_tasks.default_pool', 1)],
+            [
+                mock.call('scheduler.tasks.starving', 1),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 1),
+            ],
             any_order=True,
         )
         mock_stats_gauge.reset_mock()
@@ -1129,7 +1132,10 @@ class TestSchedulerJob:
         assert 1 == len(res)
 
         mock_stats_gauge.assert_has_calls(
-            [mock.call('scheduler.tasks.starving', 0), mock.call('pool.starving_tasks.default_pool', 0)],
+            [
+                mock.call('scheduler.tasks.starving', 0),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 0),
+            ],
             any_order=True,
         )
 
