@@ -159,11 +159,32 @@ def compare_version(current_version: str, min_version: str) -> bool:
     return version.parse(current_version) >= version.parse(min_version)
 
 
+def check_docker_is_running(verbose: bool) -> bool:
+    """
+    Checks if docker is running. Suppressed Dockers stdout and stderr output.
+    :param verbose: print commands when running
+    :return: False if docker is not running.
+    """
+    response = run_command(
+        ["docker", "info"],
+        verbose=verbose,
+        no_output_dump_on_exception=True,
+        text=False,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+    )
+    if not response:
+        return False
+    return True
+
+
 def check_docker_version(verbose: bool):
     """
     Checks if the docker compose version is as expected (including some specific modifications done by
     some vendors such as Microsoft (they might have modified version of docker-compose/docker in their
     cloud. In case docker compose version is wrong we continue but print warning for the user.
+
 
     :param verbose: print commands when running
     """

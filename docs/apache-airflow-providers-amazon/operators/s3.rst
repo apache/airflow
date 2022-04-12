@@ -22,9 +22,7 @@ Amazon S3 Operators
 Airflow to Amazon Simple Storage Service (S3) integration provides several operators to create and interact with S3 buckets.
 
  - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`
- - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor`
  - :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`
@@ -110,6 +108,61 @@ To delete the tags of an Amazon S3 bucket you can use
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_bucket_tagging]
     :end-before: [END howto_operator_s3_delete_bucket_tagging]
+
+.. _howto/sensor:S3KeySensor:
+
+Amazon S3 Key Sensor
+--------------------
+
+To wait for one or multiple keys to be present in an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
+For each key, it calls
+`head_object <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object>`__
+API (or `list_objects_v2 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2>`__
+API if ``wildcard_match`` is ``True``) to check whether it is present or not.
+Please keep in mind, especially when used to check a large volume of keys, that it makes one API call per key.
+
+To check one file:
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_single_key]
+    :end-before: [END howto_sensor_s3_key_single_key]
+
+To check multiple files:
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_multiple_keys]
+    :end-before: [END howto_sensor_s3_key_multiple_keys]
+
+To check with an additional custom check you can define a function which receives a list of matched S3 object
+attributes and returns a boolean:
+
+- ``True``: a certain criteria is met
+- ``False``: the criteria isn't met
+
+This function is called for each key passed as parameter in ``bucket_key``.
+The reason why the parameter of this function is a list of objects is when ``wildcard_match`` is ``True``,
+multiple files can match one key. The list of matched S3 object attributes contain only the size and is this format:
+
+.. code-block:: python
+
+    [{"Size": int}]
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_function_definition]
+    :end-before: [END howto_sensor_s3_key_function_definition]
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_function]
+    :end-before: [END howto_sensor_s3_key_function]
 
 Reference
 ---------

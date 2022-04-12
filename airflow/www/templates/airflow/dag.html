@@ -62,6 +62,7 @@
   <meta name="dagrun_details_url" content="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url, dag_id=dag.dag_id) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
   <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
+  <meta name="xcom_url" content="{{ url_for('Airflow.xcom', dag_id=dag.dag_id) }}">
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
   <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
@@ -233,6 +234,9 @@
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
             Log
           </a>
+          <a id="btn_xcom" class="btn btn-sm" data-base-url="{{ url_for('Airflow.xcom') }}">
+            XCom
+          </a>
           <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="View all instances across all DAG runs">
             All Instances
           </a>
@@ -272,7 +276,7 @@
             </div>
           {% endif %}
           <h4>Task Actions</h4>
-          <form method="POST" data-action="{{ url_for('Airflow.run') }}">
+          <form method="POST" data-action="{{ url_for('Airflow.run') }}" id="run_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
@@ -280,6 +284,9 @@
             <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
+              <span class="col-xs-12 col-sm-9 text-danger" style="font-size: 12px">
+                {{ "Only works with the Celery, CeleryKubernetes or Kubernetes executors" if not k8s_or_k8scelery_executor else "" }}
+            </span>
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label
                   class="btn btn-default"
@@ -298,14 +305,14 @@
                 </label>
               </span>
               <span class="col-xs-12 col-sm-3 task-instance-modal-column">
-                <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance">
+                <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance" {{ " disabled" if not k8s_or_k8scelery_executor else "" }}>
                   Run
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.clear') }}">
+          <form method="POST" data-action="{{ url_for('Airflow.clear') }}" id="clear_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
@@ -345,9 +352,9 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="failed_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
@@ -378,9 +385,9 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="success_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
