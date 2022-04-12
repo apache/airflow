@@ -33,6 +33,7 @@ from airflow.exceptions import PodReconciliationError
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 try:
@@ -543,6 +544,39 @@ class TestKubernetesExecutor:
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
         mock_adopt_completed_pods.assert_called_once()
         assert reset_tis == []  # This time our return is empty - no TIs to reset
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods')
+    def test_try_adopt_task_instances_manual_runs(self, mock_adopt_completed_pods, mock_adopt_launched_task):
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "10"
+        ti_key = annotations_to_key(
+            {
+                'dag_id': 'dag',
+                'run_id': 'run_id',
+                'task_id': 'task',
+                'try_number': '1',
+            }
+        )
+        mock_ti = mock.MagicMock(
+            external_executor_id="1", key=ti_key, run_type=DagRunType.MANUAL, queued_by_job_id=None
+        )
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value.items = [pod]
+        executor.kube_client = mock_kube_client
+        # assume success adopting when checking return, `adopt_launched_task` pops `ti_key` from `pod_ids`
+        mock_adopt_launched_task.side_effect = lambda client, pod, pod_ids: pod_ids.pop(ti_key)
+
+        reset_tis = executor.try_adopt_task_instances([mock_ti])
+
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace='default', label_selector='airflow-worker=manual'
+        )
+        mock_adopt_launched_task.assert_called_once()
+        mock_adopt_completed_pods.assert_called_once()
+
+        assert reset_tis == []
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods')
     def test_try_adopt_task_instances_multiple_scheduler_ids(self, mock_adopt_completed_pods):
