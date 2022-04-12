@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Storage GCSObjectExistenceSensor and
-GCSObjectsWithPrefixExistenceSensor sensors.
+Example Airflow DAG for Google Cloud Storage sensors.
 """
 
 import os
@@ -26,10 +25,13 @@ from pathlib import Path
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,
+    GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
 )
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -54,6 +56,26 @@ with models.DAG(
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
+
+    # [START howto_sensor_gcs_upload_session_complete_task]
+    gcs_upload_session_complete = GCSUploadSessionCompleteSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME,
+        inactivity_period=15,
+        min_objects=1,
+        allow_delete=True,
+        previous_objects=set(),
+        task_id="gcs_upload_session_complete_task",
+    )
+    # [END howto_sensor_gcs_upload_session_complete_task]
+
+    # [START howto_sensor_object_update_exists_task]
+    gcs_update_object_exists = GCSObjectUpdateSensor(
+        bucket=BUCKET_NAME,
+        object=FILE_NAME,
+        task_id="gcs_object_update_sensor_task",
+    )
+    # [END howto_sensor_object_update_exists_task]
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
@@ -84,13 +106,23 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    sleep = BashOperator(task_id='sleep', bash_command='sleep 5')
+
     chain(
         # TEST SETUP
         create_bucket,
+        sleep,
         upload_file,
         # TEST BODY
         [gcs_object_exists, gcs_object_with_prefix_exists],
         # TEST TEARDOWN
+        delete_bucket,
+    )
+    chain(
+        create_bucket,
+        # TEST BODY
+        gcs_upload_session_complete,
+        gcs_update_object_exists,
         delete_bucket,
     )
 
