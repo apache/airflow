@@ -31,10 +31,15 @@ warnings.warn(
 class DummyOperator(EmptyOperator):
     """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`."""
 
+    @property
+    def inherits_from_dummy_operator(cls):
+        return cls.inherits_from_dummy_operator
+
     def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.""",
             DeprecationWarning,
             stacklevel=2,
         )
+        self.inherits_from_empty_operator = self.inherits_from_dummy_operator
         super().__init__(**kwargs)

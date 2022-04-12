@@ -1799,7 +1799,14 @@ def test_mapped_decorator_serde():
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_dummy_operator_serde():
+@pytest.mark.parametrize(
+    "is_inherit",
+    [
+        True,
+        False,
+    ],
+)
+def test_dummy_operator_serde(is_inherit):
     """
     Test to verify that when user uses custom DummyOperator with inherits_from_dummy_operator
     we will have _is_empty in serialized operator.
@@ -1810,14 +1817,14 @@ def test_dummy_operator_serde():
     from airflow.operators.dummy import DummyOperator
 
     class MyDummyOperator(DummyOperator):
-        inherits_from_dummy_operator = True
+        inherits_from_dummy_operator = is_inherit
 
     op = MyDummyOperator(task_id='my_task')
 
     serialized = SerializedBaseOperator._serialize(op)
 
     assert serialized == {
-        '_is_empty': True,
+        '_is_empty': is_inherit,
         '_task_module': 'tests.serialization.test_dag_serialization',
         '_task_type': 'MyDummyOperator',
         '_outlets': [],
