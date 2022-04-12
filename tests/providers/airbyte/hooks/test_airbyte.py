@@ -111,7 +111,7 @@ class TestAirbyteHook(unittest.TestCase):
 
         calls = [mock.call(job_id=self.job_id)]
         mock_get_job.assert_has_calls(calls)
-        assert mock_get_job.call_count == 1
+        assert mock_get_job.mock_calls == calls
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_state_unrecognized(self, mock_get_job):
