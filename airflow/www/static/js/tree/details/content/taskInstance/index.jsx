@@ -79,20 +79,32 @@ const TaskInstance = ({ taskId, runId }) => {
         />
       )}
       {!isGroup && (
-        <>
-          <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
-            <RunAction runId={runId} taskId={taskId} dagId={dagId} />
+        <Box my={3}>
+          <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+            <RunAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+            />
             <ClearAction
               runId={runId}
               taskId={taskId}
               dagId={dagId}
               executionDate={executionDate}
             />
-            <MarkFailedAction runId={runId} taskId={taskId} dagId={dagId} />
-            <MarkSuccessAction runId={runId} taskId={taskId} dagId={dagId} />
+            <MarkFailedAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+            />
+            <MarkSuccessAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+            />
           </VStack>
           <Divider my={2} />
-        </>
+        </Box>
       )}
       {!isMapped && (
         <Logs

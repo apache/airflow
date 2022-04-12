@@ -610,6 +610,45 @@ class TestSchedulerJob:
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
+    def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
+        """
+        The scheduler job should pick tasks with higher priority for execution
+        even if different pools are involved.
+        """
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_order_priority_with_pools'
+
+        session.add(Pool(pool='pool1', slots=32))
+        session.add(Pool(pool='pool2', slots=32))
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=2):
+            op1 = DummyOperator(task_id='dummy1', priority_weight=1, pool='pool1')
+            op2 = DummyOperator(task_id='dummy2', priority_weight=2, pool='pool2')
+            op3 = DummyOperator(task_id='dummy3', priority_weight=3, pool='pool1')
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti1 = dag_run.get_task_instance(op1.task_id, session)
+        ti2 = dag_run.get_task_instance(op2.task_id, session)
+        ti3 = dag_run.get_task_instance(op3.task_id, session)
+
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        ti3.state = State.SCHEDULED
+
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 2 == len(res)
+        assert ti3.key == res[0].key
+        assert ti2.key == res[1].key
+
+        session.rollback()
+
     def test_find_executable_task_instances_order_execution_date_and_priority(self, dag_maker):
         dag_id_1 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-a'
         dag_id_2 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-b'

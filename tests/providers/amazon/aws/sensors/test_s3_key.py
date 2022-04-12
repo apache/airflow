@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from typing import List
 from unittest import mock
 
 import pytest
@@ -40,6 +41,18 @@ class TestS3KeySensor(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.poke(None)
 
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_bucket_name_none_and_bucket_key_is_list_and_contain_relative_path(self, mock_head_object):
+        """
+        Test if exception is raised when bucket_name is None
+        and bucket_key is provided with one of the two keys as relative path rather than s3:// url.
+        :return:
+        """
+        mock_head_object.return_value = {'ContentLength': 0}
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key=["s3://test_bucket/file", "file_in_bucket"])
+        with pytest.raises(AirflowException):
+            op.poke(None)
+
     def test_bucket_name_provided_and_bucket_key_is_s3_url(self):
         """
         Test if exception is raised when bucket_name is provided
@@ -52,15 +65,31 @@ class TestS3KeySensor(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.poke(None)
 
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_bucket_name_provided_and_bucket_key_is_list_and_contains_s3_url(self, mock_head_object):
+        """
+        Test if exception is raised when bucket_name is provided
+        while bucket_key contains a full s3:// url.
+        :return:
+        """
+        mock_head_object.return_value = {'ContentLength': 0}
+        op = S3KeySensor(
+            task_id='s3_key_sensor',
+            bucket_key=["test_bucket", "s3://test_bucket/file"],
+            bucket_name='test_bucket',
+        )
+        with pytest.raises(AirflowException):
+            op.poke(None)
+
     @parameterized.expand(
         [
             ['s3://bucket/key', None, 'key', 'bucket'],
             ['key', 'bucket', 'key', 'bucket'],
         ]
     )
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
-    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_check):
-        mock_check.return_value = False
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_head_object):
+        mock_head_object.return_value = None
 
         op = S3KeySensor(
             task_id='s3_key_sensor',
@@ -70,12 +99,11 @@ class TestS3KeySensor(unittest.TestCase):
 
         op.poke(None)
 
-        assert op.bucket_key == parsed_key
-        assert op.bucket_name == parsed_bucket
+        mock_head_object.assert_called_once_with(parsed_key, parsed_bucket)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
-    def test_parse_bucket_key_from_jinja(self, mock_check):
-        mock_check.return_value = False
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_parse_bucket_key_from_jinja(self, mock_head_object):
+        mock_head_object.return_value = None
 
         Variable.set("test_bucket_key", "s3://bucket/key")
 
@@ -96,76 +124,92 @@ class TestS3KeySensor(unittest.TestCase):
         ti.render_templates(context)
         op.poke(None)
 
-        assert op.bucket_key == "key"
-        assert op.bucket_name == "bucket"
+        mock_head_object.assert_called_once_with("key", "bucket")
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
-    def test_poke(self, mock_check):
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_poke(self, mock_head_object):
         op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
-        mock_check.return_value = False
+        mock_head_object.return_value = None
         assert op.poke(None) is False
-        mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
+        mock_head_object.assert_called_once_with("file", "test_bucket")
 
-        mock_check.return_value = True
+        mock_head_object.return_value = {'ContentLength': 0}
         assert op.poke(None) is True
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_wildcard_key')
-    def test_poke_wildcard(self, mock_check):
-        op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_poke_multiple_files(self, mock_head_object):
+        op = S3KeySensor(
+            task_id='s3_key_sensor', bucket_key=['s3://test_bucket/file1', 's3://test_bucket/file2']
+        )
 
-        mock_check.return_value = False
+        mock_head_object.side_effect = [{'ContentLength': 0}, None]
         assert op.poke(None) is False
-        mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
 
-        mock_check.return_value = True
+        mock_head_object.side_effect = [{'ContentLength': 0}, {'ContentLength': 0}]
+        assert op.poke(None) is True
+
+        mock_head_object.assert_any_call("file1", "test_bucket")
+        mock_head_object.assert_any_call("file2", "test_bucket")
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata')
+    def test_poke_wildcard(self, mock_get_file_metadata):
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file*', wildcard_match=True)
+
+        mock_get_file_metadata.return_value = []
+        assert op.poke(None) is False
+        mock_get_file_metadata.assert_called_once_with("file", "test_bucket")
+
+        mock_get_file_metadata.return_value = [{'Size': 0}]
+        assert op.poke(None) is True
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata')
+    def test_poke_wildcard_multiple_files(self, mock_get_file_metadata):
+        op = S3KeySensor(
+            task_id='s3_key_sensor',
+            bucket_key=['s3://test_bucket/file1*', 's3://test_bucket/file2*'],
+            wildcard_match=True,
+        )
+
+        mock_get_file_metadata.side_effect = [[{'Size': 0}], []]
+        assert op.poke(None) is False
+
+        mock_get_file_metadata.side_effect = [[{'Size': 0}], [{'Size': 0}]]
+        assert op.poke(None) is True
+
+        mock_get_file_metadata.assert_any_call("file1", "test_bucket")
+        mock_get_file_metadata.assert_any_call("file2", "test_bucket")
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_poke_with_check_function(self, mock_head_object):
+        def check_fn(files: List) -> bool:
+            return all(f.get('Size', 0) > 0 for f in files)
+
+        op = S3KeySensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', check_fn=check_fn)
+
+        mock_head_object.return_value = {'ContentLength': 0}
+        assert op.poke(None) is False
+
+        mock_head_object.return_value = {'ContentLength': 1}
         assert op.poke(None) is True
 
 
 class TestS3KeySizeSensor(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key', return_value=False)
-    def test_poke_check_for_key_false(self, mock_check_for_key):
-        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-        assert op.poke(None) is False
-        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
-
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor.get_files', return_value=[])
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key', return_value=True)
-    def test_poke_get_files_false(self, mock_check_for_key, mock_get_files):
-        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-        assert op.poke(None) is False
-        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
-        mock_get_files.assert_called_once_with(s3_hook=op.get_hook())
+    def test_deprecation_warnings_generated(self):
+        with pytest.warns(expected_warning=DeprecationWarning):
+            S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
     @parameterized.expand(
         [
-            [{"Contents": [{"Size": 0}, {"Size": 0}]}, False],
-            [{"Contents": [{"Size": 0}]}, False],
-            [{"Contents": []}, False],
-            [{"Contents": [{"Size": 10}]}, True],
-            [{"Contents": [{"Size": 10}, {"Size": 0}]}, False],
-            [{"Contents": [{"Size": 10}, {"Size": 10}]}, True],
+            [{"ContentLength": 0}, False],
+            [{"ContentLength": 10}, True],
         ]
     )
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_conn')
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_key')
-    def test_poke(self, paginate_return_value, poke_return_value, mock_check, mock_get_conn):
-        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
+    def test_poke(self, head_object_return_value, poke_return_value, mock_head_object):
+        op = S3KeySizeSensor(
+            task_id='s3_key_sensor', bucket_key=['s3://test_bucket/file', 's3://test_bucket2/file2']
+        )
 
-        mock_check.return_value = True
-        mock_paginator = mock.Mock()
-        mock_paginator.paginate.return_value = []
-
-        mock_get_conn.return_value.get_paginator.return_value = mock_paginator
-        mock_paginator.paginate.return_value = [paginate_return_value]
+        mock_head_object.return_value = head_object_return_value
         assert op.poke(None) is poke_return_value
-        mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)
-
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor.get_files', return_value=[])
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.check_for_wildcard_key')
-    def test_poke_wildcard(self, mock_check, mock_get_files):
-        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
-
-        mock_check.return_value = False
-        assert op.poke(None) is False
-        mock_check.assert_called_once_with(op.bucket_key, op.bucket_name)

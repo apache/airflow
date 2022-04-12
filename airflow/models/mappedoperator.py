@@ -282,6 +282,9 @@ class MappedOperator(AbstractOperator):
         )
     )
 
+    def __hash__(self):
+        return id(self)
+
     def __repr__(self):
         return f"<Mapped({self._task_type}): {self.task_id}>"
 
@@ -507,8 +510,14 @@ class MappedOperator(AbstractOperator):
         return getattr(self, self._expansion_kwargs_attr)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+        """Return dict of argument name to map length.
+
+        If any arguments are not known right now (upstream task not finished) they will not be present in the
+        dict.
+        """
         # TODO: Find a way to cache this.
         from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
         from airflow.models.xcom_arg import XComArg
 
         expansion_kwargs = self._get_expansion_kwargs()
@@ -518,21 +527,52 @@ class MappedOperator(AbstractOperator):
         map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
 
         # Build a reverse mapping of what arguments each task contributes to.
-        dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        non_mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
         for k, v in expansion_kwargs.items():
             if not isinstance(v, XComArg):
                 continue
-            dep_keys[v.operator.task_id].add(k)
+            if v.operator.is_mapped:
+                mapped_dep_keys[v.operator.task_id].add(k)
+            else:
+                non_mapped_dep_keys[v.operator.task_id].add(k)
+            # TODO: It's not possible now, but in the future (AIP-42 Phase 2)
+            # we will add support for depending on one single mapped task
+            # instance. When that happens, we need to further analyze the mapped
+            # case to contain only tasks we depend on "as a whole", and put
+            # those we only depend on individually to the non-mapped lookup.
 
+        # Collect lengths from unmapped upstreams.
         taskmap_query = session.query(TaskMap.task_id, TaskMap.length).filter(
             TaskMap.dag_id == self.dag_id,
             TaskMap.run_id == run_id,
-            TaskMap.task_id.in_(list(dep_keys)),
+            TaskMap.task_id.in_(non_mapped_dep_keys),
+            TaskMap.map_index < 0,
         )
         for task_id, length in taskmap_query:
-            for mapped_arg_name in dep_keys[task_id]:
+            for mapped_arg_name in non_mapped_dep_keys[task_id]:
                 map_lengths[mapped_arg_name] += length
 
+        # Collect lengths from mapped upstreams.
+        xcom_query = (
+            session.query(XCom.task_id, func.count(XCom.map_index))
+            .group_by(XCom.task_id)
+            .filter(
+                XCom.dag_id == self.dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id.in_(mapped_dep_keys),
+                XCom.map_index >= 0,
+            )
+        )
+        for task_id, length in xcom_query:
+            for mapped_arg_name in mapped_dep_keys[task_id]:
+                map_lengths[mapped_arg_name] += length
+        return map_lengths
+
+    def _resolve_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+        """Return dict of argument name to map length, or throw if some are not resolvable"""
+        expansion_kwargs = self._get_expansion_kwargs()
+        map_lengths = self._get_map_lengths(run_id, session=session)
         if len(map_lengths) < len(expansion_kwargs):
             keys = ", ".join(repr(k) for k in sorted(set(expansion_kwargs).difference(map_lengths)))
             raise RuntimeError(f"Failed to populate all mapping metadata; missing: {keys}")
@@ -547,7 +587,9 @@ class MappedOperator(AbstractOperator):
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
 
-        total_length = functools.reduce(operator.mul, self._get_map_lengths(run_id, session=session).values())
+        total_length = functools.reduce(
+            operator.mul, self._resolve_map_lengths(run_id, session=session).values()
+        )
 
         state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
@@ -676,7 +718,7 @@ class MappedOperator(AbstractOperator):
         if map_index < 0:
             return value
         expansion_kwargs = self._get_expansion_kwargs()
-        all_lengths = self._get_map_lengths(context["run_id"], session=session)
+        all_lengths = self._resolve_map_lengths(context["run_id"], session=session)
 
         def _find_index_for_this_field(index: int) -> int:
             # Need to use self.mapped_kwargs for the original argument order.
@@ -716,4 +758,29 @@ class MappedOperator(AbstractOperator):
                 # None literal type encountered, so give up
                 return None
             total += len(value)
+        return total
+
+    @cache
+    def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> Optional[int]:
+        """
+        Number of mapped TaskInstances that can be created at run time, or None if upstream tasks are not
+        complete yet.
+
+        :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
+            should have
+        """
+
+        lengths = self._get_map_lengths(run_id, session=session)
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        if not lengths or not expansion_kwargs:
+            return None
+
+        total = 1
+        for name in expansion_kwargs:
+            val = lengths.get(name)
+            if val is None:
+                return None
+            total *= val
+
         return total

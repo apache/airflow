@@ -23,6 +23,7 @@ import logging
 import threading
 from unittest.mock import patch
 
+import pendulum
 import pytest
 
 from airflow import settings
@@ -41,9 +42,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
@@ -1581,7 +1581,7 @@ class TestBackfillJob:
     @pytest.mark.long_running
     @pytest.mark.parametrize("executor_name", ["SequentialExecutor", "DebugExecutor"])
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
-    def test_mapped_dag(self, dag_id, executor_name):
+    def test_mapped_dag(self, dag_id, executor_name, session):
         """
         End-to-end test of a simple mapped dag.
 
@@ -1595,11 +1595,23 @@ class TestBackfillJob:
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
         dag = self.dagbag.get_dag(dag_id)
 
+        when = pendulum.today('UTC')
+
         job = BackfillJob(
             dag=dag,
-            start_date=days_ago(1),
-            end_date=days_ago(1),
+            start_date=when,
+            end_date=when,
             donot_pickle=True,
             executor=ExecutorLoader.load_executor(executor_name),
         )
         job.run()
+
+        dr = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)[0]
+        assert dr
+        assert dr.state == DagRunState.SUCCESS
+
+        # Check that every task has a start and end date
+        for ti in dr.task_instances:
+            assert ti.state == TaskInstanceState.SUCCESS
+            assert ti.start_date is not None
+            assert ti.end_date is not None

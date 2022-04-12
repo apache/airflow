@@ -1089,10 +1089,7 @@ class TestTaskInstance:
         assert ti_2.xcom_pull(["task_1"], map_indexes=[0, 1], session=session) == ["a", "b"]
 
         assert ti_2.xcom_pull("task_1", map_indexes=1, session=session) == "b"
-
-        joined = ti_2.xcom_pull("task_1", session=session)
-        assert iter(joined) is joined, "should be iterator"
-        assert list(joined) == ["a", "b"]
+        assert list(ti_2.xcom_pull("task_1", session=session)) == ["a", "b"]
 
     def test_xcom_pull_after_success(self, create_task_instance):
         """
@@ -1123,6 +1120,31 @@ class TestTaskInstance:
         # Xcom IS finally cleared once task has executed
         ti.run(ignore_all_deps=True)
         assert ti.xcom_pull(task_ids='test_xcom', key=key) is None
+
+    def test_xcom_pull_after_deferral(self, create_task_instance, session):
+        """
+        tests xcom will not clear before a task runs its next method after deferral.
+        """
+
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        ti = create_task_instance(
+            dag_id='test_xcom',
+            schedule_interval='@monthly',
+            task_id='test_xcom',
+            pool='test_xcom',
+        )
+
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+
+        ti.next_method = "execute"
+        session.merge(ti)
+        session.commit()
+
+        ti.run(ignore_all_deps=True)
+        assert ti.xcom_pull(task_ids='test_xcom', key=key) == value
 
     def test_xcom_pull_different_execution_date(self, create_task_instance):
         """
@@ -2635,7 +2657,7 @@ class TestMappedTaskInstanceReceiveValue:
 
 
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
-def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterator(mock_deserialize_value, dag_maker, session):
+def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
     """Ensure we access XCom lazily when pulling from a mapped operator."""
     with dag_maker(dag_id="test_xcom", session=session):
         task_1 = DummyOperator.partial(task_id="task_1").expand()
@@ -2657,10 +2679,36 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterator(mock_deserialize_v
     joined = ti_2.xcom_pull("task_1", session=session)
     assert mock_deserialize_value.call_count == 0
 
-    # Only when we go through the iterator does deserialization happen.
-    assert next(joined) == "a"
+    # Only when we go through the iterable does deserialization happen.
+    it = iter(joined)
+    assert next(it) == "a"
     assert mock_deserialize_value.call_count == 1
-    assert next(joined) == "b"
+    assert next(it) == "b"
     assert mock_deserialize_value.call_count == 2
     with pytest.raises(StopIteration):
-        next(joined)
+        next(it)
+
+
+def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def add_one(x):
+            return x + 1
+
+        two_three_four = add_one.expand(x=[1, 2, 3])
+        add_one.expand(x=two_three_four)
+
+    dagrun = dag_maker.create_dagrun()
+    for map_index in range(3):
+        ti = dagrun.get_task_instance("add_one", map_index=map_index)
+        ti.refresh_from_task(dag.get_task("add_one"))
+        ti.run()
+
+    task_345 = dag.get_task("add_one__1")
+    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session):
+        ti.refresh_from_task(task_345)
+        ti.run()
+
+    query = XCom.get_many(run_id=dagrun.run_id, task_ids=["add_one__1"], session=session)
+    assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]

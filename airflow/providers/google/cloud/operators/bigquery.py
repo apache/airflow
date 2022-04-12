@@ -2070,7 +2070,10 @@ class BigQueryInsertJobOperator(BaseOperator):
         "job_id",
         "impersonation_chain",
     )
-    template_ext: Sequence[str] = (".json",)
+    template_ext: Sequence[str] = (
+        ".json",
+        ".sql",
+    )
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 

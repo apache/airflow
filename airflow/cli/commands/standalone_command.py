@@ -157,7 +157,7 @@ class StandaloneCommand:
             executor_constants.LOCAL_EXECUTOR,
             executor_constants.SEQUENTIAL_EXECUTOR,
         ]:
-            if "sqlite" in conf.get("core", "sql_alchemy_conn"):
+            if "sqlite" in conf.get("database", "sql_alchemy_conn"):
                 self.print_output("standalone", "Forcing executor to SequentialExecutor")
                 env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR
             else:

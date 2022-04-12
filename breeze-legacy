@@ -1756,7 +1756,7 @@ Most flags are applicable to the shell command as it will run build when needed.
     export DETAILED_USAGE_EXEC="
 ${CMDNAME} exec [-- <EXTRA_ARGS>]
 
-      Execs into interactive shell to an already running container. The container mus be started
+      Execs into interactive shell to an already running container. The container must be started
       already by breeze shell command. If you are not familiar with tmux, this is the best
       way to run multiple processes in the same container at the same time for example scheduler,
       webserver, workers, database console and interactive terminal.
