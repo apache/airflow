@@ -1091,7 +1091,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         exists_subquery = (
             session.query(text('1')).select_from(dagrun_table).filter(source_to_dag_run_join_cond)
         )
-        invalid_rows_query = session.query(source_table.c.dag_id, source_table.c.execution_date).filter(
+        invalid_rows_query = session.query(*[x.label(x.name) for x in source_table.c]).filter(
             ~exists_subquery.exists()
         )
 
@@ -1112,7 +1112,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         _move_dangling_data_to_new_table(
             session,
             source_table,
-            invalid_rows_query.with_entities(*source_table.columns),
+            invalid_rows_query,
             exists_subquery,
             dangling_table_name,
         )
