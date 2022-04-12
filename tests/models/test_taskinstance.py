@@ -43,6 +43,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    XComForMappingNotPushed,
 )
 from airflow.models import (
     DAG,
@@ -2396,13 +2397,20 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable_type(self, dag_maker):
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            ("abc", UnmappableXComTypePushed, "unmappable return type 'str'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_something():
-                return "abc"
+                return return_value
 
             @dag.task()
             def pull_something(value):
@@ -2411,12 +2419,34 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComTypePushed) as ctx:
+        with pytest.raises(exception_type) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return type 'str'"
+        assert str(ctx.value) == error_message
+
+    def test_error_if_upstream_does_not_push(self, dag_maker):
+        """Fail the upstream task if it fails to push the XCom used for task mapping."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task(do_xcom_push=False)
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.expand(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(XComForMappingNotPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "did not push XCom for task mapping"
 
     @conf_vars({("core", "max_map_length"): "1"})
     def test_error_if_unmappable_length(self, dag_maker):
