@@ -700,7 +700,7 @@ class KubernetesExecutor(BaseExecutor):
         self.event_buffer[key] = state, None
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
+        scheduler_job_ids = {ti.queued_by_job_id for ti in tis if ti.queued_by_job_id}
 
         # Tasks triggered through API will have no ti.queued_by_job_id
         # and their pod will have label 'airflow-worker=manual'
@@ -716,7 +716,7 @@ class KubernetesExecutor(BaseExecutor):
             for pod in pod_list.items:
                 self.adopt_launched_task(kube_client, pod, pod_ids)
         self._adopt_completed_pods(kube_client)
-        return pod_ids.values()
+        return [pod for pod in pod_ids.values()]
 
     def adopt_launched_task(
         self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: Dict[TaskInstanceKey, k8s.V1Pod]
