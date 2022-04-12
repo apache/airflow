@@ -36,7 +36,7 @@ export default function useClearTask({
   return useMutation(
     ['clearTask', dagId, runId, taskId],
     ({
-      past, future, upstream, downstream, recursive, failed, confirmed,
+      past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -51,6 +51,7 @@ export default function useClearTask({
         downstream,
         recursive,
         only_failed: failed,
+        map_indexes: mapIndexes,
       }).toString();
 
       return axios.post(clearUrl, params, {
@@ -71,6 +72,7 @@ export default function useClearTask({
         }
         if (!status || status !== 'error') {
           queryClient.invalidateQueries('treeData');
+          queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
           startRefresh();
         }
       },

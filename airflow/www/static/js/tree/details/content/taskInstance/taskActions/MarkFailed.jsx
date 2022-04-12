@@ -33,7 +33,7 @@ const MarkFailed = ({
   dagId,
   runId,
   taskId,
-  selectedRows,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -69,6 +69,7 @@ const MarkFailed = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks(data);
       onOpen();
@@ -84,6 +85,7 @@ const MarkFailed = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks([]);
       onClose();
@@ -100,7 +102,7 @@ const MarkFailed = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading} isDisabled={!!selectedRows.length}>
+      <Button colorScheme="red" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
         Mark Failed
       </Button>
       <ConfirmDialog

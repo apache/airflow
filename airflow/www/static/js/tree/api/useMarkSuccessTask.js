@@ -33,7 +33,7 @@ export default function useMarkSuccessTask({
   return useMutation(
     ['markSuccess', dagId, runId, taskId],
     ({
-      past, future, upstream, downstream,
+      past, future, upstream, downstream, mapIndexes = [],
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -45,6 +45,7 @@ export default function useMarkSuccessTask({
         future,
         upstream,
         downstream,
+        map_indexes: mapIndexes,
       }).toString();
 
       return axios.post(successUrl, params, {
@@ -56,6 +57,7 @@ export default function useMarkSuccessTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
         startRefresh();
       },
     },
