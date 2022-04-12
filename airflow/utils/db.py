@@ -944,7 +944,9 @@ def check_run_id_null(session: Session) -> Iterable[str]:
 
     # We can't use the model here since it may differ from the db state due to
     # this function is run prior to migration. Use the reflected table instead.
-    dagrun_table = metadata.tables[DagRun.__tablename__]
+    dagrun_table = metadata.tables.get(DagRun.__tablename__)
+    if dagrun_table is None:
+        return
 
     invalid_dagrun_filter = or_(
         dagrun_table.c.dag_id.is_(None),
@@ -1058,7 +1060,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
 
     if (
         metadata.tables.get(DagRun.__tablename__) is None
-        or metadata.metadata.tables.get(TaskInstance.__tablename__) is None
+        or metadata.tables.get(TaskInstance.__tablename__) is None
     ):
         # Key table doesn't exist -- likely empty DB.
         return
