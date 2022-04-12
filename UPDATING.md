@@ -231,21 +231,9 @@ To support operator-mapping (AIP 42), the `deps` attribute on operator class mus
 
 If you set the `dag_default_view` config option or the `default_view` argument to `DAG()` to `tree` you will need to update your deployment. The old name will continue to work but will issue warnings.
 
-## Airflow 2.2.5
-
-No breaking changes
-
-## Airflow 2.2.4
-
-### Smart sensors deprecated
-
-Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferrable Operators, added in Airflow 2.2.0.
-
-See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
-
 ### Database configuration moved to new section
 
-The following configurations have been moved from `[core]` to the new `[database]` section. However when reading new option, the old option will be checked to see if it exists. If it does a DeprecationWarning will be issued and the old option will be used instead.
+The following configurations have been moved from `[core]` to the new `[database]` section. However when reading the new option, the old option will be checked to see if it exists. If it does a DeprecationWarning will be issued and the old option will be used instead.
 
 - sql_alchemy_conn
 - sql_engine_encoding
@@ -259,6 +247,18 @@ The following configurations have been moved from `[core]` to the new `[database
 - sql_alchemy_connect_args
 - load_default_connections
 - max_db_retries
+
+## Airflow 2.2.5
+
+No breaking changes
+
+## Airflow 2.2.4
+
+### Smart sensors deprecated
+
+Smart sensors, an "early access" feature added in Airflow 2, are now deprecated and will be removed in Airflow 2.4.0. They have been superseded by Deferrable Operators, added in Airflow 2.2.0.
+
+See [Migrating to Deferrable Operators](https://airflow.apache.org/docs/apache-airflow/2.2.4/concepts/smart-sensors.html#migrating-to-deferrable-operators) for details on how to migrate.
 
 ## Airflow 2.2.3
 
