@@ -40,6 +40,7 @@ from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskmap import TaskMap
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -1615,3 +1616,94 @@ class TestBackfillJob:
             assert ti.state == TaskInstanceState.SUCCESS
             assert ti.start_date is not None
             assert ti.end_date is not None
+
+    def test_mapped_dag_pre_existing_tis(self, dag_maker, session):
+        """If the DagRun already some mapped TIs, ensure that we re-run them successfully"""
+        from airflow.decorators import task
+        from airflow.operators.python import PythonOperator
+
+        list_result = [[1], [2], [{'a': 'b'}]]
+
+        @task
+        def make_arg_lists():
+            return list_result
+
+        def consumer(value):
+            print(repr(value))
+
+        with dag_maker(session=session) as dag:
+            consumer_op = PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(
+                op_args=make_arg_lists()
+            )
+            PythonOperator.partial(task_id='consumer_literal', python_callable=consumer).expand(
+                op_args=[[1], [2], [3]],
+            )
+
+        dr = dag_maker.create_dagrun()
+
+        # Create the existing mapped TIs -- this the crucial part of this test
+        ti = dr.get_task_instance('consumer', session=session)
+        ti.map_index = 0
+        for map_index in range(1, 3):
+            ti = TI(consumer_op, run_id=dr.run_id, map_index=map_index)
+            ti.dag_run = dr
+            session.add(ti)
+        session.flush()
+
+        executor = MockExecutor()
+
+        ti_status = BackfillJob._DagRunTaskStatus()
+        ti_status.active_runs.append(dr)
+        ti_status.to_run = {ti.key: ti for ti in dr.task_instances}
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=dr.execution_date,
+            end_date=dr.execution_date,
+            donot_pickle=True,
+            executor=executor,
+        )
+
+        executor_change_state = executor.change_state
+
+        def on_change_state(key, state, info=None):
+            if key.task_id == 'make_arg_lists':
+                session.add(
+                    TaskMap(
+                        length=len(list_result),
+                        keys=None,
+                        dag_id=key.dag_id,
+                        run_id=key.run_id,
+                        task_id=key.task_id,
+                        map_index=key.map_index,
+                    )
+                )
+                session.flush()
+            executor_change_state(key, state, info)
+
+        with patch.object(executor, 'change_state', side_effect=on_change_state):
+            job._process_backfill_task_instances(
+                ti_status=ti_status,
+                executor=job.executor,
+                start_date=dr.execution_date,
+                pickle_id=None,
+                session=session,
+            )
+        assert ti_status.failed == set()
+        assert ti_status.succeeded == {
+            TaskInstanceKey(dag_id=dr.dag_id, task_id='consumer', run_id='test', try_number=1, map_index=0),
+            TaskInstanceKey(dag_id=dr.dag_id, task_id='consumer', run_id='test', try_number=1, map_index=1),
+            TaskInstanceKey(dag_id=dr.dag_id, task_id='consumer', run_id='test', try_number=1, map_index=2),
+            TaskInstanceKey(
+                dag_id=dr.dag_id, task_id='consumer_literal', run_id='test', try_number=1, map_index=0
+            ),
+            TaskInstanceKey(
+                dag_id=dr.dag_id, task_id='consumer_literal', run_id='test', try_number=1, map_index=1
+            ),
+            TaskInstanceKey(
+                dag_id=dr.dag_id, task_id='consumer_literal', run_id='test', try_number=1, map_index=2
+            ),
+            TaskInstanceKey(
+                dag_id=dr.dag_id, task_id='make_arg_lists', run_id='test', try_number=1, map_index=-1
+            ),
+        }

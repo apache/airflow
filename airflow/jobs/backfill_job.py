@@ -228,7 +228,7 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance]]]:
+    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance], int]]:
         """
         Checks if the executor agrees with the state of task instances
         that are running.
@@ -267,7 +267,8 @@ class BackfillJob(BaseJob):
                 # Don't use ti.task; if this task is mapped, that attribute
                 # would hold the unmapped task. We need to original task here.
                 for node in self.dag.get_task(ti.task_id, include_subdags=True).mapped_dependants():
-                    yield node, ti.run_id, node.expand_mapped_task(ti.run_id, session=session)
+                    new_tis, num_mapped_tis = node.expand_mapped_task(ti.run_id, session=session)
+                    yield node, ti.run_id, new_tis, num_mapped_tis
 
     @provide_session
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
@@ -608,20 +609,22 @@ class BackfillJob(BaseJob):
                 ti_status.to_run.clear()
 
             # check executor state -- and expand any mapped TIs
-            for node, run_id, mapped_tis in self._manage_executor_state(ti_status.running, session):
+            for node, run_id, new_mapped_tis, max_map_index in self._manage_executor_state(
+                ti_status.running, session
+            ):
 
                 def to_keep(key: TaskInstanceKey) -> bool:
                     if key.dag_id != node.dag_id or key.task_id != node.task_id or key.run_id != run_id:
                         # For another Dag/Task/Run -- don't remove
                         return True
-                    return False
+                    return 0 <= key.map_index <= max_map_index
 
                 # remove the old unmapped TIs for node -- they have been replaced with the mapped TIs
                 ti_status.to_run = {key: ti for (key, ti) in ti_status.to_run.items() if to_keep(key)}
 
-                ti_status.to_run.update({ti.key: ti for ti in mapped_tis})
+                ti_status.to_run.update({ti.key: ti for ti in new_mapped_tis})
 
-                for new_ti in mapped_tis:
+                for new_ti in new_mapped_tis:
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
             # update the task counters

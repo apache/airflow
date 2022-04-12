@@ -706,7 +706,7 @@ class DagRun(Base, LoggingMixin):
                     if schedulable.task_id in ti.task.downstream_task_ids:
 
                         assert isinstance(schedulable.task, MappedOperator)
-                        new_tis = schedulable.task.expand_mapped_task(self.run_id, session=session)
+                        new_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
                         if schedulable.state == TaskInstanceState.SKIPPED:
                             # Task is now skipped (likely cos upstream returned 0 tasks
                             continue
