@@ -115,7 +115,7 @@ class Trigger(Base):
             TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
         ):
             # Add the event's payload into the kwargs for the task
-            next_kwargs = task_instance.next_kwargs or {}
+            next_kwargs = dict(task_instance.next_kwargs) if task_instance.next_kwargs else {}
             next_kwargs["event"] = event.payload
             task_instance.next_kwargs = next_kwargs
             # Remove ourselves as its trigger
