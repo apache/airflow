@@ -1962,6 +1962,7 @@ class Airflow(AirflowBaseView):
         start_date,
         end_date,
         origin,
+        map_indexes=None,
         recursive=False,
         confirmed=False,
         only_failed=False,
@@ -1970,6 +1971,7 @@ class Airflow(AirflowBaseView):
             count = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
+                map_indexes=map_indexes,
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
@@ -1982,6 +1984,7 @@ class Airflow(AirflowBaseView):
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
+                map_indexes=map_indexes,
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
@@ -2023,6 +2026,9 @@ class Airflow(AirflowBaseView):
         task_id = request.form.get('task_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
+        map_indexes = request.form.get('map_indexes')
+        if map_indexes and not isinstance(map_indexes, list):
+            map_indexes = list(map_indexes)
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
@@ -2047,6 +2053,7 @@ class Airflow(AirflowBaseView):
             start_date,
             end_date,
             origin,
+            map_indexes=map_indexes,
             recursive=recursive,
             confirmed=confirmed,
             only_failed=only_failed,
@@ -2065,6 +2072,9 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         dag_run_id = request.form.get('dag_run_id')
         confirmed = request.form.get('confirmed') == "true"
+        map_indexes = request.form.get('map_indexes')
+        if map_indexes and not isinstance(map_indexes, list):
+            map_indexes = list(map_indexes)
 
         dag = current_app.dag_bag.get_dag(dag_id)
         dr = dag.get_dagrun(run_id=dag_run_id)
@@ -2075,6 +2085,7 @@ class Airflow(AirflowBaseView):
             dag,
             start_date,
             end_date,
+            map_indexes=map_indexes,
             origin=None,
             recursive=True,
             confirmed=confirmed,
@@ -2281,6 +2292,7 @@ class Airflow(AirflowBaseView):
         self,
         dag_id,
         task_id,
+        map_indexes,
         origin,
         dag_run_id,
         upstream,
@@ -2298,6 +2310,7 @@ class Airflow(AirflowBaseView):
 
         altered = dag.set_task_instance_state(
             task_id=task_id,
+            map_index=map_indexes,
             run_id=dag_run_id,
             state=state,
             upstream=upstream,
@@ -2400,6 +2413,9 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         origin = get_safe_url(args.get('origin'))
         dag_run_id = args.get('dag_run_id')
+        map_indexes = args.get('map_indexes')
+        if map_indexes and not isinstance(map_indexes, list):
+            map_indexes = list(map_indexes)
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2409,6 +2425,7 @@ class Airflow(AirflowBaseView):
         return self._mark_task_instance_state(
             dag_id,
             task_id,
+            map_indexes,
             origin,
             dag_run_id,
             upstream,
@@ -2433,6 +2450,9 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         origin = get_safe_url(args.get('origin'))
         dag_run_id = args.get('dag_run_id')
+        map_indexes = args.get('map_indexes')
+        if map_indexes and not isinstance(map_indexes, list):
+            map_indexes = list(map_indexes)
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2442,6 +2462,7 @@ class Airflow(AirflowBaseView):
         return self._mark_task_instance_state(
             dag_id,
             task_id,
+            map_indexes,
             origin,
             dag_run_id,
             upstream,

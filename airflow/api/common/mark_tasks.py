@@ -79,6 +79,7 @@ def _create_dagruns(
 def set_state(
     *,
     tasks: Iterable[Operator],
+    map_indexes: Optional[Iterable[int]] = None,
     run_id: Optional[str] = None,
     execution_date: Optional[datetime] = None,
     upstream: bool = False,
@@ -97,6 +98,7 @@ def set_state(
     on the schedule (but it will as for subdag dag runs if needed).
 
     :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
+    :param map_indexes: the map indexes of the tasks to set
     :param run_id: the run_id of the dagrun to start looking from
     :param execution_date: the execution date from which to start looking(deprecated)
     :param upstream: Mark all parents (upstream tasks)
@@ -143,7 +145,7 @@ def set_state(
 
     # now look for the task instances that are affected
 
-    qry_dag = get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates)
+    qry_dag = get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates, map_indexes)
 
     if commit:
         tis_altered = qry_dag.with_for_update().all()
@@ -181,6 +183,7 @@ def get_all_dag_task_query(
     state: TaskInstanceState,
     task_ids: List[str],
     confirmed_dates: Iterable[datetime],
+    map_indexes: Optional[Iterable[int]] = None,
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
     qry_dag = (
@@ -194,6 +197,8 @@ def get_all_dag_task_query(
         .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
         .options(contains_eager(TaskInstance.dag_run))
     )
+    if map_indexes:
+        qry_dag = qry_dag.filter(TaskInstance.map_index.in_(map_indexes))
     return qry_dag
 
 
