@@ -102,7 +102,7 @@ class BackfillJob(BaseJob):
 
     def __init__(
         self,
-        dag,
+        dag: DAG,
         start_date=None,
         end_date=None,
         mark_success=False,
@@ -238,8 +238,6 @@ class BackfillJob(BaseJob):
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
         """
-        from airflow.models.mappedoperator import MappedOperator
-
         executor = self.executor
 
         # TODO: query all instead of refresh from db
@@ -266,8 +264,9 @@ class BackfillJob(BaseJob):
                 ti.handle_failure_with_callback(error=msg)
                 continue
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
-                for node in ti.task.mapped_dependants():
-                    assert isinstance(node, MappedOperator)
+                # Don't use ti.task; if this task is mapped, that attribute
+                # would hold the unmapped task. We need to original task here.
+                for node in self.dag.get_task(ti.task_id, include_subdags=True).mapped_dependants():
                     yield node, ti.run_id, node.expand_mapped_task(ti.run_id, session=session)
 
     @provide_session
@@ -702,7 +701,7 @@ class BackfillJob(BaseJob):
 
         return err
 
-    def _get_dag_with_subdags(self):
+    def _get_dag_with_subdags(self) -> List[DAG]:
         return [self.dag] + self.dag.subdags
 
     @provide_session
