@@ -985,7 +985,7 @@ class DAG(LoggingMixin):
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
-    def param(self, name: str, default=None) -> DagParam:
+    def param(self, name: str, default: Any = NOTSET) -> DagParam:
         """
         Return a DagParam object for current dag.
 
