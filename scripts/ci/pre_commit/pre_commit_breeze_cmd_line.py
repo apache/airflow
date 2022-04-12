@@ -43,12 +43,14 @@ def print_help_for_all_commands():
     env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
     env['RECORD_BREEZE_TITLE'] = "Breeze commands"
     env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
+    env['TERM'] = "xterm-256color"
     check_call(["breeze", "--help"], env=env)
     for command in get_command_list():
         env = os.environ.copy()
         env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
         env['RECORD_BREEZE_TITLE'] = f"Command: {command}"
         env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / f"output-{command}.svg")
+        env['TERM'] = "xterm-256color"
         check_call(["breeze", command, "--help"], env=env)
 
 
