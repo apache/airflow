@@ -358,13 +358,14 @@ class SchedulerJob(BaseJob):
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
 
-                if pool_name not in pools:
+                pool_stats = pools.get(pool_name)
+                if not pool_stats:
                     self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
                     starved_pools.add(pool_name)
                     continue
 
-                pool_total = pools[pool_name]["total"]
-                open_slots = pools[pool_name]["open"]
+                pool_total = pool_stats["total"]
+                open_slots = pool_stats["open"]
 
                 if open_slots <= 0:
                     self.log.info(
@@ -468,7 +469,7 @@ class SchedulerJob(BaseJob):
                 dag_active_tasks_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
-                pools[pool_name]["open"] = open_slots
+                pool_stats["open"] = open_slots
 
             is_done = executable_tis or len(task_instances_to_examine) < max_tis
             # Check this to avoid accidental infinite loops
