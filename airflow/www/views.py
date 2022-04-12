@@ -2901,23 +2901,26 @@ class Airflow(AirflowBaseView):
             min_date = task_instances[0].execution_date
         else:
             min_date = timezone.utc_epoch()
+
         ti_fails = (
-            session.query(TaskFail)
+            session.query(TaskFail, TaskInstance)
             .filter(
                 TaskFail.dag_id == dag.dag_id,
                 DagRun.execution_date >= min_date,
                 DagRun.execution_date <= base_date,
                 TaskFail.task_id.in_([t.task_id for t in dag.tasks]),
+                TaskFail.run_id == TaskInstance.run_id,
+                TaskFail.task_id == TaskInstance.task_id,
             )
             .all()
         )
-
         fails_totals = defaultdict(int)
-        for failed_task_instance in ti_fails:
+
+        for failed_task_instance, task_instance in ti_fails:
             dict_key = (
                 failed_task_instance.dag_id,
                 failed_task_instance.task_id,
-                failed_task_instance.execution_date,
+                task_instance.execution_date,
             )
             if failed_task_instance.duration:
                 fails_totals[dict_key] += failed_task_instance.duration
