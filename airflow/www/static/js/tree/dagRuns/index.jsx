@@ -56,7 +56,7 @@ const DagRuns = ({ tableWidth }) => {
 
   return (
     <Tr
-      borderBottomWidth={2}
+      borderBottomWidth={3}
       borderBottomColor="gray.200"
       position="relative"
     >
@@ -89,8 +89,6 @@ const DagRuns = ({ tableWidth }) => {
         <Box position="absolute" bottom="100px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="50px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="4px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
-        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="120px" zIndex={2}>Runs</Text>
-        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="175px" zIndex={2}>Tasks</Text>
       </Td>
       <Td p={0} align="right" verticalAlign="bottom" borderBottom={0} width={`${runs.length * 16}px`}>
         <Flex justifyContent="flex-end">
