@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.operators.empty`."""
 
-import warnings
-
-from airflow.operators.empty import EmptyOperator
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.empty`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+import pytest
 
 
-class DummyOperator(EmptyOperator):
-    """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`."""
+def test_deprecation_warnings_generated():
+    from airflow.operators.dummy import DummyOperator
 
-    def __init__(self, **kwargs):
-        warnings.warn(
-            """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(**kwargs)
+    with pytest.warns(expected_warning=DeprecationWarning):
+        DummyOperator(task_id='s3_prefix')
