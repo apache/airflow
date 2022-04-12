@@ -621,6 +621,9 @@ class BackfillJob(BaseJob):
 
                 ti_status.to_run.update({ti.key: ti for ti in mapped_tis})
 
+                for new_ti in mapped_tis:
+                    new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+
             # update the task counters
             self._update_counters(ti_status=ti_status, session=session)
             session.commit()
