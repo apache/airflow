@@ -35,9 +35,10 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
     :param run_id: The job run identifier.
     :param account_id: The dbt Cloud account identifier.
+    :param tenant: The dbt Cloud subdomain / tenancy.
     """
 
-    template_fields = ("dbt_cloud_conn_id", "run_id", "account_id")
+    template_fields = ("dbt_cloud_conn_id", "run_id", "account_id", "tenant")
 
     def __init__(
         self,
@@ -45,16 +46,18 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: Optional[int] = None,
+        tenant: Optional[str] = 'cloud',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.run_id = run_id
         self.account_id = account_id
+        self.tenant = tenant
 
     def poke(self, context: "Context") -> bool:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
-        job_run_status = hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
+        job_run_status = hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id, tenant=self.tenant)
 
         if job_run_status == DbtCloudJobRunStatus.ERROR.value:
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")

@@ -137,6 +137,7 @@ class DbtCloudHook(HttpHook):
 
     conn_name_attr = "dbt_cloud_conn_id"
     default_conn_name = "dbt_cloud_default"
+    default_tenant_name = "cloud"
     conn_type = "dbt_cloud"
     hook_name = "dbt Cloud"
 
@@ -148,10 +149,10 @@ class DbtCloudHook(HttpHook):
             "relabeling": {"login": "Account ID", "password": "API Token"},
         }
 
-    def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(self, dbt_cloud_conn_id: str = default_conn_name, tenant: str = default_tenant_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        self.base_url = "https://cloud.getdbt.com/api/v2/accounts/"
+        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
     @cached_property
     def connection(self) -> Connection:
