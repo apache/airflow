@@ -1135,6 +1135,52 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    @mock.patch('airflow.jobs.scheduler_job.Stats.gauge')
+    def test_emit_pool_starving_tasks_metrics(self, mock_stats_gauge, dag_maker):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = 'SchedulerJobTest.test_emit_pool_starving_tasks_metrics'
+        with dag_maker(dag_id=dag_id):
+            op = DummyOperator(task_id='op', pool_slots=2)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti = dr.get_task_instance(op.task_id, session)
+        ti.state = State.SCHEDULED
+
+        set_default_pool_slots(1)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 0 == len(res)
+
+        mock_stats_gauge.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.starving', 1),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 1),
+            ],
+            any_order=True,
+        )
+        mock_stats_gauge.reset_mock()
+
+        set_default_pool_slots(2)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 1 == len(res)
+
+        mock_stats_gauge.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.starving', 0),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 0),
+            ],
+            any_order=True,
+        )
+
+        session.rollback()
+        session.close()
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
         task_id_1 = 'dummy'
