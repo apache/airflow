@@ -65,11 +65,10 @@ class _DataIntervalTimetable(Timetable):
         aligns to the declared time, if the given time does not align. If the
         schedule is not fixed (e.g. every hour), the given time is returned.
 
-        It is not enough to just have _align_to_next. When a DAG's schedule
-        changed, _algin_to_next does not correct the scheduling time in time,
-        resulting in the first scheduling after the scheduling time has been
-        changed remaining the same. So we would need to align forward to ensure
-        that it works correctly after a scheduling time change.
+        It is not enough to use ``_get_prev(_align_to_next())`` instead. When a
+        DAG's schedule changes, this alternative would make the first scheduling
+        after the schedule change remain the same. We need to align forward to
+        ensure it works correctly in this situation.
         """
         raise NotImplementedError()
 
