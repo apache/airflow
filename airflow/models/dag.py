@@ -1702,6 +1702,7 @@ class DAG(LoggingMixin):
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
+            map_indexes=map_indexes,
             include_subdags=True,
             include_parentdag=True,
             only_failed=True,
