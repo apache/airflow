@@ -2338,6 +2338,9 @@ class Airflow(AirflowBaseView):
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
         origin = args.get('origin')
+        map_indexes = args.get('map_indexes')
+        if map_indexes and not isinstance(map_indexes, list):
+            map_indexes = list(map_indexes)
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2374,6 +2377,7 @@ class Airflow(AirflowBaseView):
 
         to_be_altered = set_state(
             tasks=[task],
+            map_indexes=map_indexes,
             run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
