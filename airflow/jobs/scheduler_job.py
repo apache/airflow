@@ -389,7 +389,7 @@ class SchedulerJob(BaseJob):
                         pool_total,
                         pool_name,
                     )
-                    
+
                     pool_num_starving_tasks[pool_name] += 1
                     num_starving_tasks_total += 1
                     starved_tasks.add((task_instance.dag_id, task_instance.task_id))
