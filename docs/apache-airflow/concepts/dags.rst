@@ -132,7 +132,7 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See :ref:`.airflowignore<airflowignore>` below for details of the file syntax.
+You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 
 .. _concepts:dag-run:
@@ -700,14 +700,14 @@ Note that packaged DAGs come with some caveats:
 
 In general, if you have a complex set of compiled dependencies and modules, you are likely better off using the Python ``virtualenv`` system and installing the necessary packages on your target systems with ``pip``.
 
-.. _airflowignore
+.. _concepts:airflowignore:
 
 ``.airflowignore``
 ------------------
 
 An ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore. Airflow supports
-two syntaxes for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
+two syntax flavors for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
 configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
 
 .. note::
@@ -731,7 +731,7 @@ With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` 
 * A double asterisk (``**``) can be used to match across directories. For example, ``**/__pycache__/``
   will ignore ``__pycache__`` directories in each sub-directory to infinite depth.
 * If there is a ``/`` at the beginning or middle (or both) of the pattern, then the pattern
-  is relative to the directory level of the particular .airflowifnore file itself. Otherwise the
+  is relative to the directory level of the particular .airflowignore file itself. Otherwise the
   pattern may also match at any level below the .airflowignore level.
 
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
