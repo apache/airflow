@@ -32,27 +32,16 @@ from airflow import settings
 from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.jobs.base_job import BaseJob  # noqa: F401
-from airflow.models import (  # noqa: F401
+from airflow.models import (
     DAG,
-    XCOM_RETURN_KEY,
     Base,
-    BaseOperator,
-    BaseOperatorLink,
     Connection,
     DagBag,
-    DagModel,
-    DagPickle,
     DagRun,
-    DagTag,
-    Log,
     Pool,
-    SkipMixin,
-    SlaMiss,
     TaskFail,
     TaskInstance,
     TaskReschedule,
-    Variable,
     XCom,
 )
 
