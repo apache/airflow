@@ -849,7 +849,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: Union[Base, str], session):
+def reflect_tables(tables: List[Union[Base, str]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -861,9 +861,9 @@ def reflect_tables(tables: Union[Base, str], session):
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
 
-    for table in tables:
+    for tbl in tables:
         try:
-            table_name = table if isinstance(table, str) else table.__tablename__
+            table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
             metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
         except exc.InvalidRequestError:
             continue
