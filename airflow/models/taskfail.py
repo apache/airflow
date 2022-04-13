@@ -39,7 +39,7 @@ class TaskFail(Base):
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
 
-    task_instance = relationship("TaskInstance", lazy='select', innerjoin=True)
+    task_instance = relationship("TaskInstance", innerjoin=True)
     execution_date = association_proxy("task_instance", "execution_date")
 
     __table_args__ = (

@@ -3244,7 +3244,11 @@ class Airflow(AirflowBaseView):
             .order_by(TaskInstance.start_date)
         )
 
-        ti_fails = session.query(TaskFail).filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
+        ti_fails = (
+            session.query(TaskFail)
+            .options(joinedload(TaskFail.task_instance))
+            .filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
+        )
 
         tasks = []
         for ti in tis:
