@@ -20,7 +20,7 @@ export const ClipboardButton = forwardRef(
       label = 'copy',
       title = 'Copy',
       'aria-label': ariaLabel = 'Copy',
-      ...otherProps
+      ...rest
     },
     ref,
   ) => {
@@ -32,7 +32,7 @@ export const ClipboardButton = forwardRef(
       variant,
       title,
       ref,
-      ...otherProps,
+      ...rest,
     };
 
     return (
