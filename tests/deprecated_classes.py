@@ -1436,7 +1436,7 @@ OPERATORS = [
         "airflow.operators.subdag_operator.SubDagOperator",
     ),
     (
-        "airflow.operators.empty.emptyOperator",
+        "airflow.operators.empty.EmptyOperator",
         "airflow.operators.dummy_operator.DummyOperator",
     ),
     (

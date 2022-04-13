@@ -1826,7 +1826,7 @@ def test_dummy_operator_serde(is_inherit):
     assert serialized == {
         '_is_empty': is_inherit,
         '_task_module': 'tests.serialization.test_dag_serialization',
-        '_task_type': 'MyEmptyOperator',
+        '_task_type': 'MyDummyOperator',
         '_outlets': [],
         '_inlets': [],
         'downstream_task_ids': [],
