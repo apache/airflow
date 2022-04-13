@@ -779,6 +779,16 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
+
+    def log_template_exists():
+        metadata = reflect_tables([LogTemplate], session)
+        log_template_table = metadata.tables.get(LogTemplate.__tablename__)
+        return log_template_table is not None
+
+    if not log_template_exists():
+        log.info('Log template table does not exist (added in 2.3.0); skipping log template sync.')
+        return
+
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
