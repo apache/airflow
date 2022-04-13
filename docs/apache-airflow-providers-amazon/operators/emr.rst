@@ -99,7 +99,7 @@ Add auto terminate policy to EMR Job Flow
 ----------------------------
 
 To add auto terminate policy to an existing EMR Job Flow you can use
-:class:`~airflow.providers.amazon.aws.operators.emr.EmrAutoTerminatePolicyOperator`.
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrChangePolicyOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_put_auto_terminate_policy.py
     :language: python
@@ -107,7 +107,7 @@ To add auto terminate policy to an existing EMR Job Flow you can use
     :start-after: [START howto_operator_emr_auto_terminate_policy]
     :end-before: [END howto_operator_emr_auto_terminate_policy]
 
-.. _howto/operator:EmrAutoTerminatePolicyOperator:
+.. _howto/operator:EmrChangePolicyOperator:
 
 Terminate an EMR Job Flow
 -------------------------

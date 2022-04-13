@@ -24,7 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.providers.amazon.aws.operators.emr import EmrAutoTerminatePolicyOperator
+from airflow.providers.amazon.aws.operators.emr import EmrChangePolicyOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -39,7 +39,7 @@ TEMPLATE_SEARCHPATH = os.path.join(
 )
 
 
-class TestEmrAddStepsOperator(unittest.TestCase):
+class TestEmrChangePolicyOperator(unittest.TestCase):
 
     def setUp(self):
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -54,7 +54,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
         self.mock_context = MagicMock()
 
-        self.operator = EmrAutoTerminatePolicyOperator(
+        self.operator = EmrChangePolicyOperator(
             idle_timeout=600,
             task_id='test_task',
             job_flow_id='j-8989898989',
@@ -69,7 +69,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
     def test_init_fails_with_no_job_flow_arguments(self):
         with pytest.raises(AirflowException):
-            EmrAutoTerminatePolicyOperator(
+            EmrChangePolicyOperator(
                 idle_timeout=600,
                 task_id='test_task',
                 dag=DAG('test_dag_id', default_args=self.args),
@@ -84,7 +84,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.emr_client_mock.put_auto_termination_policy.return_value = \
             PUT_AUTO_TERMINATION_POLICY_SUCCESS_RETURN
 
-        test_task = EmrAutoTerminatePolicyOperator(
+        test_task = EmrChangePolicyOperator(
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
@@ -114,7 +114,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             ) as mock_get_cluster_id_by_name:
                 mock_get_cluster_id_by_name.return_value = expected_job_flow_id
 
-                operator = EmrAutoTerminatePolicyOperator(
+                operator = EmrChangePolicyOperator(
                     idle_timeout=600,
                     task_id='test_task',
                     job_flow_name='test_cluster',
@@ -135,7 +135,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         ) as mock_get_cluster_id_by_name:
             mock_get_cluster_id_by_name.return_value = None
 
-            operator = EmrAutoTerminatePolicyOperator(
+            operator = EmrChangePolicyOperator(
                 idle_timeout=600,
                 task_id='test_task',
                 job_flow_name=cluster_name,

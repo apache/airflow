@@ -406,14 +406,14 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             self.log.info('JobFlow with id %s terminated', self.job_flow_id)
 
 
-class EmrAutoTerminatePolicyOperator(BaseOperator):
+class EmrChangePolicyOperator(BaseOperator):
     """
-    An operator to put auto terminate policy on a given cluster/jobflow
+    An operator to change policy on a given cluster/jobflow
     Note: auto terminate policy is supported with Amazon EMR versions 5.30.0 and 6.1.0 and later.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EmrAutoTerminatePolicyOperator`
+        :ref:`howto/operator:EmrChangePolicyOperator`
 
     :param idle_timeout: Time in seconds to auto terminate the emr cluster if it is idle.
         The timeout must be between 60 seconds and a max of 604800 seconds (7 days). (templated)

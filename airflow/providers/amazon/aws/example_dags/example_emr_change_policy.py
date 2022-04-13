@@ -23,7 +23,7 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
     EmrCreateJobFlowOperator,
-    EmrAutoTerminatePolicyOperator
+    EmrChangePolicyOperator
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
 
@@ -77,8 +77,8 @@ with DAG(
     )
 
     # [START howto_operator_emr_auto_terminate_policy]
-    put_auto_terminate = EmrAutoTerminatePolicyOperator(
-        task_id='put_auto_terminate',
+    change_policy = EmrChangePolicyOperator(
+        task_id='change_policy',
         job_flow_id=cluster_creator.output,
         idle_timeout=300
     )
