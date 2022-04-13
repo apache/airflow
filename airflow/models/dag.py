@@ -51,7 +51,7 @@ import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_, tuple_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
@@ -1349,7 +1349,7 @@ class DAG(LoggingMixin):
                 Query,
                 self._get_task_instances(
                     task_ids=None,
-                    map_indexes=None,
+                    task_ids_and_map_indexes=None,
                     start_date=start_date,
                     end_date=end_date,
                     run_id=None,
@@ -1358,6 +1358,7 @@ class DAG(LoggingMixin):
                     include_parentdag=False,
                     include_dependent_dags=False,
                     exclude_task_ids=cast(List[str], []),
+                    exclude_task_ids_and_map_indexes=None,
                     session=session,
                 ),
             )
@@ -1369,8 +1370,8 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids,
-        map_indexes: Optional[Iterable[int]] = None,
+        task_ids: Iterable[str],
+        task_ids_and_map_indexes: Optional[Iterable[Tuple[str, int]]],
         start_date: Optional[datetime],
         end_date: Optional[datetime],
         run_id: Optional[str],
@@ -1379,6 +1380,7 @@ class DAG(LoggingMixin):
         include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str],
+        exclude_task_ids_and_map_indexes: Collection[Tuple[str, int]],
         session: Session,
         dag_bag: Optional["DagBag"] = ...,
     ) -> Iterable[TaskInstance]:
@@ -1388,8 +1390,8 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids,
-        map_indexes: Optional[Iterable[int]] = None,
+        task_ids: Iterable[str],
+        task_ids_and_map_indexes: Optional[Iterable[Tuple[str, int]]],
         as_pk_tuple: Literal[True],
         start_date: Optional[datetime],
         end_date: Optional[datetime],
@@ -1399,6 +1401,7 @@ class DAG(LoggingMixin):
         include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str],
+        exclude_task_ids_and_map_indexes: Collection[Tuple[str, int]],
         session: Session,
         dag_bag: Optional["DagBag"] = ...,
         recursion_depth: int = ...,
@@ -1410,8 +1413,8 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids,
-        map_indexes: Optional[Iterable[int]] = None,
+        task_ids: Iterable[str],
+        task_ids_and_map_indexes: Optional[Iterable[Tuple[str, int]]],
         as_pk_tuple: Literal[True, None] = None,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
@@ -1421,6 +1424,7 @@ class DAG(LoggingMixin):
         include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str],
+        exclude_task_ids_and_map_indexes: Collection[Tuple[str, int]],
         session: Session,
         dag_bag: Optional["DagBag"] = None,
         recursion_depth: int = 0,
@@ -1444,6 +1448,11 @@ class DAG(LoggingMixin):
             tis = session.query(TaskInstance)
         tis = tis.join(TaskInstance.dag_run)
 
+        if task_ids is not None:  # task not mapped
+            task_ids_and_map_indexes = [(task_id, -1) for task_id in task_ids]
+        if exclude_task_ids and len(exclude_task_ids) > 0:  # task not mapped
+            exclude_task_ids_and_map_indexes = [(task_id, -1) for task_id in task_ids]
+
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
@@ -1458,10 +1467,10 @@ class DAG(LoggingMixin):
             tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
             tis = tis.filter(DagRun.execution_date >= start_date)
-        if task_ids:
-            tis = tis.filter(TaskInstance.task_id.in_(task_ids))
-        if map_indexes:
-            tis = tis.filter(TaskInstance.map_index.in_(map_indexes))
+        if task_ids_and_map_indexes:
+            tis = tis.filter(
+                tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(task_ids_and_map_indexes)
+            )
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
@@ -1500,7 +1509,7 @@ class DAG(LoggingMixin):
             result.update(
                 p_dag._get_task_instances(
                     task_ids=task_ids,
-                    map_indexes=map_indexes,
+                    task_ids_and_map_indexes=task_ids_and_map_indexes,
                     start_date=start_date,
                     end_date=end_date,
                     run_id=None,
@@ -1510,6 +1519,7 @@ class DAG(LoggingMixin):
                     include_dependent_dags=include_dependent_dags,
                     as_pk_tuple=True,
                     exclude_task_ids=exclude_task_ids,
+                    exclude_task_ids_and_map_indexes=exclude_task_ids_and_map_indexes,
                     session=session,
                     dag_bag=dag_bag,
                     recursion_depth=recursion_depth,
@@ -1577,8 +1587,7 @@ class DAG(LoggingMixin):
                     )
                     result.update(
                         downstream._get_task_instances(
-                            task_ids=None,
-                            map_indexes=None,
+                            task_ids_and_map_indexes=None,
                             run_id=tii.run_id,
                             start_date=None,
                             end_date=None,
@@ -1587,7 +1596,7 @@ class DAG(LoggingMixin):
                             include_dependent_dags=include_dependent_dags,
                             include_parentdag=False,
                             as_pk_tuple=True,
-                            exclude_task_ids=exclude_task_ids,
+                            exclude_task_ids_and_map_indexes=exclude_task_ids_and_map_indexes,
                             dag_bag=dag_bag,
                             session=session,
                             recursion_depth=recursion_depth + 1,
@@ -1603,10 +1612,10 @@ class DAG(LoggingMixin):
             else:
                 result.update(ti.key for ti in tis.all())
 
-            if exclude_task_ids:
+            if exclude_task_ids_and_map_indexes:
                 result = set(
                     filter(
-                        lambda key: key.task_id not in exclude_task_ids,
+                        lambda key: (key.task_id, key.map_index) not in exclude_task_ids_and_map_indexes,
                         result,
                     )
                 )
@@ -1618,8 +1627,8 @@ class DAG(LoggingMixin):
             tis = tis.with_entities(TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
 
             tis = session.query(TI).filter(TI.filter_for_tis(result))
-        elif exclude_task_ids:
-            tis = tis.filter(TI.task_id.notin_(list(exclude_task_ids)))
+        elif exclude_task_ids_and_map_indexes:
+            tis = tis.filter(tuple_(TI.task_id, TI.map_index).notin_(exclude_task_ids_and_map_indexes))
 
         return tis
 
@@ -1669,10 +1678,13 @@ class DAG(LoggingMixin):
 
         task = self.get_task(task_id)
         task.dag = self
+        if not map_indexes:
+            map_indexes = [-1]
+        task_map_indexes = [(task, map_index) for map_index in map_indexes]
+        task_id_map_indexes = [(task_id, map_index) for map_index in map_indexes]
 
         altered = set_state(
-            tasks=[task],
-            map_indexes=map_indexes,
+            tasks=task_map_indexes,
             execution_date=execution_date,
             run_id=run_id,
             upstream=upstream,
@@ -1702,13 +1714,12 @@ class DAG(LoggingMixin):
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
-            map_indexes=map_indexes,
             include_subdags=True,
             include_parentdag=True,
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids={task_id},
+            exclude_task_ids_and_map_indexes=task_id_map_indexes,
         )
 
         return altered
@@ -1767,7 +1778,7 @@ class DAG(LoggingMixin):
     def clear(
         self,
         task_ids=None,
-        map_indexes: Optional[Iterable[int]] = None,
+        task_ids_and_map_indexes: Optional[Iterable[Tuple[str, int]]] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         only_failed: bool = False,
@@ -1782,14 +1793,14 @@ class DAG(LoggingMixin):
         recursion_depth: int = 0,
         max_recursion_depth: Optional[int] = None,
         dag_bag: Optional["DagBag"] = None,
-        exclude_task_ids: FrozenSet[str] = frozenset({}),
+        exclude_task_ids: FrozenSet[str] = frozenset(),
+        exclude_task_ids_and_map_indexes: FrozenSet[Tuple[str, int]] = frozenset({}),
     ) -> Union[int, Iterable[TaskInstance]]:
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
 
-        :param task_ids: List of task ids to clear
-        :param map_indexes: List of map_indexes to clear
+        :param task_ids_and_map_indexes: List of tuple of task_id, map_index to clear
         :param start_date: The minimum execution_date to clear
         :param end_date: The maximum execution_date to clear
         :param only_failed: Only clear failed tasks
@@ -1804,6 +1815,8 @@ class DAG(LoggingMixin):
         :param session: The sqlalchemy session to use
         :param dag_bag: The DagBag used to find the dags subdags (Optional)
         :param exclude_task_ids: A set of ``task_id`` that should not be cleared
+        :param exclude_task_ids_and_map_indexes: A set of ``task_id``,``map_index``
+            tuples that should not be cleared
         """
         if get_tis:
             warnings.warn(
@@ -1832,10 +1845,12 @@ class DAG(LoggingMixin):
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [State.RUNNING]
+        if task_ids:
+            task_ids_and_map_indexes = [(task_id, -1) for task_id in task_ids]
 
         tis = self._get_task_instances(
             task_ids=task_ids,
-            map_indexes=map_indexes,
+            task_ids_and_map_indexes=task_ids_and_map_indexes,
             start_date=start_date,
             end_date=end_date,
             run_id=None,
@@ -1846,6 +1861,7 @@ class DAG(LoggingMixin):
             session=session,
             dag_bag=dag_bag,
             exclude_task_ids=exclude_task_ids,
+            exclude_task_ids_and_map_indexes=exclude_task_ids_and_map_indexes,
         )
 
         if dry_run:

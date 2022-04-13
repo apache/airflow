@@ -439,12 +439,12 @@ class TestMarkTasks:
     def test_mark_mapped_task_instance_state(self):
         # set mapped task instance to success
         snapshot = TestMarkTasks.snapshot_state(self.dag4, self.execution_dates)
-        tasks = [self.dag4.get_task("consumer_literal")]
+        task = self.dag4.get_task("consumer_literal")
+        tasks = [(task, 0), (task, 1)]
         map_indexes = [0, 1]
         dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=tasks,
-            map_indexes=map_indexes,
             run_id=dr.run_id,
             upstream=False,
             downstream=False,
@@ -456,7 +456,7 @@ class TestMarkTasks:
         assert len(altered) == 2
         self.verify_state(
             self.dag4,
-            [task.task_id for task in tasks],
+            [task.task_id for task, _ in tasks],
             [self.execution_dates[0]],
             State.SUCCESS,
             snapshot,
