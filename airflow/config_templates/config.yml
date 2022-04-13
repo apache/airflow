@@ -233,6 +233,14 @@
       type: string
       example: ~
       default: "True"
+    - name: dag_ignore_file_syntax
+      description: |
+        The pattern syntax used in the ".airflowignore" files in the DAG directories. Valid values are
+        ``regexp`` or ``glob``.
+      version_added: 2.3.0
+      type: string
+      example: ~
+      default: "regexp"
     - name: default_task_retries
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.

@@ -245,6 +245,7 @@ class AirflowConfigParser(ConfigParser):
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
     enums_options = {
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
+        ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
         ('core', 'mp_start_method'): multiprocessing.get_all_start_methods(),
         ("scheduler", "file_parsing_sort_mode"): ["modified_time", "random_seeded_by_host", "alphabetical"],
         ("logging", "logging_level"): _available_logging_levels,
