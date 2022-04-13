@@ -187,13 +187,19 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     """Get Execution Data, Base Date & Number of runs from a Request"""
     date_time = www_request.args.get('execution_date')
     if date_time:
-        date_time = timezone.parse(date_time)
+        try:
+            date_time = timezone.parse(date_time)
+        except ParserError:
+            return {"error": "Invalid execution_date"}
     else:
         date_time = dag.get_latest_execution_date(session=session) or timezone.utcnow()
 
     base_date = www_request.args.get('base_date')
     if base_date:
-        base_date = timezone.parse(base_date)
+        try:
+            base_date = timezone.parse(base_date)
+        except ParserError:
+            return {"error": "Invalid base_date"}
     else:
         # The DateTimeField widget truncates milliseconds and would loose
         # the first dag run. Round to next second.
@@ -1256,7 +1262,12 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+
+        try:
+            dttm = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
 
@@ -1357,7 +1368,12 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+
+        try:
+            dttm = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         map_index = request.args.get('map_index', -1, type=int)
@@ -1506,7 +1522,15 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date) if execution_date else None
+
+        if execution_date:
+            try:
+                dttm = timezone.parse(execution_date)
+            except ParserError:
+                return Response("Invalid execution_date", mimetype="text/plain", status=400)
+        else:
+            dttm = None
+
         form = DateTimeForm(data={'execution_date': dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
@@ -1553,7 +1577,12 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+
+        try:
+            dttm = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         map_index = request.args.get('map_index', -1, type=int)
         try_number = request.args.get('try_number', 1)
 
@@ -1590,7 +1619,12 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+
+        try:
+            dttm = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         map_index = request.args.get('map_index', -1, type=int)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
@@ -1722,7 +1756,11 @@ class Airflow(AirflowBaseView):
         # Carrying execution_date through, even though it's irrelevant for
         # this context
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
+        try:
+            dttm = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         dag = DagModel.get_dagmodel(dag_id)
@@ -2064,7 +2102,12 @@ class Airflow(AirflowBaseView):
             map_indexes = request.form.getlist('map_index', type=int)
 
         execution_date = request.form.get('execution_date')
-        execution_date = timezone.parse(execution_date)
+
+        try:
+            execution_date = timezone.parse(execution_date)
+        except ParserError:
+            return Response("Invalid execution_date", mimetype="text/plain", status=400)
+
         confirmed = request.form.get('confirmed') == "true"
         upstream = request.form.get('upstream') == "true"
         downstream = request.form.get('downstream') == "true"
@@ -2834,6 +2877,10 @@ class Airflow(AirflowBaseView):
         edges = dag_edges(dag)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+
+        if "error" in dt_nr_dr_data:
+            return Response(dt_nr_dr_data["error"], mimetype="text/plain", status=400)
+
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
         dag_run = dag.get_dagrun(execution_date=dttm)
@@ -2940,7 +2987,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
-            base_date = timezone.parse(base_date)
+            try:
+                base_date = timezone.parse(base_date)
+            except ParserError:
+                return Response("Invalid base_date", mimetype="text/plain", status=400)
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
@@ -3087,7 +3137,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
-            base_date = timezone.parse(base_date)
+            try:
+                base_date = timezone.parse(base_date)
+            except ParserError:
+                return Response("Invalid base_date", mimetype="text/plain", status=400)
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
@@ -3177,7 +3230,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
-            base_date = timezone.parse(base_date)
+            try:
+                base_date = timezone.parse(base_date)
+            except ParserError:
+                return Response("Invalid base_date", mimetype="text/plain", status=400)
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
@@ -3298,6 +3354,10 @@ class Airflow(AirflowBaseView):
         wwwutils.check_import_errors(dag.fileloc, session)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+
+        if "error" in dt_nr_dr_data:
+            return Response(dt_nr_dr_data["error"], mimetype="text/plain", status=400)
+
         dttm = dt_nr_dr_data['dttm']
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
@@ -3466,7 +3526,10 @@ class Airflow(AirflowBaseView):
 
         dttm = request.args.get('execution_date')
         if dttm:
-            dttm = timezone.parse(dttm)
+            try:
+                dttm = timezone.parse(dttm)
+            except ParserError:
+                return "Error: Invalid execution_date"
         else:
             response = jsonify({'error': f"Invalid execution_date {dttm}"})
             response.status_code = 400
