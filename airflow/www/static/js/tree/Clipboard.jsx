@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Box,
   Button,
   IconButton,
   Tooltip,
@@ -57,8 +56,8 @@ export const ClipboardButton = forwardRef(
 );
 
 export const ClipboardText = ({ value }) => (
-  <Box as="span">
+  <>
     {value}
     <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="lg" ml={1} />
-  </Box>
+  </>
 );
