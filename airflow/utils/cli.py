@@ -31,6 +31,8 @@ from argparse import Namespace
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
+from sqlalchemy.exc import OperationalError, ProgrammingError
+
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
@@ -95,7 +97,11 @@ def action_cli(func=None, check_db=True):
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 
                     check_and_run_migrations()
-                    synchronize_log_template()
+                    try:
+                        synchronize_log_template()
+                    except (ProgrammingError, OperationalError):
+                        # log template table not created yet
+                        pass
                 return f(*args, **kwargs)
             except Exception as e:
                 metrics['error'] = e

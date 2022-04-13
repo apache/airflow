@@ -26,6 +26,7 @@ from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple
 
 from sqlalchemy import Table, column, exc, func, inspect, literal, or_, table, text
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -1261,7 +1262,11 @@ def upgradedb(
         log.info("Creating tables")
         command.upgrade(config, revision=to_revision or 'heads')
     add_default_pool_if_not_exists()
-    synchronize_log_template()
+    try:
+        synchronize_log_template()
+    except (ProgrammingError, OperationalError):
+        # log template table not created yet
+        pass
 
 
 @provide_session
