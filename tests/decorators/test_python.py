@@ -542,6 +542,26 @@ class TestAirflowTaskDecorator:
             weights.append(task.priority_weight)
         assert weights == [0, 1, 2]
 
+    def test_python_callable_args_work_as_well_as_baseoperator_args(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello(x, y):
+            """
+            Print Hello world
+            """
+            print("Hello world", x, y)
+            return x, y
+
+        with self.dag:
+            output = hello.override(task_id='mytask')(x=2, y=3)
+            output2 = hello.override()(2, 3)  # nothing overridden but should work
+
+        assert output.operator.op_kwargs == {'x': 2, 'y': 3}
+        assert output2.operator.op_args == (2, 3)
+        output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
 
 def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
