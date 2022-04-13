@@ -49,7 +49,7 @@ For example:
 Grid View
 .........
 A bar chart and grid representation of the DAG that spans across time.
-The top row is a chart of Dag Runs by duration,
+The top row is a chart of DAG Runs by duration,
 and below, task instances. If a pipeline is late,
 you can quickly see where the different steps are and identify
 the blocking ones.
