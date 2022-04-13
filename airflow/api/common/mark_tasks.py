@@ -271,8 +271,7 @@ def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str]) -> Iterator[_DagR
         yield _DagRunInfo(dag_run.logical_date, dag.get_run_data_interval(dag_run))
 
 
-@provide_session
-def find_task_relatives(tasks, downstream, upstream, session: SASession = NEW_SESSION):
+def find_task_relatives(tasks, downstream, upstream):
     """Yield task ids and optionally ancestor and descendant ids."""
     for item in tasks:
         if isinstance(item, tuple):
