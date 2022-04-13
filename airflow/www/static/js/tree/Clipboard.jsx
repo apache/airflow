@@ -1,0 +1,64 @@
+import React from 'react';
+import {
+  Box,
+  Button,
+  IconButton,
+  Tooltip,
+  useClipboard,
+  forwardRef,
+} from '@chakra-ui/react';
+import { FiCopy } from 'react-icons/fi';
+
+import { useContainerRef } from './context/containerRef';
+
+export const ClipboardButton = forwardRef(
+  (
+    {
+      value,
+      variant = 'outline',
+      iconOnly = false,
+      label = 'copy',
+      title = 'Copy',
+      'aria-label': ariaLabel = 'Copy',
+      ...otherProps
+    },
+    ref,
+  ) => {
+    const { hasCopied, onCopy } = useClipboard(value);
+    const containerRef = useContainerRef();
+
+    const commonProps = {
+      onClick: onCopy,
+      variant,
+      title,
+      ref,
+      ...otherProps,
+    };
+
+    return (
+      <Tooltip
+        label="Copied"
+        isOpen={hasCopied}
+        isDisabled={!hasCopied}
+        closeDelay={500}
+        placement="top"
+        portalProps={{ containerRef }}
+      >
+        {iconOnly ? (
+          <IconButton icon={<FiCopy />} aria-label={ariaLabel} {...commonProps} />
+        ) : (
+          <Button leftIcon={<FiCopy />} {...commonProps}>
+            {label}
+          </Button>
+        )}
+      </Tooltip>
+    );
+  },
+);
+
+export const ClipboardText = ({ value }) => (
+  <Box as="span">
+    {value}
+    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="lg" ml={1} />
+  </Box>
+);
