@@ -36,7 +36,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
@@ -101,7 +101,7 @@ class TestLocalTaskJob:
         proper values without intervention
         """
         with dag_maker('test_localtaskjob_essential_attr'):
-            op1 = DummyOperator(task_id='op1')
+            op1 = EmptyOperator(task_id='op1')
 
         dr = dag_maker.create_dagrun()
 
@@ -120,7 +120,7 @@ class TestLocalTaskJob:
     def test_localtaskjob_heartbeat(self, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
-            op1 = DummyOperator(task_id='op1')
+            op1 = EmptyOperator(task_id='op1')
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
@@ -156,7 +156,7 @@ class TestLocalTaskJob:
     def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
-            op1 = DummyOperator(task_id='op1', run_as_user='myuser')
+            op1 = EmptyOperator(task_id='op1', run_as_user='myuser')
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
@@ -199,7 +199,7 @@ class TestLocalTaskJob:
     def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker('test_localtaskjob_heartbeat'):
-            op1 = DummyOperator(task_id='op1')
+            op1 = EmptyOperator(task_id='op1')
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
@@ -917,7 +917,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):
-        task = DummyOperator(task_id='test_state_succeeded1')
+        task = EmptyOperator(task_id='test_state_succeeded1')
 
     dr = dag_maker.create_dagrun(run_id=unique_prefix, state=State.NONE)
 

@@ -41,7 +41,7 @@ from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -92,7 +92,7 @@ class TestBackfillJob:
         **kwargs,
     ):
         with dag_maker_fixture(dag_id=dag_id, schedule_interval='@daily', **kwargs) as dag:
-            DummyOperator(task_id=task_id, pool=pool, max_active_tis_per_dag=max_active_tis_per_dag)
+            EmptyOperator(task_id=task_id, pool=pool, max_active_tis_per_dag=max_active_tis_per_dag)
 
         return dag
 
@@ -675,8 +675,8 @@ class TestBackfillJob:
     def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
 
         with dag_maker(dag_id='test_backfill_rerun_upstream_failed', schedule_interval='@daily') as dag:
-            op1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1')
-            op2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2')
+            op1 = EmptyOperator(task_id='test_backfill_rerun_upstream_failed_task-1')
+            op2 = EmptyOperator(task_id='test_backfill_rerun_upstream_failed_task-2')
             op1.set_upstream(op2)
         dag_maker.create_dagrun(state=None)
 
@@ -746,7 +746,7 @@ class TestBackfillJob:
                 'retry_delay': datetime.timedelta(seconds=0),
             },
         ) as dag:
-            task1 = DummyOperator(task_id="task1")
+            task1 = EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
@@ -773,7 +773,7 @@ class TestBackfillJob:
                 'retry_delay': datetime.timedelta(seconds=0),
             },
         ) as dag:
-            task1 = DummyOperator(task_id="task1")
+            task1 = EmptyOperator(task_id="task1")
         dr = dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
@@ -796,11 +796,11 @@ class TestBackfillJob:
             dag_id='test_backfill_ordered_concurrent_execute',
             schedule_interval="@daily",
         ) as dag:
-            op1 = DummyOperator(task_id='leave1')
-            op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1')
-            op4 = DummyOperator(task_id='upstream_level_2')
-            op5 = DummyOperator(task_id='upstream_level_3')
+            op1 = EmptyOperator(task_id='leave1')
+            op2 = EmptyOperator(task_id='leave2')
+            op3 = EmptyOperator(task_id='upstream_level_1')
+            op4 = EmptyOperator(task_id='upstream_level_2')
+            op5 = EmptyOperator(task_id='upstream_level_3')
             # order randomly
             op2.set_downstream(op3)
             op1.set_downstream(op3)
@@ -943,10 +943,10 @@ class TestBackfillJob:
             max_active_runs=max_active_runs,
             **kwargs,
         ) as dag:
-            op1 = DummyOperator(task_id='leave1')
-            op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1')
-            op4 = DummyOperator(task_id='upstream_level_2')
+            op1 = EmptyOperator(task_id='leave1')
+            op2 = EmptyOperator(task_id='leave2')
+            op3 = EmptyOperator(task_id='upstream_level_1')
+            op4 = EmptyOperator(task_id='upstream_level_2')
 
             op1 >> op2 >> op3
             op4 >> op3
@@ -1086,11 +1086,11 @@ class TestBackfillJob:
         with dag_maker(
             'test_sub_set_subdag',
         ) as dag:
-            op1 = DummyOperator(task_id='leave1')
-            op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1')
-            op4 = DummyOperator(task_id='upstream_level_2')
-            op5 = DummyOperator(task_id='upstream_level_3')
+            op1 = EmptyOperator(task_id='leave1')
+            op2 = EmptyOperator(task_id='leave2')
+            op3 = EmptyOperator(task_id='upstream_level_1')
+            op4 = EmptyOperator(task_id='upstream_level_2')
+            op5 = EmptyOperator(task_id='upstream_level_3')
             # order randomly
             op2.set_downstream(op3)
             op1.set_downstream(op3)
@@ -1116,12 +1116,12 @@ class TestBackfillJob:
         with dag_maker(
             'test_backfill_fill_blanks',
         ) as dag:
-            op1 = DummyOperator(task_id='op1')
-            op2 = DummyOperator(task_id='op2')
-            op3 = DummyOperator(task_id='op3')
-            op4 = DummyOperator(task_id='op4')
-            op5 = DummyOperator(task_id='op5')
-            op6 = DummyOperator(task_id='op6')
+            op1 = EmptyOperator(task_id='op1')
+            op2 = EmptyOperator(task_id='op2')
+            op3 = EmptyOperator(task_id='op3')
+            op4 = EmptyOperator(task_id='op4')
+            op5 = EmptyOperator(task_id='op5')
+            op6 = EmptyOperator(task_id='op6')
 
         dr = dag_maker.create_dagrun(state=None)
 
@@ -1271,7 +1271,7 @@ class TestBackfillJob:
         session.add(dr)
 
         removed_task_ti = TI(
-            task=DummyOperator(task_id='removed_task'), run_id=dr.run_id, state=State.REMOVED
+            task=EmptyOperator(task_id='removed_task'), run_id=dr.run_id, state=State.REMOVED
         )
         removed_task_ti.dag_id = subdag.dag_id
         dr.task_instances.append(removed_task_ti)
@@ -1301,7 +1301,7 @@ class TestBackfillJob:
 
     def test_update_counters(self, dag_maker, session):
         with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE, session=session) as dag:
-            task1 = DummyOperator(task_id='dummy', owner='airflow')
+            task1 = EmptyOperator(task_id='dummy', owner='airflow')
         dr = dag_maker.create_dagrun(state=None)
         job = BackfillJob(dag=dag)
 
@@ -1398,7 +1398,7 @@ class TestBackfillJob:
         with dag_maker(
             dag_id='dagrun_infos_between', start_date=DEFAULT_DATE, schedule_interval="@hourly"
         ) as test_dag:
-            DummyOperator(
+            EmptyOperator(
                 task_id='dummy',
                 owner='airflow',
             )
@@ -1464,7 +1464,7 @@ class TestBackfillJob:
         with dag_maker(dag_id=prefix) as dag:
             for i in range(len(states)):
                 task_id = f"{prefix}_task_{i}"
-                task = DummyOperator(task_id=task_id)
+                task = EmptyOperator(task_id=task_id)
                 tasks.append(task)
 
         session = settings.Session()
@@ -1526,7 +1526,7 @@ class TestBackfillJob:
             schedule_interval='@daily',
             session=session,
         ) as dag:
-            DummyOperator(task_id=task_id, dag=dag)
+            EmptyOperator(task_id=task_id, dag=dag)
 
         job = BackfillJob(dag=dag)
         # make two dagruns, only reset for one
@@ -1553,7 +1553,7 @@ class TestBackfillJob:
     def test_job_id_is_assigned_to_dag_run(self, dag_maker):
         dag_id = 'test_job_id_is_assigned_to_dag_run'
         with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily') as dag:
-            DummyOperator(task_id="dummy_task", dag=dag)
+            EmptyOperator(task_id="dummy_task", dag=dag)
 
         job = BackfillJob(
             dag=dag, executor=MockExecutor(), start_date=timezone.utcnow() - datetime.timedelta(days=1)

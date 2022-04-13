@@ -216,7 +216,7 @@ def test_mark_task_instance_state(test_app):
     - Set DagRun to QUEUED.
     """
     from airflow.models import DAG, DagBag, TaskInstance
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
     from airflow.utils.timezone import datetime
@@ -227,11 +227,11 @@ def test_mark_task_instance_state(test_app):
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
     with DAG("test_mark_task_instance_state", start_date=start_date) as dag:
-        task_1 = DummyOperator(task_id="task_1")
-        task_2 = DummyOperator(task_id="task_2")
-        task_3 = DummyOperator(task_id="task_3")
-        task_4 = DummyOperator(task_id="task_4")
-        task_5 = DummyOperator(task_id="task_5")
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
 
         task_1 >> [task_2, task_3, task_4, task_5]
 

@@ -21,7 +21,7 @@ import pytest
 
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import TaskInstance, Trigger
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -70,7 +70,7 @@ def test_clean_unused(session, create_task_instance):
     )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
-    fake_task = DummyOperator(task_id="fake2", dag=task_instance.task.dag)
+    fake_task = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
     task_instance = TaskInstance(task=fake_task, run_id=task_instance.run_id)
     task_instance.state = State.SUCCESS
     task_instance.trigger_id = trigger2.id

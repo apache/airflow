@@ -32,7 +32,7 @@ from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, cl
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
@@ -103,7 +103,7 @@ class TestDagRun:
         dag = DAG(dag_id=dag_id, start_date=now)
         dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, session=session)
 
-        task0 = DummyOperator(task_id='backfill_task_0', owner='test', dag=dag)
+        task0 = EmptyOperator(task_id='backfill_task_0', owner='test', dag=dag)
         ti0 = TI(task=task0, run_id=dag_run.run_id)
         ti0.run()
 
@@ -182,8 +182,8 @@ class TestDagRun:
         dag_task1 = ShortCircuitOperator(
             task_id='test_short_circuit_false', dag=dag, python_callable=lambda: False
         )
-        dag_task2 = DummyOperator(task_id='test_state_skipped1', dag=dag)
-        dag_task3 = DummyOperator(task_id='test_state_skipped2', dag=dag)
+        dag_task2 = EmptyOperator(task_id='test_state_skipped1', dag=dag)
+        dag_task3 = EmptyOperator(task_id='test_state_skipped2', dag=dag)
         dag_task1.set_downstream(dag_task2)
         dag_task2.set_downstream(dag_task3)
 
@@ -204,10 +204,10 @@ class TestDagRun:
         # A -> C -> D
         # ordered: B, D, C, A or D, B, C, A or D, C, B, A
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='D')
             op1.set_upstream([op2, op3])
             op3.set_upstream(op4)
 
@@ -245,8 +245,8 @@ class TestDagRun:
         dag = DAG('text_dagrun_deadlock', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
             op2.trigger_rule = TriggerRule.ONE_FAILED
             op2.set_upstream(op1)
 
@@ -276,8 +276,8 @@ class TestDagRun:
     def test_dagrun_no_deadlock_with_shutdown(self, session):
         dag = DAG('test_dagrun_no_deadlock_with_shutdown', start_date=DEFAULT_DATE)
         with dag:
-            op1 = DummyOperator(task_id='upstream_task')
-            op2 = DummyOperator(task_id='downstream_task')
+            op1 = EmptyOperator(task_id='upstream_task')
+            op2 = EmptyOperator(task_id='downstream_task')
             op2.set_upstream(op1)
 
         dr = dag.create_dagrun(
@@ -296,8 +296,8 @@ class TestDagRun:
     def test_dagrun_no_deadlock_with_depends_on_past(self, session):
         dag = DAG('test_dagrun_no_deadlock', start_date=DEFAULT_DATE)
         with dag:
-            DummyOperator(task_id='dop', depends_on_past=True)
-            DummyOperator(task_id='tc', max_active_tis_per_dag=1)
+            EmptyOperator(task_id='dop', depends_on_past=True)
+            EmptyOperator(task_id='tc', max_active_tis_per_dag=1)
 
         dag.clear()
         dr = dag.create_dagrun(
@@ -340,8 +340,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        dag_task1 = DummyOperator(task_id='test_state_succeeded1', dag=dag)
-        dag_task2 = DummyOperator(task_id='test_state_succeeded2', dag=dag)
+        dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
+        dag_task2 = EmptyOperator(task_id='test_state_succeeded2', dag=dag)
         dag_task1.set_downstream(dag_task2)
 
         initial_task_states = {
@@ -367,8 +367,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        dag_task1 = DummyOperator(task_id='test_state_succeeded1', dag=dag)
-        dag_task2 = DummyOperator(task_id='test_state_failed2', dag=dag)
+        dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
+        dag_task2 = EmptyOperator(task_id='test_state_failed2', dag=dag)
 
         initial_task_states = {
             'test_state_succeeded1': TaskInstanceState.SUCCESS,
@@ -394,8 +394,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        dag_task1 = DummyOperator(task_id='test_state_succeeded1', dag=dag)
-        dag_task2 = DummyOperator(task_id='test_state_succeeded2', dag=dag)
+        dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
+        dag_task2 = EmptyOperator(task_id='test_state_succeeded2', dag=dag)
         dag_task1.set_downstream(dag_task2)
 
         initial_task_states = {
@@ -429,8 +429,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        dag_task1 = DummyOperator(task_id='test_state_succeeded1', dag=dag)
-        dag_task2 = DummyOperator(task_id='test_state_failed2', dag=dag)
+        dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
+        dag_task2 = EmptyOperator(task_id='test_state_failed2', dag=dag)
         dag_task1.set_downstream(dag_task2)
 
         initial_task_states = {
@@ -507,8 +507,8 @@ class TestDagRun:
 
         # A -> B
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
             op1.set_upstream(op2)
 
         dag.clear()
@@ -600,7 +600,7 @@ class TestDagRun:
             return DAG(dag_id=dag.dag_id, start_date=dag.start_date)
 
         dag = DAG('test_task_restoration', start_date=DEFAULT_DATE)
-        dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+        dag.add_task(EmptyOperator(task_id='flaky_task', owner='test'))
 
         dagrun = self.create_dag_run(dag, session=session)
         flaky_ti = dagrun.get_task_instances()[0]
@@ -613,7 +613,7 @@ class TestDagRun:
         flaky_ti.refresh_from_db()
         assert flaky_ti.state is None
 
-        dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+        dagrun.dag.add_task(EmptyOperator(task_id='flaky_task', owner='test'))
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
@@ -621,7 +621,7 @@ class TestDagRun:
 
     def test_already_added_task_instances_can_be_ignored(self, session):
         dag = DAG('triggered_dag', start_date=DEFAULT_DATE)
-        dag.add_task(DummyOperator(task_id='first_task', owner='test'))
+        dag.add_task(EmptyOperator(task_id='first_task', owner='test'))
 
         dagrun = self.create_dag_run(dag, session=session)
         first_ti = dagrun.get_task_instances()[0]
@@ -650,7 +650,7 @@ class TestDagRun:
         mock_hook.side_effect = mutate_task_instance
 
         dag = DAG('test_task_instance_mutation_hook', start_date=DEFAULT_DATE)
-        dag.add_task(DummyOperator(task_id='task_to_mutate', owner='test', queue='queue1'))
+        dag.add_task(EmptyOperator(task_id='task_to_mutate', owner='test', queue='queue1'))
 
         dagrun = self.create_dag_run(dag, session=session)
         task = dagrun.get_task_instances()[0]
@@ -749,7 +749,7 @@ class TestDagRun:
         """
 
         dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         orm_dag = DagModel(
             dag_id=dag.dag_id,
@@ -786,7 +786,7 @@ class TestDagRun:
         This case is manual run. Simple test for coherence check.
         """
         dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
-        dag_task = DummyOperator(task_id='dummy', dag=dag)
+        dag_task = EmptyOperator(task_id='dummy', dag=dag)
 
         initial_task_states = {
             dag_task.task_id: TaskInstanceState.SUCCESS,
@@ -810,7 +810,7 @@ class TestDagRun:
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
         dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
-        dag_task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
             info = dag.next_dagrun_info(None)
@@ -861,8 +861,8 @@ class TestDagRun:
         Tests that adding State.failed_states and State.success_states work as expected.
         """
         dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
-        dag_task_success = DummyOperator(task_id='dummy', dag=dag)
-        dag_task_failed = DummyOperator(task_id='dummy2', dag=dag)
+        dag_task_success = EmptyOperator(task_id='dummy', dag=dag)
+        dag_task_failed = EmptyOperator(task_id='dummy2', dag=dag)
 
         initial_task_states = {
             dag_task_success.task_id: TaskInstanceState.SUCCESS,
@@ -886,9 +886,9 @@ class TestDagRun:
 def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
     """Test that tasks with specific dates are only created for backfill runs"""
     with DAG('test', start_date=DEFAULT_DATE) as dag:
-        DummyOperator(task_id='without')
-        DummyOperator(task_id='with_start_date', start_date=DEFAULT_DATE + datetime.timedelta(1))
-        DummyOperator(task_id='with_end_date', end_date=DEFAULT_DATE - datetime.timedelta(1))
+        EmptyOperator(task_id='without')
+        EmptyOperator(task_id='with_start_date', start_date=DEFAULT_DATE + datetime.timedelta(1))
+        EmptyOperator(task_id='with_end_date', end_date=DEFAULT_DATE - datetime.timedelta(1))
 
     dag_run = DagRun(
         dag_id=dag.dag_id,
@@ -905,7 +905,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_called_with('task_instance_created-DummyOperator', expected_tis)
+    Stats_incr.assert_called_with('task_instance_created-EmptyOperator', expected_tis)
 
 
 @pytest.mark.parametrize('is_noop', [True, False])
