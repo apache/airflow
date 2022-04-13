@@ -1016,7 +1016,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_ti_ids = []
         for ti in schedulable_tis:
             if (
-                ti.task.inherits_from_dummy_operator
+                ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
             ):

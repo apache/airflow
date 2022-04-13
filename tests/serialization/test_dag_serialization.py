@@ -103,7 +103,7 @@ serialized_simple_dag_ground_truth = {
                 "sla": 100.0,
                 "downstream_task_ids": [],
                 "_inlets": [],
-                "_is_dummy": False,
+                "_is_empty": False,
                 "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
@@ -133,7 +133,7 @@ serialized_simple_dag_ground_truth = {
                 "sla": 100.0,
                 "downstream_task_ids": [],
                 "_inlets": [],
-                "_is_dummy": False,
+                "_is_empty": False,
                 "_outlets": [],
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
@@ -1620,7 +1620,7 @@ def test_mapped_operator_serde():
     serialized = SerializedBaseOperator._serialize(real_op)
 
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'airflow.operators.bash',
         '_task_type': 'BashOperator',
@@ -1677,7 +1677,7 @@ def test_mapped_operator_xcomarg_serde():
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
@@ -1756,7 +1756,7 @@ def test_mapped_decorator_serde():
 
     serialized = SerializedBaseOperator._serialize(original)
     assert serialized == {
-        '_is_dummy': False,
+        '_is_empty': False,
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
@@ -1795,4 +1795,46 @@ def test_mapped_decorator_serde():
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
+    }
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+@pytest.mark.parametrize(
+    "is_inherit",
+    [
+        True,
+        False,
+    ],
+)
+def test_dummy_operator_serde(is_inherit):
+    """
+    Test to verify that when user uses custom DummyOperator with inherits_from_dummy_operator
+    we will have _is_empty in serialized operator.
+    """
+
+    # In this test we should NOT switch the DummyOperator to EmptyOperator.
+    # This test can be removed in Airflow 3.0 as DummyOperator will be removed then.
+    from airflow.operators.dummy import DummyOperator
+
+    class MyDummyOperator(DummyOperator):
+        inherits_from_dummy_operator = is_inherit
+
+    op = MyDummyOperator(task_id='my_task')
+
+    serialized = SerializedBaseOperator._serialize(op)
+
+    assert serialized == {
+        '_is_empty': is_inherit,
+        '_task_module': 'tests.serialization.test_dag_serialization',
+        '_task_type': 'MyDummyOperator',
+        '_outlets': [],
+        '_inlets': [],
+        'downstream_task_ids': [],
+        "pool": "default_pool",
+        'task_id': 'my_task',
+        'ui_color': '#e8f7e4',
+        'ui_fgcolor': '#000',
+        'template_ext': [],
+        'template_fields': [],
+        'template_fields_renderers': {},
     }

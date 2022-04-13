@@ -190,7 +190,7 @@ class OperatorPartial:
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         self._expand_called = True
 
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
@@ -217,7 +217,7 @@ class OperatorPartial:
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_dummy=issubclass(self.operator_class, DummyOperator),
+            is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
@@ -255,7 +255,7 @@ class MappedOperator(AbstractOperator):
     template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
-    _is_dummy: bool
+    _is_empty: bool
     _task_module: str
     _task_type: str
 
@@ -350,9 +350,9 @@ class MappedOperator(AbstractOperator):
         return self._task_type
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
-        return self._is_dummy
+        return self._is_empty
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
