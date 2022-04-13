@@ -453,6 +453,7 @@ class TaskInstance(Base, LoggingMixin):
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
+    next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     # If adding new fields here then remember to add them to
