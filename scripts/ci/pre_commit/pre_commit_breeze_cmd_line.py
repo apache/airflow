@@ -17,11 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 import sys
 from pathlib import Path
 from subprocess import check_call, check_output
 
 from rich.console import Console
+
+console = Console(force_terminal=True, color_system="standard", width=180)
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3]
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
@@ -79,6 +82,21 @@ def verify_all_commands_described_in_docs():
         sys.exit(1)
 
 
+def verify_breeze_installed():
+    cmd = 'breeze'
+    locate = shutil.which(cmd)
+
+    if locate is None:
+        console.print("[red]You don't have Breeze installed")
+        console.print(
+            "[yellow]follow BREEZE.rst to install it \
+        https://github.com/apache/airflow/blob/main/BREEZE.rst"
+        )
+    else:
+        console.print("[green] breeze is installed")
+        print_help_for_all_commands()
+        verify_all_commands_described_in_docs()
+
+
 if __name__ == '__main__':
-    print_help_for_all_commands()
-    verify_all_commands_described_in_docs()
+    verify_breeze_installed()
