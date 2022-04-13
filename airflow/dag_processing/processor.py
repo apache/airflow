@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
 import datetime
 import logging
 import multiprocessing
@@ -529,8 +528,7 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with import errors
         """
-        all_parsed_files = copy.copy(dagbag.file_last_changed)
-        files_without_error = all_parsed_files - dagbag.import_errors.keys()
+        files_without_error = dagbag.file_last_changed - dagbag.import_errors.keys()
 
         # Clear the errors of the processed files
         # that no longer have errors
