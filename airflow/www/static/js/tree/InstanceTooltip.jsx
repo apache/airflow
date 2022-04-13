@@ -68,7 +68,7 @@ const InstanceTooltip = ({
       {group.tooltip && (
         <Text>{group.tooltip}</Text>
       )}
-      {isMapped && (
+      {isMapped && !!mappedStates.length && (
         <Text>
           {mappedStates.length}
           {' '}
