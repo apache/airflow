@@ -69,6 +69,7 @@ from sqlalchemy import (
     tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.exc import NoResultFound
@@ -454,7 +455,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
-    next_kwargs = Column(ExtendedJSON)
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly

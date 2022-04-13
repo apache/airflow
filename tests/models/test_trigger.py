@@ -101,6 +101,9 @@ def test_submit_event(session, create_task_instance):
     session.commit()
     # Call submit_event
     Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
+    # commit changes made by submit event and expire all cache to read from db.
+    session.flush()
+    session.expunge_all()
     # Check that the task instance is now scheduled
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
