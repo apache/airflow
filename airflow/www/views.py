@@ -255,23 +255,6 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     ]
 
     def get_summary(dag_run, children):
-        priority = [
-            TaskInstanceState.FAILED,
-            TaskInstanceState.UPSTREAM_FAILED,
-            TaskInstanceState.UP_FOR_RETRY,
-            TaskInstanceState.UP_FOR_RESCHEDULE,
-            TaskInstanceState.QUEUED,
-            TaskInstanceState.SCHEDULED,
-            TaskInstanceState.DEFERRED,
-            TaskInstanceState.SENSING,
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.SHUTDOWN,
-            TaskInstanceState.RESTARTING,
-            TaskInstanceState.REMOVED,
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.SKIPPED,
-        ]
-
         child_instances = [child['instances'] for child in children if 'instances' in child]
         child_instances = [item for sublist in child_instances for item in sublist]
 
@@ -284,7 +267,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
         children_states = [item['state'] for item in child_instances if item['run_id'] == dag_run.run_id]
 
         group_state = None
-        for state in priority:
+        for state in wwwutils.priority:
             if state in children_states:
                 group_state = state
                 break
