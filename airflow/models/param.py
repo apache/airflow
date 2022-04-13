@@ -62,7 +62,9 @@ class Param:
                 DeprecationWarning,
             )
 
-    def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
+    def resolve(
+        self, value: Any = NOTSET, suppress_exception: bool = False, is_dag_parsing: bool = False
+    ) -> Any:
         """
         Runs the validations and returns the Param's final value.
         May raise ValueError on failed validations, or TypeError
@@ -82,7 +84,7 @@ class Param:
             self._warn_if_not_json(value)
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
-            if suppress_exception:
+            if suppress_exception or is_dag_parsing:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
         try:
@@ -199,12 +201,14 @@ class ParamsDict(MutableMapping[str, Any]):
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self, is_dag_parsing=False) -> Dict[str, Any]:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:
             for k, v in self.items():
-                resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
+                resolved_dict[k] = v.resolve(
+                    suppress_exception=self.suppress_exception, is_dag_parsing=is_dag_parsing
+                )
         except ParamValidationError as ve:
             raise ParamValidationError(f'Invalid input for param {k}: {ve}') from None
 

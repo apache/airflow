@@ -2629,6 +2629,7 @@ class TestSchedulerJob:
             'test_ignore_this.py',
             'test_invalid_param.py',
             'test_nested_dag.py',
+            'test_invalid_param_int.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:

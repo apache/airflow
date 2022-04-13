@@ -283,6 +283,32 @@ class TestDagBag:
         assert len(dagbag.import_errors) == len(invalid_dag_files)
         assert len(dagbag.dags) == 0
 
+    def test_process_file_invalid_param_check_int(self):
+        """
+        test if an invalid param in the dag param can be identified
+        """
+        invalid_dag_files = ["test_invalid_param_int.py"]
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        assert len(dagbag.import_errors) == 0
+        for file in invalid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
+        assert len(dagbag.import_errors) == len(invalid_dag_files)
+        assert len(dagbag.dags) == 0
+
+    def test_process_file_mandatory_param_no_default_value_pass(self):
+        """
+        test if a mandatory param is passed, no error on dag parsing if no default
+        """
+        invalid_dag_files = ["test_mandatory_param_pass.py"]
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        assert len(dagbag.import_errors) == 0
+        for file in invalid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
+        assert len(dagbag.import_errors) == 0
+        assert len(dagbag.dags) == 1
+
     @patch.object(DagModel, 'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
         """

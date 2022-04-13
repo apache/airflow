@@ -22,12 +22,12 @@ from airflow.models.param import Param
 from airflow.operators.python import PythonOperator
 
 with DAG(
-    "test_invalid_param",
+    "test_invalid_param_int",
     start_date=datetime(2021, 1, 1),
     schedule_interval="@once",
     params={
-        # string param with above limit default value
-        "str_param": Param('longerthan4', type="string", minLength=2, maxLength=4),
+        # integer param with above limit default value
+        "int_param": Param(10, type="integer", minimum=2, maximum=4),
     },
 ) as the_dag:
 
@@ -39,6 +39,6 @@ with DAG(
         task_id="ref_params",
         python_callable=print_these,
         op_args=[
-            "{{ params.str_param }}",
+            "{{ params.int_param }}",
         ],
     )

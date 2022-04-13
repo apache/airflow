@@ -404,7 +404,7 @@ class DagBag(LoggingMixin):
             try:
                 dag.timetable.validate()
                 # validate dag params
-                dag.params.validate()
+                dag.params.validate(is_dag_parsing=True)
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
