@@ -373,3 +373,56 @@ def test_get_task_stats_from_query():
 
     data = get_task_stats_from_query(query_data)
     assert data == expected_data
+
+
+@pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            '/rendered-templates?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            '/log?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            '/redirect_to_external_log?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            '/task?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            'dags/example_bash_operator/graph?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            'dags/example_bash_operator/graph?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+        (
+            'dags/example_bash_operator/duration?base_date=invalid',
+            "Invalid base_date",
+        ),
+        (
+            'dags/example_bash_operator/tries?base_date=invalid',
+            "Invalid base_date",
+        ),
+        (
+            'dags/example_bash_operator/landing-times?base_date=invalid',
+            "Invalid base_date",
+        ),
+        (
+            'dags/example_bash_operator/gantt?execution_date=invalid',
+            "Invalid execution_date",
+        ),
+    ],
+)
+def test_invalid_dates(app, admin_client, url, content):
+    """Test invalid date format doesn't crash page."""
+    resp = admin_client.get(url, follow_redirects=True)
+
+    assert resp.status_code == 400
+    assert resp.get_data().decode() == content

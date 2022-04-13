@@ -2105,7 +2105,7 @@ class Airflow(AirflowBaseView):
 
         try:
             execution_date = timezone.parse(execution_date)
-        except ParserError:
+        except (TypeError, ParserError):
             return Response("Invalid execution_date", mimetype="text/plain", status=400)
 
         confirmed = request.form.get('confirmed') == "true"
