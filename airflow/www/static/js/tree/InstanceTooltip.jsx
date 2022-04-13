@@ -72,7 +72,8 @@ const InstanceTooltip = ({
         <Text>
           {mappedStates.length}
           {' '}
-          mapped tasks
+          mapped task
+          {mappedStates.length > 1 && 's'}
         </Text>
       )}
       <Text>
