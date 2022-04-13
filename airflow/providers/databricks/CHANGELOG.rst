@@ -27,6 +27,12 @@ Features
 
 * ``More operators for Databricks Repos (#22422)``
 * ``Add a link to Databricks Job Run (#22541)``
+* ``Databricks SQL operators are now Python 3.10 compatible (#22886)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: Correctly handle HTTP exception (#22885)``
 
 Misc
 ~~~~
@@ -36,6 +42,8 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update black precommit (#22521)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Prepare mid-April provider documentation. (#22819)``
 
 2.5.0
 .....
