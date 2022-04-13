@@ -49,6 +49,6 @@ with dag:
 
     task_c = MyEmptyOperator(task_id="test_task_c", body={"hello": "world"})
 
-    task_d = EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: 1)
+    task_d = EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None)
 
-    task_e = EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: 1)
+    task_e = EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
