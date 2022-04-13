@@ -80,7 +80,7 @@ const DagRuns = ({ tableWidth }) => {
             {formatDuration(max / 2)}
           </DurationTick>
           <DurationTick bottom={0}>
-            00:00:00
+            0Sec
           </DurationTick>
         </>
         )}

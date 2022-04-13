@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global moment, $, document */
+/* global moment, $, document, convertSecsToHumanReadable */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
@@ -106,10 +106,8 @@ export const getDuration = (startDate, endDate) => (
 );
 
 export const formatDuration = (dur) => {
-  const duration = moment.duration(dur);
-  const days = duration.days();
-  // .as('milliseconds') is necessary for .format() to work correctly
-  return `${days > 0 ? `${days}d` : ''}${moment.utc(duration.as('milliseconds')).format('HH:mm:ss')}`;
+  const duration = moment.duration(dur).as('seconds');
+  return convertSecsToHumanReadable(duration);
 };
 
 export const approxTimeFromNow = (dur) => {
