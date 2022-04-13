@@ -95,6 +95,20 @@ To add Steps to an existing EMR Job Flow you can use
 
 .. _howto/operator:EmrTerminateJobFlowOperator:
 
+Add auto terminate policy to EMR Job Flow
+----------------------------
+
+To add auto terminate policy to an existing EMR Job Flow you can use
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrAutoTerminatePolicyOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_put_auto_terminate_policy.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_emr_auto_terminate_policy]
+    :end-before: [END howto_operator_emr_auto_terminate_policy]
+
+.. _howto/operator:EmrAutoTerminatePolicyOperator:
+
 Terminate an EMR Job Flow
 -------------------------
 
