@@ -19,7 +19,7 @@ from airflow.utils.state import State
 
 def get_test_run(dag):
     def test_run():
-        dag.clear(dag_run_state=State.NONE)
+        dag.clear(dag_run_state=State.QUEUED)
         dag.run()
 
     return test_run
