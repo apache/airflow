@@ -54,6 +54,12 @@ and below, task instances. If a pipeline is late,
 you can quickly see where the different steps are and identify
 the blocking ones.
 
+------------
+
+.. image:: img/grid.png
+
+------------
+
 The details panel will update when selecting a DAG Run by clicking on a duration bar:
 
 .. image:: img/grid_run_details.png
@@ -73,12 +79,6 @@ Task groups are indicated by a caret and can be opened or closed:
 Mapped Tasks are indicated by a square brackets and will show a table of each mapped task instance in the details panel:
 
 .. image:: img/grid_mapped_task.png
-
-
-
-------------
-
-.. image:: img/grid.png
 
 ------------
 
