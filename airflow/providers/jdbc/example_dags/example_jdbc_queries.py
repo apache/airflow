@@ -23,9 +23,9 @@ from datetime import datetime, timedelta
 from airflow import DAG
 
 try:
-    from airflow.operators.empty import EmptyOperator as DummyOperator
+    from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator  # type: ignore
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 with DAG(
@@ -37,7 +37,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    run_this_last = DummyOperator(task_id='run_this_last')
+    run_this_last = EmptyOperator(task_id='run_this_last')
 
     # [START howto_operator_jdbc_template]
     delete_data = JdbcOperator(

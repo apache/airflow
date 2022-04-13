@@ -31,9 +31,9 @@ from datetime import datetime, timedelta
 from airflow import DAG
 
 try:
-    from airflow.operators.empty import EmptyOperator as DummyOperator
+    from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator  # type: ignore
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
@@ -46,7 +46,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    run_this_last = DummyOperator(task_id='run_this_last')
+    run_this_last = EmptyOperator(task_id='run_this_last')
 
     # [START create_hook]
     winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')
