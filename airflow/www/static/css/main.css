@@ -457,6 +457,7 @@ label[for="timezone-other"],
 
 .tooltip {
   z-index: 0;
+  max-width: 300px;
 }
 
 .tooltip.in,
