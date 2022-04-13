@@ -31,7 +31,7 @@ class TestTaskSchema:
         result = task_schema.dump(op)
         expected = {
             "class_ref": {
-                "module_path": "airflow.operators.dummy",
+                "module_path": "airflow.operators.empty",
                 "class_name": "EmptyOperator",
             },
             "depends_on_past": False,
@@ -70,7 +70,7 @@ class TestTaskCollectionSchema:
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],

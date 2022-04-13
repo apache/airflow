@@ -3940,9 +3940,9 @@ class TestSchedulerJob:
         dr.refresh_from_db(session)
         assert dr.state == DagRunState.SUCCESS
 
-    def test_should_mark_dummy_task_as_success(self):
+    def test_should_mark_empty_task_as_success(self):
         dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_empty_tasks.py'
         )
 
         # Write DAGs to dag and serialized_dag table
@@ -3951,7 +3951,7 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
-        dag = self.scheduler_job.dagbag.get_dag("test_only_dummy_tasks")
+        dag = self.scheduler_job.dagbag.get_dag("test_only_empty_tasks")
 
         # Create DagRun
         session = settings.Session()
@@ -3968,7 +3968,7 @@ class TestSchedulerJob:
             tis = session.query(TaskInstance).all()
 
         dags = self.scheduler_job.dagbag.dags.values()
-        assert ['test_only_dummy_tasks'] == [dag.dag_id for dag in dags]
+        assert ['test_only_empty_tasks'] == [dag.dag_id for dag in dags]
         assert 5 == len(tis)
         assert {
             ('test_task_a', 'success'),

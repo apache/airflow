@@ -89,7 +89,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.dummy",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -139,7 +139,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.dummy",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -204,7 +204,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
@@ -239,7 +239,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
