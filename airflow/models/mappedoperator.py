@@ -711,8 +711,13 @@ class MappedOperator(AbstractOperator):
 
         # Ideally we'd like to pass in session as an argument to this function, but since operators _could_
         # override this we can't easily change this function signature.
-        with settings.Session() as session:
-            self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
+        # We can't use @provide_session, as that closes and expunges everything, which we don't want to do
+        # when we are so "deep" in the weeds here.
+        #
+        # Nor do we want to close the session -- that would expunge all the things from the internal cache
+        # which we don't want to do either
+        session = settings.Session()
+        self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
 
         unmapped_task = self.unmap(unmap_kwargs=kwargs)
         self._do_render_template_fields(
@@ -721,6 +726,7 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=set(),
+            session=session,
         )
         return unmapped_task
 
