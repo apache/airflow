@@ -178,6 +178,7 @@ class TestDb:
         actual = mock_om.call_args[1]['revision']
         assert actual == 'abc'
 
+    @pytest.mark.parametrize('skip_init', [False, True])
     @mock.patch('airflow.utils.db.create_global_lock', new=MagicMock)
     @mock.patch('airflow.utils.db.drop_airflow_models')
     @mock.patch('airflow.utils.db.drop_flask_models')
@@ -189,9 +190,13 @@ class TestDb:
         mock_init,
         mock_drop_flask,
         mock_drop_airflow,
+        skip_init,
     ):
         session_mock = MagicMock()
-        resetdb(session_mock)
+        resetdb(session_mock, skip_init=skip_init)
         mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
         mock_drop_flask.assert_called_once_with(mock_connect.return_value)
-        mock_init.assert_called_once_with(session=session_mock)
+        if skip_init:
+            mock_init.assert_not_called()
+        else:
+            mock_init.assert_called_once_with(session=session_mock)
