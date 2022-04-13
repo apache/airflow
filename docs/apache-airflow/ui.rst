@@ -70,7 +70,7 @@ Task groups are indicated by a caret and can be opened or closed:
 
 .. image:: img/grid_task_group.png
 
-Mapped Tasks are indicated by a square brackets and will show a table of each mapped instance in the details panel:
+Mapped Tasks are indicated by a square brackets and will show a table of each mapped task instance in the details panel:
 
 .. image:: img/grid_mapped_task.png
 
