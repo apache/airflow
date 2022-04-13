@@ -28,7 +28,7 @@ Breaking changes
 
 .. warning:: The underlying google-ads library has been updated
 
-   This drops support for the sunsetted versions v6 and v7 of the Google Ads API, and updates
+   This drops support for versions v6 and v7 of the Google Ads API, and updates
    the default version of the Google Ads API from the deprecated v8 to v10.
 
    For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
