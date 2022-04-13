@@ -2903,6 +2903,7 @@ class Airflow(AirflowBaseView):
             min_date = timezone.utc_epoch()
         ti_fails = (
             session.query(TaskFail)
+            .options(joinedload(TaskFail.task_instance))
             .filter(
                 TaskFail.dag_id == dag.dag_id,
                 DagRun.execution_date >= min_date,
