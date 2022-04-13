@@ -33,6 +33,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, c
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
@@ -944,3 +945,45 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+
+
+def test_mapped_render_template_fields_validating_operator(dag_maker, session):
+    class MyOperator(MockOperator):
+        def __init__(self, value, arg1, **kwargs):
+            assert isinstance(value, str), "value should have been resolved before unmapping"
+            assert isinstance(arg1, str), "value should have been resolved before unmapping"
+            super().__init__(arg1=arg1, **kwargs)
+            self.value = value
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcom_arg = XComArg(task1)
+        mapped = MyOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand(
+            value=xcom_arg, arg1=xcom_arg
+        )
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+    mapped_ti.map_index = 0
+    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(op, MyOperator)
+
+    assert op.value == "{{ ds }}", "Should not be templated!"
+    assert op.arg1 == "{{ ds }}"
+    assert op.arg2 == "a"

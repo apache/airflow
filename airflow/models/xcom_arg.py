@@ -22,9 +22,12 @@ from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.operator import Operator
 
 
@@ -136,12 +139,15 @@ class XComArg(DependencyMixin):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Context) -> Any:
+    @provide_session
+    def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        result = context["ti"].xcom_pull(task_ids=self.operator.task_id, key=str(self.key), default=NOTSET)
+        result = context["ti"].xcom_pull(
+            task_ids=self.operator.task_id, key=str(self.key), default=NOTSET, session=session
+        )
         if result is NOTSET:
             raise AirflowException(
                 f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
