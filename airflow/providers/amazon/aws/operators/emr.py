@@ -404,3 +404,76 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             raise AirflowException(f'JobFlow termination failed: {response}')
         else:
             self.log.info('JobFlow with id %s terminated', self.job_flow_id)
+
+
+class EmrAutoTerminatePolicyOperator(BaseOperator):
+    """
+    An operator to put auto terminate policy on a given cluster/jobflow
+    Note: auto terminate policy is supported with Amazon EMR versions 5.30.0 and 6.1.0 and later.
+
+    :param idle_timeout: Time in seconds to auto terminate the emr cluster if it is idle.
+        The timeout must be between 60 seconds and a max of 604800 seconds (7 days). (templated)
+    :param job_flow_id: id of the JobFlow to add the auto terminate policy (templated)
+    :param job_flow_name: name of the JobFlow to add the auto terminate policy. Use as an alternative to passing
+        job_flow_id. will search for id of JobFlow with matching name in one of the states in
+        param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
+    :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
+        (templated)
+    :param aws_conn_id: aws connection to uses
+    """
+
+    template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'idle_timeout')
+    template_ext: Sequence[str] = ('.json',)
+    template_fields_renderers = {"steps": "json"}
+    ui_color = '#f9c915'
+
+    def __init__(
+        self,
+        idle_timeout: int,
+        job_flow_id: Optional[str] = None,
+        job_flow_name: Optional[str] = None,
+        cluster_states: Optional[List[str]] = None,
+        aws_conn_id: str = 'aws_default',
+        **kwargs
+    ):
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+        if not (job_flow_id is None) ^ (job_flow_name is None):
+            raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
+        super().__init__(**kwargs)
+        self.aws_conn_id = aws_conn_id
+        self.job_flow_id = job_flow_id
+        self.job_flow_name = job_flow_name
+        self.cluster_states = cluster_states
+        self.idle_timeout = idle_timeout
+
+    def execute(self, context: 'Context') -> None:
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+
+        emr = emr_hook.get_conn()
+
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+            self.job_flow_name, self.cluster_states
+        )
+
+        if not job_flow_id:
+            raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
+
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)
+
+        self.log.info(f'Adding auto terminate policy to {job_flow_id}')
+
+        idle_timeout = self.idle_timeout
+
+        response = emr.put_auto_termination_policy(
+            ClusterId=job_flow_id,
+            AutoTerminationPolicy={
+                'IdleTimeout': idle_timeout
+            }
+        )
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            raise AirflowException(f'Adding auto terminate policy to the cluster failed: {response}')
+        else:
+            self.log.info(f'Cluster will auto terminate when idle for {idle_timeout}')
