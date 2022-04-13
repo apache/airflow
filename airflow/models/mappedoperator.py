@@ -490,7 +490,7 @@ class MappedOperator(AbstractOperator):
         """
         Get the "normal" Operator after applying the current mapping.
 
-        If ``operator_class`` is not a class (i.e. this DAG has been deserialized) then this will erturn a
+        If ``operator_class`` is not a class (i.e. this DAG has been deserialized) then this will return a
         SeriSerializedBaseOperator that aims to "look like" the real operator.
 
         :param unmap_kwargs: Override the args to pass to the Operator constructor. Only used when
