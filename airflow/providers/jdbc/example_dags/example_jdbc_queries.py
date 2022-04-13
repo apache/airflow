@@ -21,7 +21,11 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator as DummyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 with DAG(

@@ -776,7 +776,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if not hasattr(op, field):
                 setattr(op, field, None)
 
-        # Used to determine if an Operator is inherited from DummyOperator
+        # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
     @classmethod

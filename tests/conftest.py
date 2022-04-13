@@ -406,8 +406,8 @@ def dag_maker(request):
     the same argument as DAG::
 
         with dag_maker(dag_id="mydag") as dag:
-            task1 = DummyOperator(task_id='mytask')
-            task2 = DummyOperator(task_id='mytask2')
+            task1 = EmptyOperator(task_id='mytask')
+            task2 = EmptyOperator(task_id='mytask2')
 
     If the DagModel you want to use needs different parameters than the one
     automatically created by the dag_maker, you have to update the DagModel as below::
@@ -621,13 +621,13 @@ def dag_maker(request):
 @pytest.fixture
 def create_dummy_dag(dag_maker):
     """
-    This fixture creates a `DAG` with a single `DummyOperator` task.
+    This fixture creates a `DAG` with a single `EmptyOperator` task.
     DagRun and DagModel is also created.
 
     Apart from the already existing arguments, any other argument in kwargs
-    is passed to the DAG and not to the DummyOperator task.
+    is passed to the DAG and not to the EmptyOperator task.
 
-    If you have an argument that you want to pass to the DummyOperator that
+    If you have an argument that you want to pass to the EmptyOperator that
     is not here, please use `default_args` so that the DAG will pass it to the
     Task::
 
@@ -635,7 +635,7 @@ def create_dummy_dag(dag_maker):
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -654,7 +654,7 @@ def create_dummy_dag(dag_maker):
         **kwargs,
     ):
         with dag_maker(dag_id, **kwargs) as dag:
-            op = DummyOperator(
+            op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 executor_config=executor_config,

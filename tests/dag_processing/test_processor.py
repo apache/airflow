@@ -32,7 +32,7 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -211,7 +211,7 @@ class TestDagFileProcessor:
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         ) as dag:
-            task = DummyOperator(task_id='dummy')
+            task = EmptyOperator(task_id='dummy')
 
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
@@ -289,7 +289,7 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
         email2 = 'test2@test.com'
-        DummyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
+        EmptyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
 
         session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
 

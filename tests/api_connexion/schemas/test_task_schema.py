@@ -18,12 +18,12 @@
 from datetime import datetime
 
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 
 
 class TestTaskSchema:
     def test_serialize(self):
-        op = DummyOperator(
+        op = EmptyOperator(
             task_id="task_id",
             start_date=datetime(2020, 6, 16),
             end_date=datetime(2020, 6, 26),
@@ -32,7 +32,7 @@ class TestTaskSchema:
         expected = {
             "class_ref": {
                 "module_path": "airflow.operators.dummy",
-                "class_name": "DummyOperator",
+                "class_name": "EmptyOperator",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -62,14 +62,14 @@ class TestTaskSchema:
 
 class TestTaskCollectionSchema:
     def test_serialize(self):
-        tasks = [DummyOperator(task_id="task_id1", params={'foo': 'bar'})]
+        tasks = [EmptyOperator(task_id="task_id1", params={'foo': 'bar'})]
         collection = TaskCollection(tasks, 1)
         result = task_collection_schema.dump(collection)
         expected = {
             "tasks": [
                 {
                     "class_ref": {
-                        "class_name": "DummyOperator",
+                        "class_name": "EmptyOperator",
                         "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,

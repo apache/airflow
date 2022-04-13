@@ -18,7 +18,11 @@
 from datetime import datetime
 
 from airflow.models import DAG, BaseOperator
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator as DummyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudRunJobOperator,

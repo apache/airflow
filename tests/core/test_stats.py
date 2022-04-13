@@ -80,11 +80,11 @@ class TestStats(unittest.TestCase):
         self.statsd_client.timing.assert_called_once_with('dummy_timer', 123)
 
     def test_gauge(self):
-        self.stats.gauge("dummy", 123)
+        self.stats.gauge("empty", 123)
         self.statsd_client.gauge.assert_called_once_with('dummy', 123, 1, False)
 
     def test_decr(self):
-        self.stats.decr("dummy")
+        self.stats.decr("empty")
         self.statsd_client.decr.assert_called_once_with('dummy', 1, 1)
 
     def test_enabled_by_config(self):
@@ -190,11 +190,11 @@ class TestDogStats(unittest.TestCase):
         self.dogstatsd_client.timing.assert_called_with(metric='dummy_timer', value=123.0, tags=[])
 
     def test_gauge(self):
-        self.dogstatsd.gauge("dummy", 123)
+        self.dogstatsd.gauge("empty", 123)
         self.dogstatsd_client.gauge.assert_called_once_with(metric='dummy', sample_rate=1, value=123, tags=[])
 
     def test_decr(self):
-        self.dogstatsd.decr("dummy")
+        self.dogstatsd.decr("empty")
         self.dogstatsd_client.decrement.assert_called_once_with(
             metric='dummy', sample_rate=1, value=1, tags=[]
         )

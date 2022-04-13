@@ -660,7 +660,7 @@ class TestBaseOperator:
         ):
             BaseOperator(task_id="op1", trigger_rule="some_rule")
 
-    @pytest.mark.parametrize(("rule"), [("dummy"), (TriggerRule.DUMMY)])
+    @pytest.mark.parametrize(("rule"), [("empty"), (TriggerRule.DUMMY)])
     def test_replace_dummy_trigger_rule(self, rule):
         with pytest.warns(
             DeprecationWarning, match="dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`."

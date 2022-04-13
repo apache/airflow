@@ -20,7 +20,7 @@ import pytest
 from airflow.models import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -31,7 +31,7 @@ from tests.test_utils.db import clear_db_runs
 @pytest.fixture()
 def running_subdag(admin_client, dag_maker):
     with dag_maker(dag_id="running_dag.subdag") as subdag:
-        DummyOperator(task_id="dummy")
+        EmptyOperator(task_id="empty")
 
     with pytest.deprecated_call(), dag_maker(dag_id="running_dag") as dag:
         SubDagOperator(task_id="subdag", subdag=subdag)
