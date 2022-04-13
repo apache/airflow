@@ -31,11 +31,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.6.0
 .....
 
-Latest change: 2022-03-31
+Latest change: 2022-04-10
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`7be57eb256 <https://github.com/apache/airflow/commit/7be57eb2566651de89048798766f0ad5f267cdc2>`_  2022-04-10   ``Databricks SQL operators are now Python 3.10 compatible (#22886)``
+`aa8c08db38 <https://github.com/apache/airflow/commit/aa8c08db383ebfabf30a7c2b2debb64c0968df48>`_  2022-04-10   ``Databricks: Correctly handle HTTP exception (#22885)``
+`6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `1b12c93ed3 <https://github.com/apache/airflow/commit/1b12c93ed3efa6a7d42e4f1bfa28376e23739ba1>`_  2022-03-31   ``Refactor 'DatabricksJobRunLink' to not create ad hoc TaskInstances (#22571)``
 `95169d1d07 <https://github.com/apache/airflow/commit/95169d1d07e66a8c7647e5b0f6a14cea57d515fc>`_  2022-03-27   ``Add a link to Databricks Job Run (#22541)``
 `352d7f72dd <https://github.com/apache/airflow/commit/352d7f72dd1e21f1522d69b71917142430548d66>`_  2022-03-27   ``More operators for Databricks Repos (#22422)``
