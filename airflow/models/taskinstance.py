@@ -2139,10 +2139,9 @@ class TaskInstance(Base, LoggingMixin):
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
-            task = self.task.unmap()
+            self.task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
-            self.task = task
             return
         try:
             self.render_templates()
