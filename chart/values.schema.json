@@ -868,6 +868,54 @@
                 }
             ]
         },
+        "extraManifests": {
+            "description": "Extra Kubernetes manifests to include alongside this chart.",
+            "type": "array",
+            "x-docsSection": "Kubernetes",
+            "default": [],
+            "items": {
+                "type": "object",
+                "properties": {
+                    "apiVersion": {
+                        "description": "Kubernetes API version",
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "Kubernetes object type",
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "description": "Data that helps uniquely identify the object",
+                        "type": "object"
+                    },
+                    "spec": {
+                        "description": "Target state for the object",
+                        "type": "object"
+                    }                    
+                },
+                "additionalProperties": false,
+                "required": [
+                    "apiVersion",
+                    "kind",
+                    "metadata",
+                    "spec"
+                ]
+            },
+            "examples": [
+                {
+                    "apiVersion": "cloud.google.com/v1beta1",
+                    "kind": "BackendConfig",
+                    "metadata": {
+                        "name": "{{ .Release.Name }}-test"
+                    },                    
+                    "spec": {
+                        "securityPolicy": {
+                            "name": "gcp-cloud-armor-policy-test"
+                        }
+                    }
+                }
+            ]
+        },
         "data": {
             "description": "Airflow database & redis configuration.",
             "type": "object",
