@@ -215,9 +215,9 @@ following the ASF Policy.
 
   ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
 
-- **Tree**: Tree representation of a DAG that spans across time.
+- **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Tree](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/tree.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
