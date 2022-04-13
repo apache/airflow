@@ -1265,7 +1265,7 @@ def upgradedb(
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION):
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database"""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
@@ -1278,7 +1278,8 @@ def resetdb(session: Session = NEW_SESSION):
         drop_flask_models(connection)
         drop_airflow_moved_tables(session)
 
-    initdb(session=session)
+    if not skip_init:
+        initdb(session=session)
 
 
 @provide_session
