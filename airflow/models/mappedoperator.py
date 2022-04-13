@@ -44,6 +44,7 @@ import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
+from airflow import settings
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -66,7 +67,6 @@ from airflow.typing_compat import Literal
 from airflow.utils.context import Context
 from airflow.utils.helpers import is_container
 from airflow.utils.operator_resources import Resources
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
@@ -486,16 +486,26 @@ class MappedOperator(AbstractOperator):
             **self.mapped_kwargs,
         }
 
-    def unmap(self, rendered_kwargs: Optional[Dict[str, Any]] = None) -> "BaseOperator":
-        """Get the "normal" Operator after applying the current mapping."""
+    def unmap(self, unmap_kwargs: Optional[Dict[str, Any]] = None) -> "BaseOperator":
+        """
+        Get the "normal" Operator after applying the current mapping.
+
+        If ``operator_class`` is not a class (i.e. this DAG has been deserialized) then this will erturn a
+        SeriSerializedBaseOperator that aims to "look like" the real operator.
+
+        :param unmap_kwargs: Override the args to pass to the Operator constructor. Only used when
+            ``operator_class`` is still an actual class.
+
+        :meta private:
+        """
         if isinstance(self.operator_class, type):
             # We can't simply specify task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). Instead of
             # recreating the whole logic here, we just overwrite task_id later.
-            if rendered_kwargs is None:
-                rendered_kwargs = self._get_unmap_kwargs()
-            op = self.operator_class(**rendered_kwargs, _airflow_from_mapped=True)
+            if unmap_kwargs is None:
+                unmap_kwargs = self._get_unmap_kwargs()
+            op = self.operator_class(**unmap_kwargs, _airflow_from_mapped=True)
             op.task_id = self.task_id
             return op
 
@@ -675,12 +685,10 @@ class MappedOperator(AbstractOperator):
         # we don't need to create a copy of the MappedOperator here.
         return self
 
-    @provide_session
     def render_template_fields(
         self,
         context: Context,
         jinja_env: Optional["jinja2.Environment"] = None,
-        session: Session = NEW_SESSION,
     ) -> Optional["BaseOperator"]:
         """Template all attributes listed in template_fields.
 
@@ -701,9 +709,12 @@ class MappedOperator(AbstractOperator):
 
         template_fields = set(self.template_fields)
 
-        self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
+        # Ideally we'd like to pass in session as an argument to this function, but since operators _could_
+        # override this we can't easily change this function signature.
+        with settings.Session() as session:
+            self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
 
-        unmapped_task = self.unmap(rendered_kwargs=kwargs)
+        unmapped_task = self.unmap(unmap_kwargs=kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,
             template_fields=template_fields,
