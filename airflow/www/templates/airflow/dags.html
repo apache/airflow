@@ -109,7 +109,7 @@
   <h2>{{ page_title }}</h2>
   <div id="main_content">
     <div class="row dags-table-header">
-      <div class="col-md-4 no-x-padding">
+      <div class="col-sm-4 col-md-4 no-x-padding">
         <div class="form-group btn-group">
           <a
             href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
@@ -156,7 +156,7 @@
           </div>
         </form>
       </div>
-      <div class="refresh-actions col-sm-2 col-md-2 col-md-offset-1 no-x-padding">
+      <div class="refresh-actions col-sm-2 col-md-2 no-x-padding">
         {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
         <label class="switch-label">
           <input class="switch-input" id="auto_refresh" type="checkbox">

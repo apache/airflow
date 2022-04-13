@@ -39,6 +39,9 @@ const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
 
+// auto refresh interval in milliseconds
+const refreshIntervalMs = 2000;
+
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
   allowClear: true,
@@ -355,6 +358,7 @@ function showSvgTooltip(text, circ) {
 function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
+
 function RefreshDagRunsAndTasks(selector, dagId, states) {
   d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .selectAll('circle')
@@ -388,6 +392,7 @@ function RefreshDagRunsAndTasks(selector, dagId, states) {
       return '';
     });
 }
+
 function refreshTaskStateHandler(error, ts) {
   Object.keys(ts).forEach((dagId) => {
     const states = ts[dagId];
@@ -395,13 +400,30 @@ function refreshTaskStateHandler(error, ts) {
   });
 }
 
+let refreshInterval;
+
+function checkActiveRuns(json) {
+  // filter latest dag runs and check if there are still running dags
+  const activeRuns = Object.keys(json).filter((dagId) => {
+    const dagRuns = json[dagId].filter((s) => s.state === 'running').filter((r) => r.count > 0);
+    return (dagRuns.length > 0);
+  });
+  if (activeRuns.length === 0) {
+    // in case there are no active runs increase the interval for auto refresh
+    $('#auto_refresh').prop('checked', false);
+    clearInterval(refreshInterval);
+  }
+}
+
 function refreshDagRuns(error, json) {
+  checkActiveRuns(json);
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
     drawDagStatsForDag(dagId, states);
     RefreshDagRunsAndTasks('dag-run', dagId, states);
   });
 }
+
 function handleRefresh() {
   $('#loading-dots').css('display', 'inline-block');
   d3.json(lastDagRunsUrl)
@@ -415,26 +437,36 @@ function handleRefresh() {
     .post(encodedDagIds, refreshTaskStateHandler);
   setTimeout(() => {
     $('#loading-dots').css('display', 'none');
-  }, 2000);
+  }, refreshIntervalMs);
 }
-
-let refreshInterval;
-
 function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
       handleRefresh();
-    }, autoRefreshInterval * 2000);
+    }, autoRefreshInterval * refreshIntervalMs);
   } else {
     clearInterval(refreshInterval);
   }
 }
+
 function initAutoRefresh() {
   const isDisabled = localStorage.getItem('dagsDisableAutoRefresh');
   $('#auto_refresh').prop('checked', !(isDisabled));
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initAutoRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 $(window).on('load', () => {
   initAutoRefresh();
 
