@@ -33,7 +33,7 @@ from airflow import DAG
 try:
     from airflow.operators.empty import EmptyOperator as DummyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.dummy import DummyOperator  # type: ignore
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 

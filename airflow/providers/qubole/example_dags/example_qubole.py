@@ -27,7 +27,7 @@ from airflow.decorators import task
 try:
     from airflow.operators.empty import EmptyOperator as DummyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.dummy import DummyOperator  # type: ignore
 from airflow.operators.python import BranchPythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor

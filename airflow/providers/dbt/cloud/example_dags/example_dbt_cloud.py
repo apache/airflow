@@ -22,7 +22,7 @@ from airflow.models import DAG, BaseOperator
 try:
     from airflow.operators.empty import EmptyOperator as DummyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.dummy import DummyOperator  # type: ignore
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudRunJobOperator,

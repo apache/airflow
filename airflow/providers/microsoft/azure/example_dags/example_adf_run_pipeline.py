@@ -22,7 +22,7 @@ from airflow.models import DAG, BaseOperator
 try:
     from airflow.operators.empty import EmptyOperator as DummyOperator
 except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.dummy import DummyOperator  # type: ignore
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
