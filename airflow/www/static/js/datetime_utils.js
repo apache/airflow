@@ -17,13 +17,46 @@
  * under the License.
  */
 
-/* global moment, $, document, convertSecsToHumanReadable */
+/* global moment, $, document */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
 export const dateTimeAttrFormat = 'YYYY-MM-DDThh:mm:ssTZD';
 
 export const TimezoneEvent = 'timezone';
+
+export function convertSecsToHumanReadable(seconds) {
+  const oriSeconds = seconds;
+  const floatingPart = oriSeconds - Math.floor(oriSeconds);
+
+  seconds = Math.floor(seconds);
+
+  const secondsPerHour = 60 * 60;
+  const secondsPerMinute = 60;
+
+  const hours = Math.floor(seconds / secondsPerHour);
+  seconds -= hours * secondsPerHour;
+
+  const minutes = Math.floor(seconds / secondsPerMinute);
+  seconds -= minutes * secondsPerMinute;
+
+  let readableFormat = '';
+  if (hours > 0) {
+    readableFormat += `${hours}Hours `;
+  }
+  if (minutes > 0) {
+    readableFormat += `${minutes}Min `;
+  }
+  if (seconds + floatingPart > 0) {
+    if (Math.floor(oriSeconds) === oriSeconds) {
+      readableFormat += `${seconds}Sec`;
+    } else {
+      seconds += floatingPart;
+      readableFormat += `${seconds.toFixed(3)}Sec`;
+    }
+  }
+  return readableFormat;
+}
 
 export function formatTimezone(what) {
   if (what instanceof moment) {

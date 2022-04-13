@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect */
+/* global describe, test, expect, beforeAll */
 
 import React from 'react';
 import { render } from '@testing-library/react';
@@ -30,8 +30,7 @@ import { ContainerRefProvider } from '../context/containerRef';
 import { SelectionProvider } from '../context/selection';
 import { TimezoneProvider } from '../context/timezone';
 import { AutoRefreshProvider } from '../context/autorefresh';
-
-global.moment = moment;
+import { convertSecsToHumanReadable } from '../../datetime_utils';
 
 const Wrapper = ({ children }) => {
   const queryClient = new QueryClient();
@@ -58,30 +57,35 @@ const Wrapper = ({ children }) => {
   );
 };
 
+const dagRuns = [
+  {
+    dagId: 'dagId',
+    runId: 'run1',
+    dataIntervalStart: new Date(),
+    dataIntervalEnd: new Date(),
+    startDate: '2021-11-08T21:14:19.704433+00:00',
+    endDate: '2021-11-08T21:17:13.206426+00:00',
+    state: 'failed',
+    runType: 'scheduled',
+    executionDate: '2021-11-08T21:14:19.704433+00:00',
+  },
+  {
+    dagId: 'dagId',
+    runId: 'run2',
+    dataIntervalStart: new Date(),
+    dataIntervalEnd: new Date(),
+    state: 'success',
+    runType: 'manual',
+    startDate: '2021-11-09T00:19:43.023200+00:00',
+    endDate: '2021-11-09T00:22:18.607167+00:00',
+  },
+];
+
 describe('Test DagRuns', () => {
-  const dagRuns = [
-    {
-      dagId: 'dagId',
-      runId: 'run1',
-      dataIntervalStart: new Date(),
-      dataIntervalEnd: new Date(),
-      startDate: '2021-11-08T21:14:19.704433+00:00',
-      endDate: '2021-11-08T21:17:13.206426+00:00',
-      state: 'failed',
-      runType: 'scheduled',
-      executionDate: '2021-11-08T21:14:19.704433+00:00',
-    },
-    {
-      dagId: 'dagId',
-      runId: 'run2',
-      dataIntervalStart: new Date(),
-      dataIntervalEnd: new Date(),
-      state: 'success',
-      runType: 'manual',
-      startDate: '2021-11-09T00:19:43.023200+00:00',
-      endDate: '2021-11-09T00:22:18.607167+00:00',
-    },
-  ];
+  beforeAll(() => {
+    global.moment = moment;
+    global.convertSecsToHumanReadable = convertSecsToHumanReadable;
+  });
 
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
     global.treeData = JSON.stringify({
@@ -94,8 +98,8 @@ describe('Test DagRuns', () => {
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
 
-    expect(getByText('00:02:53')).toBeInTheDocument();
-    expect(getByText('00:01:26')).toBeInTheDocument();
+    expect(getByText('2Min 53.502Sec')).toBeInTheDocument();
+    expect(getByText('1Min 26.751Sec')).toBeInTheDocument();
     expect(queryByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeNull();
   });
 

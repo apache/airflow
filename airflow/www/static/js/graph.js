@@ -21,13 +21,14 @@
 
 /*
   global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $,
-  autoRefreshInterval, moment, convertSecsToHumanReadable
+  autoRefreshInterval, moment,
 */
 
 import { getMetaValue, finalStatesMap } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 import { callModal } from './dag';
+import { convertSecsToHumanReadable } from './datetime_utils';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');

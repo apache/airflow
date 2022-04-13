@@ -17,11 +17,11 @@
  * under the License.
  */
 
-/* global window, moment, convertSecsToHumanReadable */
+/* global window, moment */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
 import { escapeHtml } from './main';
-import { defaultFormat, formatDateTime } from './datetime_utils';
+import { defaultFormat, formatDateTime, convertSecsToHumanReadable } from './datetime_utils';
 import { dagTZ } from './dag';
 import { finalStatesMap } from './utils';
 
