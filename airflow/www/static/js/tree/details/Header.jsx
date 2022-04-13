@@ -50,7 +50,7 @@ const Header = () => {
   let runLabel;
   if (dagRun) {
     if (runId.includes('manual__') || runId.includes('scheduled__') || runId.includes('backfill__')) {
-      runLabel = (<Time dateTime={dagRun.dataIntervalEnd} />);
+      runLabel = (<Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />);
     } else {
       runLabel = runId;
     }
