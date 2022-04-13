@@ -1440,6 +1440,10 @@ OPERATORS = [
         "airflow.operators.dummy_operator.DummyOperator",
     ),
     (
+        "airflow.operators.empty.EmptyOperator",
+        "airflow.operators.dummy.DummyOperator",
+    ),
+    (
         "airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator",
         "airflow.providers.amazon.aws.operators.ec2_start_instance.EC2StartInstanceOperator",
     ),
