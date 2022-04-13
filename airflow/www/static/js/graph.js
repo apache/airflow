@@ -495,7 +495,7 @@ function groupTooltip(node, tis) {
   });
 
   const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
-  const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
+  const tooltipText = node.tooltip ? `<p style="max-width: 300px;">${node.tooltip}</p>` : '';
 
   let tt = `
     ${tooltipText}
