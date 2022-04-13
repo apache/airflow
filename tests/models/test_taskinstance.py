@@ -2537,8 +2537,8 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == len(upstream_return)
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2571,8 +2571,8 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 6
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6 == num
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2609,8 +2609,8 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 4
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == 4
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2646,7 +2646,8 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_bash_tis, num = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == 2 * 2
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
             ti.run()
@@ -2706,7 +2707,7 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
         ti.run()
 
     task_345 = dag.get_task("add_one__1")
-    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session):
+    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session)[0]:
         ti.refresh_from_task(task_345)
         ti.run()
 
