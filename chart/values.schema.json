@@ -66,8 +66,11 @@
         },
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
-            "type": "string",
-            "default": "2.3.1",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
