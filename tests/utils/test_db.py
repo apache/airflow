@@ -21,6 +21,7 @@ import io
 import re
 from contextlib import redirect_stdout
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -33,7 +34,7 @@ from sqlalchemy import MetaData
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import check_migrations, create_default_connections, downgrade, upgradedb
+from airflow.utils.db import check_migrations, create_default_connections, downgrade, resetdb, upgradedb
 
 
 class TestDb:
@@ -176,3 +177,21 @@ class TestDb:
         downgrade(to_revision='abc')
         actual = mock_om.call_args[1]['revision']
         assert actual == 'abc'
+
+    @mock.patch('airflow.utils.db.create_global_lock', new=MagicMock)
+    @mock.patch('airflow.utils.db.drop_airflow_models')
+    @mock.patch('airflow.utils.db.drop_flask_models')
+    @mock.patch('airflow.utils.db.initdb')
+    @mock.patch('airflow.settings.engine.connect')
+    def test_resetdb(
+        self,
+        mock_connect,
+        mock_init,
+        mock_drop_flask,
+        mock_drop_airflow,
+    ):
+        session_mock = MagicMock()
+        resetdb(session_mock)
+        mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
+        mock_drop_flask.assert_called_once_with(mock_connect.return_value)
+        mock_init.assert_called_once_with(session=session_mock)
