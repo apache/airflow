@@ -224,7 +224,7 @@ Currently it is only possible to map against a dict, a list, or one of those typ
 
 If an upstream task returns an unmappable type, the mapped task will fail at run-time with an ``UnmappableXComTypePushed`` exception. For instance, you can't have the upstream task return a plain string – it must be a list or a dict.
 
-How to templated fields and mapped arguments interact?
+How do templated fields and mapped arguments interact?
 ======================================================
 
 All arguments to an operator can be mapped, even those that do not accept templated parameters.

@@ -465,7 +465,7 @@ class DecoratedMappedOperator(MappedOperator):
         seen_oids: Optional[Set] = None,
     ) -> Any:
         if hasattr(self, '_combined_op_kwargs') and value is self._combined_op_kwargs:
-            # Avoid rendering values that came oout of resolved XComArgs
+            # Avoid rendering values that came out of resolved XComArgs
             return {
                 k: v
                 if k in self._already_resolved_op_kwargs
