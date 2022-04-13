@@ -75,24 +75,26 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_mapped_summary(parent_instance, task_instances):
-    priority = [
-        TaskInstanceState.FAILED,
-        TaskInstanceState.UPSTREAM_FAILED,
-        TaskInstanceState.UP_FOR_RETRY,
-        TaskInstanceState.UP_FOR_RESCHEDULE,
-        TaskInstanceState.QUEUED,
-        TaskInstanceState.SCHEDULED,
-        TaskInstanceState.DEFERRED,
-        TaskInstanceState.SENSING,
-        TaskInstanceState.RUNNING,
-        TaskInstanceState.SHUTDOWN,
-        TaskInstanceState.RESTARTING,
-        TaskInstanceState.REMOVED,
-        TaskInstanceState.SUCCESS,
-        TaskInstanceState.SKIPPED,
-    ]
+priority = [
+    TaskInstanceState.FAILED,
+    TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.SENSING,
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.SHUTDOWN,
+    TaskInstanceState.RESTARTING,
+    TaskInstanceState.REMOVED,
+    None,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.SKIPPED,
+]
 
+
+def get_mapped_summary(parent_instance, task_instances):
     mapped_states = [ti.state for ti in task_instances]
 
     group_state = None
