@@ -18,6 +18,8 @@
 """Taskfail tracks the failed run durations of each task instance"""
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -36,6 +38,9 @@ class TaskFail(Base):
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
+
+    task_instance = relationship("TaskInstance", lazy='joined', innerjoin=True)
+    execution_date = association_proxy("task_instance", "execution_date")
 
     __table_args__ = (
         ForeignKeyConstraint(
