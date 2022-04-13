@@ -134,6 +134,48 @@ class TestExternalTaskSensor(unittest.TestCase):
                 "unit_test_dag failed."
             )
 
+    def test_external_task_sensor_external_task_id_param(self):
+        """Test external_task_ids is set properly when external_task_id is passed as a template"""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_id='{{ params.task_id }}',
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+
+    def test_external_task_sensor_external_task_ids_param(self):
+        """Test external_task_ids rendering when a template is passed."""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_ids=['{{ params.task_id }}'],
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+
     def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self):
         self.test_time_sensor(task_id=TEST_TASK_ID)
         self.test_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
@@ -421,6 +463,7 @@ def test_external_task_sensor_templated(dag_maker, app):
 
     assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
     assert instance.task.external_task_id == f"task_{DEFAULT_DATE.date()}"
+    assert instance.task.external_task_ids == [f"task_{DEFAULT_DATE.date()}"]
 
     # Verify that the operator link uses the rendered value of ``external_dag_id``.
     app.config['SERVER_NAME'] = ""
