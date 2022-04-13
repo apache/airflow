@@ -43,6 +43,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    XComForMappingNotPushed,
 )
 from airflow.models import (
     DAG,
@@ -1120,6 +1121,31 @@ class TestTaskInstance:
         # Xcom IS finally cleared once task has executed
         ti.run(ignore_all_deps=True)
         assert ti.xcom_pull(task_ids='test_xcom', key=key) is None
+
+    def test_xcom_pull_after_deferral(self, create_task_instance, session):
+        """
+        tests xcom will not clear before a task runs its next method after deferral.
+        """
+
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        ti = create_task_instance(
+            dag_id='test_xcom',
+            schedule_interval='@monthly',
+            task_id='test_xcom',
+            pool='test_xcom',
+        )
+
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+
+        ti.next_method = "execute"
+        session.merge(ti)
+        session.commit()
+
+        ti.run(ignore_all_deps=True)
+        assert ti.xcom_pull(task_ids='test_xcom', key=key) == value
 
     def test_xcom_pull_different_execution_date(self, create_task_instance):
         """
@@ -2371,13 +2397,20 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable_type(self, dag_maker):
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            ("abc", UnmappableXComTypePushed, "unmappable return type 'str'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_something():
-                return "abc"
+                return return_value
 
             @dag.task()
             def pull_something(value):
@@ -2386,12 +2419,34 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComTypePushed) as ctx:
+        with pytest.raises(exception_type) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return type 'str'"
+        assert str(ctx.value) == error_message
+
+    def test_error_if_upstream_does_not_push(self, dag_maker):
+        """Fail the upstream task if it fails to push the XCom used for task mapping."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task(do_xcom_push=False)
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.expand(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(XComForMappingNotPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "did not push XCom for task mapping"
 
     @conf_vars({("core", "max_map_length"): "1"})
     def test_error_if_unmappable_length(self, dag_maker):
@@ -2512,8 +2567,8 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == len(upstream_return)
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2546,8 +2601,8 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 6
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6 == num
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2584,8 +2639,8 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 4
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == 4
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2621,7 +2676,8 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_bash_tis, num = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == 2 * 2
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
             ti.run()
@@ -2681,7 +2737,7 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
         ti.run()
 
     task_345 = dag.get_task("add_one__1")
-    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session):
+    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session)[0]:
         ti.refresh_from_task(task_345)
         ti.run()
 

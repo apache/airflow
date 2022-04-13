@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Sequence
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -499,7 +499,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = template_file
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -517,7 +517,7 @@ class TestDag(unittest.TestCase):
                 task = DummyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -2006,7 +2006,7 @@ class TestQueries(unittest.TestCase):
             )
 
 
-class TestDagDecorator(unittest.TestCase):
+class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
@@ -2017,12 +2017,10 @@ class TestDagDecorator(unittest.TestCase):
     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
     VALUE = 42
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.operator = None
 
-    def tearDown(self):
-        super().tearDown()
+    def teardown_method(self):
         clear_db_runs()
 
     def test_fileloc(self):
@@ -2118,6 +2116,7 @@ class TestDagDecorator(unittest.TestCase):
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
+            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
         )
 
@@ -2145,6 +2144,7 @@ class TestDagDecorator(unittest.TestCase):
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
+            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
             conf={'value': new_value},
         )
@@ -2153,11 +2153,12 @@ class TestDagDecorator(unittest.TestCase):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(), new_value
 
-    def test_set_params_for_dag(self):
+    @pytest.mark.parametrize("value", [VALUE, 0])
+    def test_set_params_for_dag(self, value):
         """Test that dag param is correctly set when using dag decorator"""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=self.VALUE):
+        def xcom_pass_to_op(value=value):
             @task_decorator
             def return_num(num):
                 return num
@@ -2166,7 +2167,7 @@ class TestDagDecorator(unittest.TestCase):
             self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
-        assert dag.params['value'] == self.VALUE
+        assert dag.params['value'] == value
 
 
 @pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])

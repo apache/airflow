@@ -327,7 +327,8 @@ class TestBaseChartTest(unittest.TestCase):
                 },
             )
         assert (
-            'executor must be one of the following: "LocalExecutor", "CeleryExecutor", '
+            'executor must be one of the following: "LocalExecutor", '
+            '"LocalKubernetesExecutor", "CeleryExecutor", '
             '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.exception.stderr.decode()
         )
 

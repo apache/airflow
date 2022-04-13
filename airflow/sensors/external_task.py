@@ -77,7 +77,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or DAG does not exist (default value: False).
     """
 
-    template_fields = ['external_dag_id', 'external_task_id']
+    template_fields = ['external_dag_id', 'external_task_id', 'external_task_ids']
     ui_color = '#19647e'
 
     @property

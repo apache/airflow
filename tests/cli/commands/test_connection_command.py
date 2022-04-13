@@ -630,7 +630,7 @@ class TestCliImportConnections:
         with pytest.raises(SystemExit, match=r"Missing connections file."):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @pytest.mark.parametrize('filepath', ["sample.jso", "sample.yml", "sample.environ"])
+    @pytest.mark.parametrize('filepath', ["sample.jso", "sample.environ"])
     @mock.patch('os.path.exists')
     def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
         self, mock_exists, filepath
@@ -638,7 +638,10 @@ class TestCliImportConnections:
         mock_exists.return_value = True
         with pytest.raises(
             AirflowException,
-            match=r"Unsupported file format. The file must have the extension .env or .json or .yaml",
+            match=(
+                "Unsupported file format. The file must have one of the following extensions: "
+                ".env .json .yaml .yml"
+            ),
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 

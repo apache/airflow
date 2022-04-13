@@ -359,7 +359,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_dummy=False,
+            is_empty=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
@@ -405,6 +405,9 @@ class DecoratedMappedOperator(MappedOperator):
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
     mapped_op_kwargs: Dict[str, "Mappable"]
+
+    def __hash__(self):
+        return id(self)
 
     @classmethod
     @cache

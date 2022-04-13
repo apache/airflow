@@ -88,7 +88,7 @@ const DagRunBar = ({
           <Flex
             width="10px"
             height={`${(run.duration / max) * BAR_HEIGHT}px`}
-            minHeight="12px"
+            minHeight="14px"
             backgroundColor={stateColors[run.state]}
             borderRadius={2}
             cursor="pointer"

@@ -1,0 +1,2 @@
+# test negation
+!test_dont*  # do not ignore this file, should override parent ignore of "dont"

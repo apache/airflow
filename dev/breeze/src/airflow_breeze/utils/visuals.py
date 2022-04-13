@@ -76,19 +76,6 @@ CHEATSHEET = f"""
 
                        [bold][bright_blue]Airflow Breeze Cheatsheet[/][/]
 
-    [bright_blue]* Installation[/]
-
-        When you have multiple copies of Airflow, it's better if you use `./breeze` from those
-        repository as it will have the latest version of breeze and it's dependencies.
-
-        However if you only have one Airflow repository and you have `pipx` installed, you can use
-        `pipx` to install `breeze` command in your path (`breeze` command is run from this repository then)
-
-            pipx install -e ./dev/breeze --force
-
-        In case you use `pipx`, you might need to occasionally reinstall `breeze` with the `--force` flag
-        when dependencies change for it. You do not have to do it when you use it via `./breeze`
-
     [bright_blue]* Port forwarding:[/]
 
         Ports are forwarded to the running docker containers for webserver and database

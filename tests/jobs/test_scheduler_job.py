@@ -610,6 +610,45 @@ class TestSchedulerJob:
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
+    def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
+        """
+        The scheduler job should pick tasks with higher priority for execution
+        even if different pools are involved.
+        """
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_order_priority_with_pools'
+
+        session.add(Pool(pool='pool1', slots=32))
+        session.add(Pool(pool='pool2', slots=32))
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=2):
+            op1 = DummyOperator(task_id='dummy1', priority_weight=1, pool='pool1')
+            op2 = DummyOperator(task_id='dummy2', priority_weight=2, pool='pool2')
+            op3 = DummyOperator(task_id='dummy3', priority_weight=3, pool='pool1')
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti1 = dag_run.get_task_instance(op1.task_id, session)
+        ti2 = dag_run.get_task_instance(op2.task_id, session)
+        ti3 = dag_run.get_task_instance(op3.task_id, session)
+
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        ti3.state = State.SCHEDULED
+
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 2 == len(res)
+        assert ti3.key == res[0].key
+        assert ti2.key == res[1].key
+
+        session.rollback()
+
     def test_find_executable_task_instances_order_execution_date_and_priority(self, dag_maker):
         dag_id_1 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-a'
         dag_id_2 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-b'
@@ -1095,6 +1134,52 @@ class TestSchedulerJob:
         assert res[0].key == ti1b.key
 
         session.rollback()
+
+    @mock.patch('airflow.jobs.scheduler_job.Stats.gauge')
+    def test_emit_pool_starving_tasks_metrics(self, mock_stats_gauge, dag_maker):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = 'SchedulerJobTest.test_emit_pool_starving_tasks_metrics'
+        with dag_maker(dag_id=dag_id):
+            op = DummyOperator(task_id='op', pool_slots=2)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti = dr.get_task_instance(op.task_id, session)
+        ti.state = State.SCHEDULED
+
+        set_default_pool_slots(1)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 0 == len(res)
+
+        mock_stats_gauge.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.starving', 1),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 1),
+            ],
+            any_order=True,
+        )
+        mock_stats_gauge.reset_mock()
+
+        set_default_pool_slots(2)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 1 == len(res)
+
+        mock_stats_gauge.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.starving', 0),
+                mock.call(f'pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}', 0),
+            ],
+            any_order=True,
+        )
+
+        session.rollback()
+        session.close()
 
     def test_enqueue_task_instances_with_queued_state(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
@@ -2543,6 +2628,7 @@ class TestSchedulerJob:
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
             'test_invalid_param.py',
+            'test_nested_dag.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:

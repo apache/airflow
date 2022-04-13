@@ -190,7 +190,7 @@ class OperatorPartial:
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         self._expand_called = True
 
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
@@ -217,7 +217,7 @@ class OperatorPartial:
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_dummy=issubclass(self.operator_class, DummyOperator),
+            is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
@@ -255,7 +255,7 @@ class MappedOperator(AbstractOperator):
     template_fields_renderers: Dict[str, str]
     ui_color: str
     ui_fgcolor: str
-    _is_dummy: bool
+    _is_empty: bool
     _task_module: str
     _task_type: str
 
@@ -281,6 +281,9 @@ class MappedOperator(AbstractOperator):
             'operator_class',
         )
     )
+
+    def __hash__(self):
+        return id(self)
 
     def __repr__(self):
         return f"<Mapped({self._task_type}): {self.task_id}>"
@@ -347,9 +350,9 @@ class MappedOperator(AbstractOperator):
         return self._task_type
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
-        return self._is_dummy
+        return self._is_empty
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
@@ -507,6 +510,11 @@ class MappedOperator(AbstractOperator):
         return getattr(self, self._expansion_kwargs_attr)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+        """Return dict of argument name to map length.
+
+        If any arguments are not known right now (upstream task not finished) they will not be present in the
+        dict.
+        """
         # TODO: Find a way to cache this.
         from airflow.models.taskmap import TaskMap
         from airflow.models.xcom import XCom
@@ -559,22 +567,30 @@ class MappedOperator(AbstractOperator):
         for task_id, length in xcom_query:
             for mapped_arg_name in mapped_dep_keys[task_id]:
                 map_lengths[mapped_arg_name] += length
+        return map_lengths
 
+    def _resolve_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+        """Return dict of argument name to map length, or throw if some are not resolvable"""
+        expansion_kwargs = self._get_expansion_kwargs()
+        map_lengths = self._get_map_lengths(run_id, session=session)
         if len(map_lengths) < len(expansion_kwargs):
             keys = ", ".join(repr(k) for k in sorted(set(expansion_kwargs).difference(map_lengths)))
             raise RuntimeError(f"Failed to populate all mapping metadata; missing: {keys}")
 
         return map_lengths
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> Sequence["TaskInstance"]:
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.
 
-        :return: The mapped task instances, in ascending order by map index.
+        :return: The newly created mapped TaskInstances (if any) in ascending order by map index, and the
+            maximum map_index.
         """
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
 
-        total_length = functools.reduce(operator.mul, self._get_map_lengths(run_id, session=session).values())
+        total_length = functools.reduce(
+            operator.mul, self._resolve_map_lengths(run_id, session=session).values()
+        )
 
         state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
@@ -604,7 +620,7 @@ class MappedOperator(AbstractOperator):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
                 session.flush()
-                return ret
+                return ret, 0
             # Otherwise convert this into the first mapped index, and create
             # TaskInstance for other indexes.
             unmapped_ti.map_index = 0
@@ -646,7 +662,7 @@ class MappedOperator(AbstractOperator):
 
         session.flush()
 
-        return ret
+        return ret, total_length
 
     def prepare_for_execution(self) -> "MappedOperator":
         # Since a mapped operator cannot be used for execution, and an unmapped
@@ -703,7 +719,7 @@ class MappedOperator(AbstractOperator):
         if map_index < 0:
             return value
         expansion_kwargs = self._get_expansion_kwargs()
-        all_lengths = self._get_map_lengths(context["run_id"], session=session)
+        all_lengths = self._resolve_map_lengths(context["run_id"], session=session)
 
         def _find_index_for_this_field(index: int) -> int:
             # Need to use self.mapped_kwargs for the original argument order.
@@ -743,4 +759,29 @@ class MappedOperator(AbstractOperator):
                 # None literal type encountered, so give up
                 return None
             total += len(value)
+        return total
+
+    @cache
+    def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> Optional[int]:
+        """
+        Number of mapped TaskInstances that can be created at run time, or None if upstream tasks are not
+        complete yet.
+
+        :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
+            should have
+        """
+
+        lengths = self._get_map_lengths(run_id, session=session)
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        if not lengths or not expansion_kwargs:
+            return None
+
+        total = 1
+        for name in expansion_kwargs:
+            val = lengths.get(name)
+            if val is None:
+                return None
+            total *= val
+
         return total

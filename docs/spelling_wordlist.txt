@@ -1265,6 +1265,7 @@ runAsUser
 runnable
 runspace
 runtime
+sade
 sagemaker
 salesforce
 samesite

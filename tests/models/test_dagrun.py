@@ -1036,14 +1036,17 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
         mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=XComArg(task))
 
     dr = dag_maker.create_dagrun()
-    indices = (
-        session.query(TI.map_index)
+    query = (
+        session.query(TI.map_index, TI.state)
         .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
         .order_by(TI.map_index)
-        .all()
     )
 
-    assert indices == [(-1,)]
+    assert query.all() == [(-1, None)]
+
+    # Verify_integrity shouldn't change the result now that the TIs exist
+    dr.verify_integrity(session=session)
+    assert query.all() == [(-1, None)]
 
 
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
