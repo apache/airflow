@@ -66,7 +66,7 @@ Manual runs are indicated by a play icon (just like the Trigger DAG button):
 
 .. image:: img/task_manual_vs_scheduled.png
 
-Task groups are indicated by a caret and can be opened or closed
+Task groups are indicated by a caret and can be opened or closed:
 
 .. image:: img/grid_task_group.png
 
