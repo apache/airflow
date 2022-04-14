@@ -28,38 +28,35 @@ from airflow.utils.cli import suppress_logs_and_warning_click_compatible
 @suppress_logs_and_warning_click_compatible
 def cheat_sheet(verbose):
     """Display cheat-sheet"""
-    display_commands_index()
-
-
-def display_commands_index():
-    def display_recursive(
-        prefix: List[str],
-        command_group: click.Group,
-        help_msg: Optional[str] = None,
-        help_msg_length: int = 88,
-    ):
-        actions: List[click.Command] = []
-        groups: List[click.Group] = []
-        for command in command_group.commands.values():
-            if isinstance(command, click.Group):
-                groups.append(command)
-            else:
-                actions.append(command)
-
-        console = AirflowConsole()
-        if actions:
-            table = SimpleTable(title=help_msg or "Miscellaneous commands")
-            table.add_column(width=40)
-            table.add_column()
-            for action_command in sorted(actions, key=lambda d: d.name):
-                help_str = action_command.get_short_help_str(limit=help_msg_length)
-                table.add_row(" ".join([*prefix, action_command.name]), help_str)
-            console.print(table)
-
-        if groups:
-            for group_command in sorted(groups, key=lambda d: d.name):
-                group_prefix = [*prefix, group_command.name]
-                help_str = group_command.get_short_help_str(limit=help_msg_length)
-                display_recursive(group_prefix, group_command, help_str)
-
     display_recursive(["airflow"], airflow_cmd)
+
+
+def display_recursive(
+    prefix: List[str],
+    command_group: click.Group,
+    help_msg: Optional[str] = None,
+    help_msg_length: int = 88,
+):
+    actions: List[click.Command] = []
+    groups: List[click.Group] = []
+    for command in command_group.commands.values():
+        if isinstance(command, click.Group):
+            groups.append(command)
+        else:
+            actions.append(command)
+
+    console = AirflowConsole()
+    if actions:
+        table = SimpleTable(title=help_msg or "Miscellaneous commands")
+        table.add_column(width=40)
+        table.add_column()
+        for action_command in sorted(actions, key=lambda d: d.name):
+            help_str = action_command.get_short_help_str(limit=help_msg_length)
+            table.add_row(" ".join([*prefix, action_command.name]), help_str)
+        console.print(table)
+
+    if groups:
+        for group_command in sorted(groups, key=lambda d: d.name):
+            group_prefix = [*prefix, group_command.name]
+            help_str = group_command.get_short_help_str(limit=help_msg_length)
+            display_recursive(group_prefix, group_command, help_str)
