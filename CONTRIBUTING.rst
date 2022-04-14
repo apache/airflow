@@ -257,13 +257,14 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   mkvirtualenv myenv --python=python3.7
+   mkvirtualenv myenv --python=python3.9
 
 5. Initialize the created environment:
 
 .. code-block:: bash
 
-   ./breeze-legacy initialize-local-virtualenv --python 3.7
+   python3 scripts/tools/initialize_virtualenv.py
+
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
