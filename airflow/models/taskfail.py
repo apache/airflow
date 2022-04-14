@@ -18,6 +18,7 @@
 """Taskfail tracks the failed run durations of each task instance"""
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -49,6 +50,17 @@ class TaskFail(Base):
             name='task_fail_ti_fkey',
             ondelete="CASCADE",
         ),
+    )
+
+    # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
+    # the relationship we can more easily find the execution date for these rows
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            TaskFail.dag_id == foreign(DagRun.dag_id),
+            TaskFail.run_id == foreign(DagRun.run_id),
+        )""",
+        viewonly=True,
     )
 
     def __init__(self, task, run_id, start_date, end_date, map_index):
