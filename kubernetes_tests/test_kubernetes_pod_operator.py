@@ -402,6 +402,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 task_id="task" + self.get_current_task_name(),
                 in_cluster=False,
                 do_xcom_push=False,
+                is_delete_operator_pod=False,
             )
             context = create_context(k)
             k.execute(context=context)
@@ -415,7 +416,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            # expected_pod['metadata']['labels']['already_checked'] = 'True'
+            expected_pod['metadata']['labels']['already_checked'] = 'True'
             assert expected_pod == actual_pod
 
     def test_run_as_user_root(self):
