@@ -335,7 +335,24 @@ class _LazyXComAccess(collections.abc.Sequence):
     run_id: str
     task_id: str
     _query: Query = attr.ib(repr=False)
-    _len: Optional[int] = attr.ib(init=False, repr=False)
+    _len: Optional[int] = attr.ib(init=False, repr=False, default=None)
+
+    @classmethod
+    def build_from_single_xcom(cls, first: "XCom", query: Query) -> "_LazyXComAccess":
+        return cls(
+            dag_id=first.dag_id,
+            run_id=first.run_id,
+            task_id=first.task_id,
+            query=query.with_entities(XCom.value)
+            .filter(
+                XCom.run_id == first.run_id,
+                XCom.task_id == first.task_id,
+                XCom.dag_id == first.dag_id,
+                XCom.map_index >= 0,
+            )
+            .order_by(None)
+            .order_by(XCom.map_index.asc()),
+        )
 
     def __len__(self):
         if self._len is None:
@@ -2435,24 +2452,7 @@ class TaskInstance(Base, LoggingMixin):
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
 
-            # We're pulling one specific mapped task. Add additional filters to
-            # make sure all XComs come from one task and run (for task_ids=None
-            # and include_prior_dates=True), and re-order by map index (reset
-            # needed because XCom.get_many() orders by XCom timestamp).
-            return _LazyXComAccess(
-                dag_id=first.dag_id,
-                run_id=first.run_id,
-                task_id=first.task_id,
-                query=query.with_entities(XCom.value)
-                .filter(
-                    XCom.run_id == first.run_id,
-                    XCom.task_id == first.task_id,
-                    XCom.dag_id == first.dag_id,
-                    XCom.map_index >= 0,
-                )
-                .order_by(None)
-                .order_by(XCom.map_index.asc()),
-            )
+            return _LazyXComAccess.build_from_single_xcom(first, query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
