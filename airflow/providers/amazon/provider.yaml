@@ -190,6 +190,8 @@ integrations:
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
     logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/step_functions.rst
     tags: [aws]
   - integration-name: AWS Database Migration Service
     external-doc-url: https://aws.amazon.com/dms/
