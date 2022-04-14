@@ -62,6 +62,14 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
 .. image:: /img/mapping-simple-grid.png
 
+.. note:: Values passed from the mapped task is a lazy proxy
+
+    In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
+
+        _LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+
+    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but please be aware of the potential performance implications if the list is large.
+
 .. note:: A reduce task is not required.
 
     Although we show a "reduce" task here (``sum_it``) you don't have to have one, the mapped tasks will still be executed even if they have no downstream tasks.
@@ -147,7 +155,7 @@ Up until now the examples we've shown could all be achieved with a ``for`` loop 
 
     @task
     def consumer(arg):
-        print(repr(arg))
+        print(list(arg))
 
 
     with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
