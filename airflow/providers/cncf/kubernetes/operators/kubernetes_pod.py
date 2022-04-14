@@ -43,7 +43,12 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodLaunchFailedException,
+    PodManager,
+    PodPhase,
+    get_container_termination_message,
+)
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -409,7 +414,11 @@ class KubernetesPodOperator(BaseOperator):
                     self.patch_already_checked(pod)
             with _suppress(Exception):
                 self.process_pod_deletion(pod)
-            raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure: {remote_pod}')
+            error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
+            error_message = "\n" + error_message if error_message else ""
+            raise AirflowException(
+                f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
+            )
         else:
             with _suppress(Exception):
                 self.process_pod_deletion(pod)
