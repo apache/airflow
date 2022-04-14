@@ -454,7 +454,7 @@ Regular development tasks:
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
 * Build documentation with ``breeze build-docs`` command
-* Initialize local virtualenv with ``python3 scripts/tools/initialize_virtualenv.py`` command
+* Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 * Run static checks with autocomplete support ``breeze static-check`` command
@@ -968,7 +968,7 @@ To use your host IDE with Breeze:
 
 .. code-block:: bash
 
-   python3 scripts/tools/initialize_virtualenv.py
+   ./scripts/tools/initialize_virtualenv.py
 
 .. warning::
    Make sure that you use the right Python version in this command - matching the Python version you have

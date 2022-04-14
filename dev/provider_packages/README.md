@@ -239,7 +239,7 @@ dependencies are missing/installation fails and it will also reset your SQLite t
 the `${HOME}/airflow` directory:
 
 ```shell script
-python3 scripts/tools/initialize_virtualenv.py
+./scripts/tools/initialize_virtualenv.py
 ```
 
 You can find description of all the commands and more information about the "prepare"

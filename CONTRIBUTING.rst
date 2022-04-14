@@ -263,7 +263,7 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   python3 scripts/tools/initialize_virtualenv.py
+   ./scripts/tools/initialize_virtualenv.py
 
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created

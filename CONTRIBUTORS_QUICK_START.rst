@@ -321,7 +321,7 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 
 .. code-block:: bash
 
-  $ python3 scripts/tools/initialize_virtualenv.py
+  $ ./scripts/tools/initialize_virtualenv.py
 
 3. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
@@ -1132,7 +1132,7 @@ Installing airflow in the local virtual environment ``airflow-env`` with breeze.
 .. code-block:: bash
 
   $ sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
-  $ python3 scripts/tools/initialize_virtualenv.py
+  $ ./scripts/tools/initialize_virtualenv.py
 
 
 2. Add following line to ~/.bashrc in order to call breeze command from anywhere.

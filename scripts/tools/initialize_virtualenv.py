@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -38,16 +40,32 @@ def check_if_in_virtualenv() -> bool:
     return hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
 
 
+def check_for_package_extras() -> str:
+    """
+    check if the user provided any extra packages to install.
+    defaults to package 'devel_all'.
+    """
+    if len(sys.argv) > 1:
+        if len(sys.argv) > 2:
+            print("Provide extras as 1 argument like: \"devel, google, snowflake\"")
+            sys.exit(1)
+        return sys.argv[1]
+    return "devel_all"
+
+
 def pip_install_requirements() -> int:
     """
     install the requirements of the current python version.
     return 0 if success, anything else is an error.
     """
+
+    extras = check_for_package_extras()
     version = get_python_version()
     constraint = (
         f"https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-{version}.txt"
     )
-    pip_install_command = ["pip", "install", "-e", ".[devel-all]", "--constraint", constraint]
+    pip_install_command = ["pip", "install", "-e", f".[{extras}]", "--constraint", constraint]
+
     e = subprocess.run(pip_install_command)
     return e.returncode
 
@@ -65,8 +83,9 @@ def main():
     """
     Setup local virtual environment.
     """
-    airflow_home_dir = os.environ.get("AIRFLOW_HOME", Path(__file__).parents[4] / "airflow")
-    airflow_sources = str(Path.cwd())
+    airflow_home_dir = os.environ.get("AIRFLOW_HOME", Path.home() / "airflow")
+    airflow_sources = str(Path(__file__).parents[2])
+
     if not check_if_in_virtualenv():
         print(
             "Local virtual environment not activated.\nPlease create and activate it "
@@ -98,8 +117,26 @@ def main():
     return_code = pip_install_requirements()
 
     if return_code != 0:
-        print("Error installing the requirements")
-        print("Try running the command below and rerun virtualenv installation\n")
+        print(
+            "Error installing the requirements\n\n"
+            "This command can fail when installed with the default \"devel_all\" extras package. "
+            "If you need to quickly install Airflow venv and work on a subset of Airflow code it might be "
+            "enough to install only the \"devel\" extra package"
+        )
+
+        print(
+            "You can do this via:\n\n"
+            "./scripts/tools/initialize_virtualenv.py \"devel\"\n\n"
+            "You can also install extras for only small subset of extras, for example:\n\n"
+            "./scripts/tools/initialize_virtualenv.py \"devel,google\""
+        )
+
+        print(
+            "To solve persisting issues with the default \"devel_all\" extras package, you might need the "
+            "prerequisites installed on your system.\n "
+            "Try running the command below and rerun virtualenv installation\n"
+        )
+
         os_type = sys.platform
         if os_type == "darwin":
             print("brew install sqlite mysql postgresql openssl")
@@ -122,6 +159,7 @@ def main():
     subprocess.run(["airflow", "db", "reset", "--yes"], env=env)
 
     print("\nResetting AIRFLOW sqlite unit test database...")
+    env = os.environ.copy()
     env["AIRFLOW__CORE__LOAD_EXAMPLES"] = "True"
     env["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
