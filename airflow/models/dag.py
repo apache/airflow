@@ -1889,12 +1889,17 @@ class DAG(LoggingMixin):
         end_date = resolve_execution_date if not future else None
         start_date = resolve_execution_date if not past else None
 
+        if state == TaskInstanceState.FAILED:
+            only_failed = False
+        else:
+            only_failed = True
+
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
             include_subdags=True,
             include_parentdag=True,
-            only_failed=True,
+            only_failed=only_failed,
             session=session,
             # Exclude the task itself from being cleared
             exclude_task_ids={task_id},

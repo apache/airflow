@@ -2928,6 +2928,57 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ]
 
 
+@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
+def test_set_task_instance_state_failed_downstream(run_id, execution_date, session, dag_maker):
+    """Test that set_task_instance_state updates the TaskInstance state to failed but doesn't clear downstream
+    tasks since the state to be set is already failed."""
+
+    start_date = datetime_tz(2020, 1, 1)
+    with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
+        task_1 = DummyOperator(task_id="task_1")
+        task_2 = DummyOperator(task_id="task_2")
+        task_3 = DummyOperator(task_id="task_3")
+
+        task_1 >> task_2 >> task_3
+
+    dagrun = dag_maker.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_ti_from_db(task):
+        return (
+            session.query(TI)
+            .filter(
+                TI.dag_id == dag.dag_id,
+                TI.task_id == task.task_id,
+                TI.run_id == dagrun.run_id,
+            )
+            .one()
+        )
+
+    get_ti_from_db(task_1).state = State.SUCCESS
+    get_ti_from_db(task_2).state = State.SUCCESS
+    get_ti_from_db(task_3).state = State.SUCCESS
+
+    session.flush()
+
+    dag.set_task_instance_state(
+        task_id=task_1.task_id,
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.FAILED,
+        session=session,
+        downstream=True,
+    )
+
+    assert get_ti_from_db(task_1).state == State.FAILED
+    assert get_ti_from_db(task_2).state == State.FAILED
+    assert get_ti_from_db(task_3).state == State.FAILED
+
+
 @pytest.mark.parametrize(
     "start_date, expected_infos",
     [
