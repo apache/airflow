@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-14T13:09:13Z
+# This constraints file was automatically generated on 2022-04-14T22:40:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -98,9 +98,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.21.40
+boto3==1.21.41
 boto==2.49.0
-botocore==1.24.40
+botocore==1.24.41
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -425,7 +425,7 @@ snowballstemmer==2.2.0
 snowflake-connector-python==2.7.6
 snowflake-sqlalchemy==1.3.3
 sortedcontainers==2.4.0
-soupsieve==2.3.2
+soupsieve==2.3.2.post1
 sphinx-airflow-theme==0.0.7
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
