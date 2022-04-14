@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-13T16:16:05Z
+# This constraints file was automatically generated on 2022-04-14T02:51:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -163,9 +163,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.21.39
+boto3==1.21.40
 boto==2.49.0
-botocore==1.24.39
+botocore==1.24.40
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -237,7 +237,7 @@ gevent==21.12.0
 gitdb==4.0.9
 github3.py==3.0.0
 google-ads==14.0.0
-google-api-core==2.7.1
+google-api-core==2.7.2
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.1
@@ -311,7 +311,7 @@ isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
 jeepney==0.8.0
-jira==3.1.1
+jira==3.2.0
 jmespath==0.10.0
 json-merge-patch==0.2
 jsondiff==2.0.0
@@ -422,7 +422,7 @@ pyexasol==0.24.0
 pyflakes==2.4.0
 pykerberos==1.2.4
 pymongo==3.12.3
-pymssql==2.2.4
+pymssql==2.2.5
 pyodbc==4.0.32
 pyparsing==2.4.7
 pypsrp==0.8.1
