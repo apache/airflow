@@ -102,7 +102,12 @@ const updateNodeLabels = (node, instances) => {
     haveLabelsChanged = true;
   }
 
-  if (node.children) return node.children.some((n) => updateNodeLabels(n, instances));
+  if (node.children) {
+    // Iterate through children and return true if at least one has been changed
+    const updatedNodes = node.children.map((n) => updateNodeLabels(n, instances));
+    return updatedNodes.some((changed) => changed);
+  }
+
   return haveLabelsChanged;
 };
 
