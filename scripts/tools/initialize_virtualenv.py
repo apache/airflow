@@ -21,11 +21,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
+        "This file is intended to be executed as an executable program. You cannot use it as a module."
+        f"To run this script, run the ./{__file__} command"
+    )
 
-def clean_up_airflow_sources(airflow_sources: Path):
-    if airflow_sources.exists():
-        print(f"Removing {airflow_sources}")
-        shutil.rmtree(airflow_sources, ignore_errors=True)
+
+def clean_up_airflow_home(airflow_home: Path):
+    if airflow_home.exists():
+        print(f"Removing {airflow_home}")
+        shutil.rmtree(airflow_home, ignore_errors=True)
 
 
 def check_if_in_virtualenv() -> bool:
@@ -59,33 +65,34 @@ def main():
     """
     Setup local virtual environment.
     """
-    airflow_home_dir = os.environ.get("AIRFLOW_HOME", Path.home() / "airflow")  # TODO: change to airflow
+    airflow_home_dir = os.environ.get("AIRFLOW_HOME", Path(__file__).parents[4] / "airflow")
     airflow_sources = str(Path.cwd())
     if not check_if_in_virtualenv():
         print(
             "Local virtual environment not activated.\nPlease create and activate it "
             "first. (for example using 'python3 -m venv venv && source venv/bin/activate')"
         )
-        return
+        sys.exit(1)
 
     print("Initializing environment...")
     print(f"This will remove the folder {airflow_home_dir} and reset all the databases!")
     response = input("Are you sure? (y/N/q)")
     if response != "y":
-        return
+        sys.exit(2)
 
     print(f"\nWiping and recreating {airflow_home_dir}")
 
-    if not airflow_home_dir == airflow_sources:
+    if airflow_home_dir == airflow_sources:
         print("AIRFLOW_HOME and Source code are in the same path")
         print(
             f"When running this script it will delete all files in path {airflow_home_dir} "
             "to clear dynamic files like config/logs/db"
         )
         print("Please move the airflow source code elsewhere to avoid deletion")
-        return
 
-    clean_up_airflow_sources(airflow_home_dir)
+        sys.exit(3)
+
+    clean_up_airflow_home(airflow_home_dir)
 
     print("\nInstalling requirements...")
     return_code = pip_install_requirements()
@@ -103,23 +110,24 @@ def main():
                 "sudo apt install build-essential python3-dev libsqlite3-dev openssl"
                 "sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql"
             )
-        return
+        sys.exit(4)
 
     print("\nResetting AIRFLOW sqlite database...")
-    os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
-    os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
-    os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
-    os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
-    os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["airflow", "db", "reset", "--yes"])
+    env = os.environ.copy()
+    env["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
+    env["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
+    env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
+    env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
+    env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
+    subprocess.run(["airflow", "db", "reset", "--yes"], env=env)
 
     print("\nResetting AIRFLOW sqlite unit test database...")
-    os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "True"
-    os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
-    os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
-    os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
-    os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["airflow", "db", "reset", "--yes"])
+    env["AIRFLOW__CORE__LOAD_EXAMPLES"] = "True"
+    env["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
+    env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
+    env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
+    env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
+    subprocess.run(["airflow", "db", "reset", "--yes"], env=env)
 
     print("\nInitialization of environment complete! Go ahead and develop Airflow!")
 
