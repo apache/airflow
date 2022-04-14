@@ -165,6 +165,23 @@ multiple files can match one key. The list of matched S3 object attributes conta
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
 
+.. _howto/sensor:S3KeysUnchangedSensor:
+
+Amazon S3 Key Unchanged Sensor
+------------------------------
+
+To check for changes in the number of objects at a specific prefix in an Amazon S3 bucket and waits until
+the inactivity period has passed with no increase in the number of objects you can use
+:class:`~airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor`.
+Note, this sensor will not behave correctly in reschedule mode,
+as the state of the listed objects in the Amazon S3 bucket will be lost between rescheduled invocations.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_keys_unchanged]
+    :end-before: [END howto_sensor_s3_keys_unchanged]
+
 .. _howto/operator:S3CreateObjectOperator:
 
 Create an Amazon S3 object
