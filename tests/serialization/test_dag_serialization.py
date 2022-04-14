@@ -1299,7 +1299,7 @@ class TestStringifiedDAGs:
         """
         Tests DAG dependency detection for sensors, including derived classes
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.dummy import EmptyOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
@@ -1313,7 +1313,7 @@ class TestStringifiedDAGs:
                     external_dag_id="external_dag_id",
                     mode="reschedule",
                 )
-                task2 = DummyOperator(task_id="task2")
+                task2 = EmptyOperator(task_id="task2")
                 task1 >> task2
 
             dag = SerializedDAG.to_dict(dag)
@@ -1330,7 +1330,7 @@ class TestStringifiedDAGs:
         """
         Tests DAG dependency detection for operators, including derived classes
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.dummy import EmptyOperator
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
         class DerivedOperator(TriggerDagRunOperator):
@@ -1339,7 +1339,7 @@ class TestStringifiedDAGs:
         execution_date = datetime(2020, 1, 1)
         for class_ in [TriggerDagRunOperator, DerivedOperator]:
             with DAG(dag_id="test_derived_dag_deps_trigger", start_date=execution_date) as dag:
-                task1 = DummyOperator(task_id="task1")
+                task1 = EmptyOperator(task_id="task1")
                 task2 = class_(
                     task_id="task2",
                     trigger_dag_id="trigger_dag_id",
