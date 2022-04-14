@@ -35,7 +35,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc-gke"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 REGION = "us-central1"
 CLUSTER_NAME = f"cluster-test-build-in-gke{ENV_ID}"
