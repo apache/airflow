@@ -146,6 +146,7 @@ const Table = ({
           })}
         </Tbody>
       </ChakraTable>
+      {totalEntries > data.length && (
       <Flex alignItems="center" justifyContent="flex-start" my={4}>
         <IconButton
           variant="ghost"
@@ -169,6 +170,7 @@ const Table = ({
           {totalEntries}
         </Text>
       </Flex>
+      )}
     </>
   );
 };

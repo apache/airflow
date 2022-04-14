@@ -51,7 +51,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | ``5e3ec427fdd3``                | ``587bdf053233``  | ``2.3.0``   | Increase length of email and username in ``ab_user`` and     |
 |                                 |                   |             | ``ab_register_user`` table to ``256`` characters             |
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+
-| ``587bdf053233``                | ``c381b21cb7e4``  | ``2.3.0``   | Add index for ``dag_id`` column in ``job`` table.            |
+| ``587bdf053233``                | ``c381b21cb7e4``  | ``2.2.4``   | Add index for ``dag_id`` column in ``job`` table.            |
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+
 | ``c381b21cb7e4``                | ``be2bfac3da23``  | ``2.2.4``   | Create a ``session`` table to store web session data         |
 +---------------------------------+-------------------+-------------+--------------------------------------------------------------+

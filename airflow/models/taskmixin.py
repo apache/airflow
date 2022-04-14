@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from logging import Logger
 
     from airflow.models.dag import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
 
@@ -290,7 +291,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
 
-    def mapped_dependants(self) -> Iterator["DAGNode"]:
+    def mapped_dependants(self) -> Iterator["MappedOperator"]:
         """Return any mapped nodes that are direct dependencies of the current task
 
         For now, this walks the entire DAG to find mapped nodes that has this

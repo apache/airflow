@@ -579,10 +579,11 @@ class MappedOperator(AbstractOperator):
 
         return map_lengths
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> Sequence["TaskInstance"]:
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.
 
-        :return: The mapped task instances, in ascending order by map index.
+        :return: The newly created mapped TaskInstances (if any) in ascending order by map index, and the
+            maximum map_index.
         """
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
@@ -619,7 +620,7 @@ class MappedOperator(AbstractOperator):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
                 session.flush()
-                return ret
+                return ret, 0
             # Otherwise convert this into the first mapped index, and create
             # TaskInstance for other indexes.
             unmapped_ti.map_index = 0
@@ -661,7 +662,7 @@ class MappedOperator(AbstractOperator):
 
         session.flush()
 
-        return ret
+        return ret, total_length
 
     def prepare_for_execution(self) -> "MappedOperator":
         # Since a mapped operator cannot be used for execution, and an unmapped

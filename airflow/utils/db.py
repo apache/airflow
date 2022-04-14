@@ -940,18 +940,13 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
 
 
 def check_run_id_null(session: Session) -> Iterable[str]:
-    import sqlalchemy.schema
-
-    metadata = sqlalchemy.schema.MetaData(session.bind)
-    try:
-        metadata.reflect(only=[DagRun.__tablename__], extend_existing=True, resolve_fks=False)
-    except exc.InvalidRequestError:
-        # Table doesn't exist -- empty db
-        return
+    metadata = reflect_tables([DagRun], session)
 
     # We can't use the model here since it may differ from the db state due to
     # this function is run prior to migration. Use the reflected table instead.
-    dagrun_table = metadata.tables[DagRun.__tablename__]
+    dagrun_table = metadata.tables.get(DagRun.__tablename__)
+    if dagrun_table is None:
+        return
 
     invalid_dagrun_filter = or_(
         dagrun_table.c.dag_id.is_(None),
@@ -1048,12 +1043,10 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
     """
-    import sqlalchemy.schema
     from sqlalchemy import and_
 
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-    metadata = sqlalchemy.schema.MetaData(session.bind)
     models_to_dagrun: List[Tuple[Base, str]] = [
         (mod, ver)
         for ver, models in {
@@ -1062,18 +1055,14 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         }.items()
         for mod in models
     ]
-    for model, _ in [*models_to_dagrun, (DagRun, '2.2')]:
-        try:
-            metadata.reflect(
-                only=[model.__tablename__], extend_existing=True, resolve_fks=False  # type: ignore
-            )
-        except exc.InvalidRequestError:
-            # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
-            # version
-            pass
 
-    # Key table doesn't exist -- likely empty DB.
-    if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
+    metadata = reflect_tables([*[x[0] for x in models_to_dagrun], DagRun], session)
+
+    if (
+        metadata.tables.get(DagRun.__tablename__) is None
+        or metadata.tables.get(TaskInstance.__tablename__) is None
+    ):
+        # Key table doesn't exist -- likely empty DB.
         return
 
     # We can't use the model here since it may differ from the db state due to
@@ -1102,7 +1091,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         exists_subquery = (
             session.query(text('1')).select_from(dagrun_table).filter(source_to_dag_run_join_cond)
         )
-        invalid_rows_query = session.query(source_table.c.dag_id, source_table.c.execution_date).filter(
+        invalid_rows_query = session.query(*[x.label(x.name) for x in source_table.c]).filter(
             ~exists_subquery.exists()
         )
 
@@ -1123,7 +1112,7 @@ def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str
         _move_dangling_data_to_new_table(
             session,
             source_table,
-            invalid_rows_query.with_entities(*source_table.columns),
+            invalid_rows_query,
             exists_subquery,
             dangling_table_name,
         )
