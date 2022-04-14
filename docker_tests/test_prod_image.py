@@ -24,12 +24,7 @@ import pytest
 
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
-from docker_tests.docker_tests_utils import (
-    display_dependency_conflict_message,
-    docker_image,
-    run_bash_in_docker,
-    run_python_in_docker,
-)
+from docker_tests.docker_tests_utils import docker_image, run_bash_in_docker, run_python_in_docker
 
 INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
 
@@ -90,13 +85,6 @@ class TestPythonPackages:
             f"List of expected installed packages and image content mismatch. "
             f"Check {INSTALLED_PROVIDER_PATH} file."
         )
-
-    def test_pip_dependencies_conflict(self):
-        try:
-            run_bash_in_docker("pip check")
-        except subprocess.CalledProcessError as ex:
-            display_dependency_conflict_message()
-            raise ex
 
     PACKAGE_IMPORTS = {
         "amazon": ["boto3", "botocore", "watchtower"],

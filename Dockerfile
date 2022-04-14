@@ -1375,7 +1375,8 @@ RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
 # the requirements.txt contains only dependencies with == version specification
 RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
-    fi
+    fi; \
+    pip install --user --upgrade apache-airflow-providers-cncf-kubernetes==4.0.0 --no-deps --no-cache-dir
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
