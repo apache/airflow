@@ -49,6 +49,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+import attr
 import dill
 import jinja2
 import pendulum
@@ -321,6 +322,7 @@ class _LazyXComAccessIterator(collections.abc.Iterator):
         return XCom.deserialize_value(next(self._it))
 
 
+@attr.define
 class _LazyXComAccess(collections.abc.Sequence):
     """Wrapper to lazily pull XCom with a sequence-like interface.
 
@@ -329,9 +331,11 @@ class _LazyXComAccess(collections.abc.Sequence):
     for every function call with ``with_session()``.
     """
 
-    def __init__(self, query: Query):
-        self._q = query
-        self._len = None
+    dag_id: str
+    run_id: str
+    task_id: str
+    _query: Query = attr.ib(repr=False)
+    _len: Optional[int] = attr.ib(init=False, repr=False)
 
     def __len__(self):
         if self._len is None:
@@ -355,13 +359,13 @@ class _LazyXComAccess(collections.abc.Sequence):
     @contextlib.contextmanager
     def _get_bound_query(self) -> Generator[Query, None, None]:
         # Do we have a valid session already?
-        if self._q.session and self._q.session.is_active:
-            yield self._q
+        if self._query.session and self._query.session.is_active:
+            yield self._query
             return
 
         session = settings.Session()
         try:
-            yield self._q.with_session(session)
+            yield self._query.with_session(session)
         finally:
             session.close()
 
@@ -2423,7 +2427,9 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(XCom.run_id, XCom.task_id, XCom.map_index, XCom.value).first()
+            first = query.with_entities(
+                XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            ).first()
             if first is None:  # No matching XCom at all.
                 return default
             if map_indexes is not None or first.map_index < 0:
@@ -2434,10 +2440,18 @@ class TaskInstance(Base, LoggingMixin):
             # and include_prior_dates=True), and re-order by map index (reset
             # needed because XCom.get_many() orders by XCom timestamp).
             return _LazyXComAccess(
-                query.with_entities(XCom.value)
-                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id, XCom.map_index >= 0)
+                dag_id=first.dag_id,
+                run_id=first.run_id,
+                task_id=first.task_id,
+                query=query.with_entities(XCom.value)
+                .filter(
+                    XCom.run_id == first.run_id,
+                    XCom.task_id == first.task_id,
+                    XCom.dag_id == first.dag_id,
+                    XCom.map_index >= 0,
+                )
                 .order_by(None)
-                .order_by(XCom.map_index.asc())
+                .order_by(XCom.map_index.asc()),
             )
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
