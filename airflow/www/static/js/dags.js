@@ -40,6 +40,7 @@ const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
 
 // auto refresh interval in milliseconds
+// (x2 the interval in tree/graph view since this page can take longer to refresh )
 const refreshIntervalMs = 2000;
 
 $('#tags_filter').select2({
