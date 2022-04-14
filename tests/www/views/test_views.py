@@ -352,6 +352,19 @@ def test_mark_task_instance_state(test_app):
         (
             False,
             [
+                ("task_1", State.FAILED),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.FAILED),
+            ],
+            [
+                ("task_1", State.FAILED),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.FAILED),
+            ],
+        ),
+        (
+            False,
+            [
                 ("task_1", State.SUCCESS),
                 ("task_2", State.SUCCESS),
                 ("task_3", State.SUCCESS),
@@ -367,6 +380,7 @@ def test_mark_task_instance_state(test_app):
         "downstream[True]-SSS-FFF",
         "downstream[True]-SSF-FFF",
         "downstream[False]-SSF-FSN",
+        "downstream[False]-FSF-FSF",
         "downstream[False]-SSS-FSS",
     ],
 )

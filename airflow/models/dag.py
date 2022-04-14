@@ -1892,7 +1892,9 @@ class DAG(LoggingMixin):
         # When state to be set is FAILED with downstream as True then
         # passing only_failed will clear all failed instances just marked in
         # downstream. Don't clear and return altered task instances.
-        if state == TaskInstanceState.FAILED and downstream:
+        # When state to be set is FAILED on an already Failed task with downstream as False
+        # then there are no altered objects and hence we don't need to clear them.
+        if state == TaskInstanceState.FAILED and (downstream or not altered):
             return altered
         else:
             only_failed = True
