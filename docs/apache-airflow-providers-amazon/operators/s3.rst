@@ -46,7 +46,7 @@ Create an Amazon S3 Bucket
 To create an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_create_bucket]
@@ -60,7 +60,7 @@ Delete an Amazon S3 Bucket
 To delete an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_bucket]
@@ -74,7 +74,7 @@ Set the tags for an Amazon S3 Bucket
 To set the tags for an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_put_bucket_tagging]
@@ -88,7 +88,7 @@ Get the tag of an Amazon S3 Bucket
 To get the tag set associated with an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_get_bucket_tagging]
@@ -103,7 +103,7 @@ Delete the tags of an Amazon S3 Bucket
 To delete the tags of an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_bucket_tagging]
@@ -124,7 +124,7 @@ Please keep in mind, especially when used to check a large volume of keys, that 
 
 To check one file:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_single_key]
@@ -132,7 +132,7 @@ To check one file:
 
 To check multiple files:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_multiple_keys]
@@ -152,17 +152,46 @@ multiple files can match one key. The list of matched S3 object attributes conta
 
     [{"Size": int}]
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_function_definition]
     :end-before: [END howto_sensor_s3_key_function_definition]
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_bucket.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
+
+.. _howto/operator:S3CopyObjectOperator:
+
+Copy an Amazon S3 object
+------------------------
+
+To copy an Amazon S3 object from one bucket to another you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator`.
+The Amazon S3 connection used here needs to have access to both source and destination bucket/key.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_copy_object]
+    :end-before: [END howto_operator_s3_copy_object]
+
+.. _howto/operator:S3DeleteObjectsOperator:
+
+Delete Amazon S3 objects
+------------------------
+
+To delete one or multiple Amazon S3 objects you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_delete_objects]
+    :end-before: [END howto_operator_s3_delete_objects]
 
 Reference
 ---------
