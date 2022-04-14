@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.3.0](#airflow-230)
 - [Airflow 2.2.5](#airflow-225)
 - [Airflow 2.2.4](#airflow-224)
 - [Airflow 2.2.3](#airflow-223)
@@ -81,6 +82,8 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.3.0
 
 ### Minimum kubernetes version bumped from 3.0.0 to  21.7.0
 

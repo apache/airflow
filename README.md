@@ -160,15 +160,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.2.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+pip install 'apache-airflow==2.3.0b1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.0b1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.2.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.3.0b1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.0b1/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -303,7 +303,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.2.5` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.3.0b1` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
