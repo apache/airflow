@@ -224,6 +224,42 @@ Currently it is only possible to map against a dict, a list, or one of those typ
 
 If an upstream task returns an unmappable type, the mapped task will fail at run-time with an ``UnmappableXComTypePushed`` exception. For instance, you can't have the upstream task return a plain string – it must be a list or a dict.
 
+How do templated fields and mapped arguments interact?
+======================================================
+
+All arguments to an operator can be mapped, even those that do not accept templated parameters.
+
+If a field is marked as being templated and is mapped, it **will not be templated**.
+
+For example, this will print ``{{ ds }}`` and not a date stamp:
+
+.. code-block:: python
+
+    @task
+    def make_list():
+        return ["{{ ds }}"]
+
+
+    @task
+    def printer(val):
+        print(val)
+
+
+    printer.expand(val=make_list())
+
+If you want to interpolate values either call ``task.render_template`` yourself, or use interpolation:
+
+.. code-block:: python
+
+    @task
+    def make_list(ds):
+        return [ds]
+
+
+    @task
+    def make_list(**context):
+        return [context["task"].render_template("{{ ds }}", context)]
+
 Placing limits on mapped tasks
 ==============================
 

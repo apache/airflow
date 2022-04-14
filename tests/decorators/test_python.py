@@ -27,6 +27,10 @@ from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -641,3 +645,39 @@ def test_mapped_decorator_converts_partial_kwargs():
     mapped_task1 = dag.get_task("task1")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
     mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
+
+
+def test_mapped_render_template_fields(dag_maker, session):
+    @task_decorator
+    def fn(arg1, arg2):
+        ...
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcom_arg = XComArg(task1)
+        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+    mapped_ti.map_index = 0
+    op = mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert op
+
+    assert op.op_kwargs['arg1'] == "{{ ds }}"
+    assert op.op_kwargs['arg2'] == "fn"

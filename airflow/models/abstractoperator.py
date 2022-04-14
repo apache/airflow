@@ -35,8 +35,6 @@ from typing import (
     Union,
 )
 
-from sqlalchemy.orm import Session
-
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -52,6 +50,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
@@ -330,7 +329,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         jinja_env: "jinja2.Environment",
         seen_oids: Set,
         *,
-        session: Session = NEW_SESSION,
+        session: "Session" = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             try:
@@ -342,28 +341,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self._render_template_field(
-                attr_name,
+            rendered_content = self.render_template(
                 value,
                 context,
                 jinja_env,
                 seen_oids,
-                session=session,
             )
             setattr(parent, attr_name, rendered_content)
-
-    def _render_template_field(
-        self,
-        key: str,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-        *,
-        session: Session,
-    ) -> Any:
-        """Override point for MappedOperator to perform further resolution."""
-        return self.render_template(value, context, jinja_env, seen_oids)
 
     def render_template(
         self,

@@ -44,6 +44,7 @@ import pendulum
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
+from airflow import settings
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -473,6 +474,7 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
+
         return {
             "task_id": self.task_id,
             "dag": self.dag,
@@ -484,14 +486,26 @@ class MappedOperator(AbstractOperator):
             **self.mapped_kwargs,
         }
 
-    def unmap(self) -> "BaseOperator":
-        """Get the "normal" Operator after applying the current mapping."""
+    def unmap(self, unmap_kwargs: Optional[Dict[str, Any]] = None) -> "BaseOperator":
+        """
+        Get the "normal" Operator after applying the current mapping.
+
+        If ``operator_class`` is not a class (i.e. this DAG has been deserialized) then this will return a
+        SerializedBaseOperator that aims to "look like" the real operator.
+
+        :param unmap_kwargs: Override the args to pass to the Operator constructor. Only used when
+            ``operator_class`` is still an actual class.
+
+        :meta private:
+        """
         if isinstance(self.operator_class, type):
             # We can't simply specify task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). Instead of
             # recreating the whole logic here, we just overwrite task_id later.
-            op = self.operator_class(**self._get_unmap_kwargs(), _airflow_from_mapped=True)
+            if unmap_kwargs is None:
+                unmap_kwargs = self._get_unmap_kwargs()
+            op = self.operator_class(**unmap_kwargs, _airflow_from_mapped=True)
             op.task_id = self.task_id
             return op
 
@@ -569,6 +583,7 @@ class MappedOperator(AbstractOperator):
                 map_lengths[mapped_arg_name] += length
         return map_lengths
 
+    @cache
     def _resolve_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
         """Return dict of argument name to map length, or throw if some are not resolvable"""
         expansion_kwargs = self._get_expansion_kwargs()
@@ -686,33 +701,49 @@ class MappedOperator(AbstractOperator):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-        unmapped_task = self.unmap()
+        # Before we unmap we have to resolve the mapped arguments, otherwise the real operator constructor
+        # could be called with an XComArg, rather than the value it resolves to.
+        #
+        # We also need to resolve _all_ mapped arguments, even if they aren't marked as templated
+        kwargs = self._get_unmap_kwargs()
+
+        template_fields = set(self.template_fields)
+
+        # Ideally we'd like to pass in session as an argument to this function, but since operators _could_
+        # override this we can't easily change this function signature.
+        # We can't use @provide_session, as that closes and expunges everything, which we don't want to do
+        # when we are so "deep" in the weeds here.
+        #
+        # Nor do we want to close the session -- that would expunge all the things from the internal cache
+        # which we don't want to do either
+        session = settings.Session()
+        self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
+
+        unmapped_task = self.unmap(unmap_kwargs=kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,
-            template_fields=unmapped_task.template_fields,
+            template_fields=template_fields,
             context=context,
             jinja_env=jinja_env,
             seen_oids=set(),
+            session=session,
         )
         return unmapped_task
 
-    def _render_template_field(
-        self,
-        key: str,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-        *,
-        session: Session,
-    ) -> Any:
-        """Override the ordinary template rendering to add more logic.
+    def _resolve_expansion_kwargs(
+        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: Session
+    ) -> None:
+        """Update mapped fields in place in kwargs dict"""
+        from airflow.models.xcom_arg import XComArg
 
-        Specifically, if we're rendering a mapped argument, we need to "unmap"
-        the value as well to assign it to the unmapped operator.
-        """
-        value = super()._render_template_field(key, value, context, jinja_env, seen_oids, session=session)
-        return self._expand_mapped_field(key, value, context, session=session)
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        for k, v in expansion_kwargs.items():
+            if isinstance(v, XComArg):
+                v = v.resolve(context, session=session)
+            v = self._expand_mapped_field(k, v, context, session=session)
+            template_fields.discard(k)
+            kwargs[k] = v
 
     def _expand_mapped_field(self, key: str, value: Any, context: Context, *, session: Session) -> Any:
         map_index = context["ti"].map_index

@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import collections.abc
 import functools
 import inspect
 import re
@@ -39,7 +38,6 @@ from typing import (
 
 import attr
 import typing_extensions
-from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
@@ -68,6 +66,9 @@ from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
+
     from airflow.models.mappedoperator import Mappable
 
 
@@ -430,6 +431,7 @@ class DecoratedMappedOperator(MappedOperator):
             self.mapped_op_kwargs,
             fail_reason="mapping already partial",
         )
+        self._combined_op_kwargs = op_kwargs
         return {
             "dag": self.dag,
             "task_group": self.task_group,
@@ -441,13 +443,38 @@ class DecoratedMappedOperator(MappedOperator):
             **self.mapped_kwargs,
         }
 
-    def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
-        if key != "op_kwargs" or not isinstance(content, collections.abc.Mapping):
-            return content
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., self) to work around pyupgrade bug.
-        sup: Any = super(DecoratedMappedOperator, DecoratedMappedOperator)
-        return {k: sup._expand_mapped_field(self, k, v, context, session=session) for k, v in content.items()}
+    def _resolve_expansion_kwargs(
+        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: "Session"
+    ) -> None:
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        self._already_resolved_op_kwargs = set()
+        for k, v in expansion_kwargs.items():
+            if isinstance(v, XComArg):
+                self._already_resolved_op_kwargs.add(k)
+                v = v.resolve(context, session=session)
+            v = self._expand_mapped_field(k, v, context, session=session)
+            kwargs['op_kwargs'][k] = v
+            template_fields.discard(k)
+
+    def render_template(
+        self,
+        value: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+    ) -> Any:
+        if hasattr(self, '_combined_op_kwargs') and value is self._combined_op_kwargs:
+            # Avoid rendering values that came out of resolved XComArgs
+            return {
+                k: v
+                if k in self._already_resolved_op_kwargs
+                else super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
+                    self, v, context, jinja_env=jinja_env, seen_oids=seen_oids
+                )
+                for k, v in value.items()
+            }
+        return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
 
 
 class Task(Generic[Function]):
