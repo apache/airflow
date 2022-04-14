@@ -421,7 +421,7 @@ function refreshDagRuns(error, json) {
   Object.keys(json).forEach((dagId) => {
     const states = json[dagId];
     drawDagStatsForDag(dagId, states);
-    RefreshDagRunsAndTasks('dag-run', dagId, states);
+    refreshDagRunsAndTasks('dag-run', dagId, states);
   });
 }
 
