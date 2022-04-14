@@ -402,22 +402,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 task_id="task" + self.get_current_task_name(),
                 in_cluster=False,
                 do_xcom_push=False,
-                is_delete_operator_pod=False,
             )
             context = create_context(k)
             k.execute(context=context)
             mock_logger.info.assert_any_call('retrieved from mount')
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            expected_pod = copy(self.expected_pod)
-            expected_pod['spec']['containers'][0]['args'] = args
-            expected_pod['spec']['containers'][0]['volumeMounts'] = [
+            self.expected_pod['spec']['containers'][0]['args'] = args
+            self.expected_pod['spec']['containers'][0]['volumeMounts'] = [
                 {'name': 'test-volume', 'mountPath': '/tmp/test_volume', 'readOnly': False}
             ]
-            expected_pod['spec']['volumes'] = [
+            self.expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            expected_pod['metadata']['labels']['already_checked'] = 'True'
-            assert expected_pod == actual_pod
+            assert self.expected_pod == actual_pod
 
     def test_run_as_user_root(self):
         security_context = {
