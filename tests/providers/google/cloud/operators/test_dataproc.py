@@ -25,6 +25,7 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,
@@ -872,6 +873,34 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         mock_hook.return_value.cancel_job.assert_not_called()
 
         op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, job_id=job_id
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill_after_execution_timeout(self, mock_hook):
+        job = {}
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.side_effect = AirflowTaskTimeout()
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=True,
+        )
+        with pytest.raises(AirflowTaskTimeout):
+            op.execute(context=self.mock_context)
+
         op.on_kill()
         mock_hook.return_value.cancel_job.assert_called_once_with(
             project_id=GCP_PROJECT, region=GCP_LOCATION, job_id=job_id

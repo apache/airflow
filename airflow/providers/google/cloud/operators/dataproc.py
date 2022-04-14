@@ -1858,19 +1858,21 @@ class DataprocSubmitJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        job_id = job_object.reference.job_id
-        self.log.info('Job %s submitted successfully.', job_id)
+        new_job_id: str = job_object.reference.job_id
+        self.log.info('Job %s submitted successfully.', new_job_id)
         # Save data required by extra links no matter what the job status will be
-        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id)
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=new_job_id
+        )
 
+        self.job_id = new_job_id
         if not self.asynchronous:
-            self.log.info('Waiting for job %s to complete', job_id)
+            self.log.info('Waiting for job %s to complete', new_job_id)
             self.hook.wait_for_job(
-                job_id=job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
+                job_id=new_job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
             )
-            self.log.info('Job %s completed successfully.', job_id)
+            self.log.info('Job %s completed successfully.', new_job_id)
 
-        self.job_id = job_id
         return self.job_id
 
     def on_kill(self):
