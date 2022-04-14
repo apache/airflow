@@ -2885,21 +2885,22 @@ class Airflow(AirflowBaseView):
             min_date = timezone.utc_epoch()
         ti_fails = (
             session.query(TaskFail)
+            .join(TaskFail.dag_run)
             .filter(
                 TaskFail.dag_id == dag.dag_id,
                 DagRun.execution_date >= min_date,
                 DagRun.execution_date <= base_date,
-                TaskFail.task_id.in_([t.task_id for t in dag.tasks]),
             )
-            .all()
         )
+        if dag.partial:
+            ti_fails = ti_fails.filter(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
 
         fails_totals = defaultdict(int)
         for failed_task_instance in ti_fails:
             dict_key = (
                 failed_task_instance.dag_id,
                 failed_task_instance.task_id,
-                failed_task_instance.execution_date,
+                failed_task_instance.run_id,
             )
             if failed_task_instance.duration:
                 fails_totals[dict_key] += failed_task_instance.duration
@@ -2909,7 +2910,7 @@ class Airflow(AirflowBaseView):
                 date_time = wwwutils.epoch(task_instance.execution_date)
                 x_points[task_instance.task_id].append(date_time)
                 y_points[task_instance.task_id].append(float(task_instance.duration))
-                fails_dict_key = (task_instance.dag_id, task_instance.task_id, task_instance.execution_date)
+                fails_dict_key = (task_instance.dag_id, task_instance.task_id, task_instance.run_id)
                 fails_total = fails_totals[fails_dict_key]
                 cumulative_y[task_instance.task_id].append(float(task_instance.duration + fails_total))
 
@@ -3215,17 +3216,18 @@ class Airflow(AirflowBaseView):
 
         tis = (
             session.query(TaskInstance)
-            .join(TaskInstance.dag_run)
             .filter(
-                DagRun.execution_date == dttm,
                 TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dag_run_id,
                 TaskInstance.start_date.isnot(None),
                 TaskInstance.state.isnot(None),
             )
             .order_by(TaskInstance.start_date)
         )
 
-        ti_fails = session.query(TaskFail).filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
+        ti_fails = session.query(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
+        if dag.partial:
+            ti_fails = ti_fails.filter(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
 
         tasks = []
         for ti in tis:
