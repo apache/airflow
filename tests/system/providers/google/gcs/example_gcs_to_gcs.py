@@ -35,8 +35,8 @@ from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "gcs_to_gcs"
 
