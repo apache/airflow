@@ -439,6 +439,7 @@ function handleRefresh() {
     $('#loading-dots').css('display', 'none');
   }, refreshIntervalMs);
 }
+
 function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
