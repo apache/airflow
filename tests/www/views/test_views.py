@@ -26,6 +26,7 @@ import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.utils.state import State
 from airflow.www import views
 from airflow.www.views import (
     get_key_paths,
@@ -304,6 +305,159 @@ def test_mark_task_instance_state(test_app):
         dagrun.refresh_from_db(session=session)
         # dagrun should be set to QUEUED
         assert dagrun.get_state() == State.QUEUED
+
+
+@pytest.mark.parametrize(
+    "downstream, set_state, end_state",
+    [
+        (
+            True,
+            [
+                ("task_1", State.SUCCESS),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.SUCCESS),
+            ],
+            [
+                ("task_1", State.FAILED),
+                ("task_2", State.FAILED),
+                ("task_3", State.FAILED),
+            ],
+        ),
+        (
+            True,
+            [
+                ("task_1", State.SUCCESS),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.FAILED),
+            ],
+            [
+                ("task_1", State.FAILED),
+                ("task_2", State.FAILED),
+                ("task_3", State.FAILED),
+            ],
+        ),
+        (
+            False,
+            [
+                ("task_1", State.SUCCESS),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.FAILED),
+            ],
+            [
+                ("task_1", State.FAILED),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.NONE),
+            ],
+        ),
+        (
+            False,
+            [
+                ("task_1", State.SUCCESS),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.SUCCESS),
+            ],
+            [
+                ("task_1", State.FAILED),
+                ("task_2", State.SUCCESS),
+                ("task_3", State.SUCCESS),
+            ],
+        ),
+    ],
+    ids=[
+        "downstream[True]-SSS-FFF",
+        "downstream[True]-SSF-FFF",
+        "downstream[False]-SSF-FSN",
+        "downstream[False]-SSS-FSS",
+    ],
+)
+def test_mark_task_instance_state_failed_downstream_clear(test_app, downstream, set_state, end_state):
+    """
+    * When downstream is True and there is no failed task
+    - Marks the given TaskInstance as FAILED.
+    - Downstream TaskInstances are marked as FAILED.
+    - Set DagRun to QUEUED and ensure it's state is SUCCESS.
+
+    * When downstream is True and there is a failed task
+    - Marks the given TaskInstance as FAILED.
+    - Downstream TaskInstances are marked as FAILED and ones that are already FAILED should not be cleared.
+    - Set DagRun to QUEUED and ensure it's state is SUCCESS.
+
+    * When downstream is False and there is no failed task
+    - Marks the given TaskInstance as FAILED.
+    - Downstream TaskInstances should not be cleared.
+    - Set DagRun to QUEUED and ensure it's state is SUCCESS.
+
+    * When downstream is False and there is a failed task
+    - Marks the given TaskInstance as FAILED.
+    - Downstream TaskInstances that are already FAILED should be cleared.
+    - Set DagRun to QUEUED and ensure it's state is SUCCESS.
+    """
+    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.session import create_session
+    from airflow.utils.timezone import datetime
+    from airflow.utils.types import DagRunType
+    from airflow.www.views import Airflow
+    from tests.test_utils.db import clear_db_runs
+
+    clear_db_runs()
+    start_date = datetime(2020, 1, 1)
+    with DAG("test_mark_task_instance_state_failed_downstream_clear", start_date=start_date) as dag:
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
+
+        task_1 >> task_2 >> task_3
+
+    dagrun = dag.create_dagrun(
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_task_instance(session, task_id):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == task_id,
+                TaskInstance.execution_date == start_date,
+            )
+            .one()
+        )
+
+    with create_session() as session:
+        for (task, state) in set_state:
+            get_task_instance(session, task).state = state
+
+        session.commit()
+
+    assert dagrun.get_state() == State.SUCCESS
+    test_app.dag_bag = DagBag(dag_folder='/dev/null', include_examples=False)
+    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    with test_app.test_request_context():
+        view = Airflow()
+
+        view._mark_task_instance_state(
+            dag_id=dag.dag_id,
+            task_id=task_1.task_id,
+            origin="",
+            dag_run_id=dagrun.run_id,
+            upstream=False,
+            downstream=downstream,
+            future=False,
+            past=False,
+            state=State.FAILED,
+        )
+
+    with create_session() as session:
+        for (task, state) in end_state:
+            assert get_task_instance(session, task).state == state
+
+        assert dagrun.get_state() == State.SUCCESS
 
 
 TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "val5"}}}

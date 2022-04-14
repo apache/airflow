@@ -1889,8 +1889,11 @@ class DAG(LoggingMixin):
         end_date = resolve_execution_date if not future else None
         start_date = resolve_execution_date if not past else None
 
-        if state == TaskInstanceState.FAILED:
-            only_failed = False
+        # When state to be set is FAILED with downstream as True then
+        # passing only_failed will clear all failed instances just marked in
+        # downstream. Don't clear and return altered task instances.
+        if state == TaskInstanceState.FAILED and downstream:
+            return altered
         else:
             only_failed = True
 
