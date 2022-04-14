@@ -165,9 +165,7 @@ function lastDagRunsHandler(error, json) {
     // Show last run as a link to the graph view
     g.selectAll('a')
       .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
-      .html('');
-    g.selectAll('a')
-      .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
+      .html('')
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
 
     // Only show the tooltip when we have a last run and add the json to a custom data- attribute
