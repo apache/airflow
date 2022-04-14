@@ -396,7 +396,7 @@ function refreshDagRunsAndTasks(selector, dagId, states) {
 function refreshTaskStateHandler(error, ts) {
   Object.keys(ts).forEach((dagId) => {
     const states = ts[dagId];
-    RefreshDagRunsAndTasks('task-run', dagId, states);
+    refreshDagRunsAndTasks('task-run', dagId, states);
   });
 }
 
