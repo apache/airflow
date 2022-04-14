@@ -1294,6 +1294,7 @@ class TestStringifiedDAGs:
             '<TIDep(Previous Dagrun State)>',
             '<TIDep(Trigger Rule)>',
         ]
+
     def test_derived_dag_deps_sensor(self):
         """
         Tests DAG dependency detection for sensors, including derived classes
