@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "kubernetes_engine"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
