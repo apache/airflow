@@ -1401,22 +1401,21 @@ class Airflow(AirflowBaseView):
         execution_date = request.args.get('execution_date')
         map_index = request.args.get('map_index', -1, type=int)
         try_number = request.args.get('try_number', type=int)
-        metadata = request.args.get('metadata')
+        metadata = request.args.get('metadata', '{}')
         response_format = request.args.get('format', 'json')
 
-        # metadata may be null
-        if not metadata:
-            metadata = {}
-        else:
-            # Validate JSON metadata
-            try:
-                metadata = json.loads(metadata)
-            except json.decoder.JSONDecodeError:
-                error_message = "Invalid JSON metadata"
-                response = jsonify({"error": error_message})
-                response.status_code = 400
+        # Validate JSON metadata
+        try:
+            metadata = json.loads(metadata)
+            # metadata may be null
+            if not metadata:
+                metadata = {}
+        except json.decoder.JSONDecodeError:
+            error_message = "Invalid JSON metadata"
+            response = jsonify({"error": error_message})
+            response.status_code = 400
 
-                return response
+            return response
 
         # Convert string datetime into actual datetime
         try:
