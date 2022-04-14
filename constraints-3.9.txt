@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-14T02:51:55Z
+# This constraints file was automatically generated on 2022-04-14T13:09:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -128,7 +128,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.3
 arrow==1.2.2
-asana==0.10.3
+asana==0.10.13
 asn1crypto==1.5.1
 astroid==2.11.2
 asttokens==2.0.5
@@ -453,7 +453,7 @@ python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
 pytz==2021.3
 pytzdata==2020.1
-pywinrm==0.4.2
+pywinrm==0.4.3
 pyzmq==22.3.0
 qds-sdk==1.16.1
 readme-renderer==34.0
@@ -491,7 +491,7 @@ snowballstemmer==2.2.0
 snowflake-connector-python==2.7.6
 snowflake-sqlalchemy==1.3.3
 sortedcontainers==2.4.0
-soupsieve==2.3.2
+soupsieve==2.3.2.post1
 sphinx-airflow-theme==0.0.7
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
@@ -575,7 +575,7 @@ websocket-client==1.3.2
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.153.0
+yandexcloud==0.154.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
