@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Sequence
 
 from airflow.models import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -28,10 +28,10 @@ default_args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_only_dummy_tasks", default_args=default_args, schedule_interval='@once')
+dag = DAG(dag_id="test_only_empty_tasks", default_args=default_args, schedule_interval='@once')
 
 
-class MyDummyOperator(DummyOperator):
+class MyEmptyOperator(EmptyOperator):
     template_fields_renderers = {"body": "json"}
     template_fields: Sequence[str] = ("body",)
 
@@ -41,14 +41,14 @@ class MyDummyOperator(DummyOperator):
 
 
 with dag:
-    task_a = DummyOperator(task_id="test_task_a")
+    task_a = EmptyOperator(task_id="test_task_a")
 
-    task_b = DummyOperator(task_id="test_task_b")
+    task_b = EmptyOperator(task_id="test_task_b")
 
     task_a >> task_b
 
-    task_c = MyDummyOperator(task_id="test_task_c", body={"hello": "world"})
+    task_c = MyEmptyOperator(task_id="test_task_c", body={"hello": "world"})
 
-    task_d = DummyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: 1)
+    task_d = EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None)
 
-    task_e = DummyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: 1)
+    task_e = EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)

@@ -25,7 +25,7 @@ import pytest
 
 from airflow.jobs.triggerer_job import TriggererJob, TriggerRunner
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import TimeDeltaTrigger
@@ -426,7 +426,7 @@ def test_invalid_trigger(session, dag_maker):
 
     # Create the test DAG and task
     with dag_maker(dag_id='test_invalid_trigger', session=session):
-        DummyOperator(task_id='dummy1')
+        EmptyOperator(task_id='dummy1')
 
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]

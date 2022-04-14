@@ -18,7 +18,11 @@
 from datetime import datetime, timedelta
 
 from airflow.models import DAG, BaseOperator
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
@@ -37,8 +41,8 @@ with DAG(
     },
     default_view="graph",
 ) as dag:
-    begin = DummyOperator(task_id="begin")
-    end = DummyOperator(task_id="end")
+    begin = EmptyOperator(task_id="begin")
+    end = EmptyOperator(task_id="end")
 
     # [START howto_operator_adf_run_pipeline]
     run_pipeline1: BaseOperator = AzureDataFactoryRunPipelineOperator(

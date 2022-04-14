@@ -28,6 +28,7 @@ import {
 import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../../StatusBox';
+import { ClipboardText } from '../../../Clipboard';
 import { formatDuration } from '../../../../datetime_utils';
 import Time from '../../../Time';
 import MarkFailedRun from './MarkFailedRun';
@@ -91,7 +92,7 @@ const DagRun = ({ runId }) => {
       <Text whiteSpace="nowrap">
         Run Id:
         {' '}
-        {runId}
+        <ClipboardText value={runId} />
       </Text>
       <Text>
         Run Type:

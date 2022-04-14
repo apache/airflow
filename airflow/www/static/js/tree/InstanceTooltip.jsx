@@ -31,11 +31,11 @@ const InstanceTooltip = ({
   },
 }) => {
   const isGroup = !!group.children;
-  const groupSummary = [];
-  const mapSummary = [];
+  const { isMapped } = group;
+  const summary = [];
 
+  const numMap = finalStatesMap();
   if (isGroup) {
-    const numMap = finalStatesMap();
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -43,52 +43,46 @@ const InstanceTooltip = ({
         if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        groupSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
-  }
-
-  if (group.isMapped && mappedStates) {
-    const numMap = finalStatesMap();
+  } else if (isMapped && mappedStates) {
     mappedStates.forEach((s) => {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        mapSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
   }
+
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      summary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Text key={val} ml="10px">
+          {val}
+          {': '}
+          {key}
+        </Text>,
+      );
+    }
+  });
 
   return (
     <Box py="2px">
       {group.tooltip && (
         <Text>{group.tooltip}</Text>
       )}
+      {isMapped && !!mappedStates.length && (
+        <Text>
+          {mappedStates.length}
+          {' '}
+          mapped task
+          {mappedStates.length > 1 && 's'}
+        </Text>
+      )}
       <Text>
-        {isGroup ? 'Overall ' : ''}
+        {(isGroup || isMapped) ? 'Overall ' : ''}
         Status:
         {' '}
         {state || 'no status'}
       </Text>
-      {isGroup && groupSummary}
+      {(isGroup || isMapped) && summary}
       <Text>
         Started:
         {' '}

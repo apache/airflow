@@ -28,31 +28,31 @@ from airflow.models.dag import DAG
 # Creating Tasks
 @task
 def task_start():
-    """Dummy Task which is First Task of Dag"""
+    """Empty Task which is First Task of Dag"""
     return '[Task_start]'
 
 
 @task
 def task_1(value: int) -> str:
-    """Dummy Task1"""
+    """Empty Task1"""
     return f'[ Task1 {value} ]'
 
 
 @task
 def task_2(value: str) -> str:
-    """Dummy Task2"""
+    """Empty Task2"""
     return f'[ Task2 {value} ]'
 
 
 @task
 def task_3(value: str) -> None:
-    """Dummy Task3"""
+    """Empty Task3"""
     print(f'[ Task3 {value} ]')
 
 
 @task
 def task_end() -> None:
-    """Dummy Task which is Last Task of Dag"""
+    """Empty Task which is Last Task of Dag"""
     print('[ Task_End  ]')
 
 

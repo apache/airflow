@@ -921,7 +921,7 @@ class TestStringifiedDAGs:
                 return 'https://www.google.com'
 
         class MyOperator(BaseOperator):
-            """Just a DummyOperator using above defined Extra Operator Link"""
+            """Just a EmptyOperator using above defined Extra Operator Link"""
 
             operator_extra_links = [TaskStateLink()]
 
@@ -1148,12 +1148,12 @@ class TestStringifiedDAGs:
         """
         Test task resources serialization/deserialization.
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         execution_date = datetime(2020, 1, 1)
         task_id = 'task1'
         with DAG("test_task_resources", start_date=execution_date) as dag:
-            task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+            task = EmptyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
 
         SerializedDAG.validate_schema(SerializedDAG.to_dict(dag))
 
@@ -1166,19 +1166,19 @@ class TestStringifiedDAGs:
         """
         Test TaskGroup serialization/deserialization.
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", start_date=execution_date) as dag:
-            task1 = DummyOperator(task_id="task1")
+            task1 = EmptyOperator(task_id="task1")
             with TaskGroup("group234") as group234:
-                _ = DummyOperator(task_id="task2")
+                _ = EmptyOperator(task_id="task2")
 
                 with TaskGroup("group34") as group34:
-                    _ = DummyOperator(task_id="task3")
-                    _ = DummyOperator(task_id="task4")
+                    _ = EmptyOperator(task_id="task3")
+                    _ = EmptyOperator(task_id="task4")
 
-            task5 = DummyOperator(task_id="task5")
+            task5 = EmptyOperator(task_id="task5")
             task1 >> group234
             group34 >> task5
 
@@ -1214,7 +1214,7 @@ class TestStringifiedDAGs:
         """
         Tests serialize_operator, make sure the deps is in order
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         execution_date = datetime(2020, 1, 1)
@@ -1224,7 +1224,7 @@ class TestStringifiedDAGs:
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            task2 = DummyOperator(task_id="task2")
+            task2 = EmptyOperator(task_id="task2")
             task1 >> task2
 
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
@@ -1253,10 +1253,10 @@ class TestStringifiedDAGs:
             SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
 
     def test_error_on_unregistered_ti_dep_deserialization(self):
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         with DAG("test_error_on_unregistered_ti_dep_deserialization", start_date=datetime(2019, 8, 1)) as dag:
-            DummyOperator(task_id="task1")
+            EmptyOperator(task_id="task1")
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
         serialize_op['deps'] = [
             'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
@@ -1299,7 +1299,7 @@ class TestStringifiedDAGs:
         """
         Tests serialize_task_group, make sure the list is in order
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
         from airflow.serialization.serialized_objects import SerializedTaskGroup
 
         """
@@ -1320,24 +1320,24 @@ class TestStringifiedDAGs:
         """
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_task_group_sorted", start_date=execution_date) as dag:
-            start = DummyOperator(task_id="start")
+            start = EmptyOperator(task_id="start")
 
             with TaskGroup("task_group_up1") as task_group_up1:
-                _ = DummyOperator(task_id="task_up1")
+                _ = EmptyOperator(task_id="task_up1")
 
             with TaskGroup("task_group_up2") as task_group_up2:
-                _ = DummyOperator(task_id="task_up2")
+                _ = EmptyOperator(task_id="task_up2")
 
             with TaskGroup("task_group_middle") as task_group_middle:
-                _ = DummyOperator(task_id="task_middle")
+                _ = EmptyOperator(task_id="task_middle")
 
             with TaskGroup("task_group_down1") as task_group_down1:
-                _ = DummyOperator(task_id="task_down1")
+                _ = EmptyOperator(task_id="task_down1")
 
             with TaskGroup("task_group_down2") as task_group_down2:
-                _ = DummyOperator(task_id="task_down2")
+                _ = EmptyOperator(task_id="task_down2")
 
-            end = DummyOperator(task_id='end')
+            end = EmptyOperator(task_id='end')
 
             start >> task_group_up1
             start >> task_group_up2
@@ -1370,12 +1370,12 @@ class TestStringifiedDAGs:
         """
         Tests edge_info serialization/deserialization.
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
         from airflow.utils.edgemodifier import Label
 
         with DAG("test_edge_info_serialization", start_date=datetime(2020, 1, 1)) as dag:
-            task1 = DummyOperator(task_id="task1")
-            task2 = DummyOperator(task_id="task2")
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
             task1 >> Label("test label") >> task2
 
         dag_dict = SerializedDAG.to_dict(dag)
@@ -1722,12 +1722,12 @@ def test_task_resources_serde():
     """
     Test task resources serialization/deserialization.
     """
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
 
     execution_date = datetime(2020, 1, 1)
     task_id = 'task1'
     with DAG("test_task_resources", start_date=execution_date) as _:
-        task = DummyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
+        task = EmptyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
 
     serialized = SerializedBaseOperator._serialize(task)
     assert serialized['resources'] == {
@@ -1813,7 +1813,7 @@ def test_dummy_operator_serde(is_inherit):
     """
 
     # In this test we should NOT switch the DummyOperator to EmptyOperator.
-    # This test can be removed in Airflow 3.0 as DummyOperator will be removed then.
+    # This test can be removed in Airflow 3.0 as EmptyOperator will be removed then.
     from airflow.operators.dummy import DummyOperator
 
     class MyDummyOperator(DummyOperator):

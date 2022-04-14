@@ -550,7 +550,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock.status.phase = 'Failed'
         self.await_pod_mock.return_value = remote_pod_mock
 
-        with pytest.raises(AirflowException, match=f"Pod {name_base}.[a-z0-9]+ returned a failure: .*"):
+        with pytest.raises(AirflowException, match=f"Pod {name_base}.[a-z0-9]+ returned a failure:.*"):
             context = create_context(k)
             k.execute(context=context)
 

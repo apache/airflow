@@ -1005,13 +1005,13 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have it's ``task`` attribute already set.
 
-        Any DummyOperator without callbacks is instead set straight to the success state.
+        Any EmptyOperator without callbacks is instead set straight to the success state.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
         """
         # Get list of TI IDs that do not need to executed, these are
-        # tasks using DummyOperator and without on_execute_callback / on_success_callback
+        # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         dummy_ti_ids = []
         schedulable_ti_ids = []
         for ti in schedulable_tis:
@@ -1037,7 +1037,7 @@ class DagRun(Base, LoggingMixin):
                 .update({TI.state: State.SCHEDULED}, synchronize_session=False)
             )
 
-        # Tasks using DummyOperator should not be executed, mark them as success
+        # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
             count += (
                 session.query(TI)

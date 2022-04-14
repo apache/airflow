@@ -18,6 +18,7 @@
 import io
 import json
 import re
+import warnings
 from contextlib import redirect_stdout
 from unittest import mock
 
@@ -577,6 +578,14 @@ class TestCliAddConnections:
                 self.parser.parse_args(["connections", "add", "new1", f"--conn-uri={'nonsense_uri'}"])
             )
 
+    def test_cli_connections_add_invalid_type(self):
+        with warnings.catch_warnings(record=True):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
+                )
+            )
+
 
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
@@ -630,7 +639,7 @@ class TestCliImportConnections:
         with pytest.raises(SystemExit, match=r"Missing connections file."):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @pytest.mark.parametrize('filepath', ["sample.jso", "sample.yml", "sample.environ"])
+    @pytest.mark.parametrize('filepath', ["sample.jso", "sample.environ"])
     @mock.patch('os.path.exists')
     def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
         self, mock_exists, filepath
@@ -638,7 +647,10 @@ class TestCliImportConnections:
         mock_exists.return_value = True
         with pytest.raises(
             AirflowException,
-            match=r"Unsupported file format. The file must have the extension .env or .json or .yaml",
+            match=(
+                "Unsupported file format. The file must have one of the following extensions: "
+                ".env .json .yaml .yml"
+            ),
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 

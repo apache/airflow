@@ -69,6 +69,7 @@ from sqlalchemy import (
     tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.exc import NoResultFound
@@ -93,6 +94,7 @@ from airflow.exceptions import (
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    XComForMappingNotPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -453,7 +455,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
-    next_kwargs = Column(ExtendedJSON)
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -1627,11 +1629,14 @@ class TaskInstance(Base, LoggingMixin):
         except:  # noqa: E722
             _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
             raise
-        # If the task returns a result, push an XCom containing it
-        if task_to_execute.do_xcom_push and result is not None:
-            with create_session() as session:
-                self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
-                self._record_task_map_for_downstreams(task_orig, result, session=session)
+        with create_session() as session:
+            if task_to_execute.do_xcom_push:
+                xcom_value = result
+            else:
+                xcom_value = None
+            if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
+                self.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+            self._record_task_map_for_downstreams(task_orig, xcom_value, session=session)
         return result
 
     @provide_session
@@ -2139,10 +2144,9 @@ class TaskInstance(Base, LoggingMixin):
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
-            task = self.task.unmap()
+            self.task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
-            self.task = task
             return
         try:
             self.render_templates()
@@ -2310,6 +2314,8 @@ class TaskInstance(Base, LoggingMixin):
         # Phase 2, and we'll need to further analyze the mapped task case.
         if task.is_mapped or not task.has_mapped_dependants():
             return
+        if value is None:
+            raise XComForMappingNotPushed()
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
         task_map = TaskMap.from_task_instance_xcom(self, value)

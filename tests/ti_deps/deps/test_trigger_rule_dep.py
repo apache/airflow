@@ -23,7 +23,7 @@ import pytest
 from airflow import settings
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -41,7 +41,7 @@ def get_task_instance(session, dag_maker):
                 task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
             if upstream_task_ids:
-                [DummyOperator(task_id=task_id) for task_id in upstream_task_ids] >> task
+                [EmptyOperator(task_id=task_id) for task_id in upstream_task_ids] >> task
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
@@ -625,11 +625,11 @@ class TestTriggerRuleDep:
         dag = DAG('test_dagrun_with_pre_tis', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E', trigger_rule=TriggerRule.ONE_FAILED)
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='D')
+            op5 = EmptyOperator(task_id='E', trigger_rule=TriggerRule.ONE_FAILED)
 
             op1.set_downstream([op2, op3])  # op1 >> op2, op3
             op4.set_upstream([op3, op2])  # op3, op2 >> op4

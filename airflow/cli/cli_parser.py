@@ -559,6 +559,12 @@ ARG_DB_SQL_ONLY = Arg(
     action="store_true",
     default=False,
 )
+ARG_DB_SKIP_INIT = Arg(
+    ("-s", "--skip-init"),
+    help="Only remove tables; do not perform db init.",
+    action="store_true",
+    default=False,
+)
 
 # webserver
 ARG_PORT = Arg(
@@ -1384,7 +1390,7 @@ DB_COMMANDS = (
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
-        args=(ARG_YES,),
+        args=(ARG_YES, ARG_DB_SKIP_INIT),
     ),
     ActionCommand(
         name='upgrade',
