@@ -359,7 +359,7 @@ function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
 
-function RefreshDagRunsAndTasks(selector, dagId, states) {
+function refreshDagRunsAndTasks(selector, dagId, states) {
   d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
     .selectAll('circle')
     .data(states)
