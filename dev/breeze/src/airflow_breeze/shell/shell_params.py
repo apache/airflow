@@ -17,7 +17,7 @@
 """Breeze shell paameters."""
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
@@ -57,18 +57,17 @@ class ShellParams:
     load_default_connections: bool = False
     use_airflow_version: str = ""
     install_airflow_version: str = ""
-    tag: str = "latest"
+    image_tag: str = "latest"
     github_repository: str = "apache/airflow"
     mount_sources: str = MOUNT_SELECTED
     forward_credentials: str = "false"
     airflow_branch: str = AIRFLOW_BRANCH
     start_airflow: str = "false"
-    skip_twine_check: str = ""
+    skip_package_verification: bool = False
     github_actions: str = ""
     issue_id: str = ""
     num_runs: str = ""
-    version_suffix_for_pypi: str = ""
-    version_suffix_for_svn: str = ""
+    answer: Optional[str] = None
     db_reset: bool = False
     ci: bool = False
 
@@ -105,7 +104,7 @@ class ShellParams:
     @property
     def airflow_image_name_with_tag(self) -> str:
         image = self.airflow_image_name
-        return image if not self.tag else image + f":{self.tag}"
+        return image if not self.image_tag else image + f":{self.image_tag}"
 
     @property
     def airflow_image_kubernetes(self) -> str:

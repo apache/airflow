@@ -19,17 +19,11 @@
 set -euo pipefail
 rm -rf docker-context-files/*.whl
 rm -rf docker-context-files/*.tgz
-export FORCE_ANSWER_TO_QUESTIONS="yes"
+export ANSWER="yes"
 export CI="true"
 
-if [[ $1 == "" ]]; then
-  echo
-  echo ERROR! Please specify python version as parameter
-  echo
-  exit 1
-fi
+breeze build-image --build-multiple-images \
+     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 
-python_version=$1
-
-breeze build-image --prepare-buildx-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose
-breeze build-prod-image --prepare-buildx-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose
+breeze build-prod-image --build-multiple-images \
+     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose

@@ -16,26 +16,37 @@
 # specific language governing permissions and limitations
 # under the License.
 import atexit
+import multiprocessing as mp
 import os
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import IO, List, Optional, Tuple
 
 import rich
 
 from airflow_breeze import NAME, VERSION
+from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.shell.shell_params import ShellParams
+from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
+from airflow_breeze.utils.constraints import run_generate_constraints, run_generate_constraints_in_parallel
+from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
+from airflow_breeze.utils.run_tests import run_docker_compose_tests, verify_an_image
 
 try:
     # We handle ImportError so that click autocomplete works
     import rich_click as click
 
+    try:
+        click.formatting.FORCED_WIDTH = os.get_terminal_size().columns - 2
+    except OSError:
+        pass
     click.rich_click.SHOW_METAVARS_COLUMN = False
+    click.rich_click.SHOW_ARGUMENTS = False
     click.rich_click.APPEND_METAVARS_HELP = True
     click.rich_click.STYLE_ERRORS_SUGGESTION = "bright_blue italic"
     click.rich_click.ERRORS_SUGGESTION = "\nTry running the '--help' flag for more information.\n"
@@ -123,25 +134,32 @@ try:
                     "--debian-version",
                     "--image-tag",
                     "--docker-cache",
-                    "--github-repository",
+                    "--force-build",
+                ],
+            },
+            {
+                "name": "Building multiple images",
+                "options": [
+                    "--build_multiple_images",
+                    "--python-versions",
                 ],
             },
             {
                 "name": "Advanced options (for power users)",
                 "options": [
                     "--install-providers-from-sources",
-                    "--additional-extras",
-                    "--additional-dev-apt-deps",
-                    "--additional-runtime-apt-deps",
                     "--additional-python-deps",
-                    "--additional-dev-apt-command",
+                    "--runtime-apt-deps",
                     "--runtime-apt-command",
-                    "--additional-dev-apt-env",
+                    "--additional-extras",
+                    "--additional-runtime-apt-deps",
                     "--additional-runtime-apt-env",
                     "--additional-runtime-apt-command",
-                    "--dev-apt-command",
+                    "--additional-dev-apt-deps",
+                    "--additional-dev-apt-env",
+                    "--additional-dev-apt-command",
                     "--dev-apt-deps",
-                    "--runtime-apt-deps",
+                    "--dev-apt-command",
                 ],
             },
             {
@@ -157,6 +175,36 @@ try:
                 ],
             },
         ],
+        "breeze pull-image": [
+            {
+                "name": "Pull image flags",
+                "options": [
+                    "--image-tag",
+                    "--python",
+                    "--verify-image",
+                    "--wait-for-image",
+                    "--tag-as-latest",
+                ],
+            },
+            {
+                "name": "Parallel running",
+                "options": [
+                    "--run-in-parallel",
+                    "--parallelism",
+                    "--python-versions",
+                ],
+            },
+        ],
+        "breeze verify-image": [
+            {
+                "name": "Verify image flags",
+                "options": [
+                    "--image-name",
+                    "--python",
+                    "--image-tag",
+                ],
+            }
+        ],
         "breeze build-prod-image": [
             {
                 "name": "Basic usage",
@@ -167,33 +215,39 @@ try:
                     "--debian-version",
                     "--image-tag",
                     "--docker-cache",
-                    "--github-repository",
+                ],
+            },
+            {
+                "name": "Building multiple images",
+                "options": [
+                    "--build_multiple_images",
+                    "--python-versions",
                 ],
             },
             {
                 "name": "Options for customizing images",
                 "options": [
                     "--install-providers-from-sources",
-                    "--extras",
-                    "--additional-extras",
-                    "--additional-dev-apt-deps",
-                    "--additional-runtime-apt-deps",
                     "--additional-python-deps",
-                    "--additional-dev-apt-command",
-                    "--runtime-apt-command",
-                    "--additional-dev-apt-env",
+                    "--additional-extras",
+                    "--additional-runtime-apt-deps",
                     "--additional-runtime-apt-env",
                     "--additional-runtime-apt-command",
-                    "--dev-apt-command",
-                    "--dev-apt-deps",
+                    "--additional-dev-apt-deps",
+                    "--additional-dev-apt-env",
+                    "--additional-dev-apt-command",
+                    "--extras",
                     "--runtime-apt-deps",
+                    "--runtime-apt-command",
+                    "--dev-apt-deps",
+                    "--dev-apt-command",
                 ],
             },
             {
                 "name": "Customization options (for specific customization needs)",
                 "options": [
-                    "--install-from-docker-context-files",
                     "--cleanup-docker-context-files",
+                    "--install-from-docker-context-files",
                     "--disable-mysql-client-installation",
                     "--disable-mssql-client-installation",
                     "--disable-postgres-client-installation",
@@ -206,15 +260,55 @@ try:
             {
                 "name": "Preparing cache and push (for maintainers and CI)",
                 "options": [
-                    "--platform",
-                    "--prepare-buildx-cache",
-                    "--push-image",
-                    "--empty-image",
                     "--github-token",
                     "--github-username",
                     "--login-to-github-registry",
+                    "--push-image",
+                    "--prepare-buildx-cache",
+                    "--platform",
+                    "--empty-image",
                 ],
             },
+        ],
+        "breeze pull-prod-image": [
+            {
+                "name": "Pull image flags",
+                "options": [
+                    "--image-tag",
+                    "--python",
+                    "--verify-image",
+                    "--wait-for-image",
+                    "--tag-as-latest",
+                ],
+            },
+            {
+                "name": "Parallel running",
+                "options": [
+                    "--run-in-parallel",
+                    "--parallelism",
+                    "--python-versions",
+                ],
+            },
+        ],
+        "breeze verify-prod-image": [
+            {
+                "name": "Verify image flags",
+                "options": [
+                    "--image-name",
+                    "--python",
+                    "--image-tag",
+                ],
+            }
+        ],
+        "breeze docker-compose-tests": [
+            {
+                "name": "Docker-compose tests flag",
+                "options": [
+                    "--image-name",
+                    "--python",
+                    "--image-tag",
+                ],
+            }
         ],
         "breeze static-checks": [
             {
@@ -246,6 +340,14 @@ try:
                 ],
             },
         ],
+        "breeze cleanup": [
+            {
+                "name": "Cleanup flags",
+                "options": [
+                    "--all",
+                ],
+            },
+        ],
         "breeze setup-autocomplete": [
             {
                 "name": "Setup autocomplete flags",
@@ -265,8 +367,50 @@ try:
                 ],
             },
         ],
+        "breeze prepare-airflow-package": [
+            {"name": "Package flags", "options": ["--package-format", "--version-suffix-for-pypi"]}
+        ],
+        "breeze prepare-provider-packages": [
+            {
+                "name": "Package flags",
+                "options": [
+                    "--package-format",
+                    "--version-suffix-for-pypi",
+                    "--package-list-file",
+                ],
+            }
+        ],
+        "breeze prepare-provider-documentation": [
+            {"name": "Provider documentation preparation flags", "options": ["--skip-package-verification"]}
+        ],
+        "breeze generate-constraints": [
+            {
+                "name": "Generate constraints flags",
+                "options": [
+                    "--image-tag",
+                    "--python",
+                    "--generate-constraints-mode",
+                ],
+            },
+            {
+                "name": "Parallel running",
+                "options": [
+                    "--run-in-parallel",
+                    "--parallelism",
+                    "--python-versions",
+                ],
+            },
+        ],
+        "breeze self-upgrade": [
+            {
+                "name": "Self-upgrade flags",
+                "options": [
+                    "--use-current-airflow-sources",
+                    "--force",
+                ],
+            }
+        ],
     }
-
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
             {
@@ -275,15 +419,44 @@ try:
                     "shell",
                     "start-airflow",
                     "stop",
-                    "build-image",
-                    "build-prod-image",
                     "build-docs",
                     "static-checks",
                 ],
             },
             {
+                "name": "Testing",
+                "commands": [
+                    "docker-compose-tests",
+                ],
+            },
+            {
                 "name": "Configuration & maintenance",
                 "commands": ["cleanup", "self-upgrade", "setup-autocomplete", "config", "version"],
+            },
+            {
+                "name": "CI Image tools",
+                "commands": [
+                    "build-image",
+                    "pull-image",
+                    "verify-image",
+                ],
+            },
+            {
+                "name": "Production Image tools",
+                "commands": [
+                    "build-prod-image",
+                    "pull-prod-image",
+                    "verify-prod-image",
+                ],
+            },
+            {
+                "name": "Release management",
+                "commands": [
+                    "prepare-provider-documentation",
+                    "prepare-provider-packages",
+                    "prepare-airflow-package",
+                    "generate-constraints",
+                ],
             },
         ]
     }
@@ -292,24 +465,32 @@ try:
 except ImportError:
     import click  # type: ignore[no-redef]
 
-from click import Context
+from click import Context, IntRange
 
-from airflow_breeze.build_image.ci.build_ci_image import build_image
+from airflow_breeze.build_image.ci.build_ci_image import build_ci_image, get_ci_image_build_params
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
-from airflow_breeze.build_image.prod.build_prod_image import build_production_image
+from airflow_breeze.build_image.prod.build_prod_image import (
+    build_production_image,
+    get_prod_image_build_params,
+)
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
+    ALLOWED_GENERATE_CONSTRAINTS_MODES,
     ALLOWED_INSTALLATION_METHODS,
     ALLOWED_INTEGRATIONS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
+    ALLOWED_PACKAGE_FORMATS,
     ALLOWED_PLATFORMS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEFAULT_EXTRAS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
     MOUNT_SELECTED,
     get_available_packages,
 )
@@ -319,6 +500,7 @@ from airflow_breeze.utils.cache import (
     check_if_cache_exists,
     delete_cache,
     read_from_cache_file,
+    synchronize_parameters_with_cache,
     touch_cache_file,
     write_to_cache_file,
 )
@@ -340,12 +522,34 @@ from airflow_breeze.utils.path_utils import (
     get_used_sources_setup_metadata_hash,
     in_autocomplete,
 )
-from airflow_breeze.utils.run_utils import check_pre_commit_installed, run_command
+from airflow_breeze.utils.run_utils import check_pre_commit_installed, filter_out_none, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 find_airflow_sources_root_to_operate_on()
 
 output_file_for_recording = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
+
+
+class BetterChoice(click.Choice):
+    """
+    Nicer formatted choice class for click. We have a lot of parameters sometimes, and formatting
+    them without spaces causes ugly artifacts as the words are broken. This one adds spaces so
+    that when the long list of choices does not wrap on words.
+    """
+
+    def get_metavar(self, param) -> str:
+        choices_str = " | ".join(self.choices)
+        # Use curly braces to indicate a required argument.
+        if param.required and param.param_type_name == "argument":
+            return f"{{{choices_str}}}"
+
+        if param.param_type_name == "argument" and param.nargs == -1:
+            # avoid double [[ for multiple args
+            return f"{choices_str}"
+
+        # Use square braces to indicate an option or optional argument.
+        return f"[{choices_str}]"
+
 
 option_verbose = click.option(
     "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
@@ -362,16 +566,16 @@ option_dry_run = click.option(
 option_answer = click.option(
     "-a",
     "--answer",
-    type=click.Choice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    type=BetterChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
     help="Force answer to questions.",
-    envvar='FORCE_ANSWER_TO_QUESTIONS',
+    envvar='ANSWER',
 )
 
 option_python = click.option(
     '-p',
     '--python',
-    type=click.Choice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
-    help='Python version to use.',
+    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help='Python major/minor version used in Airflow image for PROD/CI images.',
     envvar='PYTHON_MAJOR_MINOR_VERSION',
 )
 
@@ -379,32 +583,32 @@ option_backend = click.option(
     '-b',
     '--backend',
     help="Database backend to use.",
-    type=click.Choice(ALLOWED_BACKENDS),
+    type=BetterChoice(ALLOWED_BACKENDS),
 )
 
 option_integration = click.option(
     '--integration',
     help="Integration(s) to enable when running (can be more than one).",
-    type=click.Choice(ALLOWED_INTEGRATIONS),
+    type=BetterChoice(ALLOWED_INTEGRATIONS),
     multiple=True,
 )
 
 option_postgres_version = click.option(
-    '-P', '--postgres-version', help="Version of Postgres.", type=click.Choice(ALLOWED_POSTGRES_VERSIONS)
+    '-P', '--postgres-version', help="Version of Postgres.", type=BetterChoice(ALLOWED_POSTGRES_VERSIONS)
 )
 
 option_mysql_version = click.option(
-    '-M', '--mysql-version', help="Version of MySQL.", type=click.Choice(ALLOWED_MYSQL_VERSIONS)
+    '-M', '--mysql-version', help="Version of MySQL.", type=BetterChoice(ALLOWED_MYSQL_VERSIONS)
 )
 
 option_mssql_version = click.option(
-    '-S', '--mssql-version', help="Version of MsSQL.", type=click.Choice(ALLOWED_MSSQL_VERSIONS)
+    '-S', '--mssql-version', help="Version of MsSQL.", type=BetterChoice(ALLOWED_MSSQL_VERSIONS)
 )
 
 option_executor = click.option(
     '--executor',
     help='Executor to use for a kubernetes cluster. Default is KubernetesExecutor.',
-    type=click.Choice(ALLOWED_EXECUTORS),
+    type=BetterChoice(ALLOWED_EXECUTORS),
 )
 
 option_forward_credentials = click.option(
@@ -420,12 +624,15 @@ option_use_airflow_version = click.option(
 
 option_mount_sources = click.option(
     '--mount-sources',
-    type=click.Choice(ALLOWED_MOUNT_OPTIONS),
+    type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
+    show_default=True,
     help="Choose scope of local sources should be mounted (default = selected).",
 )
 
-option_force_build = click.option('--force-build', help="Force image build before running.", is_flag=True)
+option_force_build = click.option(
+    '-f', '--force-build', help="Force image build no matter if it is " "determined as needed.", is_flag=True
+)
 
 option_db_reset = click.option(
     '-d',
@@ -435,11 +642,21 @@ option_db_reset = click.option(
     envvar='DB_RESET',
 )
 
+option_github_repository = click.option(
+    '-g',
+    '--github-repository',
+    help='GitHub repository used to pull, push run images.',
+    default="apache/airflow",
+    show_default=True,
+    envvar='GITHUB_REPOSITORY',
+)
+
 
 @click.group(invoke_without_command=True, context_settings={'help_option_names': ['-h', '--help']})
 @option_verbose
 @option_dry_run
 @option_python
+@option_github_repository
 @option_backend
 @option_postgres_version
 @option_mysql_version
@@ -462,14 +679,9 @@ option_docker_cache = click.option(
     '-c',
     '--docker-cache',
     help='Cache option for image used during the build.',
-    type=click.Choice(ALLOWED_BUILD_CACHE),
-)
-
-option_github_repository = click.option(
-    '-g',
-    '--github-repository',
-    help='GitHub repository used to pull, push images. Default: apache/airflow.',
-    envvar='GITHUB_REPOSITORY',
+    default=ALLOWED_BUILD_CACHE[0],
+    show_default=True,
+    type=BetterChoice(ALLOWED_BUILD_CACHE),
 )
 
 option_login_to_github_registry = click.option(
@@ -499,27 +711,37 @@ option_github_image_id = click.option(
 )
 
 option_image_tag = click.option(
-    '-t', '--image-tag', help='Set tag for the image (additionally to default Airflow convention).'
+    '-t',
+    '--image-tag',
+    help='Tag added to the default naming conventions of Airflow CI/PROD images.',
+    envvar='IMAGE_TAG',
+)
+
+option_image_name = click.option(
+    '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
 )
 
 option_platform = click.option(
     '--platform',
     help='Platform for Airflow image.',
     envvar='PLATFORM',
-    type=click.Choice(ALLOWED_PLATFORMS),
+    type=BetterChoice(ALLOWED_PLATFORMS),
 )
 
 option_debian_version = click.option(
     '-d',
     '--debian-version',
     help='Debian version used for the image.',
-    type=click.Choice(ALLOWED_DEBIAN_VERSIONS),
+    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
+    default=ALLOWED_DEBIAN_VERSIONS[0],
+    show_default=True,
     envvar='DEBIAN_VERSION',
 )
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     '--upgrade-to-newer-dependencies',
     default="false",
+    show_default=True,
     help='When other than "false", upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
@@ -613,6 +835,26 @@ option_empty_image = click.option(
     envvar='EMPTY_IMAGE',
 )
 
+option_wait_for_image = click.option(
+    '--wait-for-image',
+    help='Wait until image is available.',
+    is_flag=True,
+    envvar='WAIT_FOR_IMAGE',
+)
+
+option_tag_as_latest = click.option(
+    '--tag-as-latest',
+    help='Tags the image as latest after pulling.',
+    is_flag=True,
+    envvar='TAG_AS_LATEST',
+)
+
+option_verify_image = click.option(
+    '--verify-image',
+    help='Verify image.',
+    is_flag=True,
+    envvar='VERIFY_IMAGE',
+)
 
 option_install_providers_from_sources = click.option(
     '--install-providers-from-sources',
@@ -637,11 +879,73 @@ option_load_default_connection = click.option(
     envvar='LOAD_DEFAULT_CONNECTIONS',
 )
 
+option_version_suffix_for_pypi = click.option(
+    '--version-suffix-for-pypi',
+    help='Version suffix used for PyPI packages (alpha, beta, rc1, etc.).',
+    default="",
+    envvar='VERSION_SUFFIX_FOR_PYPI',
+)
+
+option_package_format = click.option(
+    '--package-format',
+    type=BetterChoice(ALLOWED_PACKAGE_FORMATS),
+    help='Format of packages.',
+    default=ALLOWED_PACKAGE_FORMATS[0],
+    show_default=True,
+    envvar='PACKAGE_FORMAT',
+)
+
+option_python_versions = click.option(
+    '--python-versions',
+    help="Space separated list of python versions used for build with multiple versions.",
+    default=" ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    show_default=True,
+    envvar="PYTHON_VERSIONS",
+)
+
+option_run_in_parallel = click.option(
+    '--run-in-parallel',
+    help="Run the operation in parallel on all or selected subset of Python versions.",
+    is_flag=True,
+    envvar='RUN_IN_PARALLEL',
+)
+
+option_parallelism = click.option(
+    '--parallelism',
+    help="Maximum number of processes to use while running the operation in parallel.",
+    type=IntRange(1, mp.cpu_count() * 2 if not output_file_for_recording else 8),
+    default=mp.cpu_count() if not output_file_for_recording else 4,
+    envvar='PARALLELISM',
+    show_default=True,
+)
+
+option_build_multiple_images = click.option(
+    '--build_multiple_images',
+    help="Run the operation sequentially on all or selected subset of Python versions.",
+    is_flag=True,
+    envvar='BUILD_MULTIPLE_IMAGES',
+)
+
+option_with_ci_group = click.option(
+    '-g',
+    '--with-ci-group',
+    is_flag=True,
+    help="Uses CI group for the command to fold long logs in logical groups.",
+    envvar='WITH_CI_GROUP',
+)
+
+argument_packages = click.argument(
+    "packages",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(get_available_packages(short_version=True)),
+)
+
 
 @option_verbose
 @main.command()
 def version(verbose: bool):
-    """Prints version of breeze.py."""
+    """Print information about version of apache-airflow-breeze."""
     console.print(ASCIIART, style=ASCIIART_STYLE)
     console.print(f"\n[bright_blue]Breeze version: {VERSION}[/]")
     console.print(f"[bright_blue]Breeze installed from: {get_installation_airflow_sources()}[/]")
@@ -670,6 +974,7 @@ def version(verbose: bool):
 @option_dry_run
 @option_python
 @option_backend
+@option_github_repository
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
@@ -685,6 +990,7 @@ def shell(
     verbose: bool,
     dry_run: bool,
     python: str,
+    github_repository: str,
     backend: str,
     integration: Tuple[str],
     postgres_version: str,
@@ -700,13 +1006,14 @@ def shell(
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
     set_forced_answer(answer)
-    if verbose:
+    if verbose or dry_run:
         console.print("\n[green]Welcome to breeze.py[/]\n")
         console.print(f"\n[green]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
         python=python,
+        github_repository=github_repository,
         backend=backend,
         integration=integration,
         postgres_version=postgres_version,
@@ -718,6 +1025,7 @@ def shell(
         force_build=force_build,
         db_reset=db_reset,
         extra_args=extra_args,
+        answer=answer,
     )
 
 
@@ -725,6 +1033,7 @@ def shell(
 @main.command(name='start-airflow')
 @option_dry_run
 @option_python
+@option_github_repository
 @option_backend
 @option_postgres_version
 @option_load_example_dags
@@ -743,6 +1052,7 @@ def start_airflow(
     verbose: bool,
     dry_run: bool,
     python: str,
+    github_repository: str,
     backend: str,
     integration: Tuple[str],
     postgres_version: str,
@@ -764,6 +1074,7 @@ def start_airflow(
         verbose=verbose,
         dry_run=dry_run,
         python=python,
+        github_repository=github_repository,
         backend=backend,
         integration=integration,
         postgres_version=postgres_version,
@@ -778,17 +1089,22 @@ def start_airflow(
         db_reset=db_reset,
         start_airflow=True,
         extra_args=extra_args,
+        answer=answer,
     )
 
 
 @main.command(name='build-image')
+@option_github_repository
 @option_verbose
 @option_dry_run
+@option_with_ci_group
+@option_answer
 @option_python
+@option_build_multiple_images
+@option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform
 @option_debian_version
-@option_github_repository
 @option_github_token
 @option_github_username
 @option_login_to_github_registry
@@ -811,81 +1127,172 @@ def start_airflow(
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
-@option_answer
-def build_ci_image(
+@option_force_build
+def build_image(
     verbose: bool,
     dry_run: bool,
-    additional_extras: Optional[str],
-    python: str,
-    image_tag: Optional[str],
-    additional_dev_apt_deps: Optional[str],
-    additional_runtime_apt_deps: Optional[str],
-    additional_python_deps: Optional[str],
-    additional_dev_apt_command: Optional[str],
-    additional_runtime_apt_command: Optional[str],
-    additional_dev_apt_env: Optional[str],
-    additional_runtime_apt_env: Optional[str],
-    dev_apt_command: Optional[str],
-    dev_apt_deps: Optional[str],
-    install_providers_from_sources: bool,
-    runtime_apt_command: Optional[str],
-    runtime_apt_deps: Optional[str],
-    github_repository: Optional[str],
-    github_username: Optional[str],
-    github_token: Optional[str],
-    login_to_github_registry: bool,
-    docker_cache: Optional[str],
-    platform: Optional[str],
-    debian_version: Optional[str],
-    prepare_buildx_cache: bool,
-    push_image: bool,
-    empty_image: bool,
-    answer: Optional[str],
-    upgrade_to_newer_dependencies: str = "false",
+    with_ci_group: bool,
+    build_multiple_images: bool,
+    python_versions: str,
+    answer: str,
+    **kwargs,
 ):
-    """Build CI image."""
-    set_forced_answer(answer)
-    if verbose:
-        console.print(
-            f"\n[bright_blue]Building image of airflow from {AIRFLOW_SOURCES_ROOT} "
-            f"python version: {python}[/]\n"
+    """Build CI image. Include building multiple images for all python versions (sequentially)."""
+
+    def run_build(ci_image_params: BuildCiParams) -> None:
+        return_code, info = build_ci_image(
+            verbose=verbose, dry_run=dry_run, with_ci_group=with_ci_group, ci_image_params=ci_image_params
         )
-    build_image(
+        if return_code != 0:
+            console.print(f"[red]Error when building image! {info}")
+            sys.exit(return_code)
+
+    set_forced_answer(answer)
+    parameters_passed = filter_out_none(**kwargs)
+    if build_multiple_images:
+        with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
+            python_version_list = get_python_version_list(python_versions)
+            for python in python_version_list:
+                params = get_ci_image_build_params(parameters_passed)
+                params.python = python
+                params.answer = answer
+                run_build(ci_image_params=params)
+    else:
+        params = get_ci_image_build_params(parameters_passed)
+        synchronize_parameters_with_cache(params, parameters_passed)
+        run_build(ci_image_params=params)
+
+
+def get_python_version_list(python_versions: str) -> List[str]:
+    """
+    Retrieve and validate space-separated list of Python versions and return them in the form of list.
+    :param python_versions: space separated list of Python versions
+    :return: List of python versions
+    """
+    python_version_list = python_versions.split(" ")
+    errors = False
+    for python in python_version_list:
+        if python not in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
+            console.print(f"[red]The Python version {python} passed in {python_versions} is wrong.[/]")
+            errors = True
+    if errors:
+        console.print(
+            f"\nSome of the Python versions passed are not in the "
+            f"list: {ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS}. Quitting.\n"
+        )
+        sys.exit(1)
+    return python_version_list
+
+
+@main.command(name='pull-image')
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_run_in_parallel
+@option_parallelism
+@option_python_versions
+@option_verify_image
+@option_wait_for_image
+@option_tag_as_latest
+@option_image_tag
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def pull_image(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    run_in_parallel: bool,
+    python_versions: str,
+    parallelism: int,
+    image_tag: Optional[str],
+    wait_for_image: bool,
+    tag_as_latest: bool,
+    verify_image: bool,
+    extra_pytest_args: Tuple,
+):
+    """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
+    if run_in_parallel:
+        python_version_list = get_python_version_list(python_versions)
+        ci_image_params_list = [
+            BuildCiParams(image_tag=image_tag, python=python, github_repository=github_repository)
+            for python in python_version_list
+        ]
+        run_pull_in_parallel(
+            dry_run=dry_run,
+            parallelism=parallelism,
+            image_params_list=ci_image_params_list,
+            python_version_list=python_version_list,
+            verbose=verbose,
+            verify_image=verify_image,
+            wait_for_image=wait_for_image,
+            tag_as_latest=tag_as_latest,
+            extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
+        )
+    else:
+        image_params = BuildCiParams(image_tag=image_tag, python=python, github_repository=github_repository)
+        synchronize_parameters_with_cache(image_params, {"python": python})
+        return_code, info = run_pull_image(
+            image_params=image_params,
+            dry_run=dry_run,
+            verbose=verbose,
+            wait_for_image=wait_for_image,
+            tag_as_latest=tag_as_latest,
+            poll_time=10.0,
+        )
+        if return_code != 0:
+            console.print(f"[red]There was an error when pulling CI image: {info}[/]")
+            sys.exit(return_code)
+
+
+@main.command(
+    name='verify-image',
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_image_tag
+@option_image_name
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def verify_image(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    image_name: str,
+    image_tag: str,
+    extra_pytest_args: Tuple,
+):
+    """Verify CI image."""
+    if image_name is None:
+        build_params = get_ci_image_build_params(
+            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
+        )
+        image_name = build_params.airflow_image_name_with_tag
+    console.print(f"[bright_blue]Verifying CI image: {image_name}[/]")
+    return_code, info = verify_an_image(
+        image_name=image_name,
         verbose=verbose,
         dry_run=dry_run,
-        additional_extras=additional_extras,
-        python=python,
-        image_tag=image_tag,
-        additional_dev_apt_deps=additional_dev_apt_deps,
-        additional_runtime_apt_deps=additional_runtime_apt_deps,
-        additional_python_deps=additional_python_deps,
-        additional_runtime_apt_command=additional_runtime_apt_command,
-        additional_dev_apt_command=additional_dev_apt_command,
-        additional_dev_apt_env=additional_dev_apt_env,
-        additional_runtime_apt_env=additional_runtime_apt_env,
-        install_providers_from_sources=install_providers_from_sources,
-        dev_apt_command=dev_apt_command,
-        dev_apt_deps=dev_apt_deps,
-        runtime_apt_command=runtime_apt_command,
-        runtime_apt_deps=runtime_apt_deps,
-        github_repository=github_repository,
-        github_token=github_token,
-        login_to_github_registry=login_to_github_registry,
-        github_username=github_username,
-        docker_cache=docker_cache,
-        platform=platform,
-        debian_version=debian_version,
-        prepare_buildx_cache=prepare_buildx_cache,
-        push_image=push_image,
-        empty_image=empty_image,
-        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        image_type='CI',
+        extra_pytest_args=extra_pytest_args,
     )
+    sys.exit(return_code)
 
 
 @option_verbose
 @option_dry_run
+@option_answer
+@option_with_ci_group
 @main.command(name='build-prod-image')
 @option_python
+@option_build_multiple_images
+@option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform
 @option_debian_version
@@ -901,7 +1308,7 @@ def build_ci_image(
 @click.option(
     '--installation-method',
     help="Install Airflow from: sources or PyPI.",
-    type=click.Choice(ALLOWED_INSTALLATION_METHODS),
+    type=BetterChoice(ALLOWED_INSTALLATION_METHODS),
 )
 @option_install_providers_from_sources
 @click.option(
@@ -914,7 +1321,9 @@ def build_ci_image(
     help='Clean up docker context files before running build.',
     is_flag=True,
 )
-@click.option('--extras', help="Extras to install by default.")
+@click.option(
+    '--extras', default=",".join(DEFAULT_EXTRAS), show_default=True, help="Extras to install by default."
+)
 @click.option('--disable-mysql-client-installation', help="Do not install MySQL client.", is_flag=True)
 @click.option('--disable-mssql-client-installation', help="Do not install MsSQl client.", is_flag=True)
 @click.option('--disable-postgres-client-installation', help="Do not install Postgres client.", is_flag=True)
@@ -941,97 +1350,183 @@ def build_ci_image(
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
-@option_answer
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
-    cleanup_docker_context_files: bool,
-    disable_mysql_client_installation: bool,
-    disable_mssql_client_installation: bool,
-    disable_postgres_client_installation: bool,
-    disable_airflow_repo_cache: bool,
-    disable_pypi: bool,
-    install_airflow_reference: Optional[str],
-    install_airflow_version: Optional[str],
-    docker_cache: str,
-    additional_extras: Optional[str],
-    python: str,
-    image_tag: Optional[str],
-    additional_dev_apt_deps: Optional[str],
-    additional_runtime_apt_deps: Optional[str],
-    additional_python_deps: Optional[str],
-    additional_dev_apt_command: Optional[str],
-    additional_runtime_apt_command: Optional[str],
-    additional_dev_apt_env: Optional[str],
-    additional_runtime_apt_env: Optional[str],
-    dev_apt_command: Optional[str],
-    dev_apt_deps: Optional[str],
-    runtime_apt_command: Optional[str],
-    runtime_apt_deps: Optional[str],
-    github_repository: Optional[str],
-    github_token: Optional[str],
-    github_username: Optional[str],
-    login_to_github_registry: bool,
-    platform: Optional[str],
-    debian_version: Optional[str],
-    prepare_buildx_cache: bool,
-    push_image: bool,
-    empty_image: bool,
-    install_providers_from_sources: bool,
-    extras: Optional[str],
-    installation_method: Optional[str],
-    install_from_docker_context_files: bool,
+    with_ci_group: bool,
+    build_multiple_images: bool,
+    python_versions: str,
     answer: Optional[str],
-    upgrade_to_newer_dependencies: str = "false",
+    **kwargs,
 ):
-    """Build Production image."""
+    """
+    Build Production image. Include building multiple images for all or selected Python versions sequentially.
+    """
+
+    def run_build(prod_image_params: BuildProdParams) -> None:
+        return_code, info = build_production_image(
+            verbose=verbose, dry_run=dry_run, with_ci_group=with_ci_group, prod_image_params=prod_image_params
+        )
+        if return_code != 0:
+            console.print(f"[red]Error when building image! {info}")
+            sys.exit(return_code)
+
     set_forced_answer(answer)
-    if verbose:
-        console.print("\n[bright_blue]Building image[/]\n")
-    if prepare_buildx_cache:
-        docker_cache = "pulled"
-        cleanup_docker_context_files = True
-    build_production_image(
-        verbose,
-        dry_run,
-        cleanup_docker_context_files=cleanup_docker_context_files,
-        disable_mysql_client_installation=disable_mysql_client_installation,
-        disable_mssql_client_installation=disable_mssql_client_installation,
-        disable_postgres_client_installation=disable_postgres_client_installation,
-        disable_airflow_repo_cache=disable_airflow_repo_cache,
-        disable_pypi=disable_pypi,
-        install_airflow_reference=install_airflow_reference,
-        install_airflow_version=install_airflow_version,
-        docker_cache=docker_cache,
-        additional_extras=additional_extras,
-        python=python,
-        additional_dev_apt_deps=additional_dev_apt_deps,
-        additional_runtime_apt_deps=additional_runtime_apt_deps,
-        additional_python_deps=additional_python_deps,
-        additional_runtime_apt_command=additional_runtime_apt_command,
-        additional_dev_apt_command=additional_dev_apt_command,
-        additional_dev_apt_env=additional_dev_apt_env,
-        additional_runtime_apt_env=additional_runtime_apt_env,
-        dev_apt_command=dev_apt_command,
-        dev_apt_deps=dev_apt_deps,
-        runtime_apt_command=runtime_apt_command,
-        runtime_apt_deps=runtime_apt_deps,
-        github_repository=github_repository,
-        github_token=github_token,
-        github_username=github_username,
-        login_to_github_registry=login_to_github_registry,
-        platform=platform,
-        debian_version=debian_version,
-        upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
-        prepare_buildx_cache=prepare_buildx_cache,
-        push_image=push_image,
-        empty_image=empty_image,
-        install_providers_from_sources=install_providers_from_sources,
-        extras=extras,
-        installation_method=installation_method,
-        install_docker_context_files=install_from_docker_context_files,
-        image_tag=image_tag,
+    parameters_passed = filter_out_none(**kwargs)
+    if build_multiple_images:
+        with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
+            python_version_list = get_python_version_list(python_versions)
+            for python in python_version_list:
+                params = get_prod_image_build_params(parameters_passed)
+                params.python = python
+                params.answer = answer
+                run_build(prod_image_params=params)
+    else:
+        params = get_prod_image_build_params(parameters_passed)
+        synchronize_parameters_with_cache(params, parameters_passed)
+        run_build(prod_image_params=params)
+
+
+@main.command(name='pull-prod-image')
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_run_in_parallel
+@option_parallelism
+@option_python_versions
+@option_image_tag
+@option_wait_for_image
+@option_tag_as_latest
+@option_verify_image
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def pull_prod_image(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    run_in_parallel: bool,
+    parallelism: int,
+    python_versions: str,
+    image_tag: Optional[str],
+    wait_for_image: bool,
+    tag_as_latest: bool,
+    verify_image: bool,
+    extra_pytest_args: Tuple,
+):
+    """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
+    if run_in_parallel:
+        python_version_list = get_python_version_list(python_versions)
+        prod_image_params_list = [
+            BuildProdParams(image_tag=image_tag, python=python, github_repository=github_repository)
+            for python in python_version_list
+        ]
+        run_pull_in_parallel(
+            dry_run=dry_run,
+            parallelism=parallelism,
+            image_params_list=prod_image_params_list,
+            python_version_list=python_version_list,
+            verbose=verbose,
+            verify_image=verify_image,
+            wait_for_image=wait_for_image,
+            tag_as_latest=tag_as_latest,
+            extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
+        )
+    else:
+        image_params = BuildProdParams(
+            image_tag=image_tag, python=python, github_repository=github_repository
+        )
+        synchronize_parameters_with_cache(image_params, {"python": python})
+        return_code, info = run_pull_image(
+            image_params=image_params,
+            dry_run=dry_run,
+            verbose=verbose,
+            wait_for_image=wait_for_image,
+            tag_as_latest=tag_as_latest,
+            poll_time=10.0,
+        )
+        if return_code != 0:
+            console.print(f"[red]There was an error when pulling PROD image: {info}[/]")
+            sys.exit(return_code)
+
+
+@main.command(
+    name='verify-prod-image',
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_image_tag
+@option_image_name
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def verify_prod_image(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    image_name: str,
+    image_tag: str,
+    extra_pytest_args: Tuple,
+):
+    """Verify Production image."""
+    if image_name is None:
+        build_params = get_prod_image_build_params(
+            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
+        )
+        image_name = build_params.airflow_image_name_with_tag
+    console.print(f"[bright_blue]Verifying PROD image: {image_name}[/]")
+    return_code, info = verify_an_image(
+        image_name=image_name,
+        verbose=verbose,
+        dry_run=dry_run,
+        image_type='PROD',
+        extra_pytest_args=extra_pytest_args,
     )
+    sys.exit(return_code)
+
+
+@main.command(
+    name='docker-compose-tests',
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_image_tag
+@option_image_name
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def docker_compose_tests(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    image_name: str,
+    image_tag: str,
+    extra_pytest_args: Tuple,
+):
+    """Run docker-compose tests."""
+    if image_name is None:
+        build_params = get_prod_image_build_params(
+            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
+        )
+        image_name = build_params.airflow_image_name_with_tag
+    console.print(f"[bright_blue]Running docker-compose with PROD image: {image_name}[/]")
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        verbose=verbose,
+        dry_run=dry_run,
+        extra_pytest_args=extra_pytest_args,
+    )
+    sys.exit(return_code)
 
 
 BREEZE_COMMENT = "Added by Updated Airflow Breeze autocomplete setup"
@@ -1237,20 +1732,26 @@ class DocParams:
 @main.command(name='build-docs')
 @option_verbose
 @option_dry_run
+@option_github_repository
 @click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
     '-p',
     '--package-filter',
     help="List of packages to consider.",
-    type=click.Choice(get_available_packages()),
+    type=BetterChoice(get_available_packages()),
     multiple=True,
 )
 def build_docs(
-    verbose: bool, dry_run: bool, docs_only: bool, spellcheck_only: bool, package_filter: Tuple[str]
+    verbose: bool,
+    dry_run: bool,
+    github_repository: str,
+    docs_only: bool,
+    spellcheck_only: bool,
+    package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
-    params = BuildCiParams()
+    params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     ci_image_name = params.airflow_image_name
     check_docker_resources(verbose, ci_image_name)
     doc_builder = DocParams(
@@ -1259,13 +1760,19 @@ def build_docs(
         spellcheck_only=spellcheck_only,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
-    cmd = []
-    cmd.extend(["docker", "run"])
-    cmd.extend(extra_docker_flags)
-    cmd.extend(["-t", "-e", "GITHUB_ACTIONS="])
-    cmd.extend(["--entrypoint", "/usr/local/bin/dumb-init", "--pull", "never"])
-    cmd.extend([ci_image_name, "--", "/opt/airflow/scripts/in_container/run_docs_build.sh"])
-    cmd.extend(doc_builder.args_doc_builder)
+    cmd = [
+        "docker",
+        "run",
+        "-t",
+        *extra_docker_flags,
+        "-e",
+        "GITHUB_ACTIONS=",
+        "--pull",
+        "never",
+        ci_image_name,
+        "/opt/airflow/scripts/in_container/run_docs_build.sh",
+        *doc_builder.args_doc_builder,
+    ]
     run_command(cmd, verbose=verbose, dry_run=dry_run, text=True)
 
 
@@ -1281,7 +1788,7 @@ def build_docs(
     '-t',
     '--type',
     help="Type(s) of the static checks to run (multiple can be added).",
-    type=click.Choice(PRE_COMMIT_LIST),
+    type=BetterChoice(PRE_COMMIT_LIST),
     multiple=True,
 )
 @click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
@@ -1292,10 +1799,12 @@ def build_docs(
 @click.option('-c', '--last-commit', help="Run checks for all files in last commit.", is_flag=True)
 @option_verbose
 @option_dry_run
+@option_github_repository
 @click.argument('precommit_args', nargs=-1, type=click.UNPROCESSED)
 def static_checks(
     verbose: bool,
     dry_run: bool,
+    github_repository: str,
     all_files: bool,
     show_diff_on_failure: bool,
     last_commit: bool,
@@ -1315,10 +1824,12 @@ def static_checks(
             command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
         if files:
             command_to_execute.append("--files")
-        if verbose:
+        if verbose or dry_run:
             command_to_execute.append("--verbose")
         if precommit_args:
             command_to_execute.extend(precommit_args)
+        env = os.environ.copy()
+        env['GITHUB_REPOSITORY'] = github_repository
         run_command(
             command_to_execute,
             verbose=verbose,
@@ -1326,6 +1837,7 @@ def static_checks(
             check=False,
             no_output_dump_on_exception=True,
             text=True,
+            env=env,
         )
 
 
@@ -1342,7 +1854,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams()
+    shell_params = ShellParams(verbose=verbose)
     env_variables = construct_env_variables_docker_compose_command(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -1354,6 +1866,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     help='Force upgrade without asking question to the user.',
 )
 @click.option(
+    '-a',
     '--use-current-airflow-sources',
     is_flag=True,
     help='Use current workdir Airflow sources for upgrade'
@@ -1383,27 +1896,288 @@ def self_upgrade(force: bool, use_current_airflow_sources: bool):
 
 
 @main.command(
-    name="cleanup",
-    help=" the cache of parameters, docker cache and optionally - currently downloaded images.",
+    name='prepare-airflow-package',
+    help="Prepare sdist/whl package of Airflow.",
+)
+@option_verbose
+@option_dry_run
+@option_github_repository
+@option_with_ci_group
+@option_package_format
+@option_version_suffix_for_pypi
+def prepare_airflow_packages(
+    verbose: bool,
+    dry_run: bool,
+    github_repository: str,
+    with_ci_group: bool,
+    package_format: str,
+    version_suffix_for_pypi: str,
+):
+    shell_params = ShellParams(
+        verbose=verbose, github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    )
+    env_variables = construct_env_variables_docker_compose_command(shell_params)
+    env_variables['INSTALL_PROVIDERS_FROM_SOURCES'] = "false"
+    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
+    with ci_group("Prepare Airflow package", enabled=with_ci_group):
+        run_command(
+            [
+                "docker",
+                "run",
+                "-t",
+                *extra_docker_flags,
+                "-e",
+                "SKIP_ENVIRONMENT_INITIALIZATION=true",
+                "-e",
+                f"PACKAGE_FORMAT={package_format}",
+                "-e",
+                f"VERSION_SUFFIX_FOR_PYPI={version_suffix_for_pypi}",
+                "--pull",
+                "never",
+                shell_params.airflow_image_name_with_tag,
+                "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh",
+            ],
+            verbose=verbose,
+            dry_run=dry_run,
+            env=env_variables,
+        )
+
+
+@main.command(
+    name='prepare-provider-documentation',
+    help="Prepare CHANGELOG, README and COMMITS information for providers.",
+)
+@option_verbose
+@option_dry_run
+@option_github_repository
+@option_with_ci_group
+@option_answer
+@click.option(
+    '--skip-package-verification',
+    help="Skip Provider package verification.",
+    is_flag=True,
+)
+@argument_packages
+def prepare_provider_documentation(
+    verbose: bool,
+    dry_run: bool,
+    github_repository: str,
+    with_ci_group: bool,
+    answer: Optional[str],
+    skip_package_verification: bool,
+    packages: List[str],
+):
+    set_forced_answer(answer)
+    shell_params = ShellParams(
+        verbose=verbose,
+        mount_sources=MOUNT_ALL,
+        skip_package_verification=skip_package_verification,
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        answer=answer,
+    )
+    env_variables = construct_env_variables_docker_compose_command(shell_params)
+    extra_docker_flags = get_extra_docker_flags(shell_params.mount_sources)
+    if answer and answer.lower() in ['y', 'yes']:
+        term_flag = "-t"
+    else:
+        term_flag = "-it"
+    cmd_to_run = [
+        "docker",
+        "run",
+        term_flag,
+        *extra_docker_flags,
+        "-e",
+        "SKIP_ENVIRONMENT_INITIALIZATION=true",
+        "--pull",
+        "never",
+        shell_params.airflow_image_name_with_tag,
+        "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh",
+    ]
+    if packages:
+        cmd_to_run.extend(packages)
+    with ci_group("Prepare provider documentation", enabled=with_ci_group):
+        run_command(cmd_to_run, verbose=verbose, dry_run=dry_run, env=env_variables)
+
+
+@main.command(
+    name='prepare-provider-packages',
+    help="Prepare sdist/whl packages of Airflow Providers.",
+)
+@option_verbose
+@option_dry_run
+@option_github_repository
+@option_with_ci_group
+@option_package_format
+@option_version_suffix_for_pypi
+@click.option(
+    '--package-list-file',
+    type=click.File('rt'),
+    help='Read list of packages from text file (one package per line)',
+)
+@argument_packages
+def prepare_provider_packages(
+    verbose: bool,
+    dry_run: bool,
+    github_repository: str,
+    with_ci_group: bool,
+    package_format: str,
+    version_suffix_for_pypi: str,
+    package_list_file: IO,
+    packages: Tuple[str, ...],
+):
+    packages_list = list(packages)
+    if package_list_file:
+        packages_list.extend([package.strip() for package in package_list_file.readlines()])
+    shell_params = ShellParams(
+        verbose=verbose,
+        mount_sources=MOUNT_ALL,
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    )
+    env_variables = construct_env_variables_docker_compose_command(shell_params)
+    extra_docker_flags = get_extra_docker_flags(shell_params.mount_sources)
+    cmd_to_run = [
+        "docker",
+        "run",
+        "-t",
+        *extra_docker_flags,
+        "-e",
+        "SKIP_ENVIRONMENT_INITIALIZATION=true",
+        "-e",
+        f"PACKAGE_FORMAT={package_format}",
+        "-e",
+        f"VERSION_SUFFIX_FOR_PYPI={version_suffix_for_pypi}",
+        "--pull",
+        "never",
+        shell_params.airflow_image_name_with_tag,
+        "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh",
+    ]
+    cmd_to_run.extend(packages_list)
+    with ci_group("Prepare provider packages", enabled=with_ci_group):
+        run_command(cmd_to_run, verbose=verbose, dry_run=dry_run, env=env_variables)
+
+
+@main.command(
+    name='generate-constraints',
+    help="Generates pinned constraint files with all extras from setup.py in parallel.",
 )
 @click.option(
-    '--also-remove-current-images',
+    '--generate-constraints-mode',
+    type=BetterChoice(ALLOWED_GENERATE_CONSTRAINTS_MODES),
+    default=ALLOWED_GENERATE_CONSTRAINTS_MODES[0],
+    show_default=True,
+    help='Mode of generating constraints',
+)
+@option_verbose
+@option_dry_run
+@option_python
+@option_github_repository
+@option_run_in_parallel
+@option_parallelism
+@option_python_versions
+@option_image_tag
+@option_answer
+@option_with_ci_group
+def generate_constraints(
+    verbose: bool,
+    dry_run: bool,
+    python: str,
+    github_repository: str,
+    run_in_parallel: bool,
+    parallelism: int,
+    python_versions: str,
+    image_tag: str,
+    answer: Optional[str],
+    generate_constraints_mode: str,
+    with_ci_group: bool,
+):
+    set_forced_answer(answer)
+    if run_in_parallel:
+        given_answer = user_confirm(
+            f"Did you build all CI images {python_versions} with --upgrade-to-newer-dependencies "
+            f"true flag set?",
+            timeout=None,
+        )
+    else:
+        given_answer = user_confirm(
+            f"Did you build CI image {python} with --upgrade-to-newer-dependencies true flag set?",
+            timeout=None,
+        )
+    if given_answer != Answer.YES:
+        if run_in_parallel:
+            console.print("\n[yellow]Use this command to build the images:[/]\n")
+            console.print(
+                f"     breeze build-image --run-in-parallel --python-versions '{python_versions}' "
+                f"--upgrade-to-newer-dependencies true\n"
+            )
+        else:
+            shell_params = ShellParams(
+                image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
+            )
+            synchronize_parameters_with_cache(shell_params, {"python": python})
+            console.print("\n[yellow]Use this command to build the image:[/]\n")
+            console.print(
+                f"     breeze build-image --python '{shell_params.python}' "
+                f"--upgrade-to-newer-dependencies true\n"
+            )
+        sys.exit(1)
+    if run_in_parallel:
+        python_version_list = get_python_version_list(python_versions)
+        shell_params_list = [
+            ShellParams(
+                image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
+            )
+            for python in python_version_list
+        ]
+        with ci_group(f"Generating constraints with {generate_constraints_mode}", enabled=with_ci_group):
+            run_generate_constraints_in_parallel(
+                shell_params_list=shell_params_list,
+                parallelism=parallelism,
+                dry_run=dry_run,
+                verbose=verbose,
+                python_version_list=python_version_list,
+                generate_constraints_mode=generate_constraints_mode,
+            )
+    else:
+        with ci_group(f"Generating constraints with {generate_constraints_mode}", enabled=with_ci_group):
+            shell_params = ShellParams(
+                image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
+            )
+            synchronize_parameters_with_cache(shell_params, {"python": python})
+            return_code, info = run_generate_constraints(
+                shell_params=shell_params,
+                dry_run=dry_run,
+                verbose=verbose,
+                generate_constraints_mode=generate_constraints_mode,
+            )
+        if return_code != 0:
+            console.print(f"[red]There was an error when generating constraints: {info}[/]")
+            sys.exit(return_code)
+
+
+@main.command(
+    name="cleanup",
+    help="Cleans the cache of parameters, docker cache and optionally - currently downloaded images.",
+)
+@click.option(
+    '--all',
     is_flag=True,
     help='Also remove currently downloaded Breeze images.',
 )
 @option_verbose
 @option_answer
 @option_dry_run
-def cleanup(verbose: bool, dry_run: bool, also_remove_current_images: bool, answer: Optional[str]):
+def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: Optional[str]):
     set_forced_answer(answer)
-    if also_remove_current_images:
+    if all:
         console.print(
             "\n[bright_yellow]Removing cache of parameters, clean up docker cache "
             "and remove locally downloaded images[/]"
         )
     else:
         console.print("\n[bright_yellow]Removing cache of parameters, and cleans up docker cache[/]")
-    if also_remove_current_images:
+    if all:
         docker_images_command_to_execute = [
             'docker',
             'images',
@@ -1473,7 +2247,7 @@ def enable_recording_of_help_output(path: str, title: Optional[str], width: Opti
 
     atexit.register(save_ouput_as_svg)
     click.rich_click.MAX_WIDTH = width_int
-    click.formatting.FORCED_WIDTH = width_int
+    click.formatting.FORCED_WIDTH = width_int - 2
     click.rich_click.COLOR_SYSTEM = "standard"
     # monkeypatch rich_click console to record help (rich_click does not allow passing extra args to console)
     click.rich_click.Console = RecordingConsole

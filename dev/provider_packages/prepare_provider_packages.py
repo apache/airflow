@@ -137,13 +137,6 @@ option_git_update = click.option(
     help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
 )
 
-option_interactive = click.option(
-    '--interactive/--non-interactive',
-    default=True,
-    is_flag=True,
-    help="If the script should interactively ask the user what to do in case of doubt",
-)
-
 option_version_suffix = click.option(
     "--version-suffix",
     metavar="suffix",
@@ -375,7 +368,9 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             # or >=2.0.1rc1 if we build rc1 version of the packages.
             for dependency in additional_dependencies:
                 if dependency.startswith("apache-airflow") and ">=" in dependency:
-                    dependency = dependency + version_suffix
+                    dependency = (
+                        dependency + ("." if not version_suffix.startswith(".") else "") + version_suffix
+                    )
                 install_requires.append(dependency)
         else:
             install_requires.extend(additional_dependencies)
@@ -1067,6 +1062,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
                 )
             except subprocess.CalledProcessError as ex:
                 console.print("[red]Error: when adding remote:[/]", ex)
+                sys.exit(128)
         else:
             raise
     if verbose:
@@ -1516,20 +1512,21 @@ def prepare_readme_file(context):
         readme_file.write(readme_content)
 
 
-def confirm(message: str):
+def confirm(message: str, answer: Optional[str] = None) -> bool:
     """
     Ask user to confirm (case-insensitive).
-    :return: True if the answer is Y. Exits with 65 exit code if Q is chosen.
-    :rtype: bool
+    :param message: message to display
+    :param answer: force answer if set
+    :return: True if the answer is any form of y/yes. Exits with 65 exit code if any form of q/quit is chosen.
     """
-    answer = ""
-    while answer not in ["y", "n", "q"]:
-        console.print(f"[yellow]{message}[Y/N/Q]?[/] ", end='')
-        answer = input("").lower()
-    if answer == "q":
+    given_answer = answer.lower() if answer is not None else ""
+    while given_answer not in ["y", "n", "q", "yes", "no", "quit"]:
+        console.print(f"[yellow]{message}[y/n/q]?[/] ", end='')
+        given_answer = input("").lower()
+    if given_answer.lower() in ["q", "quit"]:
         # Returns 65 in case user decided to quit
         sys.exit(65)
-    return answer == "y"
+    return given_answer in ["y", "yes"]
 
 
 def mark_latest_changes_as_documentation_only(
@@ -1552,7 +1549,7 @@ def update_release_notes(
     version_suffix: str,
     force: bool,
     verbose: bool,
-    interactive: bool,
+    answer: Optional[str],
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
@@ -1561,7 +1558,7 @@ def update_release_notes(
     :param version_suffix: version suffix corresponding to the version in the code
     :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
-    :param interactive: whether the script should ask the user in case of doubt
+    :param answer: force answer to questions if set.
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
@@ -1582,7 +1579,7 @@ def update_release_notes(
     )
     if not force:
         if proceed:
-            if interactive and not confirm("Provider marked for release. Proceed?"):
+            if not confirm("Provider marked for release. Proceed", answer=answer):
                 return False
         elif not latest_change:
             console.print()
@@ -1592,7 +1589,7 @@ def update_release_notes(
             console.print()
             return False
         else:
-            if interactive and confirm("Are those changes documentation-only?"):
+            if confirm("Are those changes documentation-only?", answer=answer):
                 if isinstance(latest_change, Change):
                     mark_latest_changes_as_documentation_only(provider_details, latest_change)
                 else:
@@ -1839,14 +1836,20 @@ def list_providers_packages():
 @cli.command()
 @option_version_suffix
 @option_git_update
-@option_interactive
 @argument_package_id
 @option_force
 @option_verbose
+@click.option(
+    "-a",
+    "--answer",
+    type=click.Choice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    help="Force answer to questions.",
+    envvar='ANSWER',
+)
 def update_package_documentation(
     version_suffix: str,
     git_update: bool,
-    interactive: bool,
+    answer: Optional[str],
     package_id: str,
     force: bool,
     verbose: bool,
@@ -1862,7 +1865,7 @@ def update_package_documentation(
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, force=force, verbose=verbose, interactive=interactive
+            provider_package_id, version_suffix, force=force, verbose=verbose, answer=answer
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)
@@ -2632,4 +2635,11 @@ if __name__ == "__main__":
     #   * 64 in case of skipped package
     #   * 65 in case user decided to quit
     #   * 66 in case package has doc-only changes
-    cli()
+    try:
+        cli()
+    except KeyboardInterrupt:
+        print('Interrupted')
+        try:
+            sys.exit(65)
+        except SystemExit:
+            os._exit(65)

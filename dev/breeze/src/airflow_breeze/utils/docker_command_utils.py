@@ -18,7 +18,7 @@
 import os
 import re
 import subprocess
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
@@ -35,6 +35,7 @@ except ImportError:
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    ALLOWED_PACKAGE_FORMATS,
     FLOWER_HOST_PORT,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
@@ -52,7 +53,7 @@ from airflow_breeze.global_constants import (
     WEBSERVER_HOST_PORT,
 )
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import commit_sha, prepare_build_command, run_command
+from airflow_breeze.utils.run_utils import commit_sha, get_return_code, prepare_build_command, run_command
 
 NECESSARY_HOST_VOLUMES = [
     "/.bash_aliases:/root/.bash_aliases:cached",
@@ -268,15 +269,22 @@ def construct_arguments_for_docker_build_command(
     :param optional_args: build arguments that are optional (should not be used if missing or empty)
     :return: list of `--build-arg` commands to use for the parameters passed
     """
+
+    def get_env_variable_value(arg_name: str):
+        value = str(getattr(image_params, arg_name))
+        value = "true" if value == "True" else value
+        value = "false" if value == "False" else value
+        return value
+
     args_command = []
-    for param in required_args:
+    for required_arg in required_args:
         args_command.append("--build-arg")
-        args_command.append(param.upper() + "=" + str(getattr(image_params, param)))
-    for verify_param in optional_args:
-        param_value = str(getattr(image_params, verify_param))
+        args_command.append(required_arg.upper() + "=" + get_env_variable_value(arg_name=required_arg))
+    for optional_arg in optional_args:
+        param_value = get_env_variable_value(optional_arg)
         if len(param_value) > 0:
             args_command.append("--build-arg")
-            args_command.append(verify_param.upper() + "=" + param_value)
+            args_command.append(optional_arg.upper() + "=" + param_value)
     args_command.extend(image_params.docker_cache_directive)
     return args_command
 
@@ -338,7 +346,9 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def tag_and_push_image(image_params: Union[BuildProdParams, BuildCiParams], dry_run: bool, verbose: bool):
+def tag_and_push_image(
+    image_params: Union[BuildProdParams, BuildCiParams], dry_run: bool, verbose: bool
+) -> Tuple[int, str]:
     """
     Tag and push the image according to parameters.
     :param image_params: parameters of the image
@@ -351,10 +361,23 @@ def tag_and_push_image(image_params: Union[BuildProdParams, BuildCiParams], dry_
         f"{image_params.airflow_image_name_with_tag}.[/]"
     )
     cmd = construct_docker_tag_command(image_params)
-    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=True)
-    login_to_docker_registry(image_params)
-    cmd = construct_docker_push_command(image_params)
-    run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=True)
+    process = run_command(
+        cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
+    )
+    if process and process.returncode == 0:
+        return_code, info = login_to_docker_registry(image_params, dry_run=dry_run)
+        if return_code != 0:
+            return return_code, f"Tag and pushing the image {image_params.python}: {info}"
+        cmd = construct_docker_push_command(image_params)
+        process = run_command(
+            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
+        )
+        if process and process.returncode == 0:
+            return 0, f"Tag and pushing the image {image_params.python}"
+    return (
+        get_return_code(process=process, dry_run=dry_run),
+        f"Tag and pushing the image {image_params.python}",
+    )
 
 
 def construct_empty_docker_build_command(
@@ -386,6 +409,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
 
     :param env: environment variables to update with missing values if not set.
     """
+    set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
@@ -405,11 +429,11 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
     set_value_to_default_if_not_set(env, 'INIT_SCRIPT_FILE', "init.sh")
     set_value_to_default_if_not_set(env, 'INSTALL_PROVIDERS_FROM_SOURCES', "true")
-    set_value_to_default_if_not_set(env, 'INSTALL_PROVIDERS_FROM_SOURCES', "true")
+    set_value_to_default_if_not_set(env, 'INSTALL_FROM_DOCKER_CONTEXT_FILES', "false")
     set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
     set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
     set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
-    set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', "wheel")
+    set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, 'PRINT_INFO_FROM_SCRIPTS', "true")
     set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")
     set_value_to_default_if_not_set(env, 'RUN_SYSTEM_TESTS', "false")
@@ -425,13 +449,14 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'WHEEL_VERSION', "0.36.2")
 
 
-VARIABLES_TO_ENTER_DOCKER_COMPOSE = {
+MAP_ENV_VARIABLES_TO_PARAMS_FIELDS = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
+    "ANSWER": "answer",
     "BACKEND": "backend",
     "COMPOSE_FILE": "compose_files",
     "DB_RESET": 'db_reset',
@@ -445,12 +470,10 @@ VARIABLES_TO_ENTER_DOCKER_COMPOSE = {
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "NUM_RUNS": "num_runs",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
-    "SKIP_TWINE_CHECK": "skip_twine_check",
+    "SKIP_PACKAGE_VERIFICATION": "skip_package_verification",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
-    "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
-    "VERSION_SUFFIX_FOR_SVN": "version_suffix_for_svn",
 }
 
 VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS = {
@@ -498,12 +521,14 @@ def construct_env_variables_docker_compose_command(shell_params: ShellParams) ->
     :return: dictionary of env variables to set
     """
     env_variables: Dict[str, str] = os.environ.copy()
-    for param_name in VARIABLES_TO_ENTER_DOCKER_COMPOSE:
-        param_value = VARIABLES_TO_ENTER_DOCKER_COMPOSE[param_name]
-        env_variables[param_name] = str(getattr(shell_params, param_value))
-    for constant_param_name in VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS:
-        constant_param_value = VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS[constant_param_name]
+    for variable in MAP_ENV_VARIABLES_TO_PARAMS_FIELDS:
+        param_name = MAP_ENV_VARIABLES_TO_PARAMS_FIELDS[variable]
+        param_value = getattr(shell_params, param_name)
+        env_variables[variable] = str(param_value) if param_value is not None else ""
+    # Set constant defaults if not defined
+    for variable in VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS:
+        constant_param_value = VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS[variable]
         if not env_variables.get(constant_param_value):
-            env_variables[constant_param_name] = str(constant_param_value)
+            env_variables[variable] = str(constant_param_value)
     update_expected_environment_variables(env_variables)
     return env_variables

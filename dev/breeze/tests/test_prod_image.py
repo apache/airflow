@@ -26,7 +26,7 @@ default_params: Dict[str, Union[str, bool]] = {
     'disable_mysql_client_installation': False,
     'disable_mssql_client_installation': False,
     'disable_postgres_client_installation': False,
-    'install_docker_context_files': False,
+    'install_from_docker_context_files': False,
     'disable_airflow_repo_cache': False,
     'upgrade_to_newer_dependencies': "false",
     'install_providers_from_sources': False,

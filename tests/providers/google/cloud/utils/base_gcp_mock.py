@@ -29,7 +29,7 @@ def mock_base_gcp_hook_default_project_id(
     delegate_to=None,
     impersonation_chain=None,
 ):
-    self.extras = {'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST}
+    self.extras_list = {'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST}
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
     self.impersonation_chain = impersonation_chain
@@ -45,7 +45,7 @@ def mock_base_gcp_hook_no_default_project_id(
     delegate_to=None,
     impersonation_chain=None,
 ):
-    self.extras = {}
+    self.extras_list = {}
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to
     self.impersonation_chain = impersonation_chain

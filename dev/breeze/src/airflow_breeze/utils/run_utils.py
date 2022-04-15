@@ -163,8 +163,7 @@ def get_filesystem_type(filepath):
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
-    console.print('Please run this command at earliest convenience:\n')
-    console.print(f'      `./breeze build-image --python {python}`\n')
+    print(f"\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
 
 
 @contextlib.contextmanager
@@ -312,3 +311,11 @@ def filter_out_none(**kwargs) -> Dict[str, str]:
         if kwargs[key] is None:
             kwargs.pop(key)
     return kwargs
+
+
+def get_return_code(process: Optional[subprocess.CompletedProcess], dry_run: bool):
+    if process:
+        return process.returncode
+    if dry_run:
+        return 0
+    return 1

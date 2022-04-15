@@ -303,7 +303,7 @@ function initialization::initialize_force_variables() {
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
-    export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:=""}
+    export ANSWER=${ANSWER:=""}
 
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
@@ -354,9 +354,6 @@ function initialization::initialize_host_variables() {
 
 # Determine image augmentation parameters
 function initialization::initialize_image_build_variables() {
-    # Default extras used for building CI image
-    export DEFAULT_CI_EXTRAS="devel_ci"
-
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
@@ -416,8 +413,8 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK:=""}
-    export SKIP_TWINE_CHECK
+    SKIP_PACKAGE_VERIFICATION=${SKIP_PACKAGE_VERIFICATION:=""}
+    export SKIP_PACKAGE_VERIFICATION
 
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
@@ -494,13 +491,6 @@ function initialization::initialize_image_build_variables() {
 
     # whether images should be pushed to registry cache after they are built
     export PREPARE_BUILDX_CACHE=${PREPARE_BUILDX_CACHE:="false"}
-}
-
-# Determine version suffixes used to build provider packages
-function initialization::initialize_provider_package_building() {
-    # Version suffix for PyPI packaging
-    export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
-
 }
 
 # Determine versions of kubernetes cluster and tools used
@@ -603,15 +593,6 @@ function initialization::initialize_test_variables() {
 
 }
 
-function initialization::initialize_package_variables() {
-    # default package format
-    export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
-    # default version suffixes
-    export VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
-    export VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
-}
-
-
 function initialization::set_output_color_variables() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -638,19 +619,57 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
     initialization::initialize_virtualenv_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
-    initialization::initialize_package_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
     # default version of python used to tag the "main" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.7
     export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}}
+}
+
+
+# Retrieves GitHub Container Registry image prefix from repository name
+# GitHub Container Registry stores all images at the organization level, they are just
+# linked to the repository via docker label - however we assume a convention where we will
+# add repository name to organisation separated by '-' and convert everything to lowercase
+# this is because in order for it to work for internal PR for users or other organisation's
+# repositories, the other organisations and repositories can be uppercase
+# container registry image name has to be lowercase
+function initialization::get_github_container_registry_image_prefix() {
+    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
+}
+
+function initialization::get_docker_cache_image_names() {
+    # Python base image to use
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-${DEBIAN_VERSION}"
+
+    local image_name
+    image_name="ghcr.io/$(initialization::get_github_container_registry_image_prefix)"
+
+    # Example:
+    #  ghcr.io/apache/airflow/main/ci/python3.8
+    export AIRFLOW_CI_IMAGE="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}"
+
+    # Example:
+    #  ghcr.io/apache/airflow/main/ci/python3.8:latest
+    #  ghcr.io/apache/airflow/main/ci/python3.8:<COMMIT_SHA>
+    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+
+    # File that is touched when the CI image is built for the first time locally
+    export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
+
+    # Example:
+    #  ghcr.io/apache/airflow/main/prod/python3.8
+    export AIRFLOW_PROD_IMAGE="${image_name}/${BRANCH_NAME}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
+
+    # Kubernetes image to build
+    #  ghcr.io/apache/airflow/main/kubernetes/python3.8
+    export AIRFLOW_IMAGE_KUBERNETES="${image_name}/${BRANCH_NAME}/kubernetes/python${PYTHON_MAJOR_MINOR_VERSION}"
 }
 
 function initialization::summarize_build_environment() {
@@ -672,7 +691,7 @@ Mount variables:
 Force variables:
 
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
-    FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
+    ANSWER: ${ANSWER}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
 
 Host variables:
@@ -682,10 +701,6 @@ Host variables:
     HOST_OS=${HOST_OS}
     HOST_HOME=${HOST_HOME}
 
-Version suffix variables:
-
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-
 Git variables:
 
     COMMIT_SHA = ${COMMIT_SHA}
@@ -694,6 +709,10 @@ Verbosity variables:
 
     VERBOSE: ${VERBOSE}
     VERBOSE_COMMANDS: ${VERBOSE_COMMANDS}
+
+Version suffix variables:
+
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 Common image build variables:
 
@@ -831,7 +850,7 @@ function initialization::make_constants_read_only() {
 
     # The FORCE_* variables are missing here because they are not constant - they are just exported variables.
     # Their value might change during the script execution - for example when during the
-    # pre-commit the answer is "no", we set the FORCE_ANSWER_TO_QUESTIONS to "no"
+    # pre-commit the answer is "no", we set the ANSWER to "no"
     # for all subsequent questions. Also in CI environment we first force pulling and building
     # the images but then we disable it so that in subsequent steps the image is reused.
     # similarly CHECK_IMAGE_FOR_REBUILD variable.
@@ -878,8 +897,6 @@ function initialization::make_constants_read_only() {
     readonly FORWARD_CREDENTIALS
 
     readonly EXTRA_STATIC_CHECK_OPTIONS
-
-    readonly VERSION_SUFFIX_FOR_PYPI
 
     readonly PYTHON_BASE_IMAGE
     readonly AIRFLOW_IMAGE_KUBERNETES
