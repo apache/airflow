@@ -164,8 +164,8 @@ the dependencies as shown below.
 Reusing a decorated task
 -------------------------
 
-Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the operator
-parameters such as the ``task_id``, ``queue``, ``pool``, etc., as well as the task's arguments.
+Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the task
+parameters such as the ``task_id``, ``queue``, ``pool``, etc.
 
 Below is an example of how you can reuse a decorated task in multiple DAGs:
 
@@ -211,9 +211,7 @@ Suppose the ``add_task`` code lives in a file called ``common.py``. You can do t
     def use_add_task():
         start = add_task.override(priority_weight=3)(1, 2)
         for i in range(3):
-            start >> add_task.override(task_id=f"new_add_task_{i}", pool="default_pool")(
-                start, i
-            )
+            start >> add_task.override(task_id=f"new_add_task_{i}", retries=4)(start, i)
 
 
     created_dag = use_add_task()
