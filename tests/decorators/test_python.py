@@ -519,8 +519,9 @@ class TestAirflowTaskDecorator:
         with self.dag:
             for i in range(3):
                 hello.override(task_id=f'my_task_id_{i * 2}')()
+            hello()  # This task would have hello_task as the task_id
 
-        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4']
+        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4', 'hello_task']
 
     def test_user_provided_pool_and_priority_weight_works(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
