@@ -135,6 +135,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         cpu: Optional[Any] = None,
         gpu: Optional[Any] = None,
         command: Optional[List[str]] = None,
+        container_timeout: Optional[timedelta] = None,
         remove_on_error: bool = True,
         fail_if_exists: bool = True,
         tags: Optional[Dict[str, str]] = None,
@@ -159,6 +160,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.cpu = cpu or DEFAULT_CPU
         self.gpu = gpu
         self.command = command
+        self.container_timeout = container_timeout
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
         self._ci_hook: Any = None
