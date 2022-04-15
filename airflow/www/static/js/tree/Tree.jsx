@@ -42,7 +42,7 @@ import Details from './details';
 import { useSelection } from './context/selection';
 import { useAutoRefresh } from './context/autorefresh';
 
-const sidePanelKey = 'showSidePanel';
+const sidePanelKey = 'hideSidePanel';
 
 const Tree = () => {
   const scrollRef = useRef();
@@ -50,16 +50,16 @@ const Tree = () => {
   const [tableWidth, setTableWidth] = useState('100%');
   const { data: { groups = {}, dagRuns = [] } } = useTreeData();
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
-  const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
+  const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
 
   const { clearSelection } = useSelection();
   const toggleSidePanel = () => {
     if (!isOpen) {
-      localStorage.setItem(sidePanelKey, true);
+      localStorage.setItem(sidePanelKey, false);
     } else {
       clearSelection();
-      localStorage.setItem(sidePanelKey, false);
+      localStorage.setItem(sidePanelKey, true);
     }
     onToggle();
   };
