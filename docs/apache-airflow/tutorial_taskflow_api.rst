@@ -170,6 +170,7 @@ parameters such as the ``task_id``, ``queue``, ``pool``, etc.
 Below is an example of how you can reuse a decorated task in multiple DAGs:
 
 .. code-block:: python
+
     from airflow.decorators import task, dag
     from datetime import datetime
 
