@@ -55,7 +55,7 @@ let subdagId = '';
 let dagRunId = '';
 let mapIndex;
 let showBack = false;
-let mapLength = 0;
+let mapStates = [];
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -149,7 +149,7 @@ export function callModal({
   dagRunId: drID,
   mapIndex: mi,
   isMapped = false,
-  mappedLength = 0,
+  mappedStates = [],
 }) {
   taskId = t;
   const location = String(window.location);
@@ -160,7 +160,7 @@ export function callModal({
   dagRunId = drID;
   mapIndex = mi;
   if (isMapped) {
-    mapLength = mappedLength;
+    mapStates = mappedStates;
   }
   if (showBack) {
     $('#btn_back').show();
@@ -203,10 +203,10 @@ export function callModal({
   }
 
   if (isMapped) {
-    $('#mapped_dropdown #dropdown-label').text(`Mapped Instances [${mappedLength}]`);
+    $('#mapped_dropdown #dropdown-label').text(`Mapped Instances [${mappedStates.length}]`);
     $('#mapped_dropdown .dropdown-menu').empty();
-    [...Array(mappedLength)].forEach((_, i) => {
-      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i}</a></li>`);
+    mappedStates.forEach((state, i) => {
+      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i} - ${state}</a></li>`);
     });
     $('#btn_mapped').show();
     $('#mapped_dropdown').css('display', 'inline-block');
@@ -327,7 +327,7 @@ $(document).on('click', '#btn_back', () => {
     dagRunId,
     mapIndex: -1,
     isMapped: true,
-    mappedLength: mapLength,
+    mappedStates: mapStates,
   });
 });
 

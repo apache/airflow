@@ -182,8 +182,8 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
-      let mappedLength = 0;
-      if (task.is_mapped) mappedLength = taskInstances[nodeId].mapped_states.length;
+      let mappedStates = [];
+      if (task.is_mapped) mappedStates = taskInstances[nodeId].mapped_states;
 
       callModal({
         taskId: nodeId,
@@ -194,7 +194,7 @@ function draw() {
         dagRunId,
         mapIndex: task.map_index,
         isMapped: task.is_mapped,
-        mappedLength,
+        mappedStates,
       });
     }
   });
