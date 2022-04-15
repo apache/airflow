@@ -1438,14 +1438,14 @@ but you can override it with ``RECORD_BREEZE_WIDTH`` and ``RECORD_BREEZE_TITLE``
 
 Uninstalling Breeze
 ===================
-Breeze was installed with ``pix``, with ``pipx list``, you can list the installed packages.
-Once you have the name of the package you can proceed to uninstall it.
+Breeze was installed with ``pipx``, with ``pipx list``, you can list the installed packages.
+Once you have the name of ``breeze`` package you can proceed to uninstall it.
 
 .. code-block:: bash
 
     pipx list
 
-This will also remove breeze from the folder: ${HOME}.local/bin/
+This will also remove breeze from the folder: ``${HOME}.local/bin/``
 
 .. code-block:: bash
 
