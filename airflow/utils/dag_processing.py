@@ -508,6 +508,10 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
         :param processor_timeout: How long to wait before timing out a DAG file processor
         :type processor_timeout: timedelta
+        :param dag_ids: if specified, only schedule tasks with these DAG IDs
+        :type dag_ids: list[str]
+        :param pickle_dags: whether to pickle DAGs.
+        :type pickle_dags:bool
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
         """
@@ -1243,8 +1247,9 @@ class DagFileProcessorManager(LoggingMixin):
         """
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, self._zombies,
-                                                self._dag_ids, self._pickle_dags)
+            processor = self._processor_factory(
+                file_path, self._zombies, self._dag_ids, self._pickle_dags,
+            )
             Stats.incr('dag_processing.processes')
 
             processor.start()
