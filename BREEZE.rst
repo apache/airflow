@@ -1440,8 +1440,13 @@ Uninstalling Breeze
 ===================
 Breeze was installed with ``pix``, with ``pipx list``, you can list the installed packages.
 Once you have the name of the package you can proceed to uninstall it.
+
 .. code-block:: bash
+
     pipx list
+
 This will also remove breeze from the folder: ${HOME}.local/bin/
+
 .. code-block:: bash
+
     pipx uninstall apache-airflow-breeze
