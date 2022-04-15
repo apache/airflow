@@ -450,8 +450,9 @@ function handleRefresh() {
         setTimeout(() => { $('#loading-dots').hide(); }, 500);
         $('#error').hide();
       },
-    ).fail((_, textStatus, err) => {
-      $('#error_msg').text(`${textStatus}: ${err}`);
+    ).fail((response, textStatus, err) => {
+      const description = (response.responseJSON && response.responseJSON.error) || 'Something went wrong.';
+      $('#error_msg').text(`${textStatus}: ${err} ${description}`);
       $('#error').show();
       setTimeout(() => { $('#loading-dots').hide(); }, 500);
       $('#chart_section').hide(1000);
