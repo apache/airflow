@@ -161,13 +161,13 @@ the dependencies as shown below.
     :end-before: [END main_flow]
 
 
-Re-using a decorated task
+Reusing a decorated task
 -------------------------
 
-Decorated tasks are flexible. You can re-use a decorated task in multiple DAGs, overriding the operator
-parameters such as the ``task_id``, ``queue``, ``pool``, etc, as well as the task's arguments.
+Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the operator
+parameters such as the ``task_id``, ``queue``, ``pool``, etc., as well as the task's arguments.
 
-Below is an example of how you can re-use a decorated task in multiple DAGs:
+Below is an example of how you can reuse a decorated task in multiple DAGs:
 
 .. code-block:: python
     from airflow.decorators import task, dag
@@ -198,7 +198,7 @@ Below is an example of how you can re-use a decorated task in multiple DAGs:
     second_dag = mydag2()
 
 You can also import the above ``add_task`` and use it in another DAG file.
-Suppose the code above lives in a file called ``common.py``. You can do this:
+Suppose the ``add_task`` code lives in a file called ``common.py``. You can do this:
 
 .. code-block:: python
 
