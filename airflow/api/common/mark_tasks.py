@@ -119,10 +119,7 @@ def set_state(
     if execution_date and not timezone.is_localized(execution_date):
         raise ValueError(f"Received non-localized date {execution_date}")
 
-    task_dags = {
-        task[0].dag if isinstance(task, tuple) else task.dag
-        for task in tasks
-    }
+    task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
     if len(task_dags) > 1:
         raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
     dag = next(iter(task_dags))
@@ -137,6 +134,12 @@ def set_state(
     dag_run_ids = get_run_ids(dag, run_id, future, past)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
     task_ids = [task_id for task_id, _ in task_id_map_index_list]
+    # check if task_id_map_index_list contains map_index of None
+    # if it contains None, there was no map_index supplied for the task
+    for _, index in task_id_map_index_list:
+        if index is None:
+            task_id_map_index_list = [task_id for task_id, _ in task_id_map_index_list]
+            break
 
     confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
@@ -183,20 +186,26 @@ def get_all_dag_task_query(
     dag: DAG,
     session: SASession,
     state: TaskInstanceState,
-    task_id_map_index_list: List[Tuple[str, int]],
+    task_ids: Union[List[str], List[Tuple[str, int]]],
     confirmed_dates: Iterable[datetime],
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
+    is_string_list = isinstance(task_ids[0], str)
     qry_dag = (
         session.query(TaskInstance)
         .join(TaskInstance.dag_run)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             DagRun.execution_date.in_(confirmed_dates),
-            tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(task_id_map_index_list),
         )
-        .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
-        .options(contains_eager(TaskInstance.dag_run))
+    )
+
+    if is_string_list:
+        qry_dag = qry_dag.filter(TaskInstance.task_id.in_(task_ids))
+    else:
+        qry_dag = qry_dag.filter(tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(task_ids))
+    qry_dag = qry_dag.filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
+        contains_eager(TaskInstance.dag_run)
     )
     return qry_dag
 
@@ -278,7 +287,7 @@ def find_task_relatives(tasks, downstream, upstream):
         if isinstance(item, tuple):
             task, map_index = item
         else:
-            task, map_index = item, -1
+            task, map_index = item, None
         yield task.task_id, map_index
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):

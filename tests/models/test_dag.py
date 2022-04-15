@@ -1456,7 +1456,7 @@ class TestDag(unittest.TestCase):
         session.flush()
 
         dag.clear(
-            task_ids_and_map_indexes=[(task_id, 0)],
+            task_ids=[(task_id, 0)],
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             dag_run_state=dag_run_state,

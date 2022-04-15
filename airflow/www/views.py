@@ -1962,7 +1962,7 @@ class Airflow(AirflowBaseView):
         start_date,
         end_date,
         origin,
-        task_id_map_index_list=None,
+        task_ids=None,
         recursive=False,
         confirmed=False,
         only_failed=False,
@@ -1971,7 +1971,7 @@ class Airflow(AirflowBaseView):
             count = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
-                task_ids_and_map_indexes=task_id_map_index_list,
+                task_ids=task_ids,
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
@@ -1984,7 +1984,7 @@ class Airflow(AirflowBaseView):
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
-                task_ids_and_map_indexes=task_id_map_index_list,
+                task_ids=task_ids,
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
@@ -2026,14 +2026,7 @@ class Airflow(AirflowBaseView):
         task_id = request.form.get('task_id')
         origin = get_safe_url(request.form.get('origin'))
         dag = current_app.dag_bag.get_dag(dag_id)
-
-        map_indexes = request.form.get('map_indexes')
-        if map_indexes:
-            if not isinstance(map_indexes, list):
-                map_indexes = list(map_indexes)
-        else:
-            map_indexes = [-1]
-        task_id_map_indexes = [(task_id, map_index) for map_index in map_indexes]
+        map_index = request.form.get('map_index')
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
@@ -2052,13 +2045,13 @@ class Airflow(AirflowBaseView):
         )
         end_date = execution_date if not future else None
         start_date = execution_date if not past else None
-
+        task_ids = [(task_id, map_index)] if map_index else [task_id]
         return self._clear_dag_tis(
             dag,
             start_date,
             end_date,
             origin,
-            task_id_map_index_list=task_id_map_indexes,
+            task_ids=task_ids,
             recursive=recursive,
             confirmed=confirmed,
             only_failed=only_failed,
@@ -2300,7 +2293,7 @@ class Airflow(AirflowBaseView):
         future,
         past,
         state,
-        map_indexes=None,
+        map_index=None,
     ):
         dag = current_app.dag_bag.get_dag(dag_id)
         latest_execution_date = dag.get_latest_execution_date()
@@ -2311,7 +2304,7 @@ class Airflow(AirflowBaseView):
 
         altered = dag.set_task_instance_state(
             task_id=task_id,
-            map_indexes=map_indexes,
+            map_index=map_index,
             run_id=dag_run_id,
             state=state,
             upstream=upstream,
@@ -2339,12 +2332,7 @@ class Airflow(AirflowBaseView):
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
         origin = args.get('origin')
-        map_indexes = args.get('map_indexes')
-        if map_indexes:
-            if not isinstance(map_indexes, list):
-                map_indexes = list(map_indexes)
-        else:
-            map_indexes = [-1]
+        map_index = args.get('map_index')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2379,8 +2367,10 @@ class Airflow(AirflowBaseView):
 
         from airflow.api.common.mark_tasks import set_state
 
+        tasks = [(task, map_index)] if map_index else [task]
+
         to_be_altered = set_state(
-            tasks=[(task, map_index) for map_index in map_indexes],
+            tasks=tasks,
             run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
@@ -2420,12 +2410,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         origin = get_safe_url(args.get('origin'))
         dag_run_id = args.get('dag_run_id')
-        map_indexes = args.get('map_indexes')
-        if map_indexes:
-            if not isinstance(map_indexes, list):
-                map_indexes = list(map_indexes)
-        else:
-            map_indexes = [-1]
+        map_index = args.get('map_index')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2442,7 +2427,7 @@ class Airflow(AirflowBaseView):
             future,
             past,
             State.FAILED,
-            map_indexes=map_indexes,
+            map_index=map_index,
         )
 
     @expose('/success', methods=['POST'])
@@ -2460,12 +2445,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         origin = get_safe_url(args.get('origin'))
         dag_run_id = args.get('dag_run_id')
-        map_indexes = args.get('map_indexes')
-        if map_indexes:
-            if not isinstance(map_indexes, list):
-                map_indexes = list(map_indexes)
-        else:
-            map_indexes = [-1]
+        map_index = args.get('map_index')
 
         upstream = to_boolean(args.get('upstream'))
         downstream = to_boolean(args.get('downstream'))
@@ -2482,7 +2462,7 @@ class Airflow(AirflowBaseView):
             future,
             past,
             State.SUCCESS,
-            map_indexes=map_indexes,
+            map_index=map_index,
         )
 
     @expose('/dags/<string:dag_id>')
