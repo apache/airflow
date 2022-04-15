@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -36,6 +38,39 @@ class RedshiftHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
+
+    def create_cluster(
+        self,
+        cluster_identifier: str,
+        node_type: str,
+        master_username: str,
+        master_user_password: str,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Creates a new cluster with the specified parameters
+
+        :param cluster_identifier: A unique identifier for the cluster.
+        :param node_type: The node type to be provisioned for the cluster.
+            Valid Values: ``ds2.xlarge | ds2.8xlarge | dc1.large | dc1.8xlarge
+            | dc2.large | dc2.8xlarge | ra3.xlplus | ra3.4xlarge | ra3.16xlarge``
+        :param master_username: The username associated with the admin user account
+            for the cluster that is being created.
+        :param master_user_password: password associated with the admin user account
+            for the cluster that is being created.
+        :param params: Remaining AWS Create cluster API params.
+        """
+        try:
+            response = self.get_conn().create_cluster(
+                ClusterIdentifier=cluster_identifier,
+                NodeType=node_type,
+                MasterUsername=master_username,
+                MasterUserPassword=master_user_password,
+                **params,
+            )
+            return response
+        except ClientError as e:
+            raise e
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier: str) -> str:

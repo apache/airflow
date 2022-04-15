@@ -22,6 +22,7 @@ from os import getenv
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
+    RedshiftCreateClusterOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -36,6 +37,17 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    # [START howto_operator_redshift_cluster]
+    task_create_cluster = RedshiftCreateClusterOperator(
+        task_id="redshift_create_cluster",
+        cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+        cluster_type="single-node",
+        node_type="dc2.large",
+        master_username="adminuser",
+        master_user_password="dummypass",
+    )
+    # [END howto_operator_redshift_cluster]
+
     # [START howto_sensor_redshift_cluster]
     task_wait_cluster_available = RedshiftClusterSensor(
         task_id='sensor_redshift_cluster_available',
@@ -68,4 +80,10 @@ with DAG(
     )
     # [END howto_operator_redshift_resume_cluster]
 
-    chain(task_wait_cluster_available, task_pause_cluster, task_wait_cluster_paused, task_resume_cluster)
+    chain(
+        task_create_cluster,
+        task_wait_cluster_available,
+        task_pause_cluster,
+        task_wait_cluster_paused,
+        task_resume_cluster,
+    )

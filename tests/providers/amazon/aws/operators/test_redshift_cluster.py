@@ -18,9 +18,55 @@
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
+    RedshiftCreateClusterOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
+
+
+class TestRedshiftCreateClusterOperator:
+    def test_init(self):
+        redshift_operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            node_type="dc2.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+        )
+        assert redshift_operator.task_id == "task_test"
+        assert redshift_operator.cluster_identifier == "test_cluster"
+        assert redshift_operator.node_type == "dc2.large"
+        assert redshift_operator.master_username == "adminuser"
+        assert redshift_operator.master_user_password == "Test123$"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    def test_create_cluster(self, mock_get_conn):
+        redshift_operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="dc2.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+        )
+        redshift_operator.execute(None)
+        params = {
+            "DBName": "dev",
+            "ClusterType": "single-node",
+            "NumberOfNodes": 1,
+            "AutomatedSnapshotRetentionPeriod": 1,
+            "ClusterVersion": "1.0",
+            "AllowVersionUpgrade": True,
+            "PubliclyAccessible": True,
+            "Port": 5439,
+        }
+        mock_get_conn.return_value.create_cluster.assert_called_once_with(
+            ClusterIdentifier='test-cluster',
+            NodeType="dc2.large",
+            MasterUsername="adminuser",
+            MasterUserPassword="Test123$",
+            **params,
+        )
 
 
 class TestResumeClusterOperator:
