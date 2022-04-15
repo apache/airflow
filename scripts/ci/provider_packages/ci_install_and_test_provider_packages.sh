@@ -27,6 +27,9 @@ if [[ ${PACKAGE_FORMAT} != "wheel" && ${PACKAGE_FORMAT} != "sdist" ]]; then
     exit 3
 fi
 
+AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS="all"}
+export AIRFLOW_EXTRAS
+
 function run_test_package_import_all_classes() {
     # Groups are added internally
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
@@ -41,9 +44,5 @@ function run_test_package_import_all_classes() {
         "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         "/opt/airflow/scripts/in_container/run_install_and_test_provider_packages.sh"
 }
-
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed_with_group
 
 run_test_package_import_all_classes

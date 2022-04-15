@@ -222,7 +222,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``markdownlint``                       Lints Markdown files
 ------------------------------------ ---------------------------------------------------------------- ------------
-``migration-reference``                Update migration reference doc and revision metadata
+``migration-reference``                Update migration reference doc and revision metadata                 *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``mixed-line-ending``                  Detects if mixed line ending is used (\r vs. \r\n)
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -272,7 +272,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``trailing-whitespace``                Removes trailing whitespace at end of line
 ------------------------------------ ---------------------------------------------------------------- ------------
-``ui-lint``                            Static checks of airflow/ui/ folder
+``ui-lint``                            Static checks of airflow/ui/ folder                                 *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-breeze-file``                 Update output of breeze commands in BREEZE.rst
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -294,7 +294,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``verify-db-migrations-documented``    Verify DB Migrations have been documented
 ------------------------------------ ---------------------------------------------------------------- ------------
-``www-lint``                           Static checks of js in airflow/www/static/js/ folder
+``www-lint``                           Static checks of js in airflow/www/static/js/ folder                *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``yesqa``                              Removes unnecessary noqa statements
 ------------------------------------ ---------------------------------------------------------------- ------------

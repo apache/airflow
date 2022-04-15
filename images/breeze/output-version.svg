@@ -117,7 +117,7 @@
                         <div><span class="r2">                                                                                                                        </span></div>
 <div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze version [OPTIONS]                                                                                        </span></div>
 <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Prints version of breeze.py.                                                                                          </span><span class="r1"> </span></div>
+<div><span class="r1"> </span><span class="r1">Print information about version of apache-airflow-breeze.                                                             </span><span class="r1"> </span></div>
 <div><span class="r1">                                                                                                                        </span></div>
 <div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">  </span><span class="r6">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                                                   </span><span class="r1">  </span><span class="r4">│</span></div>

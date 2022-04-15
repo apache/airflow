@@ -501,7 +501,7 @@ You can use ``docker-context-files`` for the following purposes:
 
 
 * you can place ``.whl`` packages that you downloaded and install them with
-  ``INSTALL_DOCKER_CONTEXT_FILES`` set to ``true`` . It's useful if you build the image in
+  ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` set to ``true`` . It's useful if you build the image in
   restricted security environments (see: :ref:`image-build-secure-environments` for details):
 
 .. exampleinclude:: docker-examples/restricted/restricted_environments.sh
