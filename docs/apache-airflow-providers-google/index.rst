@@ -91,7 +91,7 @@ PIP package                             Version required
 ======================================  ====================
 ``apache-airflow``                      ``>=2.1.0``
 ``PyOpenSSL``
-``google-ads``                          ``>=12.0.0,<14.0.1``
+``google-ads``                          ``>=15.1.1``
 ``google-api-core``                     ``>=1.25.1,<3.0.0``
 ``google-api-python-client``            ``>=1.6.0,<2.0.0``
 ``google-auth-httplib2``                ``>=0.0.1``

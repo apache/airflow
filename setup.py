@@ -324,10 +324,7 @@ google = [
     # Introduced breaking changes across the board. Those libraries should be upgraded soon
     # TODO: Upgrade all Google libraries that are limited to <2.0.0
     'PyOpenSSL',
-    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
-    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
-    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
-    'google-ads>=12.0.0,<14.0.1',
+    'google-ads>=15.1.1',
     'google-api-core>=2.7.0,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0',
