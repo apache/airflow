@@ -43,6 +43,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         self._job_id: Optional[str] = None
         self.local_executor = local_executor
         self.kubernetes_executor = kubernetes_executor
+        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
     def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:
