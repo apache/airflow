@@ -506,6 +506,63 @@ class TestAirflowTaskDecorator:
 
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
 
+    def test_user_provided_task_id_in_a_loop_is_used(self):
+        """Tests that when looping that user provided task_id is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(task_id=f'my_task_id_{i * 2}')()
+            hello()  # This task would have hello_task as the task_id
+
+        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4', 'hello_task']
+
+    def test_user_provided_pool_and_priority_weight_works(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(pool='my_pool', priority_weight=i)()
+
+        weights = []
+        for task in self.dag.tasks:
+            assert task.pool == 'my_pool'
+            weights.append(task.priority_weight)
+        assert weights == [0, 1, 2]
+
+    def test_python_callable_args_work_as_well_as_baseoperator_args(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello(x, y):
+            """
+            Print Hello world
+            """
+            print("Hello world", x, y)
+            return x, y
+
+        with self.dag:
+            output = hello.override(task_id='mytask')(x=2, y=3)
+            output2 = hello.override()(2, 3)  # nothing overridden but should work
+
+        assert output.operator.op_kwargs == {'x': 2, 'y': 3}
+        assert output2.operator.op_args == (2, 3)
+        output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
 
 def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
