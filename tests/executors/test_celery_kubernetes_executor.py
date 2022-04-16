@@ -220,4 +220,4 @@ class TestCeleryKubernetesExecutor:
         k8s_executor_mock = mock.MagicMock()
         CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
 
-        assert k8s_executor_mock.kubernetes_queue == conf.get('local_kubernetes_executor', 'kubernetes_queue')
+        assert k8s_executor_mock.kubernetes_queue == conf.get('celery_kubernetes_executor', 'kubernetes_queue')
