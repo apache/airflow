@@ -60,3 +60,10 @@ class TestLocalKubernetesExecutor:
 
         # Should be equal to Local Executor default parallelism.
         assert local_kubernetes_executor.slots_available == conf.getint('core', 'PARALLELISM')
+
+    def test_kubernetes_executor_knows_its_queue(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+
+        assert k8s_executor_mock.kubernetes_queue == conf.get('local_kubernetes_executor', 'kubernetes_queue')
