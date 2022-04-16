@@ -3377,7 +3377,9 @@ class Airflow(AirflowBaseView):
         if dttm:
             dttm = timezone.parse(dttm)
         else:
-            return "Error: Invalid execution_date"
+            response = jsonify({'error': f"Invalid execution_date {dttm}"})
+            response.status_code = 400
+            return response
 
         with create_session() as session:
             task_instances = {

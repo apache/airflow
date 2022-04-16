@@ -385,6 +385,9 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
 
+    def override(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+        return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
+
 
 def _merge_kwargs(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> Dict[str, Any]:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
