@@ -61,7 +61,7 @@ click_execution_date_or_run_id = click.argument(
 click_log_file = click.option(
     "-l",
     "--log-file",
-    type=click.Path(exists=True, dir_okay=False, writable=True),
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Location of the log file",
 )
 click_output = click.option(
@@ -71,7 +71,7 @@ click_output = click.option(
     default="table",
     help="Output format.",
 )
-click_pid = click.option("--pid", type=click.Path(exists=True), help="PID file location")
+click_pid = click.option("--pid", type=click.Path(exists=False), help="PID file location")
 click_start_date = click.option(
     "-s",
     "--start-date",
@@ -80,12 +80,12 @@ click_start_date = click.option(
 )
 click_stderr = click.option(
     "--stderr",
-    type=click.Path(exists=True, dir_okay=False, writable=True),
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Redirect stderr to this file",
 )
 click_stdout = click.option(
     "--stdout",
-    type=click.Path(exists=True, dir_okay=False, writable=True),
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Redirect stdout to this file",
 )
 click_subdir = click.option(
