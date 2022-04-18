@@ -204,7 +204,7 @@ To clean up the Docker environment:
 
 1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
 
-2. Run the ``breeze clup`` command.
+2. Run the ``breeze cleanup`` command.
 
 3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
 
@@ -386,7 +386,7 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Those are all available flags of ``config`` command:
+Those are all available flags of ``cog`` command:
 
 .. image:: ./images/breeze/output-config.svg
   :width: 100%
