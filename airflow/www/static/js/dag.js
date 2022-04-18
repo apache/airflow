@@ -54,7 +54,6 @@ let executionDate = '';
 let subdagId = '';
 let dagRunId = '';
 let mapIndex;
-let showBack = false;
 let mapStates = [];
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
@@ -107,15 +106,8 @@ function updateModalUrls() {
   updateButtonUrl(buttons.ti, {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
-    _flt_3_map_index: mapIndex,
+    _flt_0_map_index: mapIndex,
     _oc_TaskInstanceModelView: 'dag_run.execution_date',
-  });
-
-  updateButtonUrl(buttons.mapped, {
-    _flt_3_dag_id: dagId,
-    _flt_3_task_id: taskId,
-    _flt_3_run_id: dagRunId,
-    _oc_TaskInstanceModelView: 'map_index',
   });
 
   updateButtonUrl(buttons.log, {
@@ -162,11 +154,6 @@ export function callModal({
   if (isMapped) {
     mapStates = mappedStates;
   }
-  if (showBack) {
-    $('#btn_back').show();
-  } else {
-    $('#btn_back').hide();
-  }
   $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
@@ -175,15 +162,11 @@ export function callModal({
   $('#extra_links').prev('hr').hide();
   $('#extra_links').empty().hide();
   if (mi >= 0) {
-    $('#modal_map_index').show();
-    $('#modal_map_index .value').text(mi);
     // Marking state and clear are not yet supported for mapped instances
     $('#success_action').hide();
     $('#failed_action').hide();
     $('#clear_action').hide();
   } else {
-    $('#modal_map_index').hide();
-    $('#modal_map_index .value').text('');
     $('#success_action').show();
     $('#failed_action').show();
     $('#clear_action').show();
@@ -196,29 +179,42 @@ export function callModal({
     subdagId = undefined;
   }
 
-  if (isMapped || mapIndex >= 0) {
-    $('#mapped_instances').show();
+  // Show a span or dropdown for mapIndex
+  if (mi >= 0 && !mapStates.length) {
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text(mi);
+    $('#mapped_dropdown').hide();
+  } else if (mi >= 0 || isMapped) {
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text('');
+    $('#mapped_dropdown').show();
+
+    const dropdownText = mapIndex > -1 ? mapIndex : `All  ${mapStates.length} Mapped Instances`;
+    $('#mapped_dropdown #dropdown-label').text(dropdownText);
+    $('#mapped_dropdown .dropdown-menu').empty();
+    $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="all">All ${mapStates.length} Mapped Instances</a></li>`);
+    mapStates.forEach((state, i) => {
+      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i} - ${state}</a></li>`);
+    });
   } else {
-    $('#mapped_instances').hide();
+    $('#modal_map_index').hide();
+    $('#modal_map_index .value').text('');
+    $('#mapped_dropdown').hide();
   }
 
   if (isMapped) {
-    $('#mapped_dropdown #dropdown-label').text(`Mapped Instances [${mappedStates.length}]`);
-    $('#mapped_dropdown .dropdown-menu').empty();
-    mappedStates.forEach((state, i) => {
-      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i} - ${state}</a></li>`);
-    });
+    $('#task_actions').text(`Task Actions for all ${mappedStates.length} instances`);
     $('#btn_mapped').show();
     $('#mapped_dropdown').css('display', 'inline-block');
     $('#btn_rendered').hide();
     $('#btn_xcom').hide();
     $('#btn_log').hide();
   } else {
+    $('#task_actions').text('Task Actions');
     $('#btn_rendered').show();
     $('#btn_xcom').show();
     $('#btn_log').show();
     $('#btn_mapped').hide();
-    $('#mapped_dropdown').hide();
   }
 
   $('#dag_dl_logs').hide();
@@ -309,55 +305,29 @@ export function callModal({
 // Switch the modal from a mapped task summary to a specific mapped task instance
 $(document).on('click', '.map_index_item', function mapItem() {
   const mi = $(this).attr('data-mapIndex');
-  showBack = true;
-  callModal({
-    taskId,
-    executionDate,
-    dagRunId,
-    mapIndex: mi,
-  });
-});
-
-// Switch from a mapped task instance back to a mapped task summary
-$(document).on('click', '#btn_back', () => {
-  showBack = false;
-  callModal({
-    taskId,
-    executionDate,
-    dagRunId,
-    mapIndex: -1,
-    isMapped: true,
-    mappedStates: mapStates,
-  });
+  if (mi === 'all') {
+    callModal({
+      taskId,
+      executionDate,
+      dagRunId,
+      mapIndex: -1,
+      isMapped: true,
+      mappedStates: mapStates,
+    });
+  } else {
+    callModal({
+      taskId,
+      executionDate,
+      dagRunId,
+      mapIndex: mi,
+    });
+  }
 });
 
 // Task Instance Modal actions
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
-  if (dagRunId || executionDate) {
-    if (form.dag_run_id) {
-      form.dag_run_id.value = dagRunId;
-    }
-    if (form.execution_date) {
-      form.execution_date.value = executionDate;
-    }
-    form.origin.value = window.location;
-    if (form.task_id) {
-      form.task_id.value = taskId;
-    }
-    if (form.map_index) {
-      form.map_index.value = mapIndex === undefined ? '' : mapIndex;
-    }
-    form.action = $(this).data('action');
-    form.submit();
-  }
-});
-
-// DAG Modal actions
-$('form button[data-action]').on('click', function onClick() {
-  const form = $(this).closest('form').get(0);
   // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
   if (dagRunId || executionDate) {
     if (form.dag_run_id) {
