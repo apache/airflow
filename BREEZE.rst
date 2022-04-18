@@ -24,8 +24,8 @@
 
 .. contents:: :local:
 
-Airflow Breeze CI environment [TESSSSSSSSS]
-==========================================
+Airflow Breeze CI environment [TESSSS
+=====================================
 
 Airflow Breeze is an easy-to-use development and test environment using
 `Docker Compose <https://docs.docker.com/compose/>`_.

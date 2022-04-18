@@ -324,7 +324,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: ^BREEZE\.rst$|^dev/breeze/.*$
-        pass_filenames: false
+        always_run: true
         additional_dependencies: ['rich']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
