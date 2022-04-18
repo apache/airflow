@@ -204,7 +204,7 @@ To clean up the Docker environment:
 
 1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
 
-2. Run the ``breeze cleanup`` command.
+2. Run the ``breeze clup`` command.
 
 3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
 
