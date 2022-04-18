@@ -305,7 +305,7 @@ jobs:
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
@@ -384,7 +384,7 @@ jobs:
             cut -d "=" -f 3 | sed s'/["}]//g')
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
         run: airflow-freespace
@@ -504,20 +504,11 @@ jobs:
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
-      - name: "Free space"
-        run: airflow-freespace
-      - name: "Cache virtualenv environment"
-        uses: actions/cache@v2
-        with:
-          path: '.build/.docker_venv'
-          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
+          cache-dependency-path: ./dev/requirements.txt
       - name: "Test examples of PROD image building"
-        working-directory: docs/docker-stack/docker-examples
         run: >
-          python -m pytest ../../../docker_tests/test_examples_of_prod_image_building.py
-          -n auto --color=yes
+          python -m pip install -r ./docker_tests/requirements.txt &&
+          python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
@@ -537,7 +528,7 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Cache virtualenv environment"
@@ -568,7 +559,7 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Cache virtualenv environment"
@@ -613,7 +604,7 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -676,7 +667,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: >
           Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
@@ -726,7 +717,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -785,7 +776,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -841,7 +832,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -895,7 +886,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -960,7 +951,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1028,7 +1019,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1095,7 +1086,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1158,7 +1149,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1231,7 +1222,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: github.ref == 'refs/heads/v1-10-test'
         run: |
           echo "ISSUE_ID=10128" >> $GITHUB_ENV
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1325,7 +1316,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Cache virtualenv environment"
@@ -1386,7 +1377,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Get all PROD images: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1447,7 +1438,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Get all PROD images: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1519,7 +1510,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: >
@@ -1598,7 +1589,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Start ARM instance"

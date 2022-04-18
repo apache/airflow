@@ -221,7 +221,7 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Build/Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -312,7 +312,7 @@ jobs:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: airflow-freespace
       - name: "Pull CI image for PROD build: ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
