@@ -128,13 +128,17 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             'mode': 'REPEATED' if field[1] in (1009, 1005, 1007, 1016) else 'NULLABLE',
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, stringify_dict=True):
         """
         Takes a value from Postgres, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
         Timezone aware Datetime are converted to UTC seconds.
         Unaware Datetime, Date and Time are converted to ISO formatted strings.
         Decimals are converted to floats.
+
+        :param value: Postgres column value.
+        :param schema_type: BigQuery data type.
+        :param stringify_dict: Specify whether to convert dict to string.
         """
         if isinstance(value, datetime.datetime):
             iso_format_value = value.isoformat()
@@ -149,7 +153,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
                 hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
             )
             return str(time_delta)
-        if isinstance(value, dict):
+        if stringify_dict and isinstance(value, dict):
             return json.dumps(value)
         if isinstance(value, Decimal):
             return float(value)

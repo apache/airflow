@@ -164,9 +164,12 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_to_upload['file_handle'].close()
             counter += 1
 
-    def convert_types(self, schema, col_type_dict, row) -> list:
+    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
         """Convert values from DBAPI to output-friendly formats."""
-        return [self.convert_type(value, col_type_dict.get(name)) for name, value in zip(schema, row)]
+        return [
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            for name, value in zip(schema, row)
+        ]
 
     def _write_local_data_files(self, cursor):
         """
@@ -200,21 +203,20 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats.
-            # Convert binary type object to string encoded with base64.
-            row = self.convert_types(schema, col_type_dict, row)
-
             if self.export_format == 'csv':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 csv_writer.writerow(row)
             elif self.export_format == 'parquet':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 row_pydic = {col: [value] for col, value in zip(schema, row)}
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
+                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
@@ -287,7 +289,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """Convert a value from DBAPI to output-friendly formats."""
 
     def _get_col_type_dict(self):
