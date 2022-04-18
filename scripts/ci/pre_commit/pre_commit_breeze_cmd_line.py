@@ -99,4 +99,5 @@ def verify_breeze_installed():
 
 
 if __name__ == '__main__':
+    print("PRE COMMITS")
     verify_breeze_installed()
