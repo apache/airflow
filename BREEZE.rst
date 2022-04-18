@@ -386,7 +386,7 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Those are all available flags of ``cog`` command:
+Those are all available flags of ``config`` command:
 
 .. image:: ./images/breeze/output-config.svg
   :width: 100%
