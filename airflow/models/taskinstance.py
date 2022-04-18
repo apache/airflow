@@ -2333,7 +2333,7 @@ class TaskInstance(Base, LoggingMixin):
         # currently possible for a downstream to depend on one individual mapped
         # task instance, only a task as a whole. This will change in AIP-42
         # Phase 2, and we'll need to further analyze the mapped task case.
-        if task.is_mapped or not task.has_mapped_dependants():
+        if task.is_mapped or next(task.iter_mapped_dependants(), None) is None:
             return
         if value is None:
             raise XComForMappingNotPushed()
