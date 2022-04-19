@@ -51,6 +51,7 @@ DAGs. An example demonstrating a custom timetable can be found in the
 
 Built In Timetables
 -------------------
+
 Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
 may be available in provider packages.
 
