@@ -26,6 +26,7 @@ import re
 import sys
 import traceback
 import warnings
+import weakref
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -1991,7 +1992,7 @@ class DAG(LoggingMixin):
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
         dag.task_dict = {
-            t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
+            t.task_id: copy.deepcopy(t, {id(t.dag): dag, id(t.task_group): t.task_group})  # type: ignore
             for t in matched_tasks + also_include
         }
 
@@ -2006,7 +2007,8 @@ class DAG(LoggingMixin):
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
-                        copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task = copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task.task_group = weakref.proxy(copied)
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
