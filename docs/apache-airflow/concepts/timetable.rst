@@ -62,6 +62,7 @@ Set schedule based on a cron expression. Can be selected by providing a string t
   cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
+
     @dag(
         schedule_interval="0 1 * * 3"  # At 01:00 on Wednesday.
         ...
@@ -74,6 +75,7 @@ Schedules data intervals with a time delta. Can be selected by providing a
   ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
 
 .. code-block:: python
+
     @dag(
         schedule_interval=datetime.timedelta(minutes=30)
         ...
@@ -92,6 +94,7 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 ``description`` parameter, which will be displayed in the Airflow UI.
 
 .. code-block:: python
+
     @dag(
         timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5, 8, 27,tz="America/Chicago"),
                                                pendulum.datetime(2022, 4, 17, 8, 27,tz="America/Chicago"),
