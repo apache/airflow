@@ -94,6 +94,13 @@ function updateModalUrls() {
     map_index: mapIndex,
   });
 
+  updateButtonUrl(buttons.mapped, {
+    _flt_3_dag_id: dagId,
+    _flt_3_task_id: taskId,
+    _flt_3_run_id: dagRunId,
+    _oc_TaskInstanceModelView: 'map_index',
+  });
+
   if (buttons.rendered_k8s) {
     updateButtonUrl(buttons.rendered_k8s, {
       dag_id: dagId,
@@ -103,12 +110,14 @@ function updateModalUrls() {
     });
   }
 
-  updateButtonUrl(buttons.ti, {
+  const tiButtonParams = {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
-    _flt_0_map_index: mapIndex,
     _oc_TaskInstanceModelView: 'dag_run.execution_date',
-  });
+  };
+  // eslint-disable-next-line no-underscore-dangle
+  if (mapIndex >= 0) tiButtonParams._flt_0_map_index = mapIndex;
+  updateButtonUrl(buttons.ti, tiButtonParams);
 
   updateButtonUrl(buttons.log, {
     dag_id: dagId,
