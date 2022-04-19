@@ -31,6 +31,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_ENDPOINT: dict = {}
+TEST_ENDPOINT_ID: str = "test_endpoint_id"
 TEST_ENDPOINT_NAME: str = "test_endpoint_name"
 TEST_DEPLOYED_MODEL: dict = {}
 TEST_DEPLOYED_MODEL_ID: str = "test-deployed-model-id"
@@ -54,12 +55,14 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.create_endpoint.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
+                endpoint_id=TEST_ENDPOINT_ID,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -223,12 +226,14 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.create_endpoint.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
+                endpoint_id=TEST_ENDPOINT_ID,
             ),
             metadata=(),
             retry=DEFAULT,
