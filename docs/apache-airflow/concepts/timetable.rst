@@ -54,9 +54,45 @@ Built In Timetables
 Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
 may be available in provider packages.
 
-* CronDataIntervalTimetable - Set timing based on a cron schedule. Can be selected by providing a string that is a valid
+CronDataIntervalTimetable
+-------------------------
+Set timing based on a cron schedule. Can be selected by providing a string that is a valid
   cron expression to the schedule_interval parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
-* DeltaDataIntervalTimetable - Schedules data intervals with a time delta. Can be selected by providing a
+
+.. code-block:: python
+    @dag(
+        schedule_interval="0 1 * * 3"  # At 01:00 on Wednesday.
+        ...
+    )
+
+DeltaDataIntervalTimetable
+--------------------------
+Schedules data intervals with a time delta. Can be selected by providing a
   ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the schedule_interval parameter of a DAG.
-* EventsTimetable - Simply pass a list of datetimes for the DAG to run after. Useful for timing based on sporting
-  events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
+
+.. code-block:: python
+    @dag(
+        schedule_interval=datetime.timedelta(minutes=30)  # At 01:00 on Wednesday.
+        ...
+    )
+
+EventsTimetable
+---------------
+Simply pass a list of datetimes for the DAG to run after. Useful for timing based on sporting
+events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
+
+The list of events must be finite and of reasonable size as it must be loaded every time the DAG is parsed. Optionally,
+the ``restrict_to_events`` flag can be used to force manual runs of the DAG to use the time of the most recent (or very
+first) event for the data interval, otherwise manual runs will run with a ``data_interval_start`` and
+``data_interval_end`` equal to the time at which the manual run was begun. You can also name the set of events using the
+``description`` parameter, which will be displayed in the Airflow UI.
+
+.. code-block:: python
+    @dag(
+        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5, 8, 27,tz="America/Chicago"),
+                                               pendulum.datetime(2022, 4, 17, 8, 27,tz="America/Chicago"),
+                                               pendulum.datetime(2022, 4, 22, 20, 50,tz="America/Chicago")],
+                                  description="My Team's Baseball Games",
+                                  restrict_to_events=False)
+        ...
+    )
