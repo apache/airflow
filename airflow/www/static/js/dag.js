@@ -218,12 +218,14 @@ export function callModal({
     $('#btn_rendered').hide();
     $('#btn_xcom').hide();
     $('#btn_log').hide();
+    $('#btn_task').hide();
   } else {
     $('#task_actions').text('Task Actions');
     $('#btn_rendered').show();
     $('#btn_xcom').show();
     $('#btn_log').show();
     $('#btn_mapped').hide();
+    $('#btn_task').show();
   }
 
   $('#dag_dl_logs').hide();

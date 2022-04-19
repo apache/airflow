@@ -42,22 +42,20 @@
     <li><a href="{{ ti_url('Airflow.task') }}">
         <span class="material-icons" aria-hidden="true">details</span>
       Task Instance Details</a></li>
-    {% if is_mapped == false %}
-      <li><a href="{{ ti_url('Airflow.rendered_templates') }}">
-          <span class="material-icons" aria-hidden="true">code</span>
-        Rendered Template</a></li>
-      {% if k8s_or_k8scelery_executor %}
-        <li><a href="{{ ti_url('Airflow.rendered_k8s') }}">
-          {{ icon('kubernetes') }}
-          K8s Pod Spec</a></li>
-      {% endif %}
-      <li><a href="{{ ti_url('Airflow.log') }}">
-          <span class="material-icons" aria-hidden="true">reorder</span>
-        Log</a></li>
-      <li><a href="{{ ti_url('Airflow.xcom') }}">
-          <span class="material-icons" aria-hidden="true">sync_alt</span>
-        XCom</a></li>
-      {% endif %}
+    <li><a href="{{ ti_url('Airflow.rendered_templates') }}">
+        <span class="material-icons" aria-hidden="true">code</span>
+      Rendered Template</a></li>
+    {% if k8s_or_k8scelery_executor %}
+      <li><a href="{{ ti_url('Airflow.rendered_k8s') }}">
+        {{ icon('kubernetes') }}
+        K8s Pod Spec</a></li>
+    {% endif %}
+    <li><a href="{{ ti_url('Airflow.log') }}">
+        <span class="material-icons" aria-hidden="true">reorder</span>
+      Log</a></li>
+    <li><a href="{{ ti_url('Airflow.xcom') }}">
+        <span class="material-icons" aria-hidden="true">sync_alt</span>
+      XCom</a></li>
   </ul>
   <br>
 {% endblock %}
