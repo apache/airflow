@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -76,6 +77,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
     )
     template_ext: Sequence[str] = ('.sql',)
     ui_color = '#e6f0e4'
+    operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
@@ -130,11 +132,21 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
-            hook.run_copy(
+            job_id = hook.run_copy(
                 source_project_dataset_tables=self.source_project_dataset_tables,
                 destination_project_dataset_table=self.destination_project_dataset_table,
                 write_disposition=self.write_disposition,
                 create_disposition=self.create_disposition,
                 labels=self.labels,
                 encryption_configuration=self.encryption_configuration,
+            )
+
+            job = hook.get_job(job_id=job_id).to_api_repr()
+            conf = job["configuration"]["copy"]["destinationTable"]
+            BigQueryTableLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=conf["datasetId"],
+                project_id=conf["projectId"],
+                table_id=conf["tableId"],
             )
