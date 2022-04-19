@@ -1377,6 +1377,10 @@ def upgradedb(
         if not from_revision:
             from_revision = _get_current_revision(session)
 
+        if not to_revision:
+            script = _get_script_object()
+            to_revision = script.get_current_head()
+
         if to_revision == from_revision:
             print_happy_cat("No migrations to apply; nothing to do.")
             return
