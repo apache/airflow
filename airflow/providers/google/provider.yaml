@@ -905,7 +905,6 @@ extra-links:
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
-  - airflow.providers.google.cloud.links.datastore.CloudDatastoreExportEntitiesLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
   - airflow.providers.google.common.links.storage.StorageLink
 

@@ -25,9 +25,9 @@ from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.datastore import (
     CloudDatastoreEntitiesLink,
-    CloudDatastoreExportEntitiesLink,
     CloudDatastoreImportExportLink,
 )
+from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -78,7 +78,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
-    operator_extra_links = (CloudDatastoreExportEntitiesLink(),)
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -138,10 +138,10 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException(f'Operation failed: result={result}')
-        CloudDatastoreExportEntitiesLink.persist(
+        StorageLink.persist(
             context=context,
             task_instance=self,
-            output_url=result['response']['outputUrl'],
+            uri=f"{self.bucket}/{result['response']['outputUrl'].split('/')[3]}",
         )
         return result
 

@@ -52,30 +52,6 @@ class CloudDatastoreImportExportLink(BaseGoogleLink):
         )
 
 
-class CloudDatastoreExportEntitiesLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Datastore Export Entities Link"""
-
-    name = "Export Entities"
-    key = "export_conf"
-    format_str = DATASTORE_EXPORT_ENTITIES_LINK
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance,
-        output_url: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDatastoreExportEntitiesLink.key,
-            value={
-                "project_id": task_instance.project_id,
-                "bucket_name": task_instance.bucket,
-                "export_name": output_url.split('/')[3],
-            },
-        )
-
-
 class CloudDatastoreEntitiesLink(BaseGoogleLink):
     """Helper class for constructing Cloud Datastore Entities Link"""
 
