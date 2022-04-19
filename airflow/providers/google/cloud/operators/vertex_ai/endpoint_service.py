@@ -81,6 +81,7 @@ class CreateEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint: Union[Endpoint, Dict],
+        endpoint_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -93,6 +94,7 @@ class CreateEndpointOperator(BaseOperator):
         self.region = region
         self.project_id = project_id
         self.endpoint = endpoint
+        self.endpoint_id = endpoint_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -112,6 +114,7 @@ class CreateEndpointOperator(BaseOperator):
             project_id=self.project_id,
             region=self.region,
             endpoint=self.endpoint,
+            endpoint_id=self.endpoint_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
