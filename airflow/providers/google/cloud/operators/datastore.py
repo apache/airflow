@@ -24,9 +24,9 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.datastore import (
+    CloudDatastoreEntitiesLink,
     CloudDatastoreExportEntitiesLink,
     CloudDatastoreImportExportLink,
-    CloudDatastoreEntitiesLink,
 )
 
 if TYPE_CHECKING:
