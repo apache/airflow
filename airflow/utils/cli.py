@@ -335,6 +335,32 @@ def suppress_logs_and_warning(f: T) -> T:
     return cast(T, _wrapper)
 
 
+def suppress_logs_and_warning_click_compatible(f: T) -> T:
+    """
+    Click compatible version of suppress_logs_and_warning.
+    Place after click_verbose decorator.
+
+    Decorator to suppress logging and warning messages
+    in cli functions.
+    """
+
+    @functools.wraps(f)
+    def _wrapper(*args, **kwargs):
+        if kwargs.get("verbose"):
+            f(*args, **kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                logging.disable(logging.CRITICAL)
+                try:
+                    f(*args, **kwargs)
+                finally:
+                    # logging output again depends on the effective
+                    # levels of individual loggers
+                    logging.disable(logging.NOTSET)
+
+    return cast(T, _wrapper)
+
 def get_config_with_source(include_default: bool = False) -> str:
     """Return configuration along with source for each option."""
     config_dict = conf.as_dict(display_source=True)
