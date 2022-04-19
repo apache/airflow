@@ -30,9 +30,9 @@ from airflow.providers.google.cloud.operators.dataproc import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_spark"
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
 
 CLUSTER_NAME = f"cluster-dataproc-spark-{ENV_ID}"
 REGION = "europe-west1"

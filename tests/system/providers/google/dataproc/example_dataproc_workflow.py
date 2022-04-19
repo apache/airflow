@@ -29,9 +29,9 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocInstantiateWorkflowTemplateOperator,
 )
 
-ENV_ID = os.environ["SYSTEM_TESTS_ENV_ID"]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_workflow"
-PROJECT_ID = os.environ["SYSTEM_TESTS_GCP_PROJECT"]
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
 REGION = "europe-west1"
 CLUSTER_NAME = f"cluster-dataproc-workflow-{ENV_ID}"
 CLUSTER_CONFIG = {
