@@ -23,7 +23,7 @@ Revises: 909884dea523
 Create Date: 2022-03-15 16:35:54.816863
 """
 from alembic import op
-from sqlalchemy import Column, Integer, text
+from sqlalchemy import Column, Integer
 
 # Revision identifiers, used by Alembic.
 revision = "75d5ed6c2b43"
@@ -35,7 +35,7 @@ airflow_version = '2.3.0'
 
 def upgrade():
     """Add map_index to Log."""
-    op.add_column("log", Column("map_index", Integer, server_default=text('NULL')))
+    op.add_column("log", Column("map_index", Integer))
 
 
 def downgrade():
