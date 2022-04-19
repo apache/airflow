@@ -209,8 +209,17 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <h4 class="modal-title" id="taskInstanceModalLabel">
             <span class="text-muted">Task Instance:</span> <span id="task_id"></span>
-            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span> <span class="value"></span></span>
             <br><span class="text-muted">at:</span> <span id="execution_date"></span>
+            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span>
+              <span class="value"></span>
+              <div class="dropdown" id="mapped_dropdown">
+                <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                  <span id="dropdown-label" title="Select Mapped Instance"></span>
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu menu-scroll"></ul>
+              </div>
+            </span>
           </h4>
         </div>
         <div class="modal-body">
@@ -237,8 +246,11 @@
           <a id="btn_xcom" class="btn btn-sm" data-base-url="{{ url_for('Airflow.xcom') }}">
             XCom
           </a>
+          <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
+            List Instances, current run
+          </a>
           <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="View all instances across all DAG runs">
-            All Instances
+            List Instances, all runs
           </a>
           <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream">
             Filter Upstream
@@ -250,22 +262,6 @@
             </ul>
             <hr>
           </div>
-          <div id="mapped_instances">
-            <button id="btn_back" style="display: none;" type="button" class="btn btn-sm" title="Go back to the mapped task summary page">
-              Back to Mapped Summary
-            </button>
-            <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
-              Mapped Instances
-            </a>
-            <div class="dropdown" id="mapped_dropdown">
-              <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                <span id="dropdown-label" title="Select Mapped Instance"></span>
-                <span class="caret"></span>
-              </button>
-              <ul class="dropdown-menu menu-scroll"></ul>
-            </div>
-            <hr style="margin-bottom: 8px;">
-          </div>
           {% if external_log_name is defined %}
             <div id="dag_redir_logs">
               <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts):</label>
@@ -275,7 +271,7 @@
               <hr>
             </div>
           {% endif %}
-          <h4>Task Actions</h4>
+          <h4 id="task_actions">Task Actions</h4>
           <form method="POST" data-action="{{ url_for('Airflow.run') }}" id="run_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
