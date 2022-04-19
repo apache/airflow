@@ -70,7 +70,7 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
             'mode': 'NULLABLE',
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, stringify_dict):
         return 'convert_type_return_value'
 
     def query(self):
