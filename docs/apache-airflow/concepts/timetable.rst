@@ -84,7 +84,7 @@ Schedules data intervals with a time delta. Can be selected by providing a
 EventsTimetable
 ^^^^^^^^^^^^^^^
 
-Simply pass a list of ``datetimes`` for the DAG to run after. Useful for timing based on sporting
+Simply pass a list of ``datetime``s for the DAG to run after. Useful for timing based on sporting
 events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
 
 The list of events must be finite and of reasonable size as it must be loaded every time the DAG is parsed. Optionally,
@@ -96,10 +96,14 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 .. code-block:: python
 
     @dag(
-        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5, 8, 27,tz="America/Chicago"),
-                                               pendulum.datetime(2022, 4, 17, 8, 27,tz="America/Chicago"),
-                                               pendulum.datetime(2022, 4, 22, 20, 50,tz="America/Chicago")],
-                                  description="My Team's Baseball Games",
-                                  restrict_to_events=False)
-        ...
+        timetable=EventsTimetable(
+            event_dates=[
+                pendulum.datetime(2022, 4, 5, 8, 27,tz="America/Chicago"),
+                pendulum.datetime(2022, 4, 17, 8, 27,tz="America/Chicago"),
+                pendulum.datetime(2022, 4, 22, 20, 50,tz="America/Chicago"),
+            ],
+            description="My Team's Baseball Games",
+            restrict_to_events=False,
+        ),
+        ...,
     )
