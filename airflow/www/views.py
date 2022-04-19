@@ -1674,6 +1674,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag=dag,
             title=title,
+            is_mapped=task.is_mapped,
         )
 
     @expose('/xcom')
