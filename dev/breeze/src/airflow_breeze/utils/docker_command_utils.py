@@ -199,7 +199,7 @@ def check_docker_version(verbose: bool):
             capture_output=True,
             text=True,
         )
-        if docker_version_output.returncode == 0:
+        if docker_version_output and docker_version_output.returncode == 0:
             docker_version = docker_version_output.stdout.strip()
         if docker_version == '':
             console.print(
@@ -234,7 +234,7 @@ def check_docker_compose_version(verbose: bool):
         capture_output=True,
         text=True,
     )
-    if docker_compose_version_output.returncode == 0:
+    if docker_compose_version_output and docker_compose_version_output.returncode == 0:
         docker_compose_version = docker_compose_version_output.stdout
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
@@ -277,7 +277,7 @@ def construct_arguments_for_docker_build_command(
         if len(param_value) > 0:
             args_command.append("--build-arg")
             args_command.append(verify_param.upper() + "=" + param_value)
-    args_command.extend(image_params.docker_cache_ci_directive)
+    args_command.extend(image_params.docker_cache_directive)
     return args_command
 
 
