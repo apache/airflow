@@ -26,6 +26,7 @@ import re
 import sys
 import traceback
 import warnings
+import weakref
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -1989,11 +1990,13 @@ class DAG(LoggingMixin):
                 also_include.extend(upstream)
 
         # Compiling the unique list of tasks that made the cut
-        # Make sure to not recursively deepcopy the dag while copying the task
-        dag.task_dict = {
-            t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
-            for t in matched_tasks + also_include
-        }
+        # Make sure to not recursively deepcopy the dag or task_group while copying the task.
+        # task_group is reset later
+        def _deepcopy_task(t) -> "Operator":
+            memo.setdefault(id(t.task_group), None)
+            return copy.deepcopy(t, memo)
+
+        dag.task_dict = {t.task_id: _deepcopy_task(t) for t in matched_tasks + also_include}
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
@@ -2006,7 +2009,8 @@ class DAG(LoggingMixin):
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
-                        copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task = copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task.task_group = weakref.proxy(copied)
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
