@@ -20,6 +20,8 @@
 import unittest
 from unittest.mock import patch
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -50,4 +52,4 @@ class TestTextToSpeechOperator(unittest.TestCase):
         recognize_method = get_conn.return_value.recognize
         recognize_method.return_value = None
         self.gcp_speech_to_text_hook.recognize_speech(config=CONFIG, audio=AUDIO)
-        recognize_method.assert_called_once_with(config=CONFIG, audio=AUDIO, retry=None, timeout=None)
+        recognize_method.assert_called_once_with(config=CONFIG, audio=AUDIO, retry=DEFAULT, timeout=None)

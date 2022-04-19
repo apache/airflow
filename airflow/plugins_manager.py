@@ -63,6 +63,7 @@ flask_appbuilder_menu_links: Optional[List[Any]] = None
 global_operator_extra_links: Optional[List[Any]] = None
 operator_extra_links: Optional[List[Any]] = None
 registered_operator_link_classes: Optional[Dict[str, Type]] = None
+registered_ti_dep_classes: Optional[Dict[str, Type]] = None
 timetable_classes: Optional[Dict[str, Type["Timetable"]]] = None
 """Mapping of class names to class of OperatorLinks registered by plugins.
 
@@ -78,6 +79,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "ti_deps",
     "timetables",
     "source",
     "listeners",
@@ -153,6 +155,8 @@ class AirflowPlugin:
     # These extra links will be available on the task page in form of
     # buttons.
     operator_extra_links: List[Any] = []
+
+    ti_deps: List[Any] = []
 
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: List[Type["Timetable"]] = []
@@ -348,6 +352,27 @@ def initialize_web_ui_plugins():
                 "Please contact the author of the plugin.",
                 plugin.name,
             )
+
+
+def initialize_ti_deps_plugins():
+    """Creates modules for loaded extension from custom task instance dependency rule plugins"""
+    global registered_ti_dep_classes
+    if registered_ti_dep_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize custom taskinstance deps plugins")
+
+    registered_ti_dep_classes = {}
+
+    for plugin in plugins:
+        registered_ti_dep_classes.update(
+            {as_importable_string(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
+        )
 
 
 def initialize_extra_operators_links_plugins():

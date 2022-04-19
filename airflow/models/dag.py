@@ -985,7 +985,7 @@ class DAG(LoggingMixin):
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
-    def param(self, name: str, default=None) -> DagParam:
+    def param(self, name: str, default: Any = NOTSET) -> DagParam:
         """
         Return a DagParam object for current dag.
 
@@ -1074,14 +1074,12 @@ class DAG(LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is active"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_active)
+        return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_paused)
+        return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @property
     def is_paused(self):
@@ -1260,7 +1258,7 @@ class DAG(LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def get_template_env(self) -> jinja2.Environment:
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -1277,7 +1275,7 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
-        if self.render_template_as_native_obj:
+        if self.render_template_as_native_obj and not force_sandboxed:
             env = airflow.templates.NativeEnvironment(**jinja_env_options)
         else:
             env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
@@ -2270,12 +2268,12 @@ class DAG(LoggingMixin):
         """
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
-                raise ValueError(f"`run_id` expected to be a str is {type(run_id)}")
+                raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
             if not run_type:
                 run_type = DagRunType.from_run_id(run_id)
         elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
-                raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
+                raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
             run_id = DagRun.generate_run_id(run_type, execution_date)
         else:
             raise AirflowException(

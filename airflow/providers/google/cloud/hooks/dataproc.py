@@ -23,7 +23,9 @@ import uuid
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
@@ -212,7 +214,7 @@ class DataprocHook(GoogleBaseHook):
             region = location
         client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return ClusterControllerClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -232,7 +234,7 @@ class DataprocHook(GoogleBaseHook):
             region = location
         client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return WorkflowTemplateServiceClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -252,7 +254,7 @@ class DataprocHook(GoogleBaseHook):
             region = location
         client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return JobControllerClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -272,7 +274,7 @@ class DataprocHook(GoogleBaseHook):
             region = location
         client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-dataproc.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return BatchControllerClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -295,7 +297,7 @@ class DataprocHook(GoogleBaseHook):
         cluster_config: Union[Dict, Cluster],
         labels: Optional[Dict[str, str]] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -353,7 +355,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -395,7 +397,7 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -429,7 +431,7 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -461,7 +463,7 @@ class DataprocHook(GoogleBaseHook):
         filter_: str,
         project_id: str,
         page_size: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -500,7 +502,7 @@ class DataprocHook(GoogleBaseHook):
         location: Optional[str] = None,
         graceful_decommission_timeout: Optional[Union[Dict, Duration]] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -588,7 +590,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         region: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> WorkflowTemplate:
@@ -634,7 +636,7 @@ class DataprocHook(GoogleBaseHook):
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -691,7 +693,7 @@ class DataprocHook(GoogleBaseHook):
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -789,7 +791,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         region: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Job:
@@ -834,7 +836,7 @@ class DataprocHook(GoogleBaseHook):
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Job:
@@ -902,7 +904,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         region: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Job:
@@ -954,10 +956,10 @@ class DataprocHook(GoogleBaseHook):
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-    ):
+    ) -> Operation:
         """
         Creates a batch workload.
 
@@ -998,7 +1000,7 @@ class DataprocHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -1034,7 +1036,7 @@ class DataprocHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Batch:
@@ -1072,7 +1074,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):

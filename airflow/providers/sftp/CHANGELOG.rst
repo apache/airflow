@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add newer_than parameter to SFTP sensor (#21655) (#22377)``
+
 2.5.2
 .....
 

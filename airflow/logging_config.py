@@ -17,7 +17,6 @@
 # under the License.
 #
 import logging
-import sys
 import warnings
 from logging.config import dictConfig
 
@@ -103,22 +102,3 @@ def validate_logging_config(logging_config):
                 f"Configured task_log_reader {task_log_reader!r} was not a handler of "
                 f"the 'airflow.task' logger."
             )
-
-
-if sys.version_info < (3, 7):
-    # Python 3.7 added this via https://bugs.python.org/issue30520 -- but Python 3.6 doesn't have this
-    # support.
-    import copyreg
-
-    def _reduce_Logger(logger):
-        if logging.getLogger(logger.name) is not logger:
-            import pickle
-
-            raise pickle.PicklingError('logger cannot be pickled')
-        return logging.getLogger, (logger.name,)
-
-    def _reduce_RootLogger(logger):
-        return logging.getLogger, ()
-
-    copyreg.pickle(logging.Logger, _reduce_Logger)
-    copyreg.pickle(logging.RootLogger, _reduce_RootLogger)

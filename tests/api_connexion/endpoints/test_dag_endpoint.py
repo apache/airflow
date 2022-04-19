@@ -27,7 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.configuration import conf
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -75,13 +75,13 @@ def configured_app(minimal_app_for_api):
         params={"foo": 1},
         tags=['example'],
     ) as dag:
-        DummyOperator(task_id=TASK_ID)
+        EmptyOperator(task_id=TASK_ID)
 
     with DAG(DAG2_ID, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
-        DummyOperator(task_id=TASK_ID)
+        EmptyOperator(task_id=TASK_ID)
 
     with DAG(DAG3_ID) as dag3:  # DAG start_date set to None
-        DummyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
+        EmptyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
 
     dag_bag = DagBag(os.devnull, include_examples=False)
     dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
@@ -251,6 +251,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -286,6 +287,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'last_parsed': last_parsed,
+            'render_template_as_native_obj': False,
         }
         assert response.json == expected
 
@@ -294,6 +299,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -322,6 +328,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'last_parsed': last_parsed,
+            'render_template_as_native_obj': False,
         }
         assert response.json == expected
 
@@ -330,6 +340,7 @@ class TestGetDagDetails(TestDagEndpoint):
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -358,6 +369,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'last_parsed': last_parsed,
+            'render_template_as_native_obj': False,
         }
         assert response.json == expected
 
@@ -405,12 +420,17 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'render_template_as_native_obj': False,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
 
         assert response.status_code == 200
+        expected.update({'last_parsed': response.json['last_parsed']})
+
         assert response.json == expected
 
         patcher.stop()
@@ -449,7 +469,11 @@ class TestGetDagDetails(TestDagEndpoint):
             'timezone': "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'render_template_as_native_obj': False,
         }
+        expected.update({'last_parsed': response.json['last_parsed']})
         assert response.json == expected
 
     def test_should_raises_401_unauthenticated(self):

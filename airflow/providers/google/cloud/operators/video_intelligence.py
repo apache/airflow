@@ -18,6 +18,7 @@
 """This module contains Google Cloud Vision operators."""
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.types import VideoContext
@@ -83,7 +84,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         output_uri: Optional[str] = None,
         video_context: Union[Dict, VideoContext] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -173,7 +174,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         input_content: Optional[bytes] = None,
         video_context: Union[Dict, VideoContext] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -263,7 +264,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         input_content: Optional[bytes] = None,
         video_context: Union[Dict, VideoContext] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,

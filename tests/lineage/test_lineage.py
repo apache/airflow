@@ -21,7 +21,7 @@ from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
 from airflow.models import TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
@@ -44,17 +44,17 @@ class TestLineage:
         file3 = File(f3s)
 
         with dag_maker(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE) as dag:
-            op1 = DummyOperator(
+            op1 = EmptyOperator(
                 task_id='leave1',
                 inlets=file1,
                 outlets=[
                     file2,
                 ],
             )
-            op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1', inlets=AUTO, outlets=file3)
-            op4 = DummyOperator(task_id='upstream_level_2')
-            op5 = DummyOperator(task_id='upstream_level_3', inlets=["leave1", "upstream_level_1"])
+            op2 = EmptyOperator(task_id='leave2')
+            op3 = EmptyOperator(task_id='upstream_level_1', inlets=AUTO, outlets=file3)
+            op4 = EmptyOperator(task_id='upstream_level_2')
+            op5 = EmptyOperator(task_id='upstream_level_3', inlets=["leave1", "upstream_level_1"])
 
             op1.set_downstream(op3)
             op2.set_downstream(op3)
@@ -102,7 +102,7 @@ class TestLineage:
         # tests inlets / outlets are rendered if they are added
         # after initialization
         with dag_maker(dag_id='test_lineage_render', start_date=DEFAULT_DATE):
-            op1 = DummyOperator(task_id='task1')
+            op1 = EmptyOperator(task_id='task1')
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         f1s = "/tmp/does_not_exist_1-{}"
@@ -131,7 +131,7 @@ class TestLineage:
         mock_get_backend.return_value = TestBackend()
 
         with dag_maker(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE):
-            op1 = DummyOperator(task_id='task1')
+            op1 = EmptyOperator(task_id='task1')
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         file1 = File("/tmp/some_file")

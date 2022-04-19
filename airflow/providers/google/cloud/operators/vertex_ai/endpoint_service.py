@@ -31,6 +31,7 @@
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -80,7 +81,7 @@ class CreateEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint: Union[Endpoint, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -158,7 +159,7 @@ class DeleteEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -251,7 +252,7 @@ class DeployModelOperator(BaseOperator):
         endpoint_id: str,
         deployed_model: Union[DeployedModel, Dict],
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -334,7 +335,7 @@ class GetEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -435,7 +436,7 @@ class ListEndpointsOperator(BaseOperator):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -523,7 +524,7 @@ class UndeployModelOperator(BaseOperator):
         endpoint_id: str,
         deployed_model_id: str,
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -604,7 +605,7 @@ class UpdateEndpointOperator(BaseOperator):
         endpoint_id: str,
         endpoint: Union[Endpoint, Dict],
         update_mask: Union[FieldMask, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

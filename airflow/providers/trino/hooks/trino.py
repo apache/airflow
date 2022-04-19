@@ -96,9 +96,9 @@ class TrinoHook(DbApiHook):
         if db.password and extra.get('auth') == 'kerberos':
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
-            auth = trino.auth.BasicAuthentication(db.login, db.password)
+            auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get('auth') == 'kerberos':
-            auth = trino.auth.KerberosAuthentication(
+            auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
                 service_name=extra.get('kerberos__service_name'),
                 mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),

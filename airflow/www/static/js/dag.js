@@ -124,6 +124,13 @@ function updateModalUrls() {
     execution_date: executionDate,
     map_index: mapIndex,
   });
+
+  updateButtonUrl(buttons.xcom, {
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    map_index: mapIndex,
+  });
 }
 
 // Update modal urls on toggle
@@ -170,9 +177,16 @@ export function callModal({
   if (mi >= 0) {
     $('#modal_map_index').show();
     $('#modal_map_index .value').text(mi);
+    // Marking state and clear are not yet supported for mapped instances
+    $('#success_action').hide();
+    $('#failed_action').hide();
+    $('#clear_action').hide();
   } else {
     $('#modal_map_index').hide();
     $('#modal_map_index .value').text('');
+    $('#success_action').show();
+    $('#failed_action').show();
+    $('#clear_action').show();
   }
   if (isSubDag) {
     $('#div_btn_subdag').show();
@@ -197,8 +211,12 @@ export function callModal({
     $('#btn_mapped').show();
     $('#mapped_dropdown').css('display', 'inline-block');
     $('#btn_rendered').hide();
+    $('#btn_xcom').hide();
+    $('#btn_log').hide();
   } else {
     $('#btn_rendered').show();
+    $('#btn_xcom').show();
+    $('#btn_log').show();
     $('#btn_mapped').hide();
     $('#mapped_dropdown').hide();
   }

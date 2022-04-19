@@ -50,6 +50,8 @@ class BuildProdParams:
     install_providers_from_sources: bool = True
     cleanup_docker_context_files: bool = False
     prepare_buildx_cache: bool = False
+    push_image: bool = False
+    empty_image: bool = False
     disable_pypi: bool = False
     upgrade_to_newer_dependencies: str = "false"
     airflow_version: str = get_airflow_version()
@@ -76,8 +78,8 @@ class BuildProdParams:
     image_tag: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
-    airflow_login_to_github_registry: str = "false"
-    github_username: str = "apache"
+    login_to_github_registry: str = "false"
+    github_username: str = ""
     platform: str = f"linux/{os.uname().machine}"
     airflow_constraints_reference: str = ""
     airflow_constraints_location: str = ""
@@ -288,3 +290,9 @@ class BuildProdParams:
     @property
     def docker_context_files(self) -> str:
         return "docker-context-files"
+
+    @property
+    def airflow_image_name_with_tag(self):
+        """Construct PROD image link"""
+        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
+        return image if not self.image_tag else image + f":{self.image_tag}"

@@ -35,7 +35,9 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
+    ContextManager,
     Dict,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -47,6 +49,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+import attr
 import dill
 import jinja2
 import pendulum
@@ -67,8 +70,11 @@ from sqlalchemy import (
     tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.sqltypes import BigInteger
@@ -89,6 +95,7 @@ from airflow.exceptions import (
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    XComForMappingNotPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -100,6 +107,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
+from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
@@ -294,6 +302,91 @@ def clear_task_instances(
                 dr.start_date = None
 
 
+class _LazyXComAccessIterator(collections.abc.Iterator):
+    __slots__ = ['_cm', '_it']
+
+    def __init__(self, cm: ContextManager[Query]):
+        self._cm = cm
+        self._it = None
+
+    def __del__(self):
+        if self._it:
+            self._cm.__exit__(None, None, None)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self._it:
+            self._it = iter(self._cm.__enter__())
+        return XCom.deserialize_value(next(self._it))
+
+
+@attr.define
+class _LazyXComAccess(collections.abc.Sequence):
+    """Wrapper to lazily pull XCom with a sequence-like interface.
+
+    Note that since the session bound to the parent query may have died when we
+    actually access the sequence's content, we must create a new session
+    for every function call with ``with_session()``.
+    """
+
+    dag_id: str
+    run_id: str
+    task_id: str
+    _query: Query = attr.ib(repr=False)
+    _len: Optional[int] = attr.ib(init=False, repr=False, default=None)
+
+    @classmethod
+    def build_from_single_xcom(cls, first: "XCom", query: Query) -> "_LazyXComAccess":
+        return cls(
+            dag_id=first.dag_id,
+            run_id=first.run_id,
+            task_id=first.task_id,
+            query=query.with_entities(XCom.value)
+            .filter(
+                XCom.run_id == first.run_id,
+                XCom.task_id == first.task_id,
+                XCom.dag_id == first.dag_id,
+                XCom.map_index >= 0,
+            )
+            .order_by(None)
+            .order_by(XCom.map_index.asc()),
+        )
+
+    def __len__(self):
+        if self._len is None:
+            with self._get_bound_query() as query:
+                self._len = query.count()
+        return self._len
+
+    def __iter__(self):
+        return _LazyXComAccessIterator(self._get_bound_query())
+
+    def __getitem__(self, key):
+        if not isinstance(key, int):
+            raise ValueError("only support index access for now")
+        try:
+            with self._get_bound_query() as query:
+                r = query.offset(key).limit(1).one()
+        except NoResultFound:
+            raise IndexError(key) from None
+        return XCom.deserialize_value(r)
+
+    @contextlib.contextmanager
+    def _get_bound_query(self) -> Generator[Query, None, None]:
+        # Do we have a valid session already?
+        if self._query.session and self._query.session.is_active:
+            yield self._query
+            return
+
+        session = settings.Session()
+        try:
+            yield self._query.with_session(session)
+        finally:
+            session.close()
+
+
 class TaskInstanceKey(NamedTuple):
     """Key used to identify task instance."""
 
@@ -383,7 +476,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
-    next_kwargs = Column(ExtendedJSON)
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -723,20 +816,15 @@ class TaskInstance(Base, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
         """
-        ti = (
-            session.query(TaskInstance)
+        return (
+            session.query(TaskInstance.state)
             .filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == self.run_id,
             )
-            .all()
+            .scalar()
         )
-        if ti:
-            state = ti[0].state
-        else:
-            state = None
-        return state
 
     @provide_session
     def error(self, session=NEW_SESSION):
@@ -1445,8 +1533,10 @@ class TaskInstance(Base, LoggingMixin):
 
         signal.signal(signal.SIGTERM, signal_handler)
 
-        # Don't clear Xcom until the task is certain to execute
-        self.clear_xcom_data()
+        # Don't clear Xcom until the task is certain to execute, and check if we are resuming from deferral.
+        if not self.next_method:
+            self.clear_xcom_data()
+
         with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
             # Set the validated/merged params on the task object.
             self.task.params = context['params']
@@ -1560,11 +1650,14 @@ class TaskInstance(Base, LoggingMixin):
         except:  # noqa: E722
             _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
             raise
-        # If the task returns a result, push an XCom containing it
-        if task_to_execute.do_xcom_push and result is not None:
-            with create_session() as session:
-                self.xcom_push(key=XCOM_RETURN_KEY, value=result, session=session)
-                self._record_task_map_for_downstreams(task_orig, result, session=session)
+        with create_session() as session:
+            if task_to_execute.do_xcom_push:
+                xcom_value = result
+            else:
+                xcom_value = None
+            if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
+                self.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+            self._record_task_map_for_downstreams(task_orig, xcom_value, session=session)
         return result
 
     @provide_session
@@ -2072,10 +2165,9 @@ class TaskInstance(Base, LoggingMixin):
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
-            task = self.task.unmap()
+            self.task = self.task.unmap()
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
-            self.task = task
             return
         try:
             self.render_templates()
@@ -2196,7 +2288,14 @@ class TaskInstance(Base, LoggingMixin):
             html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
         else:
-            jinja_env = self.task.get_template_env()
+            # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+            # the flag to the function on task object -- that function can be
+            # overridden, and adding a flag breaks backward compatibility.
+            dag = self.task.get_dag()
+            if dag:
+                jinja_env = dag.get_template_env(force_sandboxed=True)
+            else:
+                jinja_env = SandboxedEnvironment(cache_size=0)
             jinja_context = self.get_template_context()
             context_merge(jinja_context, additional_context)
 
@@ -2230,14 +2329,21 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        if not task.has_mapped_dependants():
+        # TODO: We don't push TaskMap for mapped task instances because it's not
+        # currently possible for a downstream to depend on one individual mapped
+        # task instance, only a task as a whole. This will change in AIP-42
+        # Phase 2, and we'll need to further analyze the mapped task case.
+        if task.is_mapped or not task.has_mapped_dependants():
             return
+        if value is None:
+            raise XComForMappingNotPushed()
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
+        task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if len(value) > max_map_length:
+        if task_map.length > max_map_length:
             raise UnmappableXComLengthPushed(value, max_map_length)
-        session.merge(TaskMap.from_task_instance_xcom(self, value))
+        session.merge(task_map)
 
     @provide_session
     def xcom_push(
@@ -2338,30 +2444,15 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(XCom.run_id, XCom.task_id, XCom.map_index, XCom.value).first()
+            first = query.with_entities(
+                XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            ).first()
             if first is None:  # No matching XCom at all.
                 return default
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
 
-            # We're pulling one specific mapped task. Add additional filters to
-            # make sure all XComs come from one task and run (for task_ids=None
-            # and include_prior_dates=True), and re-order by map index (reset
-            # needed because XCom.get_many() orders by XCom timestamp).
-            query = (
-                query.with_entities(XCom.value)
-                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id)
-                .order_by(None)
-                .order_by(XCom.map_index.asc())
-            )
-
-            def iter_xcom_values(query):
-                # The session passed to xcom_pull() may die before this is
-                # iterated through, so we need to bind to a new session.
-                for r in query.with_session(settings.Session()):
-                    yield XCom.deserialize_value(r)
-
-            return iter_xcom_values(query)
+            return _LazyXComAccess.build_from_single_xcom(first, query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 

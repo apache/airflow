@@ -102,7 +102,7 @@ class BackfillJob(BaseJob):
 
     def __init__(
         self,
-        dag,
+        dag: DAG,
         start_date=None,
         end_date=None,
         mark_success=False,
@@ -228,7 +228,7 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance]]]:
+    ) -> Iterator[Tuple["MappedOperator", str, Sequence[TaskInstance], int]]:
         """
         Checks if the executor agrees with the state of task instances
         that are running.
@@ -238,8 +238,6 @@ class BackfillJob(BaseJob):
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
         """
-        from airflow.models.mappedoperator import MappedOperator
-
         executor = self.executor
 
         # TODO: query all instead of refresh from db
@@ -266,9 +264,11 @@ class BackfillJob(BaseJob):
                 ti.handle_failure_with_callback(error=msg)
                 continue
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
-                for node in ti.task.mapped_dependants():
-                    assert isinstance(node, MappedOperator)
-                    yield node, ti.run_id, node.expand_mapped_task(ti.run_id, session=session)
+                # Don't use ti.task; if this task is mapped, that attribute
+                # would hold the unmapped task. We need to original task here.
+                for node in self.dag.get_task(ti.task_id, include_subdags=True).mapped_dependants():
+                    new_tis, num_mapped_tis = node.expand_mapped_task(ti.run_id, session=session)
+                    yield node, ti.run_id, new_tis, num_mapped_tis
 
     @provide_session
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
@@ -297,6 +297,8 @@ class BackfillJob(BaseJob):
             run = runs[0]
             if run.state == DagRunState.RUNNING:
                 respect_dag_max_active_limit = False
+            # Fixes --conf overwrite for backfills with already existing DagRuns
+            run.conf = self.conf or {}
         else:
             run = None
 
@@ -607,18 +609,23 @@ class BackfillJob(BaseJob):
                 ti_status.to_run.clear()
 
             # check executor state -- and expand any mapped TIs
-            for node, run_id, mapped_tis in self._manage_executor_state(ti_status.running, session):
+            for node, run_id, new_mapped_tis, max_map_index in self._manage_executor_state(
+                ti_status.running, session
+            ):
 
                 def to_keep(key: TaskInstanceKey) -> bool:
                     if key.dag_id != node.dag_id or key.task_id != node.task_id or key.run_id != run_id:
                         # For another Dag/Task/Run -- don't remove
                         return True
-                    return False
+                    return 0 <= key.map_index <= max_map_index
 
                 # remove the old unmapped TIs for node -- they have been replaced with the mapped TIs
                 ti_status.to_run = {key: ti for (key, ti) in ti_status.to_run.items() if to_keep(key)}
 
-                ti_status.to_run.update({ti.key: ti for ti in mapped_tis})
+                ti_status.to_run.update({ti.key: ti for ti in new_mapped_tis})
+
+                for new_ti in new_mapped_tis:
+                    new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
             # update the task counters
             self._update_counters(ti_status=ti_status, session=session)
@@ -700,6 +707,9 @@ class BackfillJob(BaseJob):
 
         return err
 
+    def _get_dag_with_subdags(self) -> List[DAG]:
+        return [self.dag] + self.dag.subdags
+
     @provide_session
     def _execute_dagruns(self, dagrun_infos, ti_status, executor, pickle_id, start_date, session=None):
         """
@@ -715,7 +725,7 @@ class BackfillJob(BaseJob):
         :param session: the current session object
         """
         for dagrun_info in dagrun_infos:
-            for dag in [self.dag] + self.dag.subdags:
+            for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 tis_map = self._task_instances_for_dag_run(dag_run, session=session)
                 if dag_run is None:
@@ -782,6 +792,31 @@ class BackfillJob(BaseJob):
                 return
             dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
+        dag_with_subdags_ids = [d.dag_id for d in self._get_dag_with_subdags()]
+        running_dagruns = DagRun.find(
+            dag_id=dag_with_subdags_ids,
+            execution_start_date=self.bf_start_date,
+            execution_end_date=self.bf_end_date,
+            no_backfills=True,
+            state=DagRunState.RUNNING,
+        )
+
+        if running_dagruns:
+            for run in running_dagruns:
+                self.log.error(
+                    "Backfill cannot be created for DagRun %s in %s, as there's already %s in a RUNNING "
+                    "state.",
+                    run.run_id,
+                    run.execution_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                    run.run_type,
+                )
+            self.log.error(
+                "Changing DagRun into BACKFILL would cause scheduler to lose track of executing "
+                "tasks. Not changing DagRun type into BACKFILL, and trying insert another DagRun into "
+                "database would cause database constraint violation for dag_id + execution_date "
+                "combination. Please adjust backfill dates or wait for this DagRun to finish.",
+            )
+            return
         # picklin'
         pickle_id = None
 

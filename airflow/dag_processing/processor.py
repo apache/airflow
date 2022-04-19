@@ -21,6 +21,7 @@ import multiprocessing
 import os
 import signal
 import threading
+import time
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -231,6 +232,12 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         if self._process.is_alive() and self._process.pid:
             self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
+
+            # Reap the spawned zombie. We active wait, because in Python 3.9 `waitpid` might lead to an
+            # exception, due to change in Python standard library and possibility of race condition
+            # see https://bugs.python.org/issue42558
+            while self._process._popen.poll() is None:  # type: ignore
+                time.sleep(0.001)
         if self._parent_channel:
             self._parent_channel.close()
 
@@ -521,23 +528,35 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with import errors
         """
+        files_without_error = dagbag.file_last_changed - dagbag.import_errors.keys()
+
         # Clear the errors of the processed files
-        for dagbag_file in dagbag.file_last_changed:
+        # that no longer have errors
+        for dagbag_file in files_without_error:
             session.query(errors.ImportError).filter(
                 errors.ImportError.filename.startswith(dagbag_file)
             ).delete(synchronize_session="fetch")
 
+        # files that still have errors
+        existing_import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
+
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
+            if filename in existing_import_error_files:
+                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
+                    dict(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace),
+                    synchronize_session='fetch',
+                )
+            else:
+                session.add(
+                    errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
+                )
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)
                 .update({'has_import_errors': True}, synchronize_session='fetch')
             )
 
-            session.add(
-                errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
-            )
         session.commit()
 
     @provide_session

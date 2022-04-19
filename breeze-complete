@@ -98,6 +98,7 @@ check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
+check-revision-heads-map
 check-xml
 check-system-tests
 daysago-import-check
@@ -153,7 +154,9 @@ sort-spelling-wordlist
 stylelint
 trailing-whitespace
 ui-lint
+limit-breeze-dependencies
 update-breeze-file
+update-breeze-config-hash
 update-extras
 update-local-yml-file
 update-setup-cfg-file
@@ -480,5 +483,5 @@ function breeze_complete::_comp_breeze {
 breeze_complete::_build_options_breeze
 
 # set autocompletion function for breeze
-complete -F breeze_complete::_comp_breeze breeze
-complete -F breeze_complete::_comp_breeze ./breeze
+complete -F breeze_complete::_comp_breeze breeze-legacy
+complete -F breeze_complete::_comp_breeze ./breeze-legacy

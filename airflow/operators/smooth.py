@@ -15,22 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import pytest
-
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+from airflow.models.baseoperator import BaseOperator
+from airflow.utils.context import Context
 
 
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-class TestGoogleCloudStorageToBigQueryExample(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
+class SmoothOperator(BaseOperator):
+    """
+    Operator that does literally nothing but it logs YouTube link to
+    Sade song "Smooth Operator".
+    """
 
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def test_run_example_dag_gcs_to_bigquery_operator(self):
-        self.run_dag('example_gcs_to_bigquery_operator', CLOUD_DAG_FOLDER)
+    ui_color = '#e8f7e4'
+    yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
 
-    def tearDown(self):
-        super().tearDown()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context):
+        self.log.info("Enjoy Sade - Smooth Operator: %s", self.yt_link)

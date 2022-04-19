@@ -425,9 +425,10 @@ def test_get_current_user_permissions(app):
         ) as user:
             assert user.perms == {(action, resource)}
 
-            user._perms = None
-            user.roles = []
-
+        with create_user_scope(
+            app,
+            username='no_perms',
+        ) as user:
             assert len(user.perms) == 0
 
 
@@ -617,7 +618,7 @@ def test_access_control_is_set_on_init(
             )
 
             security_manager.bulk_sync_roles([{'role': negated_role, 'perms': []}])
-            set_user_single_role(app, username, role_name=negated_role)
+            set_user_single_role(app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
                 perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
                 dag_id='access_control_test',
@@ -640,7 +641,7 @@ def test_access_control_stale_perms_are_revoked(
             role_name=role_name,
             permissions=[],
         ) as user:
-            set_user_single_role(app, username, role_name='team-a')
+            set_user_single_role(app, user, role_name='team-a')
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_WRITE}
             )
@@ -649,6 +650,8 @@ def test_access_control_stale_perms_are_revoked(
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
+            # Clear the cache, to make it pick up new rol perms
+            user._perms = None
             assert_user_has_dag_perms(
                 perms=[permissions.ACTION_CAN_READ], dag_id='access_control_test', user=user
             )

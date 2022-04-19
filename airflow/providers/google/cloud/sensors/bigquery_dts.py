@@ -18,6 +18,7 @@
 """This module contains a Google BigQuery Data Transfer Service sensor."""
 from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
@@ -80,7 +81,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         ] = TransferState.SUCCEEDED,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         request_timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,

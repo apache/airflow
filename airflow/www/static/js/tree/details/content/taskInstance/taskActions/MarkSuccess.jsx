@@ -29,7 +29,9 @@ import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
 import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
-const Run = ({ dagId, runId, taskId }) => {
+const Run = ({
+  dagId, runId, taskId,
+}) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
   // Options check/unchecked

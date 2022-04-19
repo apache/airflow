@@ -18,9 +18,22 @@
 
 import datetime
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
-
-from sqlalchemy.orm import Session
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    Union,
+)
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -37,6 +50,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
@@ -53,6 +67,9 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+    "core", "default_task_execution_timeout"
+)
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -78,10 +95,29 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
 
     owner: str
     task_id: str
+
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
+        (
+            'log',
+            'dag',  # We show dag_id, don't need to show this too
+            'node_id',  # Duplicates task_id
+            'task_group',  # Doesn't have a useful repr, no point showing in UI
+            'inherits_from_empty_operator',  # impl detail
+            # For compatibility with TG, for operators these are just the current task, no point showing
+            'roots',
+            'leaves',
+            # These lists are already shown via *_task_ids
+            'upstream_list',
+            'downstream_list',
+            # Not useful, implementation detail, already shown elsewhere
+            'global_operator_extra_link_dict',
+            'operator_extra_link_dict',
+        )
+    )
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
@@ -91,7 +127,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         raise NotImplementedError()
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
     @property
@@ -115,7 +151,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         dag = self.get_dag()
         if dag:
-            return dag.get_template_env()
+            return dag.get_template_env(force_sandboxed=False)
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:
@@ -293,7 +329,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         jinja_env: "jinja2.Environment",
         seen_oids: Set,
         *,
-        session: Session = NEW_SESSION,
+        session: "Session" = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             try:
@@ -305,28 +341,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self._render_template_field(
-                attr_name,
+            rendered_content = self.render_template(
                 value,
                 context,
                 jinja_env,
                 seen_oids,
-                session=session,
             )
             setattr(parent, attr_name, rendered_content)
-
-    def _render_template_field(
-        self,
-        key: str,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-        *,
-        session: Session,
-    ) -> Any:
-        """Override point for MappedOperator to perform further resolution."""
-        return self.render_template(value, context, jinja_env, seen_oids)
 
     def render_template(
         self,

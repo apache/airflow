@@ -19,7 +19,7 @@ from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 
 args = {'owner': 'airflow', 'retries': 3, 'start_date': days_ago(2)}
@@ -32,7 +32,7 @@ dag = DAG(
 )
 
 cmd = 'ls -l'
-run_this_last = DummyOperator(task_id='run_this_last', dag=dag)
+run_this_last = EmptyOperator(task_id='run_this_last', dag=dag)
 
 run_this = BashOperator(task_id='run_after_loop', bash_command='echo 1', dag=dag)
 run_this.set_downstream(run_this_last)

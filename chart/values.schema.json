@@ -405,6 +405,7 @@
             "default": "CeleryExecutor",
             "enum": [
                 "LocalExecutor",
+                "LocalKubernetesExecutor",
                 "CeleryExecutor",
                 "KubernetesExecutor",
                 "CeleryKubernetesExecutor"
@@ -738,6 +739,11 @@
                 },
                 "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
                     "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
+                    "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
                     "type": "boolean",
                     "default": true
                 },
@@ -2710,7 +2716,7 @@
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
-                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
                     ]
                 },
                 "service": {
@@ -3774,6 +3780,24 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 999,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "uid": {
+                    "description": "Redis run as user parameter.",
+                    "type": "integer",
+                    "default": 0
                 }
             }
         },

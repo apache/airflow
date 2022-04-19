@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Text to Speech Hook."""
 from typing import Dict, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1 import TextToSpeechClient
 from google.cloud.texttospeech_v1.types import (
@@ -84,7 +85,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         input_data: Union[Dict, SynthesisInput],
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
     ) -> SynthesizeSpeechResponse:
         """

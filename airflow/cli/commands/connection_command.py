@@ -27,9 +27,11 @@ from urllib.parse import urlparse, urlunparse
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import suppress_logs_and_warning
@@ -133,6 +135,21 @@ def _valid_uri(uri: str) -> bool:
     return uri_parts.scheme != '' and uri_parts.netloc != ''
 
 
+@cache
+def _get_connection_types():
+    """Returns connection types available."""
+    _connection_types = ['fs', 'mesos_framework-id', 'email', 'generic']
+    providers_manager = ProvidersManager()
+    for connection_type, provider_info in providers_manager.hooks.items():
+        if provider_info:
+            _connection_types.append(connection_type)
+    return _connection_types
+
+
+def _valid_conn_type(conn_type: str) -> bool:
+    return conn_type in _get_connection_types()
+
+
 def connections_export(args):
     """Exports all connections to a file"""
     file_formats = ['.yaml', '.json', '.env']
@@ -194,6 +211,14 @@ def connections_add(args):
 
     if has_json and has_uri:
         raise SystemExit('Cannot supply both conn-uri and conn-json')
+
+    if has_type and not (args.conn_type in _get_connection_types()):
+        warnings.warn(f'The type provided to --conn-type is invalid: {args.conn_type}')
+        warnings.warn(
+            f'Supported --conn-types are:{_get_connection_types()}.'
+            'Hence overriding the conn-type with generic'
+        )
+        args.conn_type = 'generic'
 
     if has_uri or has_json:
         invalid_args = []

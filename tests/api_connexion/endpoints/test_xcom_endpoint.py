@@ -20,7 +20,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.models import DagModel, DagRun, TaskInstance, XCom
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
@@ -155,7 +155,7 @@ class TestGetXComEntry(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(DummyOperator(task_id=task_id), run_id=run_id)
+            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
             ti.dag_id = dag_id
             session.add(ti)
         XCom.set(
@@ -329,7 +329,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(DummyOperator(task_id=task_id), run_id=run_id)
+            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
             ti.dag_id = dag_id
             session.add(ti)
 
@@ -365,7 +365,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun1)
-            ti = TaskInstance(DummyOperator(task_id="invalid_task"), run_id="not_this_run_id")
+            ti = TaskInstance(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
             ti.dag_id = "invalid_dag"
             session.add(ti)
         for i in [1, 2]:
@@ -449,7 +449,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(DummyOperator(task_id=self.task_id), run_id=self.run_id)
+            ti = TaskInstance(EmptyOperator(task_id=self.task_id), run_id=self.run_id)
             ti.dag_id = self.dag_id
             session.add(ti)
 

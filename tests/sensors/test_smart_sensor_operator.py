@@ -27,7 +27,7 @@ from freezegun import freeze_time
 from airflow import DAG, settings
 from airflow.configuration import conf
 from airflow.models import DagRun, SensorInstance, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
@@ -147,7 +147,7 @@ class SmartSensorTest(unittest.TestCase):
 
         smart_task = DummySmartSensor(task_id=SMART_OP + "_" + str(index), dag=self.dag, **kwargs)
 
-        dummy_op = DummyOperator(task_id=DUMMY_OP, dag=self.dag)
+        dummy_op = EmptyOperator(task_id=DUMMY_OP, dag=self.dag)
         dummy_op.set_upstream(smart_task)
         return smart_task
 
