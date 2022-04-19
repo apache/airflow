@@ -32,7 +32,8 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
-from airflow.models import BaseOperator, SensorInstance
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep

@@ -744,11 +744,17 @@ repos:
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy
-        name: Run mypy
+        name: Run mypy for core
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations
+        require_serial: true
+      - id: mypy
+        name: Run mypy for providers
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
+        files: ^airflow/providers/.*\.py$
         require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder
