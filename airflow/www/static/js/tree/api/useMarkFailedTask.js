@@ -45,10 +45,13 @@ export default function useMarkFailedTask({
         future,
         upstream,
         downstream,
-        map_indexes: mapIndexes,
-      }).toString();
+      });
 
-      return axios.post(failedUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(failedUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

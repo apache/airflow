@@ -51,10 +51,13 @@ export default function useClearTask({
         downstream,
         recursive,
         only_failed: failed,
-        map_indexes: mapIndexes,
-      }).toString();
+      });
 
-      return axios.post(clearUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

@@ -46,9 +46,13 @@ export default function useMarkSuccessTask({
         upstream,
         downstream,
         map_indexes: mapIndexes,
-      }).toString();
+      });
 
-      return axios.post(successUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(successUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

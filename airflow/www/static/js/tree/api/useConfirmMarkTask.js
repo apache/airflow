@@ -40,8 +40,12 @@ export default function useConfirmMarkTask({
         upstream,
         downstream,
         state,
-        map_indexes: mapIndexes,
       });
+
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
       return axios.get(confirmUrl, { params });
     },
   );
