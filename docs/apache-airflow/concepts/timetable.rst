@@ -53,7 +53,7 @@ Built In Timetables
 -------------------
 
 Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
-may be available in provider packages.
+may be available in plugins.
 
 CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -72,7 +72,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Schedules data intervals with a time delta. Can be selected by providing a
-  ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
+  `:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
 
 .. code-block:: python
 
