@@ -475,7 +475,7 @@ types-boto==2.49.11
 types-certifi==2021.10.8.1
 types-croniter==1.0.8
 types-cryptography==3.3.19
-types-docutils==0.18.0
+types-docutils==0.17.0
 types-freezegun==1.1.8
 types-paramiko==2.8.17
 types-protobuf==3.19.15
