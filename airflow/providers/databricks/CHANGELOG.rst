@@ -19,6 +19,59 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``More operators for Databricks Repos (#22422)``
+* ``Add a link to Databricks Job Run (#22541)``
+* ``Databricks SQL operators are now Python 3.10 compatible (#22886)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: Correctly handle HTTP exception (#22885)``
+
+Misc
+~~~~
+
+* ``Refactor 'DatabricksJobRunLink' to not create ad hoc TaskInstances (#22571)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Prepare mid-April provider documentation. (#22819)``
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Operator for updating Databricks Repos (#22278)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add new options to DatabricksCopyIntoOperator (#22076)``
+* ``Databricks hook - retry on HTTP Status 429 as well (#21852)``
+
+Misc
+~~~~
+
+* ``Skip some tests for Databricks from running on Python 3.10 (#22221)``
+
 2.3.0
 .....
 

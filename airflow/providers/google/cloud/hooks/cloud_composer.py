@@ -18,6 +18,8 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.orchestration.airflow.service_v1 import EnvironmentsClient, ImageVersionsClient
@@ -36,7 +38,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class CloudComposerHook(GoogleBaseHook):
     """Hook for Google Cloud Composer APIs."""
 
-    client_options = {'api_endpoint': 'composer.googleapis.com:443'}
+    client_options = ClientOptions(api_endpoint='composer.googleapis.com:443')
 
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
@@ -79,7 +81,7 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment: Union[Environment, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -109,7 +111,7 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -136,7 +138,7 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Environment:
@@ -165,7 +167,7 @@ class CloudComposerHook(GoogleBaseHook):
         region: str,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListEnvironmentsPager:
@@ -202,7 +204,7 @@ class CloudComposerHook(GoogleBaseHook):
         environment_id: str,
         environment: Union[Environment, Dict],
         update_mask: Union[Dict, FieldMask],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -243,7 +245,7 @@ class CloudComposerHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
         include_past_releases: bool = False,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListImageVersionsPager:

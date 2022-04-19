@@ -21,7 +21,7 @@
 import datetime as dt
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 
 with DAG(
@@ -32,6 +32,6 @@ with DAG(
     tags=['example2', 'example3'],
 ) as dag:
     latest_only = LatestOnlyOperator(task_id='latest_only')
-    task1 = DummyOperator(task_id='task1')
+    task1 = EmptyOperator(task_id='task1')
 
     latest_only >> task1

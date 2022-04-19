@@ -19,6 +19,41 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Misc
+~~~~
+
+* ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
+
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.7.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * `` Add map_index to XCom model and interface (#22112)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+
 3.7.0
 .....
 

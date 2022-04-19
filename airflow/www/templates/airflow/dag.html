@@ -28,17 +28,50 @@
 {% endblock %}
 
 {% set dag_is_paused = dag.get_is_paused() %}
+{% set base_date_arg = request.args.get('base_date') %}
+{% set num_runs_arg = request.args.get('num_runs') %}
+{% if execution_date is defined %}
+  {% set execution_date_arg = execution_date %}
+{% else %}
+  {% set execution_date_arg = request.args.get('execution_date') %}
+{% endif %}
 
 {% block head_meta %}
   {{ super() }}
   <meta name="dag_id" content="{{ dag.dag_id }}">
   <meta name="dag_timezone" content="{{ dag.timezone.name }}">
+  <!-- Urls -->
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   <meta name="external_log_url" content="{{ url_for('Airflow.redirect_to_external_log') }}">
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
-  <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
+  <meta name="dagrun_clear_url" content="{{ url_for('Airflow.dagrun_clear') }}">
+  <meta name="dagrun_failed_url" content="{{ url_for('Airflow.dagrun_failed') }}">
+  <meta name="dagrun_success_url" content="{{ url_for('Airflow.dagrun_success') }}">
+  <meta name="dagrun_queued_url" content="{{ url_for('Airflow.dagrun_queued') }}">
+  <meta name="clear_url" content="{{ url_for('Airflow.clear') }}">
+  <meta name="failed_url" content="{{ url_for('Airflow.failed') }}">
+  <meta name="success_url" content="{{ url_for('Airflow.success') }}">
+  <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
+  <meta name="tree_data_url" content="{{ url_for('Airflow.tree_data') }}">
+  <meta name="run_url" content="{{ url_for('Airflow.run') }}">
+  <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
+  <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+  <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
+  <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
+  <meta name="dagrun_details_url" content="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url, dag_id=dag.dag_id) }}">
+  <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
+  <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
+  <meta name="xcom_url" content="{{ url_for('Airflow.xcom', dag_id=dag.dag_id) }}">
+  <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
+  <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
+  <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
+  <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
+  <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
+  <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">
+  <meta name="csrf_token" content="{{ csrf_token() }}">
+  <meta name="k8s_or_k8scelery_executor" content="{{ k8s_or_k8scelery_executor }}">
   {% if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
     <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
     <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
@@ -47,16 +80,12 @@
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}
+  {% if external_log_name is defined %}
+  <meta name="external_log_name" content="{{ external_log_name }}">
+{% endif %}
 {% endblock %}
 
 {% block content %}
-  {% set base_date_arg = request.args.get('base_date') %}
-  {% set num_runs_arg = request.args.get('num_runs') %}
-  {% if execution_date is defined %}
-    {% set execution_date_arg = execution_date %}
-  {% else %}
-    {% set execution_date_arg = request.args.get('execution_date') %}
-  {% endif %}
   {% if dag.parent_dag is defined and dag.parent_dag %}
     <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
@@ -172,7 +201,7 @@
     </div>
   </div>
   {{ dag_docs(doc_md) }}
-  <!-- Modal -->
+  <!-- Modal for Task Instance -->
   <div class="modal fade" id="taskInstanceModal" tabindex="-1" role="dialog" aria-labelledby="taskInstanceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -180,12 +209,13 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <h4 class="modal-title" id="taskInstanceModalLabel">
             <span class="text-muted">Task Instance:</span> <span id="task_id"></span>
+            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span> <span class="value"></span></span>
             <br><span class="text-muted">at:</span> <span id="execution_date"></span>
           </h4>
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.legacy_' + dag.default_view) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
               Zoom into Sub DAG
             </a>
             <hr>
@@ -204,10 +234,13 @@
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
             Log
           </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+          <a id="btn_xcom" class="btn btn-sm" data-base-url="{{ url_for('Airflow.xcom') }}">
+            XCom
+          </a>
+          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="View all instances across all DAG runs">
             All Instances
           </a>
-          <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream ">
+          <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream">
             Filter Upstream
           </button>
           <hr>
@@ -216,6 +249,22 @@
             <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
             </ul>
             <hr>
+          </div>
+          <div id="mapped_instances">
+            <button id="btn_back" style="display: none;" type="button" class="btn btn-sm" title="Go back to the mapped task summary page">
+              Back to Mapped Summary
+            </button>
+            <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
+              Mapped Instances
+            </a>
+            <div class="dropdown" id="mapped_dropdown">
+              <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                <span id="dropdown-label" title="Select Mapped Instance"></span>
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu menu-scroll"></ul>
+            </div>
+            <hr style="margin-bottom: 8px;">
           </div>
           {% if external_log_name is defined %}
             <div id="dag_redir_logs">
@@ -227,11 +276,12 @@
             </div>
           {% endif %}
           <h4>Task Actions</h4>
-          <form method="POST" data-action="{{ url_for('Airflow.run') }}">
+          <form method="POST" data-action="{{ url_for('Airflow.run') }}" id="run_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
+            <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
@@ -257,9 +307,9 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.clear') }}">
+          <form method="POST" data-action="{{ url_for('Airflow.clear') }}" id="clear_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
@@ -299,9 +349,9 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="failed_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
@@ -332,9 +382,9 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="success_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
@@ -368,53 +418,6 @@
           </form>
           <hr>
           <span class="btn-group" id="extra_links"></span>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- Modal for dag -->
-  <div class="modal fade" id="dagModal" tabindex="-1" role="dialog" aria-labelledby="dagModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title" id="dagModalLabel">
-            <span class="text-muted">{{ 'SUBDAG' if dag.parent_dag is defined and dag.parent_dag else 'DAG' }}:</span> {{dag.dag_id}}
-          </h4>
-        </div>
-        <div class="modal-body">
-          <div class="row">
-            <span class="btn-group col-md-8">
-              <form method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-                <input type="hidden" name="dag_run_id">
-                <input type="hidden" name="origin" value="{{ request.base_url }}">
-                <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
-                  Clear
-                </button>
-                <button type="button" id="btn_dagrun_failed" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
-                  Mark Failed
-                </button>
-                <button type="button" id="btn_dagrun_success" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
-                  Mark Success
-                </button>
-              </form>
-            </span>
-            <span class="col-md-4 text-right">
-              <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" role="button">
-                <span class="material-icons" aria-hidden="true">account_tree</span>
-                Graph
-              </a>
-            </span>
-          </div>
-          <hr style="margin-bottom: 8px;">
-          <a id="btn_dagrun_details" class="btn" data-base-url="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url) }}">
-            DAG Run details
-          </a>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>

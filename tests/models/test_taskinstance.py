@@ -19,6 +19,7 @@
 import datetime
 import operator
 import os
+import pathlib
 import signal
 import sys
 import urllib
@@ -42,6 +43,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    XComForMappingNotPushed,
 )
 from airflow.models import (
     DAG,
@@ -54,10 +56,12 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
@@ -71,6 +75,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -155,7 +160,7 @@ class TestTaskInstance:
         with dag_maker('dag', end_date=DEFAULT_DATE + datetime.timedelta(days=10)) as dag:
             pass
 
-        op1 = DummyOperator(task_id='op_1')
+        op1 = EmptyOperator(task_id='op_1')
 
         assert op1.start_date is None and op1.end_date is None
 
@@ -164,7 +169,7 @@ class TestTaskInstance:
         dag_maker.create_dagrun()
         assert op1.start_date == dag.start_date and op1.end_date == dag.end_date
 
-        op2 = DummyOperator(
+        op2 = EmptyOperator(
             task_id='op_2',
             start_date=DEFAULT_DATE - datetime.timedelta(days=1),
             end_date=DEFAULT_DATE + datetime.timedelta(days=11),
@@ -174,7 +179,7 @@ class TestTaskInstance:
         dag.add_task(op2)
         assert op2.start_date == dag.start_date and op2.end_date == dag.end_date
 
-        op3 = DummyOperator(
+        op3 = EmptyOperator(
             task_id='op_3',
             start_date=DEFAULT_DATE + datetime.timedelta(days=1),
             end_date=DEFAULT_DATE + datetime.timedelta(days=9),
@@ -184,6 +189,12 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
+    def test_current_state(self, create_task_instance):
+        ti = create_task_instance()
+        assert ti.current_state() is None
+        ti.run()
+        assert ti.current_state() == State.SUCCESS
+
     def test_set_dag(self, dag_maker):
         """
         Test assigning Operators to Dags, including deferred assignment
@@ -192,7 +203,7 @@ class TestTaskInstance:
             pass
         with dag_maker('dag2') as dag2:
             pass
-        op = DummyOperator(task_id='op_1')
+        op = EmptyOperator(task_id='op_1')
 
         # no dag assigned
         assert not op.has_dag()
@@ -216,8 +227,8 @@ class TestTaskInstance:
         assert op in dag.tasks
 
     def test_infer_dag(self, create_dummy_dag):
-        op1 = DummyOperator(task_id='test_op_1')
-        op2 = DummyOperator(task_id='test_op_2')
+        op1 = EmptyOperator(task_id='test_op_1')
+        op2 = EmptyOperator(task_id='test_op_2')
 
         dag, op3 = create_dummy_dag(task_id='test_op_3')
 
@@ -243,9 +254,9 @@ class TestTaskInstance:
 
     def test_bitshift_compose_operators(self, dag_maker):
         with dag_maker('dag'):
-            op1 = DummyOperator(task_id='test_op_1')
-            op2 = DummyOperator(task_id='test_op_2')
-            op3 = DummyOperator(task_id='test_op_3')
+            op1 = EmptyOperator(task_id='test_op_1')
+            op2 = EmptyOperator(task_id='test_op_2')
+            op3 = EmptyOperator(task_id='test_op_3')
 
             op1 >> op2 << op3
         dag_maker.create_dagrun()
@@ -366,7 +377,7 @@ class TestTaskInstance:
 
         with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
             dag = models.DAG(dag_id='test_run_pooling_task')
-            DummyOperator(
+            EmptyOperator(
                 task_id='test_run_pooling_task_op',
                 dag=dag,
                 pool='test_pool',
@@ -388,7 +399,7 @@ class TestTaskInstance:
         ti.run(session=session)
         tis = dag.get_task_instances()
         assert {'foo': 'bar'} == tis[0].executor_config
-        task2 = DummyOperator(
+        task2 = EmptyOperator(
             task_id='test_run_pooling_task_op2',
             executor_config={'bar': 'baz'},
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
@@ -859,7 +870,7 @@ class TestTaskInstance:
 
     def test_depends_on_past(self, dag_maker):
         with dag_maker(dag_id='test_depends_on_past'):
-            task = DummyOperator(
+            task = EmptyOperator(
                 task_id='test_dop_task',
                 depends_on_past=True,
             )
@@ -956,9 +967,9 @@ class TestTaskInstance:
         dag_maker,
     ):
         with dag_maker() as dag:
-            downstream = DummyOperator(task_id="downstream", trigger_rule=trigger_rule)
+            downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
             for i in range(5):
-                task = DummyOperator(task_id=f'runme_{i}', dag=dag)
+                task = EmptyOperator(task_id=f'runme_{i}', dag=dag)
                 task.set_downstream(downstream)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
@@ -1008,7 +1019,7 @@ class TestTaskInstance:
     ):
         ti = create_task_instance(session=session)
         dag = ti.task.dag
-        downstream_task = DummyOperator(task_id='downstream_task', dag=dag)
+        downstream_task = EmptyOperator(task_id='downstream_task', dag=dag)
         ti.task >> downstream_task
 
         downstream_ti = TI(downstream_task, run_id=ti.run_id)
@@ -1017,15 +1028,14 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, create_task_instance):
-        """
-        Test xcom_pull, using different filtering methods.
-        """
-        ti1 = create_task_instance(
-            dag_id='test_xcom',
-            task_id='test_xcom_1',
-            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0),
-        )
+    def test_xcom_pull(self, dag_maker):
+        """Test xcom_pull, using different filtering methods."""
+        with dag_maker(dag_id="test_xcom") as dag:
+            task_1 = EmptyOperator(task_id="test_xcom_1")
+            task_2 = EmptyOperator(task_id="test_xcom_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key='foo', value='bar')
@@ -1034,9 +1044,9 @@ class TestTaskInstance:
         XCom.set(
             key='foo',
             value='baz',
-            task_id='test_xcom_2',
-            dag_id=ti1.dag_id,
-            execution_date=ti1.execution_date,
+            task_id=task_2.task_id,
+            dag_id=dag.dag_id,
+            execution_date=dagrun.execution_date,
         )
 
         # Pull with no arguments
@@ -1054,6 +1064,33 @@ class TestTaskInstance:
         # Pull the values pushed by both tasks & Verify Order of task_ids pass & values returned
         result = ti1.xcom_pull(task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
         assert result == ['bar', 'baz']
+
+    def test_xcom_pull_mapped(self, dag_maker, session):
+        with dag_maker(dag_id="test_xcom", session=session):
+            task_1 = EmptyOperator.partial(task_id="task_1").expand()
+            EmptyOperator(task_id="task_2")
+
+        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+
+        ti_1_0 = dagrun.get_task_instance("task_1", session=session)
+        ti_1_0.map_index = 0
+        ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+        session.flush()
+
+        ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
+        ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
+
+        ti_2 = dagrun.get_task_instance("task_2", session=session)
+
+        assert set(ti_2.xcom_pull(["task_1"], session=session)) == {"a", "b"}  # Ordering not guaranteed.
+        assert ti_2.xcom_pull(["task_1"], map_indexes=0, session=session) == ["a"]
+
+        assert ti_2.xcom_pull(map_indexes=[0, 1], session=session) == ["a", "b"]
+        assert ti_2.xcom_pull("task_1", map_indexes=[1, 0], session=session) == ["b", "a"]
+        assert ti_2.xcom_pull(["task_1"], map_indexes=[0, 1], session=session) == ["a", "b"]
+
+        assert ti_2.xcom_pull("task_1", map_indexes=1, session=session) == "b"
+        assert list(ti_2.xcom_pull("task_1", session=session)) == ["a", "b"]
 
     def test_xcom_pull_after_success(self, create_task_instance):
         """
@@ -1084,6 +1121,31 @@ class TestTaskInstance:
         # Xcom IS finally cleared once task has executed
         ti.run(ignore_all_deps=True)
         assert ti.xcom_pull(task_ids='test_xcom', key=key) is None
+
+    def test_xcom_pull_after_deferral(self, create_task_instance, session):
+        """
+        tests xcom will not clear before a task runs its next method after deferral.
+        """
+
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        ti = create_task_instance(
+            dag_id='test_xcom',
+            schedule_interval='@monthly',
+            task_id='test_xcom',
+            pool='test_xcom',
+        )
+
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+
+        ti.next_method = "execute"
+        session.merge(ti)
+        session.commit()
+
+        ti.run(ignore_all_deps=True)
+        assert ti.xcom_pull(task_ids='test_xcom', key=key) == value
 
     def test_xcom_pull_different_execution_date(self, create_task_instance):
         """
@@ -1169,7 +1231,7 @@ class TestTaskInstance:
 
     def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
         ti = create_task_instance(dag_id='test_check_and_change_state_before_execution')
-        task2 = DummyOperator(task_id='task2', dag=ti.task.dag, start_date=DEFAULT_DATE)
+        task2 = EmptyOperator(task_id='task2', dag=ti.task.dag, start_date=DEFAULT_DATE)
         ti.task >> task2
         ti = TI(task=task2, run_id=ti.run_id)
         assert not ti.check_and_change_state_before_execution()
@@ -1222,7 +1284,7 @@ class TestTaskInstance:
     # def test_log_url(self):
     #     now = pendulum.now('Europe/Brussels')
     #     dag = DAG('dag', start_date=DEFAULT_DATE)
-    #     task = DummyOperator(task_id='op', dag=dag)
+    #     task = EmptyOperator(task_id='op', dag=dag)
     #     ti = TI(task=task, execution_date=now)
     #     d = urllib.parse.parse_qs(
     #         urllib.parse.urlparse(ti.log_url).query,
@@ -1279,9 +1341,10 @@ class TestTaskInstance:
 
         assert params["override"] is False
 
+    @pytest.mark.parametrize("use_native_obj", [True, False])
     @patch('airflow.models.taskinstance.send_email')
-    def test_email_alert(self, mock_send_email, dag_maker):
-        with dag_maker(dag_id='test_failure_email'):
+    def test_email_alert(self, mock_send_email, dag_maker, use_native_obj):
+        with dag_maker(dag_id='test_failure_email', render_template_as_native_obj=use_native_obj):
             task = BashOperator(task_id='test_email_alert', bash_command='exit 1', email='to')
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -1326,8 +1389,42 @@ class TestTaskInstance:
         assert 'template: test_email_alert_with_config' == title
         assert 'template: test_email_alert_with_config' == body
 
+    @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
+    @patch('airflow.models.taskinstance.send_email')
+    def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
+        with dag_maker(session=session) as dag:
+
+            @dag.task(email='to')
+            def test_email_alert(x):
+                raise RuntimeError("Fail please")
+
+            test_email_alert.expand(x=["a", "b"])  # This is 'test_email_alert'.
+            test_email_alert.expand(x=[1, 2, 3])  # This is 'test_email_alert__1'.
+
+        dr: DagRun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+
+        ti = dr.get_task_instance(task_id, map_index=0, session=session)
+        assert ti is not None
+
+        # The task will fail and trigger email reporting.
+        with pytest.raises(RuntimeError, match=r"^Fail please$"):
+            ti.run(session=session)
+
+        (email, title, body), _ = mock_send_email.call_args
+        assert email == "to"
+        assert title == f"Airflow alert: <TaskInstance: test_dag.{task_id} test map_index=0 [failed]>"
+        assert body.startswith("Try 1")
+        assert "test_email_alert" in body
+
+        tf = (
+            session.query(TaskFail)
+            .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+            .one_or_none()
+        )
+        assert tf, "TaskFail was recorded"
+
     def test_set_duration(self):
-        task = DummyOperator(task_id='op', email='test@test.test')
+        task = EmptyOperator(task_id='op', email='test@test.test')
         ti = TI(task=task)
         ti.start_date = datetime.datetime(2018, 10, 1, 1)
         ti.end_date = datetime.datetime(2018, 10, 1, 2)
@@ -1335,7 +1432,7 @@ class TestTaskInstance:
         assert ti.duration == 3600
 
     def test_set_duration_empty_dates(self):
-        task = DummyOperator(task_id='op', email='test@test.test')
+        task = EmptyOperator(task_id='op', email='test@test.test')
         ti = TI(task=task)
         ti.set_duration()
         assert ti.duration is None
@@ -1344,7 +1441,7 @@ class TestTaskInstance:
         callback_wrapper = CallbackWrapper()
         ti = create_task_instance(
             on_success_callback=callback_wrapper.success_handler,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             execution_date=timezone.utcnow(),
             state=State.RUNNING,
         )
@@ -1370,7 +1467,7 @@ class TestTaskInstance:
     ) -> list:
         dag_id = 'test_previous_dates'
         with dag_maker(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup):
-            task = DummyOperator(task_id='task')
+            task = EmptyOperator(task_id='task')
 
         def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
             dr = dag_maker.create_dagrun(
@@ -1464,7 +1561,7 @@ class TestTaskInstance:
         Test that get_previous_start_date() can handle TaskInstance with no start_date.
         """
         with dag_maker("test_get_previous_start_date_none", schedule_interval=None) as dag:
-            task = DummyOperator(task_id="op")
+            task = EmptyOperator(task_id="op")
 
         day_1 = DEFAULT_DATE
         day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
@@ -1717,7 +1814,7 @@ class TestTaskInstance:
             completed = True
 
         ti = create_task_instance(
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             on_success_callback=on_finish_callable,
             on_retry_callback=on_finish_callable,
             on_failure_callback=on_finish_callable,
@@ -1767,7 +1864,7 @@ class TestTaskInstance:
 
         mock_on_failure_2 = mock.MagicMock()
         mock_on_retry_2 = mock.MagicMock()
-        task2 = DummyOperator(
+        task2 = EmptyOperator(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
             on_retry_callback=mock_on_retry_2,
@@ -1789,7 +1886,7 @@ class TestTaskInstance:
         # test the scenario where normally we would retry but have been asked to fail
         mock_on_failure_3 = mock.MagicMock()
         mock_on_retry_3 = mock.MagicMock()
-        task3 = DummyOperator(
+        task3 = EmptyOperator(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
             on_retry_callback=mock_on_retry_3,
@@ -1810,7 +1907,7 @@ class TestTaskInstance:
     def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
         session = settings.Session()
         with dag_maker():
-            task = DummyOperator(task_id="mytask", retries=1)
+            task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
         ti = TI(task=task, run_id=dr.run_id)
         ti.state = State.QUEUED
@@ -1912,7 +2009,7 @@ class TestTaskInstance:
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
             dag_id='test_task_start_end_stats',
-            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            end_date=timezone.utcnow() + datetime.timedelta(days=10),
             state=State.RUNNING,
         )
         stats_mock.reset_mock()
@@ -2143,23 +2240,23 @@ class TestTaskInstance:
     def test_operator_field_with_serialization(self, create_task_instance):
 
         ti = create_task_instance()
-        assert ti.task.task_type == 'DummyOperator'
+        assert ti.task.task_type == 'EmptyOperator'
 
         # Verify that ti.operator field renders correctly "without" Serialization
-        assert ti.operator == "DummyOperator"
+        assert ti.operator == "EmptyOperator"
 
         serialized_op = SerializedBaseOperator.serialize_operator(ti.task)
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
-        assert deserialized_op.task_type == 'DummyOperator'
+        assert deserialized_op.task_type == 'EmptyOperator'
         # Verify that ti.operator field renders correctly "with" Serialization
         ser_ti = TI(task=deserialized_op, run_id=None)
-        assert ser_ti.operator == "DummyOperator"
+        assert ser_ti.operator == "EmptyOperator"
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):
-    task = DummyOperator(
-        task_id="dummy",
+    task = EmptyOperator(
+        task_id="empty",
         queue="test_queue",
         pool="test_pool1",
         pool_slots=3,
@@ -2183,7 +2280,7 @@ def test_refresh_from_task(pool_override):
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config
-    assert ti.operator == DummyOperator.__name__
+    assert ti.operator == EmptyOperator.__name__
 
     # Test that refresh_from_task does not reset ti.max_tries
     expected_max_tries = task.retries + 10
@@ -2300,13 +2397,20 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    def test_error_if_unmappable_type(self, dag_maker):
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            ("abc", UnmappableXComTypePushed, "unmappable return type 'str'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_something():
-                return "abc"
+                return return_value
 
             @dag.task()
             def pull_something(value):
@@ -2315,12 +2419,34 @@ class TestTaskInstanceRecordTaskMapXComPush:
             pull_something.expand(value=push_something())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
-        with pytest.raises(UnmappableXComTypePushed) as ctx:
+        with pytest.raises(exception_type) as ctx:
             ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
-        assert str(ctx.value) == "unmappable return type 'str'"
+        assert str(ctx.value) == error_message
+
+    def test_error_if_upstream_does_not_push(self, dag_maker):
+        """Fail the upstream task if it fails to push the XCom used for task mapping."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task(do_xcom_push=False)
+            def push_something():
+                return [1, 2]
+
+            @dag.task()
+            def pull_something(value):
+                print(value)
+
+            pull_something.expand(value=push_something())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        with pytest.raises(XComForMappingNotPushed) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == "did not push XCom for task mapping"
 
     @conf_vars({("core", "max_map_length"): "1"})
     def test_error_if_unmappable_length(self, dag_maker):
@@ -2400,7 +2526,12 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis = (
+            session.query(TI)
+            .filter_by(task_id='show', dag_id=dag_run.dag_id, run_id=dag_run.run_id)
+            .order_by(TI.map_index)
+            .all()
+        )
         assert len(mapped_tis) == len(literal)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -2436,8 +2567,8 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == len(upstream_return)
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2470,8 +2601,8 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 6
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 6 == num
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
@@ -2508,10 +2639,109 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert len(mapped_tis) == 4
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == len(mapped_tis) == 4
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
+        out = tmp_path.joinpath("out")
+        out.touch()
+
+        with dag_maker(dag_id="in_group", session=session) as dag:
+
+            @dag.task
+            def envs():
+                return [{"VAR1": "FOO"}, {"VAR1": "BAR"}]
+
+            @dag.task
+            def cmds():
+                return [f'echo "hello $VAR1" >> {out}', f'echo "goodbye $VAR1" >> {out}']
+
+            with TaskGroup(group_id="dynamic"):
+                BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
+                    env=envs(),
+                    bash_command=cmds(),
+                )
+
+        dag_run: DagRun = dag_maker.create_dagrun()
+        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+
+        for task_id in ["dynamic.envs", "dynamic.cmds"]:
+            ti = original_tis[task_id]
+            ti.refresh_from_task(dag.get_task(task_id))
+            ti.run()
+
+        bash_task = dag.get_task("dynamic.bash")
+        mapped_bash_tis, num = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert num == 2 * 2
+        for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(bash_task)
+            ti.run()
+
+        with out.open() as f:
+            out_lines = [line.strip() for line in f]
+        assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+@mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
+def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
+    """Ensure we access XCom lazily when pulling from a mapped operator."""
+    with dag_maker(dag_id="test_xcom", session=session):
+        task_1 = EmptyOperator.partial(task_id="task_1").expand()
+        EmptyOperator(task_id="task_2")
+
+    dagrun = dag_maker.create_dagrun()
+
+    ti_1_0 = dagrun.get_task_instance("task_1", session=session)
+    ti_1_0.map_index = 0
+    ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+    session.flush()
+
+    ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
+    ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
+
+    ti_2 = dagrun.get_task_instance("task_2", session=session)
+
+    # Simply pulling the joined XCom value should not deserialize.
+    joined = ti_2.xcom_pull("task_1", session=session)
+    assert mock_deserialize_value.call_count == 0
+
+    assert repr(joined) == "_LazyXComAccess(dag_id='test_xcom', run_id='test', task_id='task_1')"
+
+    # Only when we go through the iterable does deserialization happen.
+    it = iter(joined)
+    assert next(it) == "a"
+    assert mock_deserialize_value.call_count == 1
+    assert next(it) == "b"
+    assert mock_deserialize_value.call_count == 2
+    with pytest.raises(StopIteration):
+        next(it)
+
+
+def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def add_one(x):
+            return x + 1
+
+        two_three_four = add_one.expand(x=[1, 2, 3])
+        add_one.expand(x=two_three_four)
+
+    dagrun = dag_maker.create_dagrun()
+    for map_index in range(3):
+        ti = dagrun.get_task_instance("add_one", map_index=map_index)
+        ti.refresh_from_task(dag.get_task("add_one"))
+        ti.run()
+
+    task_345 = dag.get_task("add_one__1")
+    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session)[0]:
+        ti.refresh_from_task(task_345)
+        ti.run()
+
+    query = XCom.get_many(run_id=dagrun.run_id, task_ids=["add_one__1"], session=session)
+    assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]

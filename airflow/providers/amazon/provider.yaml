@@ -22,7 +22,9 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
-  - 3.1.0
+  - 3.3.0
+  - 3.2.0
+  - 3.1.1
   - 3.0.0
   - 2.6.0
   - 2.5.0
@@ -50,6 +52,8 @@ integrations:
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
     logo: /integration-logos/aws/AWS-CloudFormation_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/cloudformation.rst
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
@@ -174,6 +178,8 @@ integrations:
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
     logo: /integration-logos/aws/AWS-Glue_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/glue.rst
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
@@ -456,20 +462,23 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.glacier_to_gcs
   - source-integration-name: Google
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/google_api_to_s3_transfer.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/google_api_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/hive_to_dynamodb.rst
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/imap_attachment_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/imap_attachment_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.imap_attachment_to_s3
   - source-integration-name: MongoDB
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/mongo_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.mongo_to_s3
   - source-integration-name: MySQL
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.mysql_to_s3
   - source-integration-name: Amazon Redshift
     target-integration-name: Amazon Simple Storage Service (S3)
@@ -489,22 +498,26 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: File Transfer Protocol (FTP)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_ftp.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_ftp
   - source-integration-name: Exasol
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.exasol_to_s3
   - source-integration-name: File Transfer Protocol (FTP)
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/ftp_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
   - source-integration-name: Salesforce
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/salesforce_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
   - source-integration-name: Local
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/local_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
   - source-integration-name: SQL
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+

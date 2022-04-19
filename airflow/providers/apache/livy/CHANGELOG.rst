@@ -19,6 +19,30 @@
 Changelog
 ---------
 
+2.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add extra headers to all livy API requests instead of only to post_batch (#22510)``
+
+2.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.2.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 2.2.0
 .....
 

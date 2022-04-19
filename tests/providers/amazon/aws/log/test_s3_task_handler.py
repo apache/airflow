@@ -25,7 +25,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
@@ -59,7 +59,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_s3_task_handler', start_date=date)
-        task = DummyOperator(task_id='task_for_testing_s3_log_handler', dag=self.dag)
+        task = EmptyOperator(task_id='task_for_testing_s3_log_handler', dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test")
         self.ti = TaskInstance(task=task)
         self.ti.dag_run = dag_run

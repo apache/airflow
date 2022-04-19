@@ -19,7 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   # force all unspecified python hooks to run python3
   python: python3
-minimum_pre_commit_version: "1.20.0"
+minimum_pre_commit_version: "2.0.0"
 repos:
   - repo: meta
     hooks:
@@ -29,9 +29,9 @@ repos:
     rev: v2.1.0
     hooks:
       - id: doctoc
-        name: Add TOC for md files
+        name: Add TOC for md and rst files
         files:
-          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         exclude: ^airflow/_vendor/
         args:
           - "--maxlevel"
@@ -40,7 +40,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go\.sh|\.gitmodules$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -61,7 +61,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$|^airflow/_vendor/
@@ -73,8 +73,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/TS/TSX/CSS/PUML files
-        files: \.(js|ts|tsx|css|puml)$
+        name: Add license for all CSS/JS/PUML/TS/TSX files
+        files: \.(css|js|puml|ts|tsx)$
         exclude: ^\.github/.*$|^airflow/_vendor/
         args:
           - --comment-style
@@ -94,8 +94,8 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$|^airflow/_vendor/
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
+        files: ^breeze-legacy$|^breeze-complete$|\.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -136,7 +136,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md|^airflow/_vendor/
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^airflow/_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -144,17 +144,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
   - repo: https://github.com/psf/black
-    rev: 21.12b0
+    rev: 22.3.0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.0
+    rev: v1.12.1
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.12b0]
+        additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
@@ -206,7 +206,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1
     hooks:
@@ -214,7 +214,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$|^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -266,7 +266,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$
+        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
@@ -311,12 +311,21 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich==9.2.0']
+        # This check might be removed when min-airflow-version in providers is 2.2
+      - id: check-2-1-compatibility
+        name: Check that providers are 2.1 compatible.
+        entry: ./scripts/ci/pre_commit/pre_commit_check_2_1_compatibility.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/providers/.*\.py$
+        additional_dependencies: ['rich']
       - id: update-breeze-file
-        name: Update output of breeze command in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
-        language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$|^Dockerfile$
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$
         pass_filenames: false
+        additional_dependencies: ['rich']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.sh
@@ -356,6 +365,11 @@ repos:
         files: ^scripts/ci/pre_commit/supported_versions\.py$|^README\.md$|^docs/apache-airflow/supported-versions\.rst$
         pass_filenames: false
         additional_dependencies: ['tabulate']
+      - id: check-revision-heads-map
+        name: Check that the REVISION_HEADS_MAP is up-to-date
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
+        pass_filenames: false
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -417,7 +431,6 @@ repos:
         exclude: >
           (?x)
           ^airflow/decorators/.*$|
-          ^airflow/gcp/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
@@ -431,10 +444,6 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^airflow/gcp/.*$|
-          ^airflow/hooks/.*$|
-          ^airflow/operators/.*$|
-          ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$
         exclude: ^airflow/_vendor/
       - id: provide-create-sessions
@@ -517,7 +526,8 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.7.2 -x -a
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        exclude: ^dev/breeze/autocomplete/.*$
       - id: stylelint
         name: stylelint
         entry: "stylelint"
@@ -544,7 +554,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
         require_serial: true
-        files: provider\.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
         additional_dependencies:
           - 'PyYAML==5.3.1'
           - 'jsonschema>=3.2.0,<5.0.0'
@@ -555,7 +565,7 @@ repos:
         name: Check if pre-commits are described
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
         language: system
-        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst|^breeze-complete$
+        files: ^\.pre-commit-config\.yaml$|^STATIC_CODE_CHECKS\.rst$|^breeze-complete$
         require_serial: true
       - id: pre-commit-hook-names
         name: Ensure hook ids are not overly long
@@ -564,16 +574,39 @@ repos:
           - --max-length=70
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0']
         require_serial: true
         pass_filenames: false
       - id: airflow-providers-available
         name: Checks providers available when declared by extras in setup.py
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: setup\.py$|^airflow/providers/.*\.py$
+        files: ^setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
+        additional_dependencies: ['rich']
+      - id: update-breeze-config-hash
+        name: Update Breeze README.md with config files hash
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
+        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        pass_filenames: false
+        require_serial: true
+      - id: limit-breeze-dependencies
+        name: Breeze should have small number of top-level dependencies
+        language: python
+        entry: ./scripts/tools/check_if_limited_dependencies.py
+        files: ^dev/breeze/.*$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['click', 'rich']
+      - id: check-system-tests
+        name: Check if system tests have required segments of code
+        entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
+        language: python
+        files: ^tests/system/.*/example_[^/]*.py$
+        exclude: ^tests/system/providers/google/bigquery/example_bigquery_queries\.py$
+        pass_filenames: true
         additional_dependencies: ['rich']
       - id: markdownlint
         name: Run markdownlint
@@ -681,6 +714,13 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$
         require_serial: true
+      - id: inline-dockerfile-scripts
+        name: Inline Dockerfile and Dockerfile.ci scripts
+        entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
+        language: python
+        pass_filenames: false
+        files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
+        require_serial: true
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node
@@ -689,7 +729,7 @@ repos:
         entry: ./scripts/ci/static_checks/ui_lint.sh
         pass_filenames: false
       - id: www-lint
-        name: ESLint against current UI js files
+        name: ESLint against current UI JavaScript files
         language: node
         'types_or': [javascript]
         files: ^airflow/www/static/js/
@@ -715,7 +755,7 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^docs/.*\.py$
-        exclude: rtd-deprecation
+        exclude: ^docs/rtd-deprecation
         require_serial: true
       - id: flake8
         name: Run flake8
@@ -729,5 +769,5 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.sh
         pass_filenames: false
-        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref.rst$
+        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

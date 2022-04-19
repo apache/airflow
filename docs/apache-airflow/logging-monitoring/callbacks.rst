@@ -32,7 +32,7 @@ For example, you may wish to alert when certain tasks have failed, or have the l
 Callback Types
 --------------
 
-There are four types of task events that can trigger a callback:
+There are five types of task events that can trigger a callback:
 
 =========================================== ================================================================
 Name                                        Description
@@ -41,6 +41,7 @@ Name                                        Description
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`
 ``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
+``on_execute_callback``                     Invoked right before the task begins executing.
 =========================================== ================================================================
 
 

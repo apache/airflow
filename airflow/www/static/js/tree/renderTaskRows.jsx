@@ -19,97 +19,89 @@
 
 /* global localStorage */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
-  Text,
   Flex,
   useDisclosure,
   Collapse,
+  useTheme,
 } from '@chakra-ui/react';
-import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
-import StatusBox from './StatusBox';
+import StatusBox, { boxSize, boxSizePx } from './StatusBox';
+import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
+import { useSelection } from './context/selection';
+
+const boxPadding = 3;
+const boxPaddingPx = `${boxPadding}px`;
+const columnWidth = boxSize + 2 * boxPadding;
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
-  task, containerRef, level = 0, isParentOpen, dagRunIds,
+  task, level = 0, ...rest
 }) => task.children.map((t) => (
   <Row
+    {...rest}
     key={t.id}
     task={t}
     level={level}
-    containerRef={containerRef}
     prevTaskId={task.id}
-    isParentOpen={isParentOpen}
-    dagRunIds={dagRunIds}
   />
 ));
 
-const TaskName = ({
-  isGroup = false, isMapped = false, onToggle, isOpen, level, taskName,
+const TaskInstances = ({
+  task, dagRunIds, selectedRunId, onSelect,
 }) => (
-  <Box _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s">
-    <Flex
-      as={isGroup ? 'button' : 'div'}
-      onClick={() => isGroup && onToggle()}
-      color={level > 4 && 'white'}
-      aria-label={taskName}
-      title={taskName}
-      mr={4}
-      width="100%"
-      backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}
-      alignItems="center"
-    >
-      <Text
-        display="inline"
-        fontSize="12px"
-        ml={level * 4 + 4}
-        isTruncated
-      >
-        {taskName}
-        {isMapped && (
-          ' [ ]'
-        )}
-      </Text>
-      {isGroup && (
-        isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
-      )}
-    </Flex>
-  </Box>
-);
-
-const TaskInstances = ({ task, containerRef, dagRunIds }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((gi) => gi.runId === runId);
-      return instance
-        ? (
-          <StatusBox
-            key={`${runId}-${task.id}`}
-            instance={instance}
-            containerRef={containerRef}
-            extraLinks={task.extraLinks}
-            group={task}
-          />
-        )
-        : <Box key={`${runId}-${task.id}`} width="18px" data-testid="blank-task" />;
+      const isSelected = selectedRunId === runId;
+      return (
+        <Box
+          py="4px"
+          px={boxPaddingPx}
+          className={`js-${runId}`}
+          data-selected={isSelected}
+          transition="background-color 0.2s"
+          key={`${runId}-${task.id}`}
+          bg={isSelected && 'blue.100'}
+        >
+          {instance
+            ? (
+              <StatusBox
+                instance={instance}
+                group={task}
+                onSelect={onSelect}
+              />
+            )
+            : <Box width={boxSizePx} data-testid="blank-task" />}
+        </Box>
+      );
     })}
   </Flex>
 );
 
 const Row = (props) => {
   const {
-    task, containerRef, level, prevTaskId, isParentOpen = true, dagRunIds,
+    task,
+    level,
+    prevTaskId,
+    isParentOpen = true,
+    dagRunIds,
   } = props;
+  const { colors } = useTheme();
+  const { selected, onSelect } = useSelection();
+
+  const hoverBlue = `${colors.blue[100]}50`;
   const isGroup = !!task.children;
+  const isSelected = selected.taskId === task.id;
 
   const taskName = prevTaskId ? task.id.replace(`${prevTaskId}.`, '') : task.id;
 
@@ -124,6 +116,12 @@ const Row = (props) => {
   };
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
 
+  // assure the function is the same across renders
+  const memoizedToggle = useCallback(
+    () => isGroup && onToggle(),
+    [onToggle, isGroup],
+  );
+
   const parentTasks = task.id.split('.');
   parentTasks.splice(-1);
 
@@ -132,25 +130,28 @@ const Row = (props) => {
   return (
     <>
       <Tr
-        backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}
+        bg={isSelected && 'blue.100'}
         borderBottomWidth={isFullyOpen ? 1 : 0}
-        borderBottomColor={level > 1 ? 'white' : 'gray.200'}
+        borderBottomColor="gray.200"
         role="group"
+        _hover={!isSelected && { bg: hoverBlue }}
+        transition="background-color 0.2s"
       >
         <Td
-          _groupHover={level > 3 && {
-            color: 'white',
-          }}
+          bg={isSelected ? 'blue.100' : 'white'}
+          _groupHover={!isSelected && ({ bg: 'blue.50' })}
           p={0}
+          transition="background-color 0.2s"
           lineHeight="18px"
           position="sticky"
           left={0}
-          backgroundColor="white"
           borderBottom={0}
+          width="100%"
+          zIndex={1}
         >
-          <Collapse in={isFullyOpen}>
+          <Collapse in={isFullyOpen} unmountOnExit>
             <TaskName
-              onToggle={onToggle}
+              onToggle={memoizedToggle}
               isGroup={isGroup}
               isMapped={task.isMapped}
               taskName={taskName}
@@ -160,9 +161,19 @@ const Row = (props) => {
           </Collapse>
         </Td>
         <Td width={0} p={0} borderBottom={0} />
-        <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} transition="background-color 0.2s" borderBottom={0}>
-          <Collapse in={isFullyOpen}>
-            <TaskInstances dagRunIds={dagRunIds} task={task} containerRef={containerRef} />
+        <Td
+          p={0}
+          align="right"
+          width={`${dagRunIds.length * columnWidth}px`}
+          borderBottom={0}
+        >
+          <Collapse in={isFullyOpen} unmountOnExit>
+            <TaskInstances
+              dagRunIds={dagRunIds}
+              task={task}
+              selectedRunId={selected.runId}
+              onSelect={onSelect}
+            />
           </Collapse>
         </Td>
       </Tr>

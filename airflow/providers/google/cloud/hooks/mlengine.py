@@ -57,13 +57,13 @@ def _poll_with_exponential_delay(request, execute_num_retries, max_n, is_done_fu
                 log.info('Operation is done: %s', response)
                 return response
 
-            time.sleep((2 ** i) + (random.randint(0, 1000) / 1000))
+            time.sleep((2**i) + (random.randint(0, 1000) / 1000))
         except HttpError as e:
             if e.resp.status != 429:
                 log.info('Something went wrong. Not retrying: %s', format(e))
                 raise
             else:
-                time.sleep((2 ** i) + (random.randint(0, 1000) / 1000))
+                time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
     raise ValueError(f'Connection could not be established after {max_n} retries.')
 

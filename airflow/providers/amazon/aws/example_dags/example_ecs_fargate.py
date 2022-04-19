@@ -34,19 +34,29 @@ with DAG(
         cluster=os.environ.get("CLUSTER_NAME", "existing_cluster_name"),
         task_definition=os.environ.get("TASK_DEFINITION", "existing_task_definition_name"),
         launch_type="FARGATE",
+        aws_conn_id="aws_ecs",
         overrides={
             "containerOverrides": [
                 {
-                    "name": "existing_container_name",
+                    "name": "hello-world-container",
                     "command": ["echo", "hello", "world"],
                 },
             ],
         },
         network_configuration={
             "awsvpcConfiguration": {
+                "securityGroups": [os.environ.get("SECURITY_GROUP_ID", "sg-123abc")],
                 "subnets": [os.environ.get("SUBNET_ID", "subnet-123456ab")],
-                "assignPublicIp": "ENABLED",
             },
         },
+        tags={
+            "Customer": "X",
+            "Project": "Y",
+            "Application": "Z",
+            "Version": "0.0.1",
+            "Environment": "Development",
+        },
+        awslogs_group="/ecs/hello-world",
+        awslogs_stream_prefix="prefix_b/hello-world-container",
     )
     # [END howto_operator_ecs]

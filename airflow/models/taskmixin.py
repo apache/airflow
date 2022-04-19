@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from logging import Logger
 
     from airflow.models.dag import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
 
@@ -145,6 +146,13 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     def has_dag(self) -> bool:
         return self.dag is not None
+
+    @property
+    def dag_id(self) -> str:
+        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        if self.dag:
+            return self.dag.dag_id
+        return "_in_memory_dag_"
 
     @property
     def log(self) -> "Logger":
@@ -283,7 +291,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
 
-    def mapped_dependants(self) -> Iterator["DAGNode"]:
+    def mapped_dependants(self) -> Iterator["MappedOperator"]:
         """Return any mapped nodes that are direct dependencies of the current task
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -292,7 +300,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         provide a way to record an DAG node's all downstream nodes instead.
         """
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+        from airflow.utils.task_group import TaskGroup
 
         def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
             """Recursively walk children in a task group.
@@ -311,7 +319,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         for key, child in _walk_group(tg):
             if key == self.node_id:
                 continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+            if not isinstance(child, MappedOperator):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child

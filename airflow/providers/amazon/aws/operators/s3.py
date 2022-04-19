@@ -244,6 +244,10 @@ class S3CopyObjectOperator(BaseOperator):
     Note: the S3 connection used here needs to have access to both
     source and destination bucket/key.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3CopyObjectOperator`
+
     :param source_bucket_key: The key of the source object. (templated)
 
         It can be either full s3:// style url or relative path from root level.
@@ -322,6 +326,10 @@ class S3DeleteObjectsOperator(BaseOperator):
     """
     To enable users to delete single object or multiple objects from
     a bucket using a single HTTP request.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3DeleteObjectsOperator`
 
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :param keys: The key(s) to delete from S3 bucket. (templated)

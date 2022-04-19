@@ -17,12 +17,17 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.operator import Operator
 
 
@@ -134,22 +139,21 @@ class XComArg(DependencyMixin):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Context) -> Any:
+    @provide_session
+    def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
-        if not resolved_value:
-            if TYPE_CHECKING:
-                assert self.operator.dag
+        result = context["ti"].xcom_pull(
+            task_ids=self.operator.task_id, key=str(self.key), default=NOTSET, session=session
+        )
+        if result is NOTSET:
             raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!'
+                f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
+                f'with key="{self.key}" is not found!'
             )
-        resolved_value = resolved_value[0]
-
-        return resolved_value
+        return result
 
     @staticmethod
     def apply_upstream_relationship(op: "Operator", arg: Any):
@@ -167,6 +171,6 @@ class XComArg(DependencyMixin):
         elif isinstance(arg, dict):
             for elem in arg.values():
                 XComArg.apply_upstream_relationship(op, elem)
-        elif hasattr(arg, "template_fields"):
+        elif isinstance(arg, AbstractOperator):
             for elem in arg.template_fields:
                 XComArg.apply_upstream_relationship(op, elem)

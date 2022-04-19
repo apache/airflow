@@ -284,6 +284,7 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
     # Replace "|version|" in links
     manual_substitutions_in_generated_html = [

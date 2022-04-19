@@ -23,11 +23,7 @@ from kubernetes.client import ApiClient, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.xcom import XCom
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
-    KubernetesPodOperator,
-    _prune_dict,
-    _suppress,
-)
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -47,6 +43,7 @@ def create_context(task):
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
+        "run_id": "test",
     }
 
 
@@ -73,7 +70,7 @@ class TestKubernetesPodOperator:
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
 
-    def run_pod(self, operator, map_index: int = -1) -> k8s.V1Pod:
+    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
             operator.dag = dag
 
@@ -82,6 +79,7 @@ class TestKubernetesPodOperator:
         ti.map_index = map_index
         self.dag_run = dr
         context = ti.get_template_context(session=self.dag_maker.session)
+        self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
@@ -530,9 +528,9 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_describes_pod_on_failure(self, await_container_mock, follow_container_mock):
+    def test_describes_pod_on_failure(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -547,20 +545,20 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             cluster_context="default",
         )
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Failed'
         self.await_pod_mock.return_value = remote_pod_mock
 
-        with pytest.raises(AirflowException, match=f"Pod {name_base}.[a-z0-9]+ returned a failure: .*"):
+        with pytest.raises(AirflowException, match=f"Pod {name_base}.[a-z0-9]+ returned a failure:.*"):
             context = create_context(k)
             k.execute(context=context)
 
         assert not self.client_mock.return_value.read_namespaced_pod.called
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.follow_container_logs")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
-    def test_no_handle_failure_on_success(self, await_container_mock, follow_container_mock):
+    def test_no_handle_failure_on_success(self, await_container_mock, fetch_container_mock):
         name_base = "test"
 
         k = KubernetesPodOperator(
@@ -576,7 +574,7 @@ class TestKubernetesPodOperator:
             cluster_context="default",
         )
 
-        follow_container_mock.return_value = None
+        fetch_container_mock.return_value = None
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
@@ -856,32 +854,3 @@ def test__suppress():
             raise ValueError("failure")
 
         mock_error.assert_called_once_with("failure", exc_info=True)
-
-
-@pytest.mark.parametrize(
-    'mode, expected',
-    [
-        (
-            'strict',
-            {
-                'b': '',
-                'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
-                'd': ['', 0, '1'],
-                'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
-            },
-        ),
-        (
-            'truthy',
-            {
-                'c': {'c': 'hi', 'd': ['1']},
-                'd': ['1'],
-                'e': [{'c': 'hi', 'd': ['1']}, ['1']],
-            },
-        ),
-    ],
-)
-def test__prune_dict(mode, expected):
-    l1 = ['', 0, '1', None]
-    d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
-    d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
-    assert _prune_dict(d2, mode=mode) == expected

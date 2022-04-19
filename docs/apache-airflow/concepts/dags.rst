@@ -132,7 +132,7 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it, and should be one regular expression per line, with ``#`` indicating comments.
+You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 
 .. _concepts:dag-run:
@@ -271,12 +271,12 @@ Branching
 
 You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the branching Operators come in.
 
-The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped.
+The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped. It can also return None to skip all downstream task.
 
 The task_id returned by the Python function has to reference a task directly downstream from the BranchPythonOperator task.
 
 .. note::
-    When a Task is downstream of both the branching operator *and* downstream of one of more of the selected tasks, it will not be skipped:
+    When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
 
     .. image:: /img/branch_note.png
 
@@ -290,8 +290,10 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
             return "continue_task"
-        else:
+        elif xcom_value >= 3:
             return "stop_task"
+        else:
+            return None
 
 
     start_op = BashOperator(
@@ -314,7 +316,7 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
 
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``BranchPythonOperator`` but expects you to provide an implementation of the method ``choose_branch``.
 
-As with the callable for ``BranchPythonOperator``, this method should return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped::
+As with the callable for ``BranchPythonOperator``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
     class MyBranchOperator(BaseBranchOperator):
         def choose_branch(self, context):
@@ -323,8 +325,10 @@ As with the callable for ``BranchPythonOperator``, this method should return the
             """
             if context['data_interval_start'].day == 1:
                 return ['daily_task_id', 'monthly_task_id']
-            else:
+            elif context['data_interval_start'].day == 2:
                 return 'daily_task_id'
+            else:
+                return None
 
 
 .. _concepts:latest-only:
@@ -696,25 +700,54 @@ Note that packaged DAGs come with some caveats:
 
 In general, if you have a complex set of compiled dependencies and modules, you are likely better off using the Python ``virtualenv`` system and installing the necessary packages on your target systems with ``pip``.
 
+.. _concepts:airflowignore:
+
 ``.airflowignore``
 ------------------
 
-A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
-or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
-Each line in ``.airflowignore`` specifies a regular expression pattern,
-and directories or files whose names (not DAG id) match any of the patterns
-would be ignored (under the hood, ``Pattern.search()`` is used to match the pattern).
-Overall it works like a ``.gitignore`` file.
-Use the ``#`` character to indicate a comment; all characters
+An ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore. Airflow supports
+two syntax flavors for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
+configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
+
+.. note::
+
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``regexp`` to ensure backwards compatibility.
+
+For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names (not DAG id)
+match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
+to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.
 
-``.airflowignore`` file should be put in your ``DAG_FOLDER``.
-For example, you can prepare a ``.airflowignore`` file with content
+With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
+
+* The ``*`` character will any number of characters, except ``/``
+* The ``?`` character will match any single character, except ``/``
+* The range notation, e.g. ``[a-zA-Z]``, can be used to match one of the characters in a range
+* A pattern can be negated by prefixing with ``!``. Patterns are evaluated in order so
+  a negation can override a previously defined pattern in the same file or patterns defined in
+  a parent directory.
+* A double asterisk (``**``) can be used to match across directories. For example, ``**/__pycache__/``
+  will ignore ``__pycache__`` directories in each sub-directory to infinite depth.
+* If there is a ``/`` at the beginning or middle (or both) of the pattern, then the pattern
+  is relative to the directory level of the particular .airflowignore file itself. Otherwise the
+  pattern may also match at any level below the .airflowignore level.
+
+The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
+a ``.airflowignore`` file using the ``regexp`` syntax with content
 
 .. code-block::
 
     project_a
     tenant_[\d]
+
+Or, equivalently, in the ``glob`` syntax
+
+.. code-block::
+
+    **/*project_a*
+    tenant_[0-9]*
 
 Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
 ``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored

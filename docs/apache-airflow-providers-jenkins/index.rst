@@ -21,6 +21,11 @@
 
 Content
 -------
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
 
 .. toctree::
     :maxdepth: 1
@@ -52,7 +57,7 @@ Package apache-airflow-providers-jenkins
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 2.0.5
+Release: 2.1.0
 
 Provider package
 ----------------

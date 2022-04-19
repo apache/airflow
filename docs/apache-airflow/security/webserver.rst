@@ -96,16 +96,9 @@ Please use command line interface ``airflow users create`` to create accounts, o
 Other Methods
 '''''''''''''
 
-Since the Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
+Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
 is automatically generated and can be used to configure the Airflow to support authentication
 methods like OAuth, OpenID, LDAP, REMOTE_USER.
-
-For previous versions from Airflow, the ``$AIRFLOW_HOME/airflow.cfg`` following entry needs to be set to enable
-the Flask App Builder RBAC UI.
-
-.. code-block:: ini
-
-    rbac = True
 
 The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
 with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.

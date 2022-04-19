@@ -221,7 +221,7 @@ class AirflowInfo:
     def _airflow_info(self):
         executor = configuration.conf.get("core", "executor")
         sql_alchemy_conn = self.anonymizer.process_url(
-            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+            configuration.conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
         )
         dags_folder = self.anonymizer.process_path(
             configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
@@ -304,7 +304,7 @@ class AirflowInfo:
 
     @property
     def _providers_info(self):
-        return [(p.provider_info['package-name'], p.version) for p in ProvidersManager().providers.values()]
+        return [(p.data['package-name'], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: Optional[AirflowConsole] = None) -> None:
         """Shows information about Airflow instance"""

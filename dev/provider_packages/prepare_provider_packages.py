@@ -351,7 +351,7 @@ def get_long_description(provider_package_id: str) -> str:
     return long_description
 
 
-def get_install_requirements(provider_package_id: str, version_suffix: str) -> List[str]:
+def get_install_requirements(provider_package_id: str, version_suffix: str) -> str:
     """
     Returns install requirements for the package.
 
@@ -380,15 +380,19 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> L
             install_requires.extend(additional_dependencies)
 
     install_requires.extend(dependencies)
-    return install_requires
+    prefix = "\n    "
+    return prefix + prefix.join(install_requires)
 
 
-def get_setup_requirements() -> List[str]:
+def get_setup_requirements() -> str:
     """
     Returns setup requirements (common for all package for now).
     :return: setup requirements
     """
-    return ['setuptools', 'wheel']
+    return """
+    setuptools
+    wheel
+"""
 
 
 def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
@@ -1931,8 +1935,8 @@ def cleanup_remnants(verbose: bool):
         shutil.rmtree(file, ignore_errors=True)
 
 
-def verify_setup_py_prepared(provider_package):
-    with open("setup.py") as f:
+def verify_setup_cfg_prepared(provider_package):
+    with open("setup.cfg") as f:
         setup_content = f.read()
     search_for = f"providers-{provider_package.replace('.','-')} for Apache Airflow"
     if search_for not in setup_content:
@@ -1994,7 +1998,7 @@ def build_provider_packages(
             os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
             cleanup_remnants(verbose)
             provider_package = package_id
-            verify_setup_py_prepared(provider_package)
+            verify_setup_cfg_prepared(provider_package)
 
             console.print(f"Building provider package: {provider_package} in format {package_format}")
             command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
@@ -2064,7 +2068,7 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
         console.print(f"[red]ERROR! There were {len(warns)} warnings generated during the import[/]")
         console.print()
         console.print("[yellow]Ideally, fix it, so that no warnings are generated during import.[/]")
-        console.print("[yellow]There are two cases that are legitimate deprecation warnings though:[/]")
+        console.print("[yellow]There are three cases that are legitimate deprecation warnings though:[/]")
         console.print("[yellow] 1) when you deprecate whole module or class and replace it in provider[/]")
         console.print("[yellow] 2) when 3rd-party module generates Deprecation and you cannot upgrade it[/]")
         console.print(
@@ -2103,6 +2107,11 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
 KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     (
         'This version of Apache Beam has not been sufficiently tested on Python 3.9. '
+        'You may encounter bugs or missing features.',
+        "apache_beam",
+    ),
+    (
+        'This version of Apache Beam has not been sufficiently tested on Python 3.10. '
         'You may encounter bugs or missing features.',
         "apache_beam",
     ),
@@ -2146,6 +2155,16 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "jdbc"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "azure"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "qubole"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "winrm"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "dbt"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "jdbc"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "azure"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "qubole"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "winrm"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
@@ -2466,7 +2485,7 @@ def get_prs_for_package(package_id: str) -> List[int]:
                 skip_line = True
                 continue
             if extract_prs:
-                if all(c == '.' for c in line):
+                if len(line) > 1 and all(c == '.' for c in line.strip()):
                     # Header for next version reached
                     break
                 if line.startswith('.. Below changes are excluded from the changelog'):

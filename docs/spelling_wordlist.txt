@@ -1,3 +1,4 @@
+AQL
 Ack
 Acyclic
 AddressesType
@@ -16,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+ArangoDB
 Arg
 Args
 Asana
@@ -98,6 +100,7 @@ Dataflow
 Dataframe
 Datalake
 Datanodes
+Dataplex
 Dataprep
 Dataproc
 Dataset
@@ -308,6 +311,7 @@ ProductSearchClient
 Protobuf
 PublisherClient
 Pubsub
+PutObject
 Py
 PyPI
 Pyarrow
@@ -365,7 +369,6 @@ Standarization
 StatefulSet
 StatefulSets
 StatsD
-Statsd
 StorageClass
 StoredInfoType
 Stringified
@@ -442,6 +445,7 @@ Zsh
 Zymergen
 abc
 accessor
+accountmaking
 aci
 ack
 ackIds
@@ -474,6 +478,8 @@ apikey
 apis
 appbuilder
 approle
+arango
+arangodb
 aren
 arg
 args
@@ -666,6 +672,7 @@ dataflow
 dataframe
 dataframes
 datapipe
+dataplex
 datapoint
 dataproc
 dataset
@@ -1258,6 +1265,7 @@ runAsUser
 runnable
 runspace
 runtime
+sade
 sagemaker
 salesforce
 samesite

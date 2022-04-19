@@ -26,11 +26,12 @@ from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.fab_security.manager import AnonymousUser
-from airflow.www.fab_security.sqla.models import assoc_permission_role
+from airflow.www.fab_security.sqla.models import User, assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import create_user_scope, delete_role, set_user_single_role
 from tests.test_utils.asserts import assert_queries_count
@@ -424,9 +425,10 @@ def test_get_current_user_permissions(app):
         ) as user:
             assert user.perms == {(action, resource)}
 
-            user._perms = None
-            user.roles = []
-
+        with create_user_scope(
+            app,
+            username='no_perms',
+        ) as user:
             assert len(user.perms) == 0
 
 
@@ -616,7 +618,7 @@ def test_access_control_is_set_on_init(
             )
 
             security_manager.bulk_sync_roles([{'role': negated_role, 'perms': []}])
-            set_user_single_role(app, username, role_name=negated_role)
+            set_user_single_role(app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
                 perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
                 dag_id='access_control_test',
@@ -639,7 +641,7 @@ def test_access_control_stale_perms_are_revoked(
             role_name=role_name,
             permissions=[],
         ) as user:
-            set_user_single_role(app, username, role_name='team-a')
+            set_user_single_role(app, user, role_name='team-a')
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_WRITE}
             )
@@ -648,6 +650,8 @@ def test_access_control_stale_perms_are_revoked(
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
+            # Clear the cache, to make it pick up new rol perms
+            user._perms = None
             assert_user_has_dag_perms(
                 perms=[permissions.ACTION_CAN_READ], dag_id='access_control_test', user=user
             )
@@ -804,3 +808,9 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             assert_user_has_dag_perms(
                 perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
+
+
+def test_fab_models_use_airflow_base_meta():
+    # TODO: move this test to appropriate place when we have more tests for FAB models
+    user = User()
+    assert user.metadata is Base.metadata

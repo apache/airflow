@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.4"
+defaultAirflowTag: "2.2.5"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.4"
+airflowVersion: "2.2.5"
 
 # Images
 images:
@@ -219,7 +219,7 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -245,7 +245,9 @@ secret: []
 # in this case disable setting of those variables by setting the relevant configuration to false.
 enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__FERNET_KEY: true
+  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
@@ -563,23 +565,7 @@ scheduler:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
-    command:
-      - sh
-      - -c
-      - |
-        CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-        import os
-        os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-        os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-        from airflow.jobs.scheduler_job import SchedulerJob
-        from airflow.utils.db import create_session
-        from airflow.utils.net import get_hostname
-        import sys
-        with create_session() as session:
-            job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-                SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-        sys.exit(0 if job.is_alive() else 1)"
-
+    command: ~
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -677,6 +663,10 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+
 # Airflow create user job settings
 createUserJob:
   # Command to use when running the create user job (templated).
@@ -749,6 +739,7 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  enabled: true
   # Command to use when running the migrate database job (templated).
   command: ~
   # Args to use when running the migrate database job (templated).
@@ -899,7 +890,7 @@ webserver:
   #   from airflow import configuration as conf
 
   #   # The SQLAlchemy connection string.
-  #   SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
@@ -944,6 +935,10 @@ webserver:
 
   podAnnotations: {}
 
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+
 # Airflow Triggerer Config
 triggerer:
   enabled: true
@@ -968,26 +963,7 @@ triggerer:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
-    command:
-      - sh
-      - -c
-      - |
-        CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-        import os
-        os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-        os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-
-        from airflow.jobs.triggerer_job import TriggererJob
-        from airflow.utils.db import create_session
-        from airflow.utils.net import get_hostname
-        import sys
-
-        with create_session() as session:
-            job = session.query(TriggererJob).filter_by(hostname=get_hostname()).order_by(
-                TriggererJob.latest_heartbeat.desc()).limit(1).first()
-
-        sys.exit(0 if job.is_alive() else 1)
-        "
+    command: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -1047,6 +1023,10 @@ triggerer:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
 
 # Flower settings
 flower:
@@ -1129,6 +1109,7 @@ flower:
   extraContainers: []
   # Mount additional volumes into the flower pods.
   extraVolumes: []
+  extraVolumeMounts: []
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -1139,7 +1120,7 @@ flower:
 
   podAnnotations: {}
 
-# Statsd settings
+# StatsD settings
 statsd:
   enabled: true
 
@@ -1154,7 +1135,8 @@ statsd:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # When not set, the values defined in the global securityContext will be used
+  uid: 65534
+  # When not set, `statsd.uid` will be used
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0
@@ -1173,17 +1155,15 @@ statsd:
   service:
     extraAnnotations: {}
 
-  # Select certain nodes for statsd pods.
+  # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
 
   priorityClassName: ~
 
-  # Additional mappings for statsd exporter.
+  # Additional mappings for StatsD exporter.
   extraMappings: []
-
-  uid: 65534
 
 # PgBouncer settings
 pgbouncer:
@@ -1193,6 +1173,8 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
+  auth_type: md5
+  auth_file: /etc/pgbouncer/users.txt
 
   # Create ServiceAccount
   serviceAccount:
@@ -1348,6 +1330,13 @@ redis:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  # Set to 0 for backwards-compatiblity
+  uid: 0
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 0
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -1550,6 +1539,8 @@ dags:
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
     existingClaim:
+    ## optional subpath for dag volume mount
+    subPath: ~
   gitSync:
     enabled: false
 

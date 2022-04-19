@@ -17,10 +17,11 @@
 
 import re
 from copy import deepcopy
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Sequence, Tuple, Union
 from unittest import TestCase, mock
 
 import pytest
+from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -37,7 +38,7 @@ TEST_DELEGATE_TO: str = "test-delegate-to"
 TEST_LOCATION: str = "europe-west-3b"
 TEST_ENTRY_ID: str = "test-entry-id"
 TEST_ENTRY: Dict = {}
-TEST_RETRY: Retry = Retry()
+TEST_RETRY: Union[Retry, _MethodDefault] = Retry()
 TEST_TIMEOUT: float = 4
 TEST_METADATA: Sequence[Tuple[str, str]] = ()
 TEST_ENTRY_GROUP_ID: str = "test-entry-group-id"

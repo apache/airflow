@@ -41,3 +41,8 @@ export const finalStatesMap = () => new Map([
   ['skipped', 0],
   ['no_status', 0],
 ]);
+
+export const appendSearchParams = (url, params) => {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}${params}`;
+};

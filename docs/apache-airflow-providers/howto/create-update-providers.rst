@@ -351,6 +351,84 @@ should be implemented to keep compatibility with Airflow 2.1 and 2.2
         raise AirflowOptionalProviderFeatureException(e)
 
 
+Using Providers with dynamic task mapping
+-----------------------------------------
+
+Airflow 2.3 added `Dynamic Task Mapping <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-42+Dynamic+Task+Mapping>`_
+and it added the possibility of assigning a unique key to each task. Which means that when such dynamically
+mapped task wants to retrieve a value from XCom (for example in case an extra link should calculated)
+it should always check if the ti_key value passed is not None an only then retrieve the XCom value using
+XCom.get_value. This allows to keep backwards compatibility with earlier versions of Airflow.
+
+Typical code to access XCom Value in providers that want to keep backwards compatibility should look similar to
+this (note the ``if ti_key is not None:`` condition).
+
+  .. code-block:: python
+
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ):
+        if ti_key is not None:
+            job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
+        else:
+            assert dttm is not None
+            job_ids = XCom.get_one(
+                key="job_id",
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
+        if not job_ids:
+            return None
+        if len(job_ids) < self.index:
+            return None
+        job_id = job_ids[self.index]
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
+
+
+Having sensors return XOM values
+--------------------------------
+In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
+
+  .. code-block:: python
+
+    from airflow.sensors.base import PokeReturnValue
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            return PokeReturnValue(is_done, xcom_value)
+
+
+To implement a sensor operator that pushes a XCOM value and supports both version 2.3 and pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
+
+  .. code-block:: python
+
+    try:
+        from airflow.sensors.base import PokeReturnValue
+    except ImportError:
+        PokeReturnValue = None
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> bool:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            if PokeReturnValue is not None:
+                return PokeReturnValue(is_done, xcom_value)
+            else:
+                if is_done:
+                    context["ti"].xcom_push(key="xcom_key", value=xcom_value)
+                return is_done
+
+
 How-to Update a community provider
 ----------------------------------
 

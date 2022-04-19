@@ -19,7 +19,15 @@
 Changelog
 ---------
 
-1.0.0
+1.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+1.0.1
 .....
 
 Initial version of the provider.

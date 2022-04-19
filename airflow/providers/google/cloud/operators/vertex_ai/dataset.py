@@ -21,6 +21,7 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -67,7 +68,7 @@ class CreateDatasetOperator(BaseOperator):
         region: str,
         project_id: str,
         dataset: Union[Dataset, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -147,7 +148,7 @@ class GetDatasetOperator(BaseOperator):
         project_id: str,
         dataset_id: str,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -224,7 +225,7 @@ class DeleteDatasetOperator(BaseOperator):
         region: str,
         project_id: str,
         dataset_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -300,7 +301,7 @@ class ExportDataOperator(BaseOperator):
         project_id: str,
         dataset_id: str,
         export_config: Union[ExportDataConfig, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -376,7 +377,7 @@ class ImportDataOperator(BaseOperator):
         project_id: str,
         dataset_id: str,
         import_configs: Union[Sequence[ImportDataConfig], List],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -459,7 +460,7 @@ class ListDatasetsOperator(BaseOperator):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -540,7 +541,7 @@ class UpdateDatasetOperator(BaseOperator):
         dataset_id: str,
         dataset: Union[Dataset, Dict],
         update_mask: Union[FieldMask, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

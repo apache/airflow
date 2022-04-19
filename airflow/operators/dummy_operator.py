@@ -15,12 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.operators.dummy`."""
+"""This module is deprecated. Please use :mod:`airflow.operators.empty`."""
 
 import warnings
 
-from airflow.operators.dummy import DummyOperator  # noqa
+from airflow.operators.empty import EmptyOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.dummy`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.empty`.", DeprecationWarning, stacklevel=2
 )
+
+
+class DummyOperator(EmptyOperator):
+    """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

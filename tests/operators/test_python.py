@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
     PythonOperator,
@@ -43,6 +43,7 @@ from airflow.operators.python import (
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.dates import days_ago
+from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -225,7 +226,9 @@ class TestPythonOperator(TestPythonBase):
         )
 
     def test_python_operator_shallow_copy_attr(self):
-        not_callable = lambda x: x
+        def not_callable(x):
+            return x
+
         original_task = PythonOperator(
             python_callable=not_callable,
             task_id='python_operator',
@@ -389,8 +392,8 @@ class TestBranchOperator(unittest.TestCase):
             schedule_interval=INTERVAL,
         )
 
-        self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
         self.branch_3 = None
 
     def tearDown(self):
@@ -566,12 +569,12 @@ class TestBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
-    def test_raise_exception_on_no_task_id_return(self):
-        branch_op = BranchPythonOperator(task_id='make_choice', dag=self.dag, python_callable=lambda: None)
+    def test_raise_exception_on_no_accepted_type_return(self):
+        branch_op = BranchPythonOperator(task_id='make_choice', dag=self.dag, python_callable=lambda: 5)
         self.dag.clear()
         with pytest.raises(AirflowException) as ctx:
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        assert 'Branch callable must return either a task ID or a list of IDs' == str(ctx.value)
+        assert 'Branch callable must return either None, a task ID, or a list of IDs' == str(ctx.value)
 
     def test_raise_exception_on_invalid_task_id(self):
         branch_op = BranchPythonOperator(
@@ -598,8 +601,8 @@ class TestShortCircuitOperator:
         )
 
         with self.dag:
-            self.op1 = DummyOperator(task_id="op1")
-            self.op2 = DummyOperator(task_id="op2")
+            self.op1 = EmptyOperator(task_id="op1")
+            self.op2 = EmptyOperator(task_id="op2")
             self.op1.set_downstream(self.op2)
 
     def teardown(self):
@@ -923,6 +926,27 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, requirements='requirements.txt', system_site_packages=False)
 
+    @unittest.mock.patch('airflow.operators.python.prepare_virtualenv')
+    def test_pip_install_options(self, mocked_prepare_virtualenv):
+        def f():
+            import funcsigs  # noqa: F401
+
+        mocked_prepare_virtualenv.side_effect = prepare_virtualenv
+
+        self._run_as_operator(
+            f,
+            requirements=['funcsigs==0.4'],
+            system_site_packages=False,
+            pip_install_options=['--no-deps'],
+        )
+        mocked_prepare_virtualenv.assert_called_with(
+            venv_directory=unittest.mock.ANY,
+            python_bin=unittest.mock.ANY,
+            system_site_packages=False,
+            requirements_file_path=unittest.mock.ANY,
+            pip_install_options=['--no-deps'],
+        )
+
     def test_templated_requirements_file(self):
         def f():
             import funcsigs
@@ -1234,8 +1258,8 @@ def test_empty_branch(dag_maker, choice, expected_states):
         start_date=DEFAULT_DATE,
     ) as dag:
         branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
-        task1 = DummyOperator(task_id='task1')
-        join = DummyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
+        task1 = EmptyOperator(task_id='task1')
+        join = EmptyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
 
         branch >> [task1, join]
         task1 >> join

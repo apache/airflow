@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -134,6 +134,48 @@ class TestExternalTaskSensor(unittest.TestCase):
                 "unit_test_dag failed."
             )
 
+    def test_external_task_sensor_external_task_id_param(self):
+        """Test external_task_ids is set properly when external_task_id is passed as a template"""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_id='{{ params.task_id }}',
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+
+    def test_external_task_sensor_external_task_ids_param(self):
+        """Test external_task_ids rendering when a template is passed."""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_ids=['{{ params.task_id }}'],
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+
     def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self):
         self.test_time_sensor(task_id=TEST_TASK_ID)
         self.test_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
@@ -187,7 +229,7 @@ exit 0
         task_external_with_failure = BashOperator(
             task_id="task_external_with_failure", bash_command=bash_command_code, retries=0, dag=dag_external
         )
-        task_external_without_failure = DummyOperator(
+        task_external_without_failure = EmptyOperator(
             task_id="task_external_without_failure", retries=0, dag=dag_external
         )
 
@@ -421,13 +463,14 @@ def test_external_task_sensor_templated(dag_maker, app):
 
     assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
     assert instance.task.external_task_id == f"task_{DEFAULT_DATE.date()}"
+    assert instance.task.external_task_ids == [f"task_{DEFAULT_DATE.date()}"]
 
     # Verify that the operator link uses the rendered value of ``external_dag_id``.
     app.config['SERVER_NAME'] = ""
     with app.app_context():
         url = instance.task.get_extra_links(instance, "External DAG")
 
-        assert f"tree?dag_id=dag_{DEFAULT_DATE.date()}" in url
+        assert f"/dags/dag_{DEFAULT_DATE.date()}/grid" in url
 
 
 class TestExternalTaskMarker(unittest.TestCase):
@@ -472,7 +515,7 @@ def dag_bag_ext():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
     dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None)
-    task_a_0 = DummyOperator(task_id="task_a_0", dag=dag_0)
+    task_a_0 = EmptyOperator(task_id="task_a_0", dag=dag_0)
     task_b_0 = ExternalTaskMarker(
         task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3, dag=dag_0
     )
@@ -500,7 +543,7 @@ def dag_bag_ext():
     task_a_3 = ExternalTaskSensor(
         task_id="task_a_3", external_dag_id=dag_2.dag_id, external_task_id=task_b_2.task_id, dag=dag_3
     )
-    task_b_3 = DummyOperator(task_id="task_b_3", dag=dag_3)
+    task_b_3 = EmptyOperator(task_id="task_b_3", dag=dag_3)
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
@@ -735,7 +778,7 @@ def dag_bag_cyclic():
 
         with DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
             dags.append(dag)
-            task_a_0 = DummyOperator(task_id="task_a_0")
+            task_a_0 = EmptyOperator(task_id="task_a_0")
             task_b_0 = ExternalTaskMarker(
                 task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3
             )
@@ -827,9 +870,9 @@ def dag_bag_multiple():
     dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
     dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
-    daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
+    daily_task = EmptyOperator(task_id="daily_tas", dag=daily_dag)
 
-    begin = DummyOperator(task_id="begin", dag=agg_dag)
+    begin = EmptyOperator(task_id="begin", dag=agg_dag)
     for i in range(8):
         task = ExternalTaskMarker(
             task_id=f"{daily_task.task_id}_{i}",
@@ -886,7 +929,7 @@ def dag_bag_head_tail():
             execution_delta=timedelta(days=1),
             mode="reschedule",
         )
-        body = DummyOperator(task_id="body")
+        body = EmptyOperator(task_id="body")
         tail = ExternalTaskMarker(
             task_id="tail",
             external_dag_id=dag.dag_id,

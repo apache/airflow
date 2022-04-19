@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using `RedshiftSQLOperator` to authenticate with Amazon Redshift
-then execute a simple select statement
-"""
 
 from datetime import datetime
 
@@ -81,6 +77,7 @@ with DAG(dag_id='rds_exports', start_date=datetime(2021, 1, 1), schedule_interva
         export_task_identifier='export-auth-db-snap-{{ ds }}',
         source_arn='arn:aws:rds:<region>:<account number>:snapshot:auth-db-snap',
         s3_bucket_name='my_s3_bucket',
+        s3_prefix='some/prefix',
         iam_role_arn='arn:aws:iam:<region>:<account number>:role/MyRole',
         kms_key_id='arn:aws:kms:<region>:<account number>:key/*****-****-****-****-********',
         aws_conn_id='aws_default',
@@ -105,7 +102,7 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
     # [START howto_guide_rds_create_subscription]
     create_subscription = RdsCreateEventSubscriptionOperator(
         task_id='create_subscription',
-        subscription_name='my_topic_subscription',
+        subscription_name='my-topic-subscription',
         sns_topic_arn='arn:aws:sns:<region>:<account number>:MyTopic',
         source_type='db-instance',
         source_ids=['auth-db'],
@@ -118,7 +115,7 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
     # [START howto_guide_rds_delete_subscription]
     delete_subscription = RdsDeleteEventSubscriptionOperator(
         task_id='delete_subscription',
-        subscription_name='my_topic_subscription',
+        subscription_name='my-topic-subscription',
         aws_conn_id='aws_default',
         hook_params={'region_name': 'us-east-1'},
     )
@@ -144,6 +141,7 @@ with DAG(dag_id='rds_events', start_date=datetime(2021, 1, 1), schedule_interval
     export_sensor = RdsExportTaskExistenceSensor(
         task_id='export_sensor',
         export_task_identifier='export-auth-db-snap-{{ ds }}',
+        target_statuses=['starting', 'in_progress', 'complete', 'canceling', 'canceled'],
         aws_conn_id='aws_default',
         hook_params={'region_name': 'us-east-1'},
     )

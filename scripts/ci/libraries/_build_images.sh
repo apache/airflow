@@ -20,6 +20,43 @@
 
 BUILD_COMMAND=()
 
+# Fixing permissions for all important files that are going to be added to Docker context
+# This is necessary, because there are different default umask settings on different *NIX
+# In case of some systems (especially in the CI environments) there is default +w group permission
+# set automatically via UMASK when git checkout is performed.
+#    https://unix.stackexchange.com/questions/315121/why-is-the-default-umask-002-or-022-in-many-unix-systems-seems-insecure-by-defa
+# Unfortunately default setting in git is to use UMASK by default:
+#    https://git-scm.com/docs/git-config/1.6.3.1#git-config-coresharedRepository
+# This messes around with Docker context invalidation because the same files have different permissions
+# and effectively different hash used for context validation calculation.
+#
+# We fix it by removing write permissions for other/group for all files that are in the Docker context.
+#
+# Since we can't (easily) tell what dockerignore would restrict, we'll just to
+# it to "all" files in the git repo, making sure to exclude the www/static/docs
+# symlink which is broken until the docs are built.
+function build_images::filterout_deleted_files {
+  # Take NUL-separated stdin, return only files that exist on stdout NUL-separated
+  # This is to cope with users deleting files or folders locally but not doing `git rm`
+  xargs -0 "$STAT_BIN" --printf '%n\0' 2>/dev/null || true;
+}
+
+# Fixes permissions for groups for all the files that are quickly filtered using
+# the build_images::filterout_deleted_files
+function build_images::fix_group_permissions() {
+    if [[ ${PERMISSIONS_FIXED:=} == "true" ]]; then
+        return
+    fi
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
+    # This deals with files
+    git ls-files -z -- ./ | build_images::filterout_deleted_files | xargs -0 chmod og-w
+    # and this deals with directories
+    git ls-tree -z -r -d --name-only HEAD | build_images::filterout_deleted_files | xargs -0 chmod og-w,og+x
+    popd >/dev/null 2>&1 || exit 1
+    export PERMISSIONS_FIXED="true"
+}
+
+
 # For remote installation of airflow (from GitHub or PyPI) when building the image, you need to
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
@@ -27,16 +64,11 @@ function build_images::add_build_args_for_remote_install() {
     # entrypoint is used as AIRFLOW_SOURCES_(WWW)_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
     EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=empty"
-        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/empty"
-        "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
-        "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_FROM=Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_WWW_TO=/Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
+        "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
     )
-    if [[ ${CI} == "true" ]]; then
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "PIP_PROGRESS_BAR=off"
-        )
-    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
@@ -204,11 +236,9 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the image by running:
+   ${COLOR_YELLOW}Make sure you build the image by running:${COLOR_RESET}
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
-
-   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'.
 
 """
         exit 1
@@ -323,9 +353,9 @@ function build_images::login_to_docker_registry() {
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
             verbosity::print_info
-        elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+        elif [[ ${LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
             verbosity::print_info
-            verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+            verbosity::print_info "Skip logging in to GitHub Registry. LOGIN_TO_GITHUB_REGISTRY != true"
             verbosity::print_info
         elif [[ -n "${token}" ]]; then
             # logout from the repository first - so that we do not keep us logged in if the token
@@ -356,7 +386,7 @@ function build_images::prepare_ci_build() {
     readonly AIRFLOW_EXTRAS
 
     sanity_checks::go_to_airflow_sources
-    permissions::fix_group_permissions
+    build_images::fix_group_permissions
 }
 
 function build_images::clean_build_cache() {
@@ -435,7 +465,7 @@ function build_images::build_ci_image() {
         docker_ci_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         docker_ci_directive=(
-            "--cache-from=${AIRFLOW_CI_IMAGE}:cache"
+            "--cache-from=${AIRFLOW_CI_IMAGE}"
         )
     else
         echo
@@ -447,25 +477,11 @@ function build_images::build_ci_image() {
         # we need to login to docker registry so that we can push cache there
         build_images::login_to_docker_registry
         docker_ci_directive+=(
-            "--cache-to=type=registry,ref=${AIRFLOW_CI_IMAGE}:cache"
+            "--cache-to=type=inline,mode=max"
             "--push"
         )
-        if [[ ${PLATFORM} =~ .*,.* ]]; then
-            echo
-            echo "Skip loading docker image on multi-platform build"
-            echo
-        else
-            docker_ci_directive+=(
-                "--load"
-            )
-        fi
     fi
     local extra_docker_ci_flags=()
-    if [[ ${CI} == "true" ]]; then
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "PIP_PROGRESS_BAR=off"
-        )
-    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         extra_docker_ci_flags+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
@@ -488,6 +504,7 @@ function build_images::build_ci_image() {
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
+    docker_v rmi --no-prune --force "${AIRFLOW_CI_IMAGE}" || true
     docker_v "${BUILD_COMMAND[@]}" \
         "${extra_docker_ci_flags[@]}" \
         --pull \
@@ -600,8 +617,7 @@ function build_images::build_prod_images() {
         docker_prod_directive=()
     elif [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         docker_prod_directive=(
-            "--cache-from=${AIRFLOW_PROD_IMAGE}:cache"
-            "--push"
+            "--cache-from=${AIRFLOW_PROD_IMAGE}"
         )
     else
         echo
@@ -615,7 +631,8 @@ function build_images::build_prod_images() {
         build_images::login_to_docker_registry
         # Cache for prod image contains also build stage for buildx when mode=max specified!
         docker_prod_directive+=(
-            "--cache-to=type=registry,ref=${AIRFLOW_PROD_IMAGE}:cache,mode=max"
+            "--cache-to=type=inline,mode=max"
+            "--push"
         )
         if [[ ${PLATFORM} =~ .*,.* ]]; then
             echo
@@ -642,6 +659,7 @@ function build_images::build_prod_images() {
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
+    docker_v rmi --no-prune --force "${AIRFLOW_PROD_IMAGE}" || true
     docker_v "${BUILD_COMMAND[@]}" \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --pull \
@@ -662,6 +680,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
+        --build-arg DOCKER_CONTEXT_FILES="docker-context-files" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
@@ -739,9 +758,17 @@ function build_images::cleanup_docker_context_files() {
 # PRe-commit version of confirming the ci image that is used in pre-commits
 # it displays additional information - what the user should do in order to bring the local images
 # back to state that pre-commit will be happy with
+# It also fails immediately if the image is missing
 function build_images::rebuild_ci_image_if_confirmed_for_pre_commit() {
     local needs_docker_build="false"
     export THE_IMAGE_TYPE="CI"
+
+    if [[ "$(docker images -q "${AIRFLOW_CI_IMAGE}" 2> /dev/null)" == "" ]]; then
+        echo
+        echo "${COLOR_YELLOW}You need to run './breeze build-image --python 3.7' to run this check${COLOR_RESET}"
+        echo
+        exit 1
+    fi
 
     md5sum::check_if_docker_build_is_needed
 

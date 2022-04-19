@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import collections.abc
 import functools
 import inspect
 import re
@@ -39,12 +38,17 @@ from typing import (
 
 import attr
 import typing_extensions
-from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
-from airflow.models.baseoperator import BaseOperator, coerce_resources, coerce_retry_delay, parse_retries
+from airflow.models.baseoperator import (
+    BaseOperator,
+    coerce_resources,
+    coerce_retry_delay,
+    get_merged_defaults,
+    parse_retries,
+)
 from airflow.models.dag import DAG, DagContext
 from airflow.models.mappedoperator import (
     MappedOperator,
@@ -62,6 +66,9 @@ from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
+
     from airflow.models.mappedoperator import Mappable
 
 
@@ -305,12 +312,20 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)
 
-        partial_kwargs = self.kwargs.copy()
+        task_kwargs = self.kwargs.copy()
+        dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
+        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
 
-        dag = partial_kwargs.pop("dag", DagContext.get_current_dag())
-        task_group = partial_kwargs.pop("task_group", TaskGroupContext.get_current_task_group(dag))
+        partial_kwargs, default_params = get_merged_defaults(
+            dag=dag,
+            task_group=task_group,
+            task_params=task_kwargs.pop("params", None),
+            task_default_args=task_kwargs.pop("default_args", None),
+        )
+        partial_kwargs.update(task_kwargs)
+
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
-        params = partial_kwargs.pop("params", None)
+        params = partial_kwargs.pop("params", None) or default_params
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
@@ -342,9 +357,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
+            template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_dummy=False,
+            is_empty=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
@@ -354,6 +370,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
             mapped_op_kwargs=map_kwargs,
+            # Different from classic operators, kwargs passed to a taskflow
+            # task's expand() contribute to the op_kwargs operator argument, not
+            # the operator arguments themselves, and should expand against it.
+            expansion_kwargs_attr="mapped_op_kwargs",
         )
         return XComArg(operator=operator)
 
@@ -364,6 +384,9 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
 
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
+
+    def override(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+        return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
 
 def _merge_kwargs(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> Dict[str, Any]:
@@ -387,6 +410,9 @@ class DecoratedMappedOperator(MappedOperator):
     # in partial_kwargs, and MappedOperator prevents duplication.
     mapped_op_kwargs: Dict[str, "Mappable"]
 
+    def __hash__(self):
+        return id(self)
+
     @classmethod
     @cache
     def get_serialized_fields(cls):
@@ -401,15 +427,6 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
 
-    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
-        """The kwargs to calculate expansion length against.
-
-        Different from classic operators, a decorated (taskflow) operator's
-        ``map()`` contributes to the ``op_kwargs`` operator argument (not the
-        operator arguments themselves), and should therefore expand against it.
-        """
-        return self.mapped_op_kwargs
-
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
         partial_kwargs = self.partial_kwargs.copy()
         op_kwargs = _merge_kwargs(
@@ -417,6 +434,7 @@ class DecoratedMappedOperator(MappedOperator):
             self.mapped_op_kwargs,
             fail_reason="mapping already partial",
         )
+        self._combined_op_kwargs = op_kwargs
         return {
             "dag": self.dag,
             "task_group": self.task_group,
@@ -428,13 +446,38 @@ class DecoratedMappedOperator(MappedOperator):
             **self.mapped_kwargs,
         }
 
-    def _expand_mapped_field(self, key: str, content: Any, context: Context, *, session: Session) -> Any:
-        if key != "op_kwargs" or not isinstance(content, collections.abc.Mapping):
-            return content
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., self) to work around pyupgrade bug.
-        sup: Any = super(DecoratedMappedOperator, DecoratedMappedOperator)
-        return {k: sup._expand_mapped_field(self, k, v, context, session=session) for k, v in content.items()}
+    def _resolve_expansion_kwargs(
+        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: "Session"
+    ) -> None:
+        expansion_kwargs = self._get_expansion_kwargs()
+
+        self._already_resolved_op_kwargs = set()
+        for k, v in expansion_kwargs.items():
+            if isinstance(v, XComArg):
+                self._already_resolved_op_kwargs.add(k)
+                v = v.resolve(context, session=session)
+            v = self._expand_mapped_field(k, v, context, session=session)
+            kwargs['op_kwargs'][k] = v
+            template_fields.discard(k)
+
+    def render_template(
+        self,
+        value: Any,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+        seen_oids: Optional[Set] = None,
+    ) -> Any:
+        if hasattr(self, '_combined_op_kwargs') and value is self._combined_op_kwargs:
+            # Avoid rendering values that came out of resolved XComArgs
+            return {
+                k: v
+                if k in self._already_resolved_op_kwargs
+                else super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
+                    self, v, context, jinja_env=jinja_env, seen_oids=seen_oids
+                )
+                for k, v in value.items()
+            }
+        return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
 
 
 class Task(Generic[Function]):

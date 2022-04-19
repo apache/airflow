@@ -19,6 +19,30 @@
 Changelog
 ---------
 
+2.1.4
+.....
+
+Misc
+~~~~
+
+* ``Update our approach for executor-bound dependencies (#22573)``
+
+2.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
 2.1.1
 .....
 

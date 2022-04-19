@@ -22,11 +22,14 @@ import unittest.mock
 import urllib.parse
 
 import pytest
+from freezegun import freeze_time
 
 from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DAG, DagBag, DagModel, TaskInstance, TaskReschedule
+from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
+from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
@@ -549,6 +552,36 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     assert not re.search(msg, resp.get_data(as_text=True))
 
 
+@unittest.mock.patch(
+    'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
+    return_value=_ForceHeartbeatCeleryExecutor(),
+)
+@freeze_time("2020-07-07 09:00:00")
+def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
+    task_id = 'runme_0'
+    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
+        {'state': State.SCHEDULED, 'queued_dttm': None}
+    )
+    session.commit()
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [(None,)]
+
+    form = dict(
+        task_id=task_id,
+        dag_id="example_bash_operator",
+        ignore_all_deps="true",
+        dag_run_id=DEFAULT_DAGRUN,
+        origin='/home',
+    )
+    resp = admin_client.post('run', data=form, follow_redirects=True)
+
+    assert resp.status_code == 200
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [
+        (timezone.utcnow(),)
+    ]
+
+
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
 @unittest.mock.patch(
     'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
@@ -903,3 +936,46 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
             == 0
         )
     assert session.query(TaskReschedule).count() == 0
+
+
+def test_task_fail_duration(app, admin_client, dag_maker, session):
+    """Task duration page with a TaskFail entry should render without error."""
+    with dag_maker() as dag:
+        op1 = BashOperator(task_id='fail', bash_command='exit 1')
+        op2 = BashOperator(task_id='success', bash_command='exit 0')
+
+    with pytest.raises(AirflowException):
+        op1.run()
+    op2.run()
+
+    op1_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == 'fail',
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    op2_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == 'success',
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    assert len(op1_fails) == 1
+    assert len(op2_fails) == 0
+
+    with unittest.mock.patch.object(app, 'dag_bag') as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
+        html = resp.get_data().decode()
+        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
+        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
+
+        assert resp.status_code == 200
+        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
+        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]

@@ -230,13 +230,13 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
 
 
 def check_exampleinclude_for_example_dags() -> List[DocBuildError]:
-    """Checks all exampleincludes for  example dags."""
-    all_docs_files = glob(f"${DOCS_DIR}/**/*.rst", recursive=True)
+    """Checks all exampleincludes for example dags."""
+    all_docs_files = glob(f"{DOCS_DIR}/**/*.rst", recursive=True)
     build_errors = []
     for doc_file in all_docs_files:
         build_error = assert_file_not_contains(
             file_path=doc_file,
-            pattern=r"literalinclude::.+example_dags",
+            pattern=r"literalinclude::.+(?:example_dags|tests/system/)",
             message=(
                 "literalinclude directive is prohibited for example DAGs. \n"
                 "You should use the exampleinclude directive to include example DAGs."
@@ -265,12 +265,18 @@ def check_enforce_code_block() -> List[DocBuildError]:
     return build_errors
 
 
+def find_example_dags(provider_dir):
+    system_tests_dir = provider_dir.replace(f"{ROOT_PACKAGE_DIR}/", "")
+    yield from glob(f"{provider_dir}/**/*example_dags", recursive=True)
+    yield from glob(f"{ROOT_PROJECT_DIR}/tests/system/{system_tests_dir}/*/", recursive=True)
+
+
 def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
     """Checks that each documentation for provider packages has a link to example DAGs in the TOC."""
     build_errors = []
 
     for provider in ALL_PROVIDER_YAMLS:
-        example_dags_dirs = list(glob(f"{provider['package-dir']}/**/example_dags", recursive=True))
+        example_dags_dirs = list(find_example_dags(provider['package-dir']))
         if not example_dags_dirs:
             continue
         doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"

@@ -104,11 +104,6 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            # Unmap the task _after_ it has forked/execed. (This is a bit of a kludge, but if we unmap before
-            # fork, then the "run_raw_task" command will see the mapping index and an Non-mapped task and
-            # fail)
-            self.task_instance.task = self.task_instance.task.unmap()
-
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
             # task callback invocation happens either here or in
@@ -195,7 +190,7 @@ class LocalTaskJob(BaseJob):
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
-                self.log.warning(
+                self.log.error(
                     "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,

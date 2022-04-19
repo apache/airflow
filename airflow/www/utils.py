@@ -63,7 +63,6 @@ def get_mapped_instances(task_instance, session):
             TaskInstance.dag_id == task_instance.dag_id,
             TaskInstance.run_id == task_instance.run_id,
             TaskInstance.task_id == task_instance.task_id,
-            TaskInstance.map_index >= 0,
         )
         .all()
     )
@@ -76,24 +75,26 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_mapped_summary(parent_instance, task_instances):
-    priority = [
-        TaskInstanceState.FAILED,
-        TaskInstanceState.UPSTREAM_FAILED,
-        TaskInstanceState.UP_FOR_RETRY,
-        TaskInstanceState.UP_FOR_RESCHEDULE,
-        TaskInstanceState.QUEUED,
-        TaskInstanceState.SCHEDULED,
-        TaskInstanceState.DEFERRED,
-        TaskInstanceState.SENSING,
-        TaskInstanceState.RUNNING,
-        TaskInstanceState.SHUTDOWN,
-        TaskInstanceState.RESTARTING,
-        TaskInstanceState.REMOVED,
-        TaskInstanceState.SUCCESS,
-        TaskInstanceState.SKIPPED,
-    ]
+priority = [
+    TaskInstanceState.FAILED,
+    TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.SENSING,
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.SHUTDOWN,
+    TaskInstanceState.RESTARTING,
+    TaskInstanceState.REMOVED,
+    None,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.SKIPPED,
+]
 
+
+def get_mapped_summary(parent_instance, task_instances):
     mapped_states = [ti.state for ti in task_instances]
 
     group_state = None
@@ -109,6 +110,11 @@ def get_mapped_summary(parent_instance, task_instances):
         max((ti.end_date for ti in task_instances if ti.end_date), default=None)
     )
 
+    try_count = (
+        parent_instance.prev_attempted_tries
+        if parent_instance.prev_attempted_tries != 0
+        else parent_instance.try_number
+    )
     return {
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
@@ -116,9 +122,7 @@ def get_mapped_summary(parent_instance, task_instances):
         'start_date': group_start_date,
         'end_date': group_end_date,
         'mapped_states': mapped_states,
-        'operator': parent_instance.operator,
-        'execution_date': datetime_to_string(parent_instance.execution_date),
-        'try_number': parent_instance.try_number,
+        'try_number': try_count,
     }
 
 
@@ -131,17 +135,20 @@ def encode_ti(
     if is_mapped:
         return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
 
+    try_count = (
+        task_instance.prev_attempted_tries
+        if task_instance.prev_attempted_tries != 0
+        else task_instance.try_number
+    )
     return {
         'task_id': task_instance.task_id,
-        'dag_id': task_instance.dag_id,
         'run_id': task_instance.run_id,
+        'map_index': task_instance.map_index,
         'state': task_instance.state,
         'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),
         'end_date': datetime_to_string(task_instance.end_date),
-        'operator': task_instance.operator,
-        'execution_date': datetime_to_string(task_instance.execution_date),
-        'try_number': task_instance.try_number,
+        'try_number': try_count,
     }
 
 
@@ -150,7 +157,6 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         return None
 
     return {
-        'dag_id': dag_run.dag_id,
         'run_id': dag_run.run_id,
         'start_date': datetime_to_string(dag_run.start_date),
         'end_date': datetime_to_string(dag_run.end_date),
@@ -159,6 +165,7 @@ def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]
         'data_interval_start': datetime_to_string(dag_run.data_interval_start),
         'data_interval_end': datetime_to_string(dag_run.data_interval_end),
         'run_type': dag_run.run_type,
+        'last_scheduling_decision': datetime_to_string(dag_run.last_scheduling_decision),
     }
 
 
@@ -349,7 +356,13 @@ def task_instance_link(attr):
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
     execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
-    url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
+    url = url_for(
+        'Airflow.task',
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date.isoformat(),
+        map_index=attr.get('map_index', -1),
+    )
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
@@ -409,10 +422,11 @@ def datetime_html(dttm: Optional[DateTime]) -> str:
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
         return Markup('')
+    as_iso_short = as_iso
     if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
-        as_iso = as_iso[5:]
+        as_iso_short = as_iso[5:]
     # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso_short)
 
 
 def json_f(attr_name):
@@ -443,6 +457,14 @@ def dag_run_link(attr):
     execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+
+
+def format_map_index(attr: dict) -> str:
+    """Format map index for list columns in model view."""
+    value = attr['map_index']
+    if value < 0:
+        return Markup("&nbsp;")
+    return str(value)
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

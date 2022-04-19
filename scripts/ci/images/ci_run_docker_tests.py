@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-AIRFLOW_SOURCE = Path(__file__).resolve().parent.parent.parent
+AIRFLOW_SOURCE = Path(__file__).resolve().parents[3]
 BUILD_CACHE_DIR = AIRFLOW_SOURCE / ".build"
 
 CBLUE = '\033[94m'
@@ -62,7 +62,16 @@ def create_virtualenv():
         run_verbose([sys.executable, "-m", "venv", str(virtualenv_path)])
 
     python_bin = virtualenv_path / "bin" / "python"
-    run_verbose([str(python_bin), "-m", "pip", "install", "pytest", "pytest-xdist", "requests"])
+    run_verbose(
+        [
+            str(python_bin),
+            "-m",
+            "pip",
+            "install",
+            "-r",
+            str(AIRFLOW_SOURCE / "docker_tests" / "requirements.txt"),
+        ]
+    )
     return python_bin
 
 
