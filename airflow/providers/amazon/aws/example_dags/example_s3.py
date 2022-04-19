@@ -40,11 +40,14 @@ KEY_2 = os.environ.get('KEY_2', 'key2')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
 KEY = os.environ.get('KEY', 'key')
-DATA = os.environ.get('DATA', '''
+DATA = os.environ.get(
+    'DATA',
+    '''
 apple,0.5
 milk,2.5
 bread,4.0
-''')
+''',
+)
 
 with DAG(
     dag_id='example_s3',
