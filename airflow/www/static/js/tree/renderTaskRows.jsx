@@ -95,7 +95,6 @@ const Row = (props) => {
     prevTaskId,
     isParentOpen = true,
     dagRunIds,
-    tableWidth,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -147,7 +146,7 @@ const Row = (props) => {
           position="sticky"
           left={0}
           borderBottom={0}
-          width={`${tableWidth - (dagRunIds.length * columnWidth)}px`}
+          width="100%"
           zIndex={1}
         >
           <Collapse in={isFullyOpen} unmountOnExit>

@@ -18,6 +18,22 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``apache-airflow-providers-google uses deprecated Google Ads API V8 (#22111)``
+
+.. warning:: The underlying google-ads library has been updated
+
+   This drops support for versions v6 and v7 of the Google Ads API, and updates
+   the default version of the Google Ads API from the deprecated v8 to v10.
+
+   For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
+   and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
+
 6.8.0
 .....
 

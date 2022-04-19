@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  airflow:
-    # Forwards local credentials to docker image
-    # Useful for gcloud/aws/kubernetes etc. authorisation to be passed
-    # To inside docker. Use with care - your credentials will be available to
-    # Everything you install in Docker
-    # If you add it here - also add it to "in_container_fix_ownership" method in
-    # the _in_container_utils.sh file to make it friendly for Linux users
-    environment:
-      - GITHUB_TOKEN
-    volumes:
-      - ${HOME}/.aws:/root/.aws:cached
-      - ${HOME}/.azure:/root/.azure:cached
-      - ${HOME}/.config:/root/.config:cached
-      - ${HOME}/.docker:/root/.docker:cached
-      - ${HOME}/.snowsql:/root/.snowsql:cached
+set -euxo pipefail
+
+cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+
+python -m pip install pipx
+python -m pipx install --editable ./dev/breeze/
+echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
