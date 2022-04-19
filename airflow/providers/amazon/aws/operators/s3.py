@@ -360,7 +360,7 @@ class S3CreateObjectOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'data')
 
     def __init__(
         self,
