@@ -629,7 +629,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.1.0',
+    'moto[glue]>=3.1.0',
     'parameterized',
     'paramiko',
     'pipdeptree',
