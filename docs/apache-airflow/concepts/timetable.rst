@@ -48,3 +48,15 @@ the schedule. Some examples are:
 As such, Airflow allows for custom timetables to be written in plugins and used by
 DAGs. An example demonstrating a custom timetable can be found in the
 :doc:`/howto/timetable` how-to guide.
+
+Built In Timetables
+-------------------
+Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
+may be available in provider packages.
+
+* CronDataIntervalTimetable - Set timing based on a cron schedule. Can be selected by providing a string that is a valid
+  cron expression to the schedule_interval parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
+* DeltaDataIntervalTimetable - Schedules data intervals with a time delta. Can be selected by providing a
+  ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the schedule_interval parameter of a DAG.
+* EventsTimetable - Simply pass a list of datetimes for the DAG to run after. Useful for timing based on sporting
+  events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
