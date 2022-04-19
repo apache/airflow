@@ -72,7 +72,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Schedules data intervals with a time delta. Can be selected by providing a
-  `:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
+  :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
 
 .. code-block:: python
 
