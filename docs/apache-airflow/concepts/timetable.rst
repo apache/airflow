@@ -55,9 +55,10 @@ Airflow comes with several common timetables built in to cover the most common u
 may be available in provider packages.
 
 CronDataIntervalTimetable
--------------------------
-Set timing based on a cron schedule. Can be selected by providing a string that is a valid
-  cron expression to the schedule_interval parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set schedule based on a cron expression. Can be selected by providing a string that is a valid
+  cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
     @dag(
@@ -66,19 +67,21 @@ Set timing based on a cron schedule. Can be selected by providing a string that 
     )
 
 DeltaDataIntervalTimetable
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Schedules data intervals with a time delta. Can be selected by providing a
-  ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the schedule_interval parameter of a DAG.
+  ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
 
 .. code-block:: python
     @dag(
-        schedule_interval=datetime.timedelta(minutes=30)  # At 01:00 on Wednesday.
+        schedule_interval=datetime.timedelta(minutes=30)
         ...
     )
 
 EventsTimetable
----------------
-Simply pass a list of datetimes for the DAG to run after. Useful for timing based on sporting
+^^^^^^^^^^^^^^^
+
+Simply pass a list of ``datetimes`` for the DAG to run after. Useful for timing based on sporting
 events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
 
 The list of events must be finite and of reasonable size as it must be loaded every time the DAG is parsed. Optionally,
