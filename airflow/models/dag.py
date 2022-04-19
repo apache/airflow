@@ -1620,7 +1620,7 @@ class DAG(LoggingMixin):
         self,
         *,
         task_id: str,
-        map_index: Optional[int] = None,
+        map_indexes: Optional[Collection[int]] = None,
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         state: TaskInstanceState,
@@ -1636,8 +1636,8 @@ class DAG(LoggingMixin):
         in failed or upstream_failed state.
 
         :param task_id: Task ID of the TaskInstance
-        :param map_index: The TaskInstance map_index, if None, would set state for all mapped
-            TaskInstances of the task
+        :param map_indexes: Only set TaskInstance if its map_index matches.
+            If None (default), all mapped TaskInstances of the task are set.
         :param execution_date: Execution date of the TaskInstance
         :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
@@ -1665,12 +1665,12 @@ class DAG(LoggingMixin):
 
         tasks_to_set_state: Union[List[Operator], List[Tuple[Operator, int]]]
         task_ids_to_exclude_from_clear: Union[Set[str], Set[Tuple[str, int]]]
-        if map_index is None:
+        if map_indexes is None:
             tasks_to_set_state = [task]
             task_ids_to_exclude_from_clear = {task_id}
         else:
-            tasks_to_set_state = [(task, map_index)]
-            task_ids_to_exclude_from_clear = {(task_id, map_index)}
+            tasks_to_set_state = [(task, map_index) for map_index in map_indexes]
+            task_ids_to_exclude_from_clear = {(task_id, map_index) for map_index in map_indexes}
 
         altered = set_state(
             tasks=tasks_to_set_state,
