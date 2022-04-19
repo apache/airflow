@@ -30,6 +30,7 @@ from typing import (
     Dict,
     FrozenSet,
     Iterable,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
@@ -774,6 +776,13 @@ class MappedOperator(AbstractOperator):
             if i == found_index:
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
+
+    def iter_mapped_dependencies(self) -> Iterator["Operator"]:
+        """Upstream dependencies that provide XComs used by this task for task mapping."""
+        from airflow.models.xcom_arg import XComArg
+
+        for ref in XComArg.iter_xcom_args(self._get_expansion_kwargs()):
+            yield ref.operator
 
     @cached_property
     def parse_time_mapped_ti_count(self) -> Optional[int]:
