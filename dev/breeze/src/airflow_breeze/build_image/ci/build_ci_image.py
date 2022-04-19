@@ -61,7 +61,7 @@ OPTIONAL_CI_IMAGE_ARGS = [
 ]
 
 
-def get_ci_image_build_params(parameters_passed: Dict[str, str]) -> BuildCiParams:
+def get_ci_image_build_params(parameters_passed: Dict) -> BuildCiParams:
     """
     Converts parameters received as dict into BuildCiParams. In case cacheable
     parameters are missing, it reads the last used value for that parameter

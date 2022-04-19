@@ -114,7 +114,7 @@ def check_docker_context_files(install_from_docker_context_files: bool):
             sys.exit(1)
 
 
-def get_prod_image_build_params(parameters_passed: Dict[str, str]) -> BuildProdParams:
+def get_prod_image_build_params(parameters_passed: Dict) -> BuildProdParams:
     """
     Converts parameters received as dict into BuildProdParams. In case cacheable
     parameters are missing, it reads the last used value for that parameter

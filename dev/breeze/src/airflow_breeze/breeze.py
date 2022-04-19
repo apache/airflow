@@ -1129,8 +1129,8 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     )
     console.print(f"[bright_blue]Activation command script is available here: {autocomplete_path}[/]\n")
     console.print(f"[bright_yellow]We need to add above script to your {detected_shell} profile.[/]\n")
-    answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
-    if answer == Answer.YES:
+    given_answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
+    if given_answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
             command_to_execute = f"source {autocomplete_path}"
@@ -1159,7 +1159,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
             )
             command_to_execute = f". {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
-    elif answer == Answer.NO:
+    elif given_answer == Answer.NO:
         console.print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
             "to setup autocompletion for breeze manually if you want to use it.\n"
@@ -1342,7 +1342,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams({})
+    shell_params = ShellParams()
     env_variables = construct_env_variables_docker_compose_command(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -1368,7 +1368,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
 )
 def self_upgrade(force: bool, use_current_airflow_sources: bool):
     if use_current_airflow_sources:
-        airflow_sources = get_used_airflow_sources()
+        airflow_sources: Optional[Path] = get_used_airflow_sources()
     else:
         airflow_sources = get_installation_airflow_sources()
     if airflow_sources is not None:
@@ -1427,26 +1427,26 @@ def cleanup(verbose: bool, dry_run: bool, also_remove_current_images: bool, answ
                 '--force',
             ]
             docker_rmi_command_to_execute.extend(images)
-            answer = user_confirm("Are you sure?", timeout=None)
-            if answer == Answer.YES:
+            given_answer = user_confirm("Are you sure?", timeout=None)
+            if given_answer == Answer.YES:
                 run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
-            elif answer == Answer.QUIT:
+            elif given_answer == Answer.QUIT:
                 sys.exit(0)
         else:
             console.print("[light_blue]No locally downloaded images to remove[/]\n")
     console.print("Pruning docker images")
-    answer = user_confirm("Are you sure?", timeout=None)
-    if answer == Answer.YES:
+    given_answer = user_confirm("Are you sure?", timeout=None)
+    if given_answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
         run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
-    elif answer == Answer.QUIT:
+    elif given_answer == Answer.QUIT:
         sys.exit(0)
     console.print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
-    answer = user_confirm("Are you sure?", timeout=None)
-    if answer == Answer.YES:
+    given_answer = user_confirm("Are you sure?", timeout=None)
+    if given_answer == Answer.YES:
         if not dry_run:
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
-    elif answer == Answer.QUIT:
+    elif given_answer == Answer.QUIT:
         sys.exit(0)
 
 
