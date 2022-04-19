@@ -23,6 +23,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.datastore import (
+    CloudDatastoreExportEntitiesLink,
+    CloudDatastoreImportExportLink,
+    CloudDatastoreEntitiesLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -73,6 +78,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    operator_extra_links = (CloudDatastoreExportEntitiesLink(),)
 
     def __init__(
         self,
@@ -132,6 +138,11 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException(f'Operation failed: result={result}')
+        CloudDatastoreExportEntitiesLink.persist(
+            context=context,
+            task_instance=self,
+            output_url=result['response']['outputUrl'],
+        )
         return result
 
 
@@ -179,6 +190,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    operator_extra_links = (CloudDatastoreImportExportLink(),)
 
     def __init__(
         self,
@@ -231,6 +243,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException(f'Operation failed: result={result}')
 
+        CloudDatastoreImportExportLink.persist(context=context, task_instance=self)
         return result
 
 
@@ -265,6 +278,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         "partial_keys",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDatastoreEntitiesLink(),)
 
     def __init__(
         self,
@@ -293,6 +307,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
             partial_keys=self.partial_keys,
             project_id=self.project_id,
         )
+        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
         return keys
 
 
@@ -389,6 +404,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
         "body",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDatastoreEntitiesLink(),)
 
     def __init__(
         self,
@@ -417,6 +433,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
             body=self.body,
             project_id=self.project_id,
         )
+        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
         return response
 
 
