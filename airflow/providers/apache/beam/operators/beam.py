@@ -89,6 +89,8 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         pipeline_options = copy.deepcopy(pipeline_options)
         if job_name_key is not None:
             pipeline_options[job_name_key] = job_name
+        if self.dataflow_config.service_account:
+            pipeline_options["serviceAccount"] = self.dataflow_config.service_account
         pipeline_options["project"] = self.dataflow_config.project_id
         pipeline_options["region"] = self.dataflow_config.location
         pipeline_options.setdefault("labels", {}).update(
@@ -182,6 +184,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
                 pipeline_options=pipeline_options,
                 job_name_variable_key=job_name_variable_key,
             )
+            self.log.info(pipeline_options)
 
         pipeline_options.update(self.pipeline_options)
 
