@@ -246,7 +246,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
-                mock.call('operator_failures_EmptyOperator', 1, 1),
+                mock.call('operator_failures_EmptyOperator'),
                 mock.call('ti_failures'),
             ],
             any_order=True,
@@ -303,7 +303,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
-                mock.call('operator_failures_EmptyOperator', 1, 1),
+                mock.call('operator_failures_EmptyOperator'),
                 mock.call('ti_failures'),
             ],
             any_order=True,
