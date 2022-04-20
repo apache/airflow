@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-20T17:26:31Z
+# This constraints file was automatically generated on 2022-04-20T19:28:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -11,7 +11,7 @@
 # Editable install with no version control (apache-airflow==2.3.0.dev0)
 APScheduler==3.6.3
 Authlib==1.0.1
-Babel==2.10.0
+Babel==2.10.1
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
@@ -163,9 +163,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.21.43
+boto3==1.21.44
 boto==2.49.0
-botocore==1.24.43
+botocore==1.24.44
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -350,7 +350,7 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.21.42
+mypy-boto3-rds==1.21.44
 mypy-boto3-redshift-data==1.21.34
 mypy-extensions==0.4.3
 mypy==0.910
