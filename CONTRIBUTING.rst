@@ -329,6 +329,25 @@ Step 4: Prepare PR
      this step is automatically run while you are committing your code. If not, you can do it manually
      via ``git add`` and then ``pre-commit run``.
 
+   * Consider adding a newsfragment to your PR so you can add an entry in the release notes.
+     The following newsfragment types are supported:
+
+     * `significant`
+     * `feature`
+     * `improvement`
+     * `bugfix`
+     * `doc`
+     * `misc`
+
+     Core newsfragments go in `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__
+     and helm chart newsfragments go in
+     `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__.
+     Simply create an rst file named ``{pr_number}.{type}.rst`` (e.g. ``{1234}.bugfix.rst``).
+
+     For significant newsfragments, similar to git commits, the first line is the summary and optionally a
+     body can be added with an empty line separating it.
+     For other newsfragment types, only use a single summary line.
+
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
    review/fix. This will make rebase process much easier and less painful and the more often you do it,

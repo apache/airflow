@@ -63,7 +63,7 @@ NECESSARY_HOST_VOLUMES = [
     "/.github:/opt/airflow/.github:cached",
     "/.inputrc:/root/.inputrc:cached",
     "/.rat-excludes:/opt/airflow/.rat-excludes:cached",
-    "/CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached",
+    "/RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached",
     "/LICENSE:/opt/airflow/LICENSE:cached",
     "/MANIFEST.in:/opt/airflow/MANIFEST.in:cached",
     "/NOTICE:/opt/airflow/NOTICE:cached",
