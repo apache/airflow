@@ -60,6 +60,7 @@ class TestMarkTasks:
         cls.dag1 = dagbag.get_dag('miscellaneous_test_dag')
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
+        cls.dag4 = dagbag.get_dag('test_mapped_classic')
         cls.execution_dates = [days_ago(2), days_ago(1)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
@@ -105,6 +106,20 @@ class TestMarkTasks:
         for dr in drs:
             dr.dag = self.dag3
 
+        drs = _create_dagruns(
+            self.dag4,
+            [
+                _DagRunInfo(
+                    self.dag4.start_date,
+                    (self.dag4.start_date, self.dag4.start_date + timedelta(days=1)),
+                )
+            ],
+            state=State.SUCCESS,
+            run_type=DagRunType.MANUAL,
+        )
+        for dr in drs:
+            dr.dag = self.dag4
+
         yield
 
         clear_db_runs()
@@ -123,7 +138,7 @@ class TestMarkTasks:
             )
 
     @provide_session
-    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None):
+    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None, map_indexes=None):
         TI = models.TaskInstance
         DR = models.DagRun
 
@@ -140,13 +155,25 @@ class TestMarkTasks:
         for ti in tis:
             assert ti.operator == dag.get_task(ti.task_id).task_type
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
-                assert ti.state == state
+                if map_indexes:
+                    if ti.map_index in map_indexes:
+                        assert ti.state == state
+                else:
+                    assert ti.state == state
                 if state in State.finished:
-                    assert ti.end_date is not None
+                    if map_indexes:
+                        if ti.map_index in map_indexes:
+                            assert ti.end_date is not None
+                    else:
+                        assert ti.end_date is not None
             else:
                 for old_ti in old_tis:
                     if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
-                        assert ti.state == old_ti.state
+                        if map_indexes:
+                            if ti.map_index in map_indexes:
+                                assert ti.state == old_ti.state
+                        else:
+                            assert ti.state == old_ti.state
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
@@ -408,6 +435,33 @@ class TestMarkTasks:
         # sub dag tree essentially recreating the same code as in the
         # tested logic.
         self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, [])
+
+    def test_mark_mapped_task_instance_state(self):
+        # set mapped task instance to success
+        snapshot = TestMarkTasks.snapshot_state(self.dag4, self.execution_dates)
+        task = self.dag4.get_task("consumer_literal")
+        tasks = [(task, 0), (task, 1)]
+        map_indexes = [0, 1]
+        dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0])[0]
+        altered = set_state(
+            tasks=tasks,
+            run_id=dr.run_id,
+            upstream=False,
+            downstream=False,
+            future=False,
+            past=False,
+            state=State.SUCCESS,
+            commit=True,
+        )
+        assert len(altered) == 2
+        self.verify_state(
+            self.dag4,
+            [task.task_id for task, _ in tasks],
+            [self.execution_dates[0]],
+            State.SUCCESS,
+            snapshot,
+            map_indexes=map_indexes,
+        )
 
 
 class TestMarkDAGRun:

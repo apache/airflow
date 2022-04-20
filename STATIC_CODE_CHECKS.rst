@@ -228,6 +228,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``mypy``                               Runs mypy                                                            *
 ------------------------------------ ---------------------------------------------------------------- ------------
+``newsfragments``                      Check newsfragments are valid - line count by type
+------------------------------------ ---------------------------------------------------------------- ------------
 ``persist-credentials-disabled``       Check that workflow files have persist-credentials disabled
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``            Check if all pre-commits are described in docs
