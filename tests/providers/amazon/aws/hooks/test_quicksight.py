@@ -22,12 +22,16 @@ import pytest
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
+
+AWS_ACCOUNT_ID = "123456789012"
+
 
 MOCK_DATA = {
     "DataSetId": "DemoDataSet",
     "IngestionId": "DemoDataSet_Ingestion",
-    "AwsAccountId": "123456789012",
     "IngestionType": "INCREMENTAL_REFRESH",
+    "AwsAccountId": AWS_ACCOUNT_ID,
 }
 
 MOCK_CREATE_INGESTION_RESPONSE = {
@@ -79,26 +83,30 @@ class TestQuicksight:
         assert hook.conn is not None
 
     @mock.patch.object(QuickSightHook, "get_conn")
-    def test_create_ingestion(self, mock_conn):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_create_ingestion(self, mock_get_account_number, sts_conn, mock_conn):
         mock_conn.return_value.create_ingestion.return_value = MOCK_CREATE_INGESTION_RESPONSE
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         quicksight_hook = QuickSightHook(aws_conn_id="aws_default", region_name="us-east-1")
         result = quicksight_hook.create_ingestion(
             data_set_id="DemoDataSet",
             ingestion_id="DemoDataSet_Ingestion",
-            aws_account_id="123456789012",
             ingestion_type="INCREMENTAL_REFRESH",
         )
         expected_call_params = MOCK_DATA
         mock_conn.return_value.create_ingestion.assert_called_with(**expected_call_params)
         assert result == MOCK_CREATE_INGESTION_RESPONSE
 
-    def test_create_ingestion_exception(self):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_create_ingestion_exception(self, mock_get_account_number, sts_conn):
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         hook = QuickSightHook(aws_conn_id="aws_default")
         with pytest.raises(ClientError) as raised_exception:
             hook.create_ingestion(
                 data_set_id="DemoDataSet",
                 ingestion_id="DemoDataSet_Ingestion",
-                aws_account_id="123456789012",
                 ingestion_type="INCREMENTAL_REFRESH",
             )
         ex = raised_exception.value

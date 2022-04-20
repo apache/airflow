@@ -21,42 +21,57 @@ from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
+
+AWS_ACCOUNT_ID = "123456789012"
+DATA_SET_ID = "DemoDataSet"
+INGESTION_ID = "DemoDataSet_Ingestion"
 
 
 class TestQuickSightSensor(unittest.TestCase):
     def setUp(self):
         self.sensor = QuickSightSensor(
-            task_id="test_dms_sensor",
+            task_id="test_quicksight_sensor",
             aws_conn_id="aws_default",
-            aws_account_id="123456789012",
             data_set_id="DemoDataSet",
             ingestion_id="DemoDataSet_Ingestion",
         )
 
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_success(self, mock_get_status):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_poke_success(self, mock_get_account_number, sts_conn, mock_get_status):
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "COMPLETED"
         self.assertTrue(self.sensor.poke({}))
-        mock_get_status.assert_called_once_with("123456789012", "DemoDataSet", "DemoDataSet_Ingestion")
+        mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_cancelled(self, mock_get_status):
-
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_poke_cancelled(self, mock_get_account_number, sts_conn, mock_get_status):
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "CANCELLED"
         with self.assertRaises(AirflowException):
             self.sensor.poke({})
-        mock_get_status.assert_called_once_with("123456789012", "DemoDataSet", "DemoDataSet_Ingestion")
+        mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_failed(self, mock_get_status):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_poke_failed(self, mock_get_account_number, sts_conn, mock_get_status):
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "FAILED"
         with self.assertRaises(AirflowException):
             self.sensor.poke({})
-        mock_get_status.assert_called_once_with("123456789012", "DemoDataSet", "DemoDataSet_Ingestion")
+        mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_initialized(self, mock_get_status):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_poke_initialized(self, mock_get_account_number, sts_conn, mock_get_status):
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "INITIALIZED"
         self.assertFalse(self.sensor.poke({}))
-        mock_get_status.assert_called_once_with("123456789012", "DemoDataSet", "DemoDataSet_Ingestion")
+        mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)

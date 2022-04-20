@@ -42,7 +42,6 @@ class TestQuicksightCreateIngestionOperator(unittest.TestCase):
             task_id="test_quicksight_operator",
             data_set_id=DATA_SET_ID,
             ingestion_id=INGESTION_ID,
-            aws_account_id=AWS_ACCOUNT_ID,
         )
 
     @mock.patch.object(QuickSightHook, "get_conn")
@@ -53,7 +52,6 @@ class TestQuicksightCreateIngestionOperator(unittest.TestCase):
         mock_create_ingestion.assert_called_once_with(
             data_set_id=DATA_SET_ID,
             ingestion_id=INGESTION_ID,
-            aws_account_id=AWS_ACCOUNT_ID,
             ingestion_type="FULL_REFRESH",
             wait_for_completion=True,
             check_interval=30,

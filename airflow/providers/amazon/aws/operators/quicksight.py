@@ -33,13 +33,12 @@ class QuickSightCreateIngestionOperator(BaseOperator):
 
     :param data_set_id:  ID of the dataset used in the ingestion.
     :param ingestion_id: ID for the ingestion.
-    :param aws_account_id: Amazon Web Services account ID.
     :param ingestion_type: Type of ingestion. Values Can be  INCREMENTAL_REFRESH or FULL_REFRESH.
         Default FULL_REFRESH.
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
-        that the operation waits to check the status of the QuickSight Ingestion.
+        that the operation waits to check the status of the Amazon QuickSight Ingestion.
     :param check_interval: if wait is set to be true, this is the time interval
-        in seconds which the operator will check the status of the QuickSight Ingestion
+        in seconds which the operator will check the status of the Amazon QuickSight Ingestion
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -52,7 +51,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "data_set_id",
         "ingestion_id",
-        "aws_account_id",
         "ingestion_type",
         "wait_for_completion",
         "check_interval",
@@ -65,7 +63,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         self,
         data_set_id: str,
         ingestion_id: str,
-        aws_account_id: str,
         ingestion_type: str = "FULL_REFRESH",
         wait_for_completion: bool = True,
         check_interval: int = 30,
@@ -75,7 +72,6 @@ class QuickSightCreateIngestionOperator(BaseOperator):
     ):
         self.data_set_id = data_set_id
         self.ingestion_id = ingestion_id
-        self.aws_account_id = aws_account_id
         self.ingestion_type = ingestion_type
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -88,13 +84,11 @@ class QuickSightCreateIngestionOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        self.log.info("Running the QuickSight Spice Ingestion on Dataset ID: %s)", self.data_set_id)
-        create_ingestion_response = hook.create_ingestion(
+        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s)", self.data_set_id)
+        return hook.create_ingestion(
             data_set_id=self.data_set_id,
             ingestion_id=self.ingestion_id,
-            aws_account_id=self.aws_account_id,
             ingestion_type=self.ingestion_type,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
         )
-        return create_ingestion_response

@@ -15,21 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
 
-DATA_SET_ID = "DemoDataSet_Test"
-INGESTION_WAITING_ID = "DemoDataSet_Ingestion_Waiting_Test"
-INGESTION_NO_WAITING_ID = "DemoDataSet_Ingestion_No_Waiting_Test"
-AWS_ACCOUNT_ID = "123456789012"
+DATA_SET_ID = os.getenv("DATA_SET_ID", "DemoDataSet_Test")
+INGESTION_WAITING_ID = os.getenv("INGESTION_WAITING_ID", "DemoDataSet_Ingestion_Waiting_Test")
+INGESTION_NO_WAITING_ID = os.getenv("INGESTION_NO_WAITING_ID", "DemoDataSet_Ingestion_No_Waiting_Test")
 
 with DAG(
-    "sample_quicksight_dag",
+    dag_id="example_quicksight",
     schedule_interval=None,
-    start_date=datetime(2022, 2, 21),
+    start_date=datetime(2021, 1, 1),
+    tags=["example"],
     catchup=False,
 ) as dag:
     # Create and Start the QuickSight SPICE data ingestion
@@ -38,7 +39,6 @@ with DAG(
     quicksight_create_ingestion = QuickSightCreateIngestionOperator(
         data_set_id=DATA_SET_ID,
         ingestion_id=INGESTION_WAITING_ID,
-        aws_account_id=AWS_ACCOUNT_ID,
         task_id="sample_quicksight_dag",
     )
     quicksight_create_ingestion
@@ -50,7 +50,6 @@ with DAG(
     quicksight_create_ingestion_no_waiting = QuickSightCreateIngestionOperator(
         data_set_id=DATA_SET_ID,
         ingestion_id=INGESTION_NO_WAITING_ID,
-        aws_account_id=AWS_ACCOUNT_ID,
         wait_for_completion=False,
         task_id="sample_quicksight_no_waiting_dag",
     )
@@ -58,7 +57,6 @@ with DAG(
     # The following task checks the status of the QuickSight SPICE ingestion
     # job until it succeeds.
     quicksight_job_status = QuickSightSensor(
-        aws_account_id=AWS_ACCOUNT_ID,
         data_set_id=DATA_SET_ID,
         ingestion_id=INGESTION_NO_WAITING_ID,
         task_id="check_quicksight_job_status",

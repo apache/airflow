@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -28,32 +29,33 @@ if TYPE_CHECKING:
 
 class QuickSightSensor(BaseSensorOperator):
     """
-    Watches for the status of a QuickSight Ingestion.
+    Watches for the status of an Amazon QuickSight Ingestion.
 
-    :param aws_account_id: An AWS Account ID
-    :param data_set_id: QuickSight Data Set ID
-    :param ingestion_id: QuickSight Ingestion ID
-    :param aws_conn_id: aws connection to use, defaults to "aws_default"
+    :param data_set_id:  ID of the dataset used in the ingestion.
+    :param ingestion_id: ID for the ingestion.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
     """
 
     def __init__(
         self,
         *,
-        aws_account_id: str,
         data_set_id: str,
         ingestion_id: str,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.aws_account_id = aws_account_id
         self.data_set_id = data_set_id
-        self.aws_account_id = aws_account_id
         self.ingestion_id = ingestion_id
         self.aws_conn_id = aws_conn_id
         self.success_status = "COMPLETED"
         self.errored_statuses = ("FAILED", "CANCELLED")
-        self.hook: Optional[QuickSightHook] = None
+        self.quicksight_hook: Optional[QuickSightHook] = None
+        self.sts_hook: Optional[StsHook] = None
 
     def poke(self, context: "Context"):
         """
@@ -63,18 +65,22 @@ class QuickSightSensor(BaseSensorOperator):
         :return: True if it COMPLETED and False if not.
         :rtype: bool
         """
-        hook = self.get_hook()
+        quicksight_hook, sts_hook = self.get_hook()
         self.log.info("Poking for Amazon QuickSight Ingestion ID: %s", self.ingestion_id)
-        quicksight_ingestion_state = hook.get_status(self.aws_account_id, self.data_set_id, self.ingestion_id)
+        aws_account_id = sts_hook.get_account_number()
+        quicksight_ingestion_state = quicksight_hook.get_status(
+            aws_account_id, self.data_set_id, self.ingestion_id
+        )
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
             raise AirflowException("The QuickSight Ingestion failed!")
         return quicksight_ingestion_state == self.success_status
 
-    def get_hook(self) -> QuickSightHook:
+    def get_hook(self):
         """Returns a new or pre-existing QuickSightHook"""
-        if self.hook:
-            return self.hook
+        if self.quicksight_hook and self.sts_hook:
+            return [self.quicksight_hook, self.sts_hook]
 
-        self.hook = QuickSightHook(aws_conn_id=self.aws_conn_id)
-        return self.hook
+        self.quicksight_hook = QuickSightHook(aws_conn_id=self.aws_conn_id)
+        self.sts_hook = StsHook(aws_conn_id=self.aws_conn_id)
+        return [self.quicksight_hook, self.sts_hook]

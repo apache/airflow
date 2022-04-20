@@ -22,6 +22,7 @@ from botocore.exceptions import ClientError
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 
 
 class QuickSightHook(AwsBaseHook):
@@ -44,7 +45,6 @@ class QuickSightHook(AwsBaseHook):
         self,
         data_set_id: str,
         ingestion_id: str,
-        aws_account_id: str,
         ingestion_type: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
@@ -54,7 +54,6 @@ class QuickSightHook(AwsBaseHook):
 
         :param data_set_id:  ID of the dataset used in the ingestion.
         :param ingestion_id: ID for the ingestion.
-        :param aws_account_id: Amazon Web Services account ID.
         :param ingestion_type: Type of ingestion . "INCREMENTAL_REFRESH"|"FULL_REFRESH"
         :param wait_for_completion: if the program should keep running until job finishes
         :param check_interval: the time interval in seconds which the operator
@@ -63,15 +62,20 @@ class QuickSightHook(AwsBaseHook):
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
         :rtype: Dict
         """
+
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
+            sts_hook = StsHook()
+            aws_account_id = sts_hook.get_account_number()
             create_ingestion_response = quicksight_client.create_ingestion(
                 DataSetId=data_set_id,
                 IngestionId=ingestion_id,
-                AwsAccountId=aws_account_id,
                 IngestionType=ingestion_type,
+                AwsAccountId=aws_account_id,
             )
+            # aws_account_id = boto3.client('sts').get_caller_identity()['Account']
+            # print(aws_account_id)
             if wait_for_completion:
                 self.wait_for_state(
                     aws_account_id=aws_account_id,
@@ -82,7 +86,7 @@ class QuickSightHook(AwsBaseHook):
                 )
             return create_ingestion_response
         except Exception as general_error:
-            self.log.error("Failed to run QuickSight create_ingestion API, error: %s", general_error)
+            self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
             raise
 
     def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):
@@ -101,7 +105,7 @@ class QuickSightHook(AwsBaseHook):
             )
             return describe_ingestion_response["Ingestion"]["IngestionStatus"]
         except KeyError:
-            raise AirflowException("Could not get status of the QuickSight Ingestion")
+            raise AirflowException("Could not get status of the Amazon QuickSight Ingestion")
         except ClientError:
             raise AirflowException("AWS request failed, check logs for more info")
 
@@ -132,9 +136,9 @@ class QuickSightHook(AwsBaseHook):
             time.sleep(check_interval)
             sec += check_interval
             if status in self.FAILED_STATES:
-                raise AirflowException("QuickSight SPICE ingestion failed")
+                raise AirflowException("The Amazon QuickSight Ingestion failed!")
             if status == "CANCELLED":
-                raise AirflowException("QuickSight SPICE ingestion cancelled")
+                raise AirflowException("The Amazon QuickSight SPICE ingestion cancelled!")
             status = self.get_status(aws_account_id, data_set_id, ingestion_id)
 
         self.log.info("QuickSight Ingestion completed")
