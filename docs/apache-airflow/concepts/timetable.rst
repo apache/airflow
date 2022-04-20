@@ -95,6 +95,8 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 
 .. code-block:: python
 
+    from airflow.timetables.events import EventsTimetable
+
     @dag(
         timetable=EventsTimetable(
             event_dates=[
