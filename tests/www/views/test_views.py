@@ -271,9 +271,10 @@ def test_mark_task_instance_state(test_app):
 
         view._mark_task_instance_state(
             dag_id=dag.dag_id,
+            run_id=dagrun.run_id,
             task_id=task_1.task_id,
+            map_indexes=None,
             origin="",
-            dag_run_id=dagrun.run_id,
             upstream=False,
             downstream=False,
             future=False,
