@@ -43,7 +43,7 @@ Password
 Extra (optional, connection parameters)
     Specify the extra parameters (as json dictionary) that can be used in Trino connection. The following parameters out of the standard python parameters are supported:
 
-    * ``auth`` - Specifies which type of authentication needs to be enabled. The value can be ``kerberos``, ``jwt``. 
+    * ``auth`` - Specifies which type of authentication needs to be enabled. The value can be ``kerberos``, ``jwt``.
     * ``impersonate_as_owner`` - Boolean that allows to set ``AIRFLOW_CTX_DAG_OWNER`` as a user of the connection.
 
     The following extra parameters can be used to configure authentication:

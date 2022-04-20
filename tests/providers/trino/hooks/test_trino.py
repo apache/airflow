@@ -42,8 +42,7 @@ class TestTrinoHookConn:
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
     def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
-        self.set_get_connection_return_value(
-            mock_get_connection, password='password')
+        self.set_get_connection_return_value(mock_get_connection, password='password')
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_basic_auth)
         mock_basic_auth.assert_called_once_with('login', 'password')
@@ -92,8 +91,7 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape(
-                "Kerberos authorization doesn't support password.")
+            AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
             TrinoHook().get_conn()
 
@@ -149,11 +147,9 @@ class TestTrinoHookConn:
     @patch(TRINO_DBAPI_CONNECT)
     def test_get_conn_verify(self, current_verify, expected_verify, mock_connect, mock_get_connection):
         extras = {'verify': current_verify}
-        self.set_get_connection_return_value(
-            mock_get_connection, extra=json.dumps(extras))
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
         TrinoHook().get_conn()
-        self.assert_connection_called_with(
-            mock_connect, verify=expected_verify)
+        self.assert_connection_called_with(mock_connect, verify=expected_verify)
 
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
@@ -206,8 +202,7 @@ class TestTrinoHook(unittest.TestCase):
         target_fields = None
         commit_every = 10
         replace = True
-        self.db_hook.insert_rows(
-            table, rows, target_fields, commit_every, replace)
+        self.db_hook.insert_rows(table, rows, target_fields, commit_every, replace)
         mock_insert_rows.assert_called_once_with(table, rows, None, 10, True)
 
     def test_get_first_record(self):
@@ -252,8 +247,7 @@ class TestTrinoHook(unittest.TestCase):
         parameters = {"hello": "world"}
         handler = str
         self.db_hook.run(hql, autocommit, parameters, handler)
-        mock_run.assert_called_once_with(
-            sql=hql, autocommit=False, parameters=parameters, handler=str)
+        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
 
 
 class TestTrinoHookIntegration(unittest.TestCase):
@@ -263,8 +257,7 @@ class TestTrinoHookIntegration(unittest.TestCase):
         hook = TrinoHook()
         sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
         records = hook.get_records(sql)
-        assert [['Customer#000000001'], ['Customer#000000002'],
-                ['Customer#000000003']] == records
+        assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records
 
     @pytest.mark.integration("trino")
     @pytest.mark.integration("kerberos")
@@ -279,5 +272,4 @@ class TestTrinoHookIntegration(unittest.TestCase):
             hook = TrinoHook()
             sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
             records = hook.get_records(sql)
-            assert [['Customer#000000001'], ['Customer#000000002'],
-                    ['Customer#000000003']] == records
+            assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records
