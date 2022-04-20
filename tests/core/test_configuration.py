@@ -613,7 +613,7 @@ AIRFLOW_HOME = /root/airflow
             test_conf.validate()
             assert (
                 test_conf.get('api', 'auth_backends')
-                == 'airflow.api.auth.backend.basic_auth\nairflow.api.auth.backend.session'
+                == 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
             )
 
     @pytest.mark.parametrize(
