@@ -30,13 +30,13 @@ log = logging.getLogger(__name__)
 
 @task
 def generate_value():
-    """Dummy function"""
+    """Empty function"""
     return "Bring me a shrubbery!"
 
 
 @task
 def print_value(value, ts=None):
-    """Dummy function"""
+    """Empty function"""
     log.info("The knights of Ni say: %s (at %s)", value, ts)
 
 

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -34,12 +35,20 @@ class CallbackRequest:
         self.msg = msg
 
     def __eq__(self, other):
-        if isinstance(other, CallbackRequest):
+        if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
-        return False
+        return NotImplemented
 
     def __repr__(self):
         return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        json_object = json.loads(json_str)
+        return cls(**json_object)
 
 
 class TaskCallbackRequest(CallbackRequest):
@@ -63,6 +72,19 @@ class TaskCallbackRequest(CallbackRequest):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.simple_task_instance = simple_task_instance
         self.is_failure_callback = is_failure_callback
+
+    def to_json(self) -> str:
+        dict_obj = self.__dict__.copy()
+        dict_obj["simple_task_instance"] = dict_obj["simple_task_instance"].__dict__
+        return json.dumps(dict_obj)
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        from airflow.models.taskinstance import SimpleTaskInstance
+
+        kwargs = json.loads(json_str)
+        simple_ti = SimpleTaskInstance.from_dict(obj_dict=kwargs.pop("simple_task_instance"))
+        return cls(simple_task_instance=simple_ti, **kwargs)
 
 
 class DagCallbackRequest(CallbackRequest):
@@ -98,6 +120,6 @@ class SlaCallbackRequest(CallbackRequest):
     :param dag_id: DAG ID
     """
 
-    def __init__(self, full_filepath: str, dag_id: str):
-        super().__init__(full_filepath)
+    def __init__(self, full_filepath: str, dag_id: str, msg: Optional[str] = None):
+        super().__init__(full_filepath, msg)
         self.dag_id = dag_id

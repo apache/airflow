@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global localStorage, ResizeObserver */
+
 import React, { useRef, useEffect } from 'react';
 import {
   Table,
@@ -26,50 +28,115 @@ import {
   FormControl,
   FormLabel,
   Spinner,
-  Text,
   Thead,
+  Flex,
+  useDisclosure,
+  Button,
 } from '@chakra-ui/react';
 
-import useTreeData from './useTreeData';
+import { useTreeData } from './api';
 import renderTaskRows from './renderTaskRows';
+import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
+import Details from './details';
+import { useSelection } from './context/selection';
+import { useAutoRefresh } from './context/autorefresh';
+
+const sidePanelKey = 'hideSidePanel';
 
 const Tree = () => {
-  const containerRef = useRef();
   const scrollRef = useRef();
-  const { data: { groups = {} }, isRefreshOn, onToggleRefresh } = useTreeData();
+  const tableRef = useRef();
+  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
+  const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
+  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
+
+  const { clearSelection } = useSelection();
+  const toggleSidePanel = () => {
+    if (!isOpen) {
+      localStorage.setItem(sidePanelKey, false);
+    } else {
+      clearSelection();
+      localStorage.setItem(sidePanelKey, true);
+    }
+    onToggle();
+  };
+
+  const scrollOnResize = new ResizeObserver(() => {
+    const runsContainer = scrollRef.current;
+    // Set scroll to top right if it is scrollable
+    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+      runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
+    }
+  });
 
   useEffect(() => {
-    // Set initial scroll to far right if it is scrollable
-    const runsContainer = scrollRef.current;
-    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(runsContainer.clientWidth, 0);
+    if (tableRef && tableRef.current) {
+      const table = tableRef.current;
+
+      scrollOnResize.observe(table);
+      return () => {
+        scrollOnResize.unobserve(table);
+      };
     }
-  }, []);
+    return () => {};
+  }, [tableRef, scrollOnResize]);
 
   return (
-    <Box position="relative" ref={containerRef}>
-      <FormControl display="flex" alignItems="center" justifyContent="flex-end" width="100%">
-        {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-        <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
-          Auto-refresh
-        </FormLabel>
-        <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
-      </FormControl>
-      <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="130px">Runs</Text>
-      <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="190px">Tasks</Text>
-      <Box px="24px">
-        <Box position="relative" width="100%" overflowX="auto" ref={scrollRef}>
+    <Box>
+      <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
+        <ResetRoot />
+        <FormControl display="flex" width="auto" mr={2}>
+          {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
+          <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
+            Auto-refresh
+          </FormLabel>
+          <Switch
+            id="auto-refresh"
+            onChange={() => toggleRefresh(true)}
+            isDisabled={isPaused}
+            isChecked={isRefreshOn}
+            size="lg"
+            title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+          />
+        </FormControl>
+        <Button
+          onClick={toggleSidePanel}
+          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
+          variant={isOpen ? 'solid' : 'outline'}
+        >
+          {isOpen ? 'Hide ' : 'Show '}
+          Details Panel
+        </Button>
+      </Flex>
+      <Flex flexDirection="row" justifyContent="space-between">
+        <Box
+          position="relative"
+          mt={2}
+          m="12px"
+          overflow="auto"
+          ref={scrollRef}
+          flexGrow={1}
+          minWidth={isOpen && '300px'}
+        >
           <Table>
-            <Thead>
-              <DagRuns containerRef={containerRef} />
+            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+              <DagRuns />
             </Thead>
-            <Tbody>
-              {renderTaskRows({ task: groups, containerRef })}
+            {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
+              {renderTaskRows({
+                task: groups, dagRunIds,
+              })}
             </Tbody>
           </Table>
         </Box>
-      </Box>
+        {isOpen && (
+          <Details />
+        )}
+      </Flex>
     </Box>
   );
 };

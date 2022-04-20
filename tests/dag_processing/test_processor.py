@@ -32,7 +32,7 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -211,7 +211,7 @@ class TestDagFileProcessor:
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         ) as dag:
-            task = DummyOperator(task_id='dummy')
+            task = EmptyOperator(task_id='dummy')
 
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
@@ -289,7 +289,7 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
         email2 = 'test2@test.com'
-        DummyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
+        EmptyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
 
         session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
 
@@ -384,7 +384,9 @@ class TestDagFileProcessor:
             session.add(ti)
 
         requests = [
-            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+            TaskCallbackRequest(
+                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+            )
         ]
         dag_file_processor.execute_callbacks(dagbag, requests)
         mock_ti_handle_failure.assert_called_once_with(
@@ -411,7 +413,9 @@ class TestDagFileProcessor:
             session.add(ti)
 
         requests = [
-            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+            TaskCallbackRequest(
+                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+            )
         ]
         dag_file_processor.execute_callbacks(dagbag, requests)
 
@@ -444,7 +448,7 @@ class TestDagFileProcessor:
             requests = [
                 TaskCallbackRequest(
                     full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
+                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
                     msg="Message",
                 )
             ]
@@ -563,6 +567,34 @@ class TestDagFileProcessor:
         assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 2)"
 
         session.rollback()
+
+    def test_import_error_record_is_updated_not_deleted_and_recreated(self, tmpdir):
+        """
+        Test that existing import error is updated and new record not created
+        for a dag with the same filename
+        """
+        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+        session = settings.Session()
+        self._process_file(filename_to_parse, session)
+
+        import_error_1 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # process the file multiple times
+        for _ in range(10):
+            self._process_file(filename_to_parse, session)
+
+        import_error_2 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # assert that the ID of the import error did not change
+        assert import_error_1.id == import_error_2.id
 
     def test_remove_error_clears_import_error(self, tmpdir):
         filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
@@ -702,31 +734,6 @@ class TestDagFileProcessor:
             )
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
-
-    def test_process_file_should_deactivate_missing_dags(self):
-
-        dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
-        )
-
-        # write a DAG into the DB which is not present in its specified file
-        with create_session() as session:
-            orm_dag = DagModel(dag_id='missing_dag', is_active=True, fileloc=dag_file)
-            session.merge(orm_dag)
-            session.commit()
-
-        session = settings.Session()
-
-        dags = session.query(DagModel).all()
-        assert [dag.dag_id for dag in dags if dag.is_active] == ['missing_dag']
-
-        # re-parse the file and see that the DAG is no longer there
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_file_processor.process_file(dag_file, [])
-
-        dags = session.query(DagModel).all()
-        assert [dag.dag_id for dag in dags if dag.is_active] == ['test_only_dummy_tasks']
-        assert [dag.dag_id for dag in dags if not dag.is_active] == ['missing_dag']
 
 
 class TestProcessorAgent:

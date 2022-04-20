@@ -17,6 +17,8 @@
 # under the License.
 set -uo pipefail
 
+TIMEOUT=${TIMEOUT="4"}
+
 if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
     RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
     echo
@@ -30,9 +32,15 @@ if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
             exit 1 ;;
     esac
 else
-    echo
-    echo "Please confirm ${1} (or wait 4 seconds to skip it). Are you sure? [y/N/q]"
-    read -t 4 -r RESPONSE
+    if [[ ${TIMEOUT} != "0" ]]; then
+        echo
+        echo "Please confirm ${1} (or wait ${TIMEOUT} seconds). Are you sure? [y/N/q]"
+        read -t 4 -r RESPONSE
+    else
+        echo
+        echo "Please confirm ${1}. Are you sure? [y/N/q]"
+        read -r RESPONSE
+    fi
 fi
 
 case "${RESPONSE="N"}" in

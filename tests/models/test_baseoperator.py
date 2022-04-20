@@ -17,7 +17,7 @@
 # under the License.
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, NamedTuple
 from unittest import mock
 
@@ -93,7 +93,7 @@ class MockNamedTuple(NamedTuple):
 
 
 class TestBaseOperator:
-    def test_apply(self):
+    def test_expand(self):
         dummy = DummyClass(test_param=True)
         assert dummy.test_param
 
@@ -258,6 +258,46 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
+
+    def test_mapped_dag_slas_disabled_classic(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                class MyOp(BaseOperator):
+                    def __init__(self, x, **kwargs):
+                        self.x = x
+                        super().__init__(**kwargs)
+
+                    def execute(self, context):
+                        print(self.x)
+
+                MyOp.partial(task_id='hi').expand(x=task1)
+
+    def test_mapped_dag_slas_disabled_taskflow(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                @dag.task
+                def print_val(x):
+                    print(x)
+
+                print_val.expand(x=task1)
 
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
@@ -704,7 +744,7 @@ def test_task_mapping_with_dag():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
         finish = MockOperator(task_id="finish")
 
         task1 >> mapped >> finish
@@ -723,7 +763,7 @@ def test_task_mapping_without_dag_context():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ['a', 'b', 'c']
-    mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+    mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
 
     task1 >> mapped
 
@@ -740,7 +780,7 @@ def test_task_mapping_default_args():
     with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=literal)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
 
         task1 >> mapped
 
@@ -750,15 +790,14 @@ def test_task_mapping_default_args():
 
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id='a').apply(file=[1, 2, {'a': 'b'}])
+        BaseOperator.partial(task_id='a').expand(file=[1, 2, {'a': 'b'}])
 
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
     with DAG("test-dag", start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -816,8 +855,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     literal = [1, 2, {'a': 'b'}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcomarg = XComArg(task1, "test_key")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=xcomarg)
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 
@@ -861,7 +899,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').apply(arg2=XComArg(task1, XCOM_RETURN_KEY))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
 
     dr = dag_maker.create_dagrun()
 
@@ -880,3 +918,72 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_mapped_task_applies_default_args_classic(dag_maker):
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+        MockOperator(task_id="simple", arg1=None, arg2=0)
+        MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
+
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+
+
+def test_mapped_task_applies_default_args_taskflow(dag_maker):
+    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+
+        @dag.task
+        def simple(arg):
+            pass
+
+        @dag.task
+        def mapped(arg):
+            pass
+
+        simple(arg=0)
+        mapped.expand(arg=[1, 2])
+
+    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+
+
+def test_mapped_render_template_fields_validating_operator(dag_maker, session):
+    class MyOperator(MockOperator):
+        def __init__(self, value, arg1, **kwargs):
+            assert isinstance(value, str), "value should have been resolved before unmapping"
+            assert isinstance(arg1, str), "value should have been resolved before unmapping"
+            super().__init__(arg1=arg1, **kwargs)
+            self.value = value
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcom_arg = XComArg(task1)
+        mapped = MyOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand(
+            value=xcom_arg, arg1=xcom_arg
+        )
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+    mapped_ti.map_index = 0
+    op = mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(op, MyOperator)
+
+    assert op.value == "{{ ds }}", "Should not be templated!"
+    assert op.arg1 == "{{ ds }}"
+    assert op.arg2 == "a"

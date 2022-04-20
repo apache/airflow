@@ -18,6 +18,7 @@
 
 import copy
 import io
+import logging
 import os
 import re
 import tempfile
@@ -110,6 +111,10 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
 
 
 class TestGCSHook(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def setUp(self):
         with mock.patch(
             GCS_STRING.format('GoogleBaseHook.__init__'),
@@ -445,17 +450,17 @@ class TestGCSHook(unittest.TestCase):
         mock_service.return_value.bucket.assert_called_once_with(test_bucket)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
-    @mock.patch(
-        GCS_STRING.format('GCSHook.get_conn'),
-        **{'return_value.bucket.return_value.delete.side_effect': exceptions.NotFound(message="Not Found")},
-    )
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_delete_nonexisting_bucket(self, mock_service):
+        mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
+            message="Not Found"
+        )
         test_bucket = "test bucket"
-
-        self.gcs_hook.delete_bucket(bucket_name=test_bucket)
-
+        with self._caplog.at_level(logging.INFO):
+            self.gcs_hook.delete_bucket(bucket_name=test_bucket)
         mock_service.return_value.bucket.assert_called_once_with(test_bucket)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
+        assert "Bucket test bucket not exist" in self._caplog.text
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_size(self, mock_service):
@@ -789,14 +794,20 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
+        metadata = {'key1': 'val1', 'key2': 'key2'}
 
-        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_filename
+        bucket_mock = mock_service.return_value.bucket
+        blob_object = bucket_mock.return_value.blob
 
-        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name)
+        upload_method = blob_object.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name, metadata=metadata)
 
         upload_method.assert_called_once_with(
             filename=self.testfile.name, content_type='application/octet-stream', timeout=60
         )
+
+        self.assertEqual(metadata, blob_object.return_value.metadata)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file_gzip(self, mock_service):

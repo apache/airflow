@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.0.3``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.0.4``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -112,9 +112,11 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
-|                                          |                                          | upgraded to newer versions matching      |
-|                                          |                                          | setup.py before installation.            |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
+|                                          |                                          | the dependencies are upgraded to newer   |
+|                                          |                                          | versions. In CI it is set to build id    |
+|                                          |                                          | to make sure subsequent builds are not   |
+|                                          |                                          | reusing cached images with same value.   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies.  |
@@ -194,19 +196,19 @@ You can see some examples of those in:
 |                                          |                                          | ``AIRFLOW_SOURCES_TO`` variables (see    |
 |                                          |                                          | below)                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_FROM``                 | ``empty``                                | Sources of Airflow. Set it to "." when   |
+| ``AIRFLOW_SOURCES_FROM``                 | ``Dockerfile``                           | Sources of Airflow. Set it to "." when   |
 |                                          |                                          | you install Airflow from local sources   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_TO``                   | ``/empty``                               | Target for Airflow sources. Set to       |
+| ``AIRFLOW_SOURCES_TO``                   | ``/Dockerfile``                          | Target for Airflow sources. Set to       |
 |                                          |                                          | "/opt/airflow" when you install Airflow  |
 |                                          |                                          | from local sources.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_FROM``             | ``empty``                                | Sources of Airflow WWW files used for    |
+| ``AIRFLOW_SOURCES_WWW_FROM``             | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
 |                                          |                                          | asset compilation. Set it to             |
 |                                          |                                          | "./airflow/www" when                     |
 |                                          |                                          | you install Airflow from local sources   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_TO``               | ``/empty``                               | Target for Airflow files used for        |
+| ``AIRFLOW_SOURCES_WWW_TO``               | ``/Dockerfile``                          | Target for Airflow files used for        |
 |                                          |                                          | asset compilation. Set it to             |
 |                                          |                                          | "/opt/airflow/airflow/www" when          |
 |                                          |                                          | you install Airflow from local sources.  |
@@ -228,6 +230,16 @@ You can see some examples of those in:
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
 |                                          |                                          | ``.dockerignore`` file.                  |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``DOCKER_CONTEXT_FILES``                 | ``Dockerfile``                           | If set to a folder (for example to       |
+|                                          |                                          | ``docker-context-files`` folder), then   |
+|                                          |                                          | this folder will be copied to the        |
+|                                          |                                          | ``docker-context-files`` inside the      |
+|                                          |                                          | context of docker and you will be able   |
+|                                          |                                          | to install from binary files present     |
+|                                          |                                          | there. By default we set it to           |
+|                                          |                                          | Dockerfile as we know the file is there, |
+|                                          |                                          | otherwise the COPY instruction fails.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
 |                                          |                                          | all dependencies are installed from      |

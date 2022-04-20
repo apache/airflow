@@ -18,7 +18,9 @@
 import json
 import math
 import time
+import warnings
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
@@ -38,11 +40,7 @@ from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    try:
-        # Kube >= 19
-        from kubernetes.client.models.core_v1_event_list import CoreV1EventList as V1EventList
-    except ImportError:
-        from kubernetes.client.models.v1_event_list import V1EventList
+    from kubernetes.client.models.core_v1_event_list import CoreV1EventList
 
 
 class PodLaunchFailedException(AirflowException):
@@ -82,6 +80,23 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.running is not None
+
+
+def get_container_termination_message(pod: V1Pod, container_name: str):
+    try:
+        container_statuses = pod.status.container_statuses
+        container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+        return container_status.state.terminated.message if container_status else None
+    except AttributeError:
+        return None
+
+
+@dataclass
+class PodLoggingStatus:
+    """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
+
+    running: bool
+    last_log_time: Optional[DateTime]
 
 
 class PodManager(LoggingMixin):
@@ -170,17 +185,23 @@ class PodManager(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(1)
 
-    def follow_container_logs(self, pod: V1Pod, container_name: str) -> None:
+    def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
+        warnings.warn(
+            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
+            "with option `follow=True`.",
+            DeprecationWarning,
+        )
+        return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
+
+    def fetch_container_logs(
+        self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
+    ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
-
-        .. note:: :meth:`read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
-            loop as we do here. But in a long-running process we might temporarily lose connectivity.
-            So the looping logic is there to let us resume following the logs.
         """
 
-        def follow_logs(since_time: Optional[DateTime] = None) -> Optional[DateTime]:
+        def consume_logs(*, since_time: Optional[DateTime] = None, follow: bool = True) -> Optional[DateTime]:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -197,23 +218,34 @@ class PodManager(LoggingMixin):
                     since_seconds=(
                         math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
                     ),
+                    follow=follow,
                 )
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
                     self.log.info(message)
-            except BaseHTTPError:  # Catches errors like ProtocolError(TimeoutError).
+            except BaseHTTPError as e:
                 self.log.warning(
-                    'Failed to read logs for pod %s',
+                    "Reading of logs interrupted with error %r; will retry. "
+                    "Set log level to DEBUG for traceback.",
+                    e,
+                )
+                self.log.debug(
+                    "Traceback for interrupted logs read for pod %r",
                     pod.metadata.name,
                     exc_info=True,
                 )
             return timestamp or since_time
 
-        last_log_time = None
+        # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
+        # loop as we do here. But in a long-running process we might temporarily lose connectivity.
+        # So the looping logic is there to let us resume following the logs.
+        last_log_time = since_time
         while True:
-            last_log_time = follow_logs(since_time=last_log_time)
+            last_log_time = consume_logs(since_time=last_log_time, follow=follow)
             if not self.container_is_running(pod, container_name=container_name):
-                return
+                return PodLoggingStatus(running=False, last_log_time=last_log_time)
+            if not follow:
+                return PodLoggingStatus(running=True, last_log_time=last_log_time)
             else:
                 self.log.warning(
                     'Pod %s log read interrupted but container %s still running',
@@ -251,7 +283,11 @@ class PodManager(LoggingMixin):
         """
         split_at = line.find(' ')
         if split_at == -1:
-            raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
+            self.log.error(
+                f"Error parsing timestamp (no timestamp in message '${line}'). "
+                "Will continue execution but won't update timestamp"
+            )
+            return None, line
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         try:
@@ -274,6 +310,7 @@ class PodManager(LoggingMixin):
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
+        follow=True,
     ) -> Iterable[bytes]:
         """Reads log from the POD"""
         additional_kwargs = {}
@@ -288,7 +325,7 @@ class PodManager(LoggingMixin):
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
                 container=container_name,
-                follow=True,
+                follow=follow,
                 timestamps=timestamps,
                 _preload_content=False,
                 **additional_kwargs,
@@ -298,7 +335,7 @@ class PodManager(LoggingMixin):
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod: V1Pod) -> "V1EventList":
+    def read_pod_events(self, pod: V1Pod) -> "CoreV1EventList":
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(

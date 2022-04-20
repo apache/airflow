@@ -27,6 +27,10 @@ from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -502,6 +506,63 @@ class TestAirflowTaskDecorator:
 
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
 
+    def test_user_provided_task_id_in_a_loop_is_used(self):
+        """Tests that when looping that user provided task_id is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(task_id=f'my_task_id_{i * 2}')()
+            hello()  # This task would have hello_task as the task_id
+
+        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4', 'hello_task']
+
+    def test_user_provided_pool_and_priority_weight_works(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(pool='my_pool', priority_weight=i)()
+
+        weights = []
+        for task in self.dag.tasks:
+            assert task.pool == 'my_pool'
+            weights.append(task.priority_weight)
+        assert weights == [0, 1, 2]
+
+    def test_python_callable_args_work_as_well_as_baseoperator_args(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello(x, y):
+            """
+            Print Hello world
+            """
+            print("Hello world", x, y)
+            return x, y
+
+        with self.dag:
+            output = hello.override(task_id='mytask')(x=2, y=3)
+            output2 = hello.override()(2, 3)  # nothing overridden but should work
+
+        assert output.operator.op_kwargs == {'x': 2, 'y': 3}
+        assert output2.operator.op_args == (2, 3)
+        output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
 
 def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
@@ -513,8 +574,8 @@ def test_mapped_decorator_shadow_context() -> None:
     assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
     with pytest.raises(ValueError) as ctx:
-        print_info.apply(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call apply() on task context variable 'run_id'"
+        print_info.expand(run_id=["hi", "there"])
+    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -527,12 +588,12 @@ def test_mapped_decorator_wrong_argument() -> None:
     assert str(ct.value) == "partial() got an unexpected keyword argument 'wrong_name'"
 
     with pytest.raises(TypeError) as ct:
-        print_info.apply(wrong_name=["hi", "there"])
-    assert str(ct.value) == "apply() got an unexpected keyword argument 'wrong_name'"
+        print_info.expand(wrong_name=["hi", "there"])
+    assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
 
     with pytest.raises(ValueError) as cv:
-        print_info.apply(message="hi")
-    assert str(cv.value) == "apply() got an unexpected type 'str' for keyword argument 'message'"
+        print_info.expand(message="hi")
+    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():
@@ -545,9 +606,9 @@ def test_mapped_decorator():
         print(kwargs)
 
     with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
-        t0 = print_info.apply(m1=["a", "b"], m2={"foo": "bar"})
-        t1 = print_info.partial(m1="hi").apply(m2=[1, 2, 3])
-        t2 = print_everything.partial(whatever="123").apply(any_key=[1, 2], works=t1)
+        t0 = print_info.expand(m1=["a", "b"], m2={"foo": "bar"})
+        t1 = print_info.partial(m1="hi").expand(m2=[1, 2, 3])
+        t2 = print_everything.partial(whatever="123").expand(any_key=[1, 2], works=t1)
 
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
@@ -568,9 +629,9 @@ def test_mapped_decorator_invalid_args() -> None:
     with pytest.raises(TypeError, match="arguments 'other', 'b'"):
         double.partial(other=[1], b=['a'])
     with pytest.raises(TypeError, match="argument 'other'"):
-        double.apply(number=literal, other=[1])
+        double.expand(number=literal, other=[1])
     with pytest.raises(ValueError, match="argument 'number'"):
-        double.apply(number=1)  # type: ignore[arg-type]
+        double.expand(number=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:
@@ -581,9 +642,9 @@ def test_partial_mapped_decorator() -> None:
     literal = [1, 2, 3]
 
     with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        quadrupled = product.partial(multiple=3).apply(number=literal)
-        doubled = product.partial(multiple=2).apply(number=literal)
-        trippled = product.partial(multiple=3).apply(number=literal)
+        quadrupled = product.partial(multiple=3).expand(number=literal)
+        doubled = product.partial(multiple=2).expand(number=literal)
+        trippled = product.partial(multiple=3).expand(number=literal)
 
         product.partial(multiple=2)  # No operator is actually created.
 
@@ -615,7 +676,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).apply(arg2=task1())
+        task2.partial(arg1=1).expand(arg2=task1())
 
     unmapped = dag.get_task("task2").unmap()
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
@@ -632,7 +693,7 @@ def test_mapped_decorator_converts_partial_kwargs():
         def task2(arg1, arg2):
             ...
 
-        task2.partial(arg1=1).apply(arg2=task1.apply(arg=[1, 2]))
+        task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
     mapped_task2 = dag.get_task("task2")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
@@ -641,3 +702,39 @@ def test_mapped_decorator_converts_partial_kwargs():
     mapped_task1 = dag.get_task("task1")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
     mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
+
+
+def test_mapped_render_template_fields(dag_maker, session):
+    @task_decorator
+    def fn(arg1, arg2):
+        ...
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcom_arg = XComArg(task1)
+        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+    mapped_ti.map_index = 0
+    op = mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert op
+
+    assert op.op_kwargs['arg1'] == "{{ ds }}"
+    assert op.op_kwargs['arg2'] == "fn"

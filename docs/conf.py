@@ -149,7 +149,7 @@ extensions = [
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
             'sphinx.ext.graphviz',
             'sphinxcontrib.httpdomain',
             'sphinxcontrib.httpdomain',
@@ -164,13 +164,13 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
             'operators_and_hooks_ref',
             'providers_packages_ref',
         ]
     )
 elif PACKAGE_NAME == "helm-chart":
-    extensions.append("sphinxcontrib.jinja")
+    extensions.append("sphinx_jinja")
 elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
@@ -188,7 +188,7 @@ if PACKAGE_NAME == 'apache-airflow':
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     extensions.extend(
         [
-            'sphinxcontrib.jinja',
+            'sphinx_jinja',
         ]
     )
     exclude_patterns = ['operators/_partials']
@@ -284,6 +284,7 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
     # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
@@ -361,7 +362,7 @@ html_context = {
 
 # == Extensions configuration ==================================================
 
-# -- Options for sphinxcontrib.jinjac ------------------------------------------
+# -- Options for sphinx_jinja ------------------------------------------
 # See: https://github.com/tardyp/sphinx-jinja
 
 # Jinja context

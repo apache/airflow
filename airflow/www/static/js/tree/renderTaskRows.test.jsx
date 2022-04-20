@@ -17,20 +17,18 @@
  * under the License.
  */
 
-/* global describe, test, expect, jest */
+/* global describe, test, expect */
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment';
+import { QueryClient, QueryClientProvider } from 'react-query';
 
 import renderTaskRows from './renderTaskRows';
+import { ContainerRefProvider } from './context/containerRef';
+import { SelectionProvider } from './context/selection';
 
-// Mock modal open function we take from dag.js
-jest.mock('../dag', () => ({
-  callModalDag: () => {},
-  callModal: () => {},
-}));
 global.moment = moment;
 
 const mockTreeData = {
@@ -96,32 +94,49 @@ const mockTreeData = {
   ],
 };
 
+const Wrapper = ({ children }) => {
+  const queryClient = new QueryClient();
+  return (
+    <React.StrictMode>
+      <ChakraProvider>
+        <QueryClientProvider client={queryClient}>
+          <ContainerRefProvider value={{}}>
+            <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+              <Table>
+                <Tbody>
+                  {children}
+                </Tbody>
+              </Table>
+            </SelectionProvider>
+          </ContainerRefProvider>
+        </QueryClientProvider>
+      </ChakraProvider>
+    </React.StrictMode>
+  );
+};
+
 describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
     global.treeData = mockTreeData;
-    const containerRef = {};
+    const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
+    const task = mockTreeData.groups;
 
     const { getByTestId, getByText, getAllByTestId } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <>{renderTaskRows({ task, dagRunIds })}</>,
+      { wrapper: Wrapper },
     );
 
     const groupName = getByText('group_1');
 
-    expect(getAllByTestId('task-instance')).toHaveLength(2);
+    expect(getAllByTestId('task-instance')).toHaveLength(1);
     expect(groupName).toBeInTheDocument();
     expect(getByTestId('closed-group')).toBeInTheDocument();
 
     fireEvent.click(groupName);
 
     expect(getByTestId('open-group')).toBeInTheDocument();
+    // task instances are only rendered when their group is expanded
+    expect(getAllByTestId('task-instance')).toHaveLength(2);
   });
 
   test('Still renders names if there are no instances', () => {
@@ -149,18 +164,11 @@ describe('Test renderTaskRows', () => {
       },
       dagRuns: [],
     };
-    const containerRef = {};
+    const task = mockTreeData.groups;
 
     const { queryByTestId, getByText } = render(
-      <React.StrictMode>
-        <ChakraProvider>
-          <Table>
-            <Tbody>
-              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
-            </Tbody>
-          </Table>
-        </ChakraProvider>
-      </React.StrictMode>,
+      <>{renderTaskRows({ task, dagRunIds: [] })}</>,
+      { wrapper: Wrapper },
     );
 
     expect(getByText('group_1')).toBeInTheDocument();

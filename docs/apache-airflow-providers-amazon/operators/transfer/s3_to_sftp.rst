@@ -15,22 +15,26 @@
     specific language governing permissions and limitations
     under the License.
 
-
 Amazon S3 to SFTP Transfer Operator
 ===================================
 
-AWS Transfer for SFTP provides Secure File Transfer Protocol (SFTP) access to a customer's S3 resources.
-For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_
+Use the S3ToSFTPOperator transfer to copy the data from an Amazon Simple Storage Service (S3) file into a remote file
+using SFTP protocol.
+For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_.
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: ../_partials/prerequisite_tasks.rst
 
 .. _howto/operator:S3ToSFTPOperator:
 
-S3ToSFTPOperator
-^^^^^^^^^^^^^^^^
+Amazon S3 To SFTP
+^^^^^^^^^^^^^^^^^
 
-This operator enables the transferring of files from S3 to a SFTP Server.
+This operator loads data from Amazon S3 to a SFTP server.
 
-To get more information about operator visit:
+To get more information about this operator visit:
 :class:`~airflow.providers.amazon.aws.transfers.s3_to_sftp.S3ToSFTPOperator`
 
 Example usage:
@@ -38,5 +42,10 @@ Example usage:
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sftp.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_s3_transfer_data_to_sftp]
-    :end-before: [END howto_s3_transfer_data_to_sftp]
+    :start-after: [START howto_transfer_s3_to_sftp]
+    :end-before: [END howto_transfer_s3_to_sftp]
+
+Reference
+^^^^^^^^^
+
+* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

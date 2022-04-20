@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.models import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 
 # The schedule_interval specified here is an INVALID
@@ -25,4 +25,4 @@ from airflow.utils.timezone import datetime
 # test whether dagbag.process_file() can identify
 # invalid Cron expression.
 dag1 = DAG(dag_id='test_invalid_cron', start_date=datetime(2015, 1, 1), schedule_interval="0 100 * * *")
-dag1_task1 = DummyOperator(task_id='task1', dag=dag1, owner='airflow')
+dag1_task1 = EmptyOperator(task_id='task1', dag=dag1, owner='airflow')

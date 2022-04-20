@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Un
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster
 from google.protobuf.duration_pb2 import Duration
@@ -457,7 +458,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
         use_if_exists: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -756,9 +757,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :param cluster_name: Required. The cluster name (templated).
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to (templated).
     :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
         if cluster with specified UUID does not exist.
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
@@ -785,12 +786,12 @@ class DataprocDeleteClusterOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         region: str,
         cluster_name: str,
+        project_id: Optional[str] = None,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -950,6 +951,8 @@ class DataprocJobBaseOperator(BaseOperator):
     def execute(self, context: 'Context'):
         if self.job_template:
             self.job = self.job_template.build()
+            if self.job is None:
+                raise Exception("The job should be set here.")
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
@@ -1499,7 +1502,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     """
     Creates new workflow template.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param template: The Dataproc workflow template to create. If a dict is provided,
@@ -1519,10 +1522,10 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self,
         *,
         template: Dict,
-        project_id: str,
         region: Optional[str] = None,
+        project_id: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1624,7 +1627,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1673,8 +1676,11 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
-        Please refer to:
-        https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator`
+
+        For more detail on about instantiate inline have a look at the reference:
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.workflowTemplates/instantiateInline
 
     :param template: The template contents. (templated)
     :param project_id: The ID of the google cloud project in which
@@ -1716,7 +1722,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         region: str,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1759,7 +1765,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     """
     Submits a job to a cluster.
 
-    :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
+    :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
@@ -1798,12 +1804,12 @@ class DataprocSubmitJobOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         job: Dict,
+        project_id: Optional[str] = None,
         region: Optional[str] = None,
         location: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1852,19 +1858,21 @@ class DataprocSubmitJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        job_id = job_object.reference.job_id
-        self.log.info('Job %s submitted successfully.', job_id)
+        new_job_id: str = job_object.reference.job_id
+        self.log.info('Job %s submitted successfully.', new_job_id)
         # Save data required by extra links no matter what the job status will be
-        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id)
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=new_job_id
+        )
 
+        self.job_id = new_job_id
         if not self.asynchronous:
-            self.log.info('Waiting for job %s to complete', job_id)
+            self.log.info('Waiting for job %s to complete', new_job_id)
             self.hook.wait_for_job(
-                job_id=job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
+                job_id=new_job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
             )
-            self.log.info('Job %s completed successfully.', job_id)
+            self.log.info('Job %s completed successfully.', new_job_id)
 
-        self.job_id = job_id
         return self.job_id
 
     def on_kill(self):
@@ -1876,8 +1884,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
     """
     Updates a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param cluster_name: Required. The cluster name.
     :param cluster: Required. The changes to the cluster.
@@ -1913,7 +1921,14 @@ class DataprocUpdateClusterOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('impersonation_chain', 'cluster_name')
+    template_fields: Sequence[str] = (
+        'cluster_name',
+        'cluster',
+        'region',
+        'request_id',
+        'project_id',
+        'impersonation_chain',
+    )
     operator_extra_links = (DataprocLink(),)
 
     def __init__(
@@ -1927,7 +1942,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         location: Optional[str] = None,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1986,7 +2001,7 @@ class DataprocCreateBatchOperator(BaseOperator):
     """
     Creates a batch workload.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to. (templated)
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
@@ -2024,11 +2039,11 @@ class DataprocCreateBatchOperator(BaseOperator):
         self,
         *,
         region: Optional[str] = None,
-        project_id: str,
+        project_id: Optional[str] = None,
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2064,6 +2079,8 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            if self.operation is None:
+                raise RuntimeError("The operation should be set here!")
             result = hook.wait_for_operation(timeout=self.timeout, operation=self.operation)
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
@@ -2094,8 +2111,8 @@ class DataprocDeleteBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2119,8 +2136,8 @@ class DataprocDeleteBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str,
-        retry: Optional[Retry] = None,
+        project_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2158,8 +2175,8 @@ class DataprocGetBatchOperator(BaseOperator):
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2184,8 +2201,8 @@ class DataprocGetBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str,
-        retry: Optional[Retry] = None,
+        project_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2223,8 +2240,8 @@ class DataprocListBatchesOperator(BaseOperator):
     """
     Lists batch workloads.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
     :param page_size: Optional. The maximum number of batches to return in each response. The service may
         return fewer than this value. The default page size is 20; the maximum page size is 1000.
     :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
@@ -2257,7 +2274,7 @@ class DataprocListBatchesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

@@ -25,9 +25,11 @@ from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
+from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
@@ -75,7 +77,15 @@ def create_app(config=None, testing=False):
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     flask_app.config['APP_NAME'] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     flask_app.config['TESTING'] = testing
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('core', 'SQL_ALCHEMY_CONN')
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+
+    url = make_url(flask_app.config['SQLALCHEMY_DATABASE_URI'])
+    if url.drivername == 'sqlite' and url.database and not url.database.startswith('/'):
+        raise AirflowConfigException(
+            f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+            'Please use absolute path such as `sqlite:////tmp/airflow.db`.'
+        )
+
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True

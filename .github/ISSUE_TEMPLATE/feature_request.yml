@@ -25,7 +25,7 @@ body:
   - type: textarea
     attributes:
       label: Use case/motivation
-      description: What do you want to happen?
+      description: What would you like to happen?
       placeholder: >
           Rather than telling us how you might implement this feature, try to take a
           step back and describe what you are trying to achieve.

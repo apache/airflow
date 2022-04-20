@@ -19,7 +19,7 @@
 import time
 from typing import Any, Dict, List, Optional, Union
 
-from datadog import api, initialize
+from datadog import api, initialize  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

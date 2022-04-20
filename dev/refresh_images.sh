@@ -19,7 +19,7 @@
 set -euo pipefail
 rm -rf docker-context-files/*.whl
 rm -rf docker-context-files/*.tgz
-export FORCE_ANSWER_TO_QUESTIONS="true"
+export FORCE_ANSWER_TO_QUESTIONS="yes"
 export CI="true"
 
 if [[ $1 == "" ]]; then
@@ -31,5 +31,5 @@ fi
 
 python_version=$1
 
-./breeze prepare-build-cache --python "${python_version}" --verbose
-./breeze prepare-build-cache --python "${python_version}" --production-image --verbose
+breeze build-image --prepare-buildx-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose
+breeze build-prod-image --prepare-buildx-cache --python "${python_version}" --platform linux/amd64,linux/arm64 --verbose

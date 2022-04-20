@@ -86,7 +86,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 
 ```shell script
-./breeze prepare-provider-documentation [packages]
+./breeze-legacy prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -107,7 +107,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-./breeze --non-interactive prepare-provider-documentation [packages]
+./breeze-legacy --non-interactive prepare-provider-documentation [packages]
 ```
 
 ## Build provider packages for SVN apache upload
@@ -132,13 +132,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both
+./breeze-legacy prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+./breeze-legacy prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -197,13 +197,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
+./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
     PACKAGE PACKAGE ....
 ```
 
@@ -264,10 +264,8 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-*'
+breeze build-docs --for-production --package-filter apache-airflow-providers \
+   --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -278,8 +276,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
+breeze build-docs --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -588,21 +585,25 @@ downloaded from the SVN).
 You have to make sure you have Airflow 2* installed in your PIP virtualenv
 (the version you want to install providers with).
 
-```shell script
+```shell
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
 
-There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario.
-
-First copy all the provider packages .whl files to the `dist` folder.
-
-```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --use-packages-from-dist
+```shell
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+    --load-example-dags --load-default-connections
 ```
+
+After you are in Breeze:
+
+```shell
+pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
+```
+
+NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
+provider packages is used.
 
 ### Building your own docker image
 
@@ -773,6 +774,18 @@ Copy links to updated packages.
 ## Publish documentation prepared before
 
 Merge the PR that you prepared before with the documentation.
+
+If you decided to remove some packages from the release make sure to do amend the commit in this way:
+
+* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
+* remove the latest version (the one you were releasing)
+* update `stable.txt` to the previous version
+* in the (unlikely) event you are removing first version of package:
+   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
 
 ## Add tags in git
 

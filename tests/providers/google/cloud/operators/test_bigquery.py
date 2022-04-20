@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
@@ -196,6 +197,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
             source_format=TEST_SOURCE_FORMAT,
+            autodetect=True,
         )
 
         operator.execute(None)
@@ -204,6 +206,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             schema_fields=[],
             source_uris=[f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA],
             source_format=TEST_SOURCE_FORMAT,
+            autodetect=True,
             compression='NONE',
             skip_leading_rows=0,
             field_delimiter=',',
@@ -578,7 +581,7 @@ class TestBigQueryOperator:
 
         ti.xcom_push('job_id', 12345)
 
-        url = simple_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
+        url = simple_task.get_extra_links(ti, BigQueryConsoleLink.name)
         assert url == 'https://console.cloud.google.com/bigquery?j=12345'
 
     @pytest.mark.need_serialized_dag
@@ -620,25 +623,26 @@ class TestBigQueryOperator:
         assert {'BigQuery Console #1', 'BigQuery Console #2'} == simple_task.operator_extra_link_dict.keys()
 
         assert 'https://console.cloud.google.com/bigquery?j=123' == simple_task.get_extra_links(
-            DEFAULT_DATE, 'BigQuery Console #1'
+            ti, 'BigQuery Console #1'
         )
 
         assert 'https://console.cloud.google.com/bigquery?j=45' == simple_task.get_extra_links(
-            DEFAULT_DATE, 'BigQuery Console #2'
+            ti, 'BigQuery Console #2'
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_missing_job_id(
         self, mock_hook, create_task_instance_of_operator
     ):
-        bigquery_task = create_task_instance_of_operator(
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
             dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
-        ).task
+        )
+        bigquery_task = ti.task
 
-        assert '' == bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
+        assert '' == bigquery_task.get_extra_links(ti, BigQueryConsoleLink.name)
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_single_query(
@@ -657,7 +661,7 @@ class TestBigQueryOperator:
         ti.xcom_push(key='job_id', value=job_id)
 
         assert f'https://console.cloud.google.com/bigquery?j={job_id}' == bigquery_task.get_extra_links(
-            DEFAULT_DATE, BigQueryConsoleLink.name
+            ti, BigQueryConsoleLink.name
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -679,11 +683,11 @@ class TestBigQueryOperator:
         assert {'BigQuery Console #1', 'BigQuery Console #2'} == bigquery_task.operator_extra_link_dict.keys()
 
         assert 'https://console.cloud.google.com/bigquery?j=123' == bigquery_task.get_extra_links(
-            DEFAULT_DATE, 'BigQuery Console #1'
+            ti, 'BigQuery Console #1'
         )
 
         assert 'https://console.cloud.google.com/bigquery?j=45' == bigquery_task.get_extra_links(
-            DEFAULT_DATE, 'BigQuery Console #2'
+            ti, 'BigQuery Console #2'
         )
 
 
@@ -839,6 +843,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id
@@ -946,7 +952,10 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        job.result.assert_called_once_with()
+        job.result.assert_called_once_with(
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
 
         assert result == real_job_id
 
@@ -987,6 +996,8 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
         assert result == real_job_id

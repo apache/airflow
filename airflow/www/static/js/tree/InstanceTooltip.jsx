@@ -17,37 +17,25 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
-import { formatDateTime, getDuration, formatDuration } from '../datetime_utils';
+import { finalStatesMap } from '../utils';
+import { formatDuration, getDuration } from '../datetime_utils';
+import Time from './Time';
 
 const InstanceTooltip = ({
   group,
   instance: {
-    duration, operator, startDate, endDate, state, taskId, runId,
+    startDate, endDate, duration, state, runId, mappedStates,
   },
 }) => {
   const isGroup = !!group.children;
-  const groupSummary = [];
+  const { isMapped } = group;
+  const summary = [];
 
+  const numMap = finalStatesMap();
   if (isGroup) {
-    const numMap = new Map([
-      ['success', 0],
-      ['failed', 0],
-      ['upstream_failed', 0],
-      ['up_for_retry', 0],
-      ['up_for_reschedule', 0],
-      ['running', 0],
-      ['deferred', 0],
-      ['sensing', 0],
-      ['queued', 0],
-      ['scheduled', 0],
-      ['skipped', 0],
-      ['no_status', 0],
-    ]);
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -55,88 +43,55 @@ const InstanceTooltip = ({
         if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        groupSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
+  } else if (isMapped && mappedStates) {
+    mappedStates.forEach((s) => {
+      const stateKey = s || 'no_status';
+      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
   }
 
-  const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      summary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Text key={val} ml="10px">
+          {val}
+          {': '}
+          {key}
+        </Text>,
+      );
+    }
+  });
 
   return (
-    <Box fontSize="12px" py="4px">
+    <Box py="2px">
       {group.tooltip && (
         <Text>{group.tooltip}</Text>
       )}
+      {isMapped && !!mappedStates.length && (
+        <Text>
+          {mappedStates.length}
+          {' '}
+          mapped task
+          {mappedStates.length > 1 && 's'}
+        </Text>
+      )}
       <Text>
-        <Text as="strong">Status:</Text>
+        {(isGroup || isMapped) ? 'Overall ' : ''}
+        Status:
         {' '}
         {state || 'no status'}
       </Text>
-      {isGroup && (
-        <>
-          <br />
-          <Text as="strong">Group Summary</Text>
-          {groupSummary}
-        </>
-      )}
-      <br />
+      {(isGroup || isMapped) && summary}
       <Text>
-        {taskIdTitle}
-        {taskId}
-      </Text>
-      <Text whiteSpace="nowrap">
-        Run Id:
+        Started:
         {' '}
-        {runId}
+        <Time dateTime={startDate} />
       </Text>
-      {operator && (
-      <Text>
-        Operator:
-        {' '}
-        {operator}
-      </Text>
-      )}
       <Text>
         Duration:
         {' '}
         {formatDuration(duration || getDuration(startDate, endDate))}
-      </Text>
-      <br />
-      <Text as="strong">UTC</Text>
-      <Text>
-        Started:
-        {' '}
-        {startDate && formatDateTime(moment.utc(startDate))}
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        {endDate && formatDateTime(moment.utc(endDate))}
-      </Text>
-      <br />
-      <Text as="strong">
-        Local:
-        {' '}
-        {moment().format('Z')}
-      </Text>
-      <Text>
-        Started:
-        {' '}
-        {startDate && formatDateTime(startDate)}
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        {endDate && formatDateTime(endDate)}
       </Text>
     </Box>
   );

@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional, Sequence
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -48,10 +48,11 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
-from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.templates import NativeEnvironment, SandboxedEnvironment
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -181,8 +182,8 @@ class TestDag(unittest.TestCase):
         dag2 = DAG('dag2', start_date=DEFAULT_DATE, default_args={'owner': 'owner2'})
 
         with dag:
-            op1 = DummyOperator(task_id='op1')
-            op2 = DummyOperator(task_id='op2', dag=dag2)
+            op1 = EmptyOperator(task_id='op1')
+            op2 = EmptyOperator(task_id='op2', dag=dag2)
 
         assert op1.dag is dag
         assert op1.owner == 'owner1'
@@ -190,15 +191,15 @@ class TestDag(unittest.TestCase):
         assert op2.owner == 'owner2'
 
         with dag2:
-            op3 = DummyOperator(task_id='op3')
+            op3 = EmptyOperator(task_id='op3')
 
         assert op3.dag is dag2
         assert op3.owner == 'owner2'
 
         with dag:
             with dag2:
-                op4 = DummyOperator(task_id='op4')
-            op5 = DummyOperator(task_id='op5')
+                op4 = EmptyOperator(task_id='op4')
+            op5 = EmptyOperator(task_id='op5')
 
         assert op4.dag is dag2
         assert op5.dag is dag
@@ -206,16 +207,16 @@ class TestDag(unittest.TestCase):
         assert op5.owner == 'owner1'
 
         with DAG('creating_dag_in_cm', start_date=DEFAULT_DATE) as dag:
-            DummyOperator(task_id='op6')
+            EmptyOperator(task_id='op6')
 
         assert dag.dag_id == 'creating_dag_in_cm'
         assert dag.tasks[0].task_id == 'op6'
 
         with dag:
             with dag:
-                op7 = DummyOperator(task_id='op7')
-            op8 = DummyOperator(task_id='op8')
-        op9 = DummyOperator(task_id='op8')
+                op7 = EmptyOperator(task_id='op7')
+            op8 = EmptyOperator(task_id='op8')
+        op9 = EmptyOperator(task_id='op8')
         op9.dag = dag2
 
         assert op7.dag == dag
@@ -230,8 +231,8 @@ class TestDag(unittest.TestCase):
         )
 
         with child_dag:
-            DummyOperator(task_id='a_child')
-            DummyOperator(task_id='b_child')
+            EmptyOperator(task_id='a_child')
+            EmptyOperator(task_id='b_child')
 
         parent_dag = DAG(
             'parent_dag',
@@ -241,9 +242,9 @@ class TestDag(unittest.TestCase):
 
         # a_parent -> child_dag -> (a_child | b_child) -> b_parent
         with parent_dag:
-            op1 = DummyOperator(task_id='a_parent')
+            op1 = EmptyOperator(task_id='a_parent')
             op2 = SubDagOperator(task_id='child_dag', subdag=child_dag)
-            op3 = DummyOperator(task_id='b_parent')
+            op3 = EmptyOperator(task_id='b_parent')
 
             op1 >> op2 >> op3
 
@@ -254,69 +255,6 @@ class TestDag(unittest.TestCase):
         assert self._occur_before('child_dag', 'b_child', topological_list)
         assert self._occur_before('a_child', 'b_parent', topological_list)
         assert self._occur_before('b_child', 'b_parent', topological_list)
-
-    def test_dag_topological_sort1(self):
-        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
-
-        # A -> B
-        # A -> C -> D
-        # ordered: B, D, C, A or D, B, C, A or D, C, B, A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op1.set_upstream([op2, op3])
-            op3.set_upstream(op4)
-
-        topological_list = dag.topological_sort()
-        logging.info(topological_list)
-
-        tasks = [op2, op3, op4]
-        assert topological_list[0] in tasks
-        tasks.remove(topological_list[0])
-        assert topological_list[1] in tasks
-        tasks.remove(topological_list[1])
-        assert topological_list[2] in tasks
-        tasks.remove(topological_list[2])
-        assert topological_list[3] == op1
-
-    def test_dag_topological_sort2(self):
-        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
-
-        # C -> (A u B) -> D
-        # C -> E
-        # ordered: E | D, A | B, C
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op3)
-            op2.set_downstream(op3)
-            op1.set_upstream(op4)
-            op2.set_upstream(op4)
-            op5.set_downstream(op3)
-
-        topological_list = dag.topological_sort()
-        logging.info(topological_list)
-
-        set1 = [op4, op5]
-        assert topological_list[0] in set1
-        set1.remove(topological_list[0])
-
-        set2 = [op1, op2]
-        set2.extend(set1)
-        assert topological_list[1] in set2
-        set2.remove(topological_list[1])
-
-        assert topological_list[2] in set2
-        set2.remove(topological_list[2])
-
-        assert topological_list[3] in set2
-
-        assert topological_list[4] == op3
 
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
@@ -370,7 +308,7 @@ class TestDag(unittest.TestCase):
         # Default weight should be calculated using downstream descendants
         with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}) as dag:
             pipeline = [
-                [DummyOperator(task_id=f'stage{i}.{j}', priority_weight=weight) for j in range(0, width)]
+                [EmptyOperator(task_id=f'stage{i}.{j}', priority_weight=weight) for j in range(0, width)]
                 for i in range(0, depth)
             ]
             for i, stage in enumerate(pipeline):
@@ -398,7 +336,7 @@ class TestDag(unittest.TestCase):
         with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [
-                    DummyOperator(
+                    EmptyOperator(
                         task_id=f'stage{i}.{j}',
                         priority_weight=weight,
                         weight_rule=WeightRule.UPSTREAM,
@@ -431,7 +369,7 @@ class TestDag(unittest.TestCase):
         with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [
-                    DummyOperator(
+                    EmptyOperator(
                         task_id=f'stage{i}.{j}',
                         priority_weight=weight,
                         weight_rule=WeightRule.ABSOLUTE,
@@ -457,14 +395,14 @@ class TestDag(unittest.TestCase):
         # Test if we enter an invalid weight rule
         with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}):
             with pytest.raises(AirflowException):
-                DummyOperator(task_id='should_fail', weight_rule='no rule')
+                EmptyOperator(task_id='should_fail', weight_rule='no rule')
 
     def test_get_num_task_instances(self):
         test_dag_id = 'test_get_num_task_instances_dag'
         test_task_id = 'task_1'
 
         test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE)
-        test_task = DummyOperator(task_id=test_task_id, dag=test_dag)
+        test_task = EmptyOperator(task_id=test_task_id, dag=test_dag)
 
         dr1 = test_dag.create_dagrun(state=None, run_id="test1", execution_date=DEFAULT_DATE)
         dr2 = test_dag.create_dagrun(
@@ -536,6 +474,19 @@ class TestDag(unittest.TestCase):
         jinja_env = dag.get_template_env()
         assert jinja_env.undefined is jinja2.Undefined
 
+    @parameterized.expand(
+        [
+            (False, True, SandboxedEnvironment),
+            (False, False, SandboxedEnvironment),
+            (True, False, NativeEnvironment),
+            (True, True, SandboxedEnvironment),
+        ],
+    )
+    def test_template_env(self, use_native_obj, force_sandboxed, expected_env):
+        dag = DAG("test-dag", render_template_as_native_obj=use_native_obj)
+        jinja_env = dag.get_template_env(force_sandboxed=force_sandboxed)
+        assert isinstance(jinja_env, expected_env)
+
     def test_resolve_template_files_value(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
@@ -545,10 +496,10 @@ class TestDag(unittest.TestCase):
             template_file = os.path.basename(f.name)
 
             with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = DummyOperator(task_id='op1')
+                task = EmptyOperator(task_id='op1')
 
             task.test_field = template_file
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -563,10 +514,10 @@ class TestDag(unittest.TestCase):
             template_file = os.path.basename(f.name)
 
             with DAG('test-dag', start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = DummyOperator(task_id='op1')
+                task = EmptyOperator(task_id='op1')
 
             task.test_field = [template_file, 'some_string']
-            task.template_fields: Sequence[str] = ('test_field',)
+            task.template_fields = ('test_field',)
             task.template_ext = ('.template',)
             task.resolve_template_files()
 
@@ -809,7 +760,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(dag_id='test_scheduler_verify_max_active_runs', start_date=DEFAULT_DATE)
         dag.max_active_runs = 1
 
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
         dag.clear()
@@ -843,7 +794,7 @@ class TestDag(unittest.TestCase):
         """
         dag = DAG(dag_id='test_has_import_error', start_date=DEFAULT_DATE)
 
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
         dag.clear()
@@ -874,7 +825,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE,
         )
         with dag:
-            DummyOperator(task_id='task', owner='owner1')
+            EmptyOperator(task_id='task', owner='owner1')
             subdag = DAG(
                 'dag.subtask',
                 start_date=DEFAULT_DATE,
@@ -906,7 +857,7 @@ class TestDag(unittest.TestCase):
             default_view="graph",
         )
         with dag:
-            DummyOperator(task_id='task', owner='owner1')
+            EmptyOperator(task_id='task', owner='owner1')
             SubDagOperator(
                 task_id='subtask',
                 owner='owner2',
@@ -931,7 +882,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE,
         )
         with subdag:
-            DummyOperator(
+            EmptyOperator(
                 task_id='dummy_task',
             )
 
@@ -1063,11 +1014,11 @@ class TestDag(unittest.TestCase):
     def test_roots(self):
         """Verify if dag.roots returns the root tasks of a DAG."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = DummyOperator(task_id="t1")
-            op2 = DummyOperator(task_id="t2")
-            op3 = DummyOperator(task_id="t3")
-            op4 = DummyOperator(task_id="t4")
-            op5 = DummyOperator(task_id="t5")
+            op1 = EmptyOperator(task_id="t1")
+            op2 = EmptyOperator(task_id="t2")
+            op3 = EmptyOperator(task_id="t3")
+            op4 = EmptyOperator(task_id="t4")
+            op5 = EmptyOperator(task_id="t5")
             [op1, op2] >> op3 >> [op4, op5]
 
             assert set(dag.roots) == {op1, op2}
@@ -1075,11 +1026,11 @@ class TestDag(unittest.TestCase):
     def test_leaves(self):
         """Verify if dag.leaves returns the leaf tasks of a DAG."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = DummyOperator(task_id="t1")
-            op2 = DummyOperator(task_id="t2")
-            op3 = DummyOperator(task_id="t3")
-            op4 = DummyOperator(task_id="t4")
-            op5 = DummyOperator(task_id="t5")
+            op1 = EmptyOperator(task_id="t1")
+            op2 = EmptyOperator(task_id="t2")
+            op3 = EmptyOperator(task_id="t3")
+            op4 = EmptyOperator(task_id="t4")
+            op5 = EmptyOperator(task_id="t5")
             [op1, op2] >> op3 >> [op4, op5]
 
             assert set(dag.leaves) == {op4, op5}
@@ -1087,9 +1038,9 @@ class TestDag(unittest.TestCase):
     def test_tree_view(self):
         """Verify correctness of dag.tree_view()."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = DummyOperator(task_id="t1")
-            op2 = DummyOperator(task_id="t2")
-            op3 = DummyOperator(task_id="t3")
+            op1 = EmptyOperator(task_id="t1")
+            op2 = EmptyOperator(task_id="t2")
+            op3 = EmptyOperator(task_id="t3")
             op1 >> op2 >> op3
 
             with redirect_stdout(io.StringIO()) as stdout:
@@ -1105,7 +1056,7 @@ class TestDag(unittest.TestCase):
         """Verify tasks with Duplicate task_id raises error"""
         with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
             with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-                op1 = DummyOperator(task_id="t1")
+                op1 = EmptyOperator(task_id="t1")
                 op2 = BashOperator(task_id="t1", bash_command="sleep 1")
                 op1 >> op2
 
@@ -1115,8 +1066,8 @@ class TestDag(unittest.TestCase):
         """Verify tasks with Duplicate task_id raises error"""
         with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
-            op1 = DummyOperator(task_id="t1", dag=dag)
-            op2 = DummyOperator(task_id="t1", dag=dag)
+            op1 = EmptyOperator(task_id="t1", dag=dag)
+            op2 = EmptyOperator(task_id="t1", dag=dag)
             op1 >> op2
 
         assert dag.task_dict == {op1.task_id: op1}
@@ -1124,8 +1075,8 @@ class TestDag(unittest.TestCase):
     def test_duplicate_task_ids_for_same_task_is_allowed(self):
         """Verify that same tasks with Duplicate task_id do not raise error"""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = op2 = DummyOperator(task_id="t1")
-            op3 = DummyOperator(task_id="t3")
+            op1 = op2 = EmptyOperator(task_id="t1")
+            op3 = EmptyOperator(task_id="t3")
             op1 >> op3
             op2 >> op3
 
@@ -1135,9 +1086,9 @@ class TestDag(unittest.TestCase):
 
     def test_sub_dag_updates_all_references_while_deepcopy(self):
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = DummyOperator(task_id='t1')
-            op2 = DummyOperator(task_id='t2')
-            op3 = DummyOperator(task_id='t3')
+            op1 = EmptyOperator(task_id='t1')
+            op2 = EmptyOperator(task_id='t2')
+            op3 = EmptyOperator(task_id='t3')
             op1 >> op2
             op2 >> op3
 
@@ -1422,7 +1373,7 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
         task_id = 't1'
         dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = DummyOperator(task_id=task_id, dag=dag)
+        t_1 = EmptyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()
         dagrun_1 = dag.create_dagrun(
@@ -1465,10 +1416,10 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
         task_id = 't1'
         dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = DummyOperator(task_id=task_id, dag=dag)
+        t_1 = EmptyOperator(task_id=task_id, dag=dag)
         subdag = DAG(dag_id + '.test', start_date=DEFAULT_DATE, max_active_runs=1)
         SubDagOperator(task_id='test', subdag=subdag, dag=dag)
-        t_2 = DummyOperator(task_id='task', dag=subdag)
+        t_2 = EmptyOperator(task_id='task', dag=subdag)
         subdag.parent_dag = dag
 
         dag.sync_to_db()
@@ -1563,7 +1514,7 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
         task_id = 't1'
         dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = DummyOperator(task_id=task_id, dag=dag)
+        t_1 = EmptyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()  # type: ignore
         dagrun_1 = dag.create_dagrun(
@@ -1657,9 +1608,9 @@ class TestDag(unittest.TestCase):
                 default_args=default_args,
             )
 
-            op1 = DummyOperator(task_id='t1', dag=dag)
-            op2 = DummyOperator(task_id='t2', dag=dag)
-            op3 = DummyOperator(task_id='t3', dag=dag)
+            op1 = EmptyOperator(task_id='t1', dag=dag)
+            op2 = EmptyOperator(task_id='t2', dag=dag)
+            op3 = EmptyOperator(task_id='t3', dag=dag)
             op1 >> op2 >> op3
 
             return dag
@@ -1798,7 +1749,7 @@ class TestDag(unittest.TestCase):
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="4 5 * * *",
         )
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
@@ -1808,7 +1759,7 @@ class TestDag(unittest.TestCase):
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="10 10 * * *",
         )
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
@@ -1830,7 +1781,7 @@ class TestDag(unittest.TestCase):
             )
 
             for i in range(2):
-                DummyOperator(task_id=f'{child_dag_name}-task-{i + 1}', dag=dag_subdag)
+                EmptyOperator(task_id=f'{child_dag_name}-task-{i + 1}', dag=dag_subdag)
 
             return dag_subdag
 
@@ -1918,7 +1869,7 @@ class TestDag(unittest.TestCase):
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(dag_id='far_future_dag', start_date=timezone.datetime(2038, 1, 1))
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
         orm_dag = DagModel(
@@ -1940,7 +1891,7 @@ class TestDagModel:
 
     def test_max_active_runs_not_none(self):
         dag = DAG(dag_id='test_max_active_runs_not_none', start_date=timezone.datetime(2038, 1, 1))
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
         orm_dag = DagModel(
@@ -1964,7 +1915,7 @@ class TestDagModel:
         We should never create dagruns for unpaused DAGs
         """
         dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
         orm_dag = DagModel(
@@ -1995,7 +1946,7 @@ class TestDagModel:
         being set to scheduler to create dagruns
         """
         dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         orm_dag = DagModel(
             dag_id=dag.dag_id,
@@ -2046,7 +1997,7 @@ class TestQueries(unittest.TestCase):
     def test_count_number_queries(self, tasks_count):
         dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
         for i in range(tasks_count):
-            DummyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
+            EmptyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
         with assert_queries_count(2):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
@@ -2055,7 +2006,7 @@ class TestQueries(unittest.TestCase):
             )
 
 
-class TestDagDecorator(unittest.TestCase):
+class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
@@ -2066,12 +2017,10 @@ class TestDagDecorator(unittest.TestCase):
     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
     VALUE = 42
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.operator = None
 
-    def tearDown(self):
-        super().tearDown()
+    def teardown_method(self):
         clear_db_runs()
 
     def test_fileloc(self):
@@ -2167,6 +2116,7 @@ class TestDagDecorator(unittest.TestCase):
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
+            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
         )
 
@@ -2194,6 +2144,7 @@ class TestDagDecorator(unittest.TestCase):
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=self.DEFAULT_DATE,
+            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
             conf={'value': new_value},
         )
@@ -2202,11 +2153,12 @@ class TestDagDecorator(unittest.TestCase):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(), new_value
 
-    def test_set_params_for_dag(self):
+    @pytest.mark.parametrize("value", [VALUE, 0])
+    def test_set_params_for_dag(self, value):
         """Test that dag param is correctly set when using dag decorator"""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=self.VALUE):
+        def xcom_pass_to_op(value=value):
             @task_decorator
             def return_num(num):
                 return num
@@ -2215,7 +2167,7 @@ class TestDagDecorator(unittest.TestCase):
             self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
-        assert dag.params['value'] == self.VALUE
+        assert dag.params['value'] == value
 
 
 @pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
@@ -2224,11 +2176,11 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
 
     start_date = datetime_tz(2020, 1, 1)
     with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
-        task_1 = DummyOperator(task_id="task_1")
-        task_2 = DummyOperator(task_id="task_2")
-        task_3 = DummyOperator(task_id="task_3")
-        task_4 = DummyOperator(task_id="task_4")
-        task_5 = DummyOperator(task_id="task_5")
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
@@ -2260,7 +2212,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
 
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
-        dag_run_id=run_id,
+        run_id=run_id,
         execution_date=execution_date,
         state=State.SUCCESS,
         session=session,
@@ -2318,7 +2270,7 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
 )
 def test_iter_dagrun_infos_between(start_date, expected_infos):
     dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
-    DummyOperator(task_id='dummy', dag=dag)
+    EmptyOperator(task_id='dummy', dag=dag)
 
     iterator = dag.iter_dagrun_infos_between(
         earliest=pendulum.instance(start_date),
@@ -2396,3 +2348,29 @@ def test_get_next_data_interval(
     )
 
     assert dag.get_next_data_interval(dag_model) == expected_data_interval
+
+
+@pytest.mark.parametrize(
+    ('dag_date', 'tasks_date', 'restrict'),
+    [
+        [
+            (DEFAULT_DATE, None),
+            [
+                (DEFAULT_DATE + timedelta(days=1), DEFAULT_DATE + timedelta(days=2)),
+                (DEFAULT_DATE + timedelta(days=3), DEFAULT_DATE + timedelta(days=4)),
+            ],
+            TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), True),
+        ],
+        [
+            (DEFAULT_DATE, None),
+            [(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)), (DEFAULT_DATE, None)],
+            TimeRestriction(DEFAULT_DATE, None, True),
+        ],
+    ],
+)
+def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
+    with dag_maker("test__time_restriction", start_date=dag_date[0], end_date=dag_date[1]) as dag:
+        EmptyOperator(task_id="do1", start_date=tasks_date[0][0], end_date=tasks_date[0][1])
+        EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
+
+    assert dag._time_restriction == restrict

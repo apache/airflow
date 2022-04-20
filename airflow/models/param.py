@@ -14,14 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
 import copy
 import json
 import warnings
-from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
+from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 
 class Param:
@@ -38,12 +42,25 @@ class Param:
     CLASS_IDENTIFIER = '__class'
 
     def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
+        if default is not NOTSET:
+            self._warn_if_not_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
     def __copy__(self) -> "Param":
         return Param(self.value, self.description, schema=self.schema)
+
+    @staticmethod
+    def _warn_if_not_json(value):
+        try:
+            json.dumps(value)
+        except Exception:
+            warnings.warn(
+                "The use of non-json-serializable params is deprecated and will be removed in "
+                "a future release",
+                DeprecationWarning,
+            )
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
@@ -61,14 +78,8 @@ class Param:
         from jsonschema import FormatChecker
         from jsonschema.exceptions import ValidationError
 
-        try:
-            json.dumps(value)
-        except Exception:
-            warnings.warn(
-                "The use of non-json-serializable params is deprecated and will be removed in "
-                "a future release",
-                DeprecationWarning,
-            )
+        if value is not NOTSET:
+            self._warn_if_not_json(value)
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
@@ -221,18 +232,18 @@ class DagParam:
     :param default: Default value used if no parameter was set.
     """
 
-    def __init__(self, current_dag, name: str, default: Optional[Any] = None):
-        if default:
+    def __init__(self, current_dag: "DAG", name: str, default: Any = NOTSET):
+        if default is not NOTSET:
             current_dag.params[name] = default
         self._name = name
         self._default = default
 
     def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
-        default = self._default
-        if not self._default:
-            default = context['params'][self._name] if self._name in context['params'] else None
-        resolved = context['dag_run'].conf.get(self._name, default)
-        if not resolved:
-            raise AirflowException(f'No value could be resolved for parameter {self._name}')
-        return resolved
+        with contextlib.suppress(KeyError):
+            return context['dag_run'].conf[self._name]
+        if self._default is not NOTSET:
+            return self._default
+        with contextlib.suppress(KeyError):
+            return context['params'][self._name]
+        raise AirflowException(f'No value could be resolved for parameter {self._name}')

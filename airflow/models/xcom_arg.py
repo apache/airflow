@@ -14,15 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.operator import Operator
 
 
@@ -66,9 +71,25 @@ class XComArg(DependencyMixin):
     def __eq__(self, other):
         return self.operator == other.operator and self.key == other.key
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> "XComArg":
         """Implements xcomresult['some_result_key']"""
+        if not isinstance(item, str):
+            raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return XComArg(operator=self.operator, key=item)
+
+    def __iter__(self):
+        """Override iterable protocol to raise error explicitly.
+
+        The default ``__iter__`` implementation in Python calls ``__getitem__``
+        with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
+        well with our custom ``__getitem__`` implementation, and results in poor
+        DAG-writing experience since a misplaced ``*`` expansion would create an
+        infinite loop consuming the entire DAG parser.
+
+        This override catches the error eagerly, so an incorrectly implemented
+        DAG fails fast and avoids wasting resources on nonsensical iterating.
+        """
+        raise TypeError(f"{self.__class__.__name__!r} object is not iterable")
 
     def __str__(self):
         """
@@ -118,39 +139,48 @@ class XComArg(DependencyMixin):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Context) -> Any:
+    @provide_session
+    def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = context['ti'].xcom_pull(task_ids=[self.operator.task_id], key=str(self.key))
-        if not resolved_value:
-            if TYPE_CHECKING:
-                assert self.operator.dag
+        result = context["ti"].xcom_pull(
+            task_ids=self.operator.task_id, key=str(self.key), default=NOTSET, session=session
+        )
+        if result is NOTSET:
             raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!'
+                f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
+                f'with key="{self.key}" is not found!'
             )
-        resolved_value = resolved_value[0]
+        return result
 
-        return resolved_value
+    @staticmethod
+    def iter_xcom_args(arg: Any) -> Iterator["XComArg"]:
+        """Return XComArg instances in an arbitrary value.
+
+        This recursively traverse ``arg`` and look for XComArg instances in any
+        collection objects, and instances with ``template_fields`` set.
+        """
+        if isinstance(arg, XComArg):
+            yield arg
+        elif isinstance(arg, (tuple, set, list)):
+            for elem in arg:
+                yield from XComArg.iter_xcom_args(elem)
+        elif isinstance(arg, dict):
+            for elem in arg.values():
+                yield from XComArg.iter_xcom_args(elem)
+        elif isinstance(arg, AbstractOperator):
+            for elem in arg.template_fields:
+                yield from XComArg.iter_xcom_args(elem)
 
     @staticmethod
     def apply_upstream_relationship(op: "Operator", arg: Any):
-        """
-        Set dependency for XComArgs.
+        """Set dependency for XComArgs.
 
-        This looks for XComArg objects in ``arg`` "deeply" (looking inside lists, dicts and classes decorated
-        with "template_fields") and sets the relationship to ``op`` on any found.
+        This looks for XComArg objects in ``arg`` "deeply" (looking inside
+        collections objects and classes decorated with ``template_fields``), and
+        sets the relationship to ``op`` on any found.
         """
-        if isinstance(arg, XComArg):
-            op.set_upstream(arg.operator)
-        elif isinstance(arg, (tuple, set, list)):
-            for elem in arg:
-                XComArg.apply_upstream_relationship(op, elem)
-        elif isinstance(arg, dict):
-            for elem in arg.values():
-                XComArg.apply_upstream_relationship(op, elem)
-        elif hasattr(arg, "template_fields"):
-            for elem in arg.template_fields:
-                XComArg.apply_upstream_relationship(op, elem)
+        for ref in XComArg.iter_xcom_args(arg):
+            op.set_upstream(ref.operator)

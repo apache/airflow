@@ -93,6 +93,8 @@ config setting to True, resulting in launching a whole new python interpreter fo
 (Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
 loaded/parsed in any long-running Airflow process.)
 
+.. _plugins:interface:
+
 Interface
 ---------
 
@@ -172,7 +174,6 @@ definitions in Airflow.
 
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
-    from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
     # Will show up in Connections screen in a future version
@@ -234,30 +235,6 @@ definitions in Airflow.
         "href": "https://www.apache.org/",
     }
 
-    # A global operator extra link that redirect you to
-    # task logs stored in S3
-    class GoogleLink(BaseOperatorLink):
-        name = "Google"
-
-        def get_link(self, operator, dttm):
-            return "https://www.google.com"
-
-
-    # A list of operator extra links to override or add operator links
-    # to existing Airflow Operators.
-    # These extra links will be available on the task page in form of
-    # buttons.
-    class S3LogLink(BaseOperatorLink):
-        name = "S3"
-        operators = [GCSToS3Operator]
-
-        def get_link(self, operator, dttm):
-            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
-                dag_id=operator.dag_id,
-                task_id=operator.task_id,
-                logical_date=dttm,
-            )
-
 
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
@@ -267,23 +244,8 @@ definitions in Airflow.
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
-        global_operator_extra_links = [
-            GoogleLink(),
-        ]
-        operator_extra_links = [
-            S3LogLink(),
-        ]
 
-
-Note on role based views
-------------------------
-
-Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
-``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
-the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
-
-``appbuilder_views`` supports both views-with-menu and views-without-menu - to add a view with menu link, add a "name"
-key in view's package dictionary, otherwise the view is added to flask appbuilder without menu item.
+.. seealso:: :doc:`/howto/define_extra_link`
 
 Exclude views from CSRF protection
 ----------------------------------

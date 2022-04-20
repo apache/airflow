@@ -97,7 +97,7 @@ The `index.rst` stored in the `docs\apache-airflow-providers-<PROVIDER>` folder 
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze prepare-provider-documentation <PACKAGE_ID> ...
+./breeze-legacy prepare-provider-documentation <PACKAGE_ID> ...
 ```
 
 * <PACKAGE_ID> is usually directory in the `airflow/providers` folder (for example `google` but in several

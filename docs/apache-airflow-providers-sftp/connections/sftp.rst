@@ -73,15 +73,23 @@ Extra (optional)
     * ``private_key`` Specify the content of the private key, the path to the private key file(str) or paramiko.AgentKey
     * ``key_file`` - Full Path of the private SSH Key file that will be used to connect to the remote_host.
 
-Example “extras” field:
+Example “extras” field using ``host_key``:
 
-.. code-block:: bash
+.. code-block:: json
 
     {
-       "key_file": "path/to/private_key",
        "no_host_key_check": "false",
        "allow_host_key_change": "false",
        "host_key": "AAAHD...YDWwq=="
+    }
+
+Example “extras” field using ``key_file`` or ``private_key``:
+
+.. code-block:: json
+
+    {
+       "key_file": "path/to/private_key",
+       "no_host_key_check": "true"
     }
 
 When specifying the connection in environment variable you should specify

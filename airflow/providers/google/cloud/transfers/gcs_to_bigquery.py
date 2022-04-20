@@ -273,6 +273,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     schema_fields=schema_fields,
                     source_uris=source_uris,
                     source_format=self.source_format,
+                    autodetect=self.autodetect,
                     compression=self.compression,
                     skip_leading_rows=self.skip_leading_rows,
                     field_delimiter=self.field_delimiter,

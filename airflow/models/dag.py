@@ -26,7 +26,7 @@ import re
 import sys
 import traceback
 import warnings
-from collections import OrderedDict
+import weakref
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -96,7 +96,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
@@ -245,8 +245,8 @@ class DAG(LoggingMixin):
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
         passed to the callback.
-    :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times), default tree
+    :param default_view: Specify DAG default view (grid, graph, duration,
+                                                   gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :param on_failure_callback: A function to be called when a DagRun of this dag fails.
@@ -254,7 +254,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
-        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -341,6 +341,8 @@ class DAG(LoggingMixin):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
+        if default_args and not isinstance(default_args, dict):
+            raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
@@ -434,6 +436,13 @@ class DAG(LoggingMixin):
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
+        elif default_view == 'tree':
+            warnings.warn(
+                "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._default_view = 'grid'
         else:
             raise AirflowException(
                 f'Invalid values of dag.default_view: only support '
@@ -754,12 +763,13 @@ class DAG(LoggingMixin):
         earliest = None
         if start_dates:
             earliest = timezone.coerce_datetime(min(start_dates))
+        latest = self.end_date
         end_dates = [t.end_date for t in self.tasks if t.end_date]
-        if self.end_date is not None:
-            end_dates.append(self.end_date)
-        latest = None
-        if end_dates:
-            latest = timezone.coerce_datetime(max(end_dates))
+        if len(end_dates) == len(self.tasks):  # not exists null end_date
+            if self.end_date is not None:
+                end_dates.append(self.end_date)
+            if end_dates:
+                latest = timezone.coerce_datetime(max(end_dates))
         return TimeRestriction(earliest, latest, self.catchup)
 
     def iter_dagrun_infos_between(
@@ -976,7 +986,7 @@ class DAG(LoggingMixin):
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
-    def param(self, name: str, default=None) -> DagParam:
+    def param(self, name: str, default: Any = NOTSET) -> DagParam:
         """
         Return a DagParam object for current dag.
 
@@ -1065,14 +1075,12 @@ class DAG(LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is active"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_active)
+        return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
-        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_paused)
+        return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @property
     def is_paused(self):
@@ -1251,7 +1259,7 @@ class DAG(LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def get_template_env(self) -> jinja2.Environment:
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -1268,7 +1276,7 @@ class DAG(LoggingMixin):
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
-        if self.render_template_as_native_obj:
+        if self.render_template_as_native_obj and not force_sandboxed:
             env = airflow.templates.NativeEnvironment(**jinja_env_options)
         else:
             env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
@@ -1613,7 +1621,7 @@ class DAG(LoggingMixin):
         *,
         task_id: str,
         execution_date: Optional[datetime] = None,
-        dag_run_id: Optional[str] = None,
+        run_id: Optional[str] = None,
         state: TaskInstanceState,
         upstream: bool = False,
         downstream: bool = False,
@@ -1628,7 +1636,7 @@ class DAG(LoggingMixin):
 
         :param task_id: Task ID of the TaskInstance
         :param execution_date: Execution date of the TaskInstance
-        :param dag_run_id: The run_id of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
         :param upstream: Include all upstream tasks of the given task_id
         :param downstream: Include all downstream tasks of the given task_id
@@ -1638,12 +1646,12 @@ class DAG(LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        if not exactly_one(execution_date, dag_run_id):
-            raise ValueError("Exactly one of execution_date or dag_run_id must be provided")
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
 
         if execution_date is None:
             dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == dag_run_id, DagRun.dag_id == self.dag_id).one()
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
             )  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
         else:
@@ -1655,7 +1663,7 @@ class DAG(LoggingMixin):
         altered = set_state(
             tasks=[task],
             execution_date=execution_date,
-            dag_run_id=dag_run_id,
+            run_id=run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
@@ -1708,54 +1716,18 @@ class DAG(LoggingMixin):
         Sorts tasks in topographical order, such that a task comes after any of its
         upstream dependencies.
 
-        Heavily inspired by:
-        http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-
-        :param include_subdag_tasks: whether to include tasks in subdags, default to False
-        :return: list of tasks in topological order
+        Deprecated in place of ``task_group.topological_sort``
         """
-        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
+        from airflow.utils.task_group import TaskGroup
 
-        # convert into an OrderedDict to speedup lookup while keeping order the same
-        graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
-
-        graph_sorted: List[Operator] = []
-
-        # special case
-        if len(self.tasks) == 0:
-            return tuple(graph_sorted)
-
-        # Run until the unsorted graph is empty.
-        while graph_unsorted:
-            # Go through each of the node/edges pairs in the unsorted
-            # graph. If a set of edges doesn't contain any nodes that
-            # haven't been resolved, that is, that are still in the
-            # unsorted graph, remove the pair from the unsorted graph,
-            # and append it to the sorted graph. Note here that by using
-            # using the items() method for iterating, a copy of the
-            # unsorted graph is used, allowing us to modify the unsorted
-            # graph as we move through it. We also keep a flag for
-            # checking that graph is acyclic, which is true if any
-            # nodes are resolved during each pass through the graph. If
-            # not, we need to exit as the graph therefore can't be
-            # sorted.
-            acyclic = False
-            for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                # no edges in upstream tasks
+        def nested_topo(group):
+            for node in group.topological_sort(_include_subdag_tasks=include_subdag_tasks):
+                if isinstance(node, TaskGroup):
+                    yield from nested_topo(node)
                 else:
-                    acyclic = True
-                    del graph_unsorted[node.task_id]
-                    graph_sorted.append(node)
-                    if include_subdag_tasks and isinstance(node, SubDagOperator):
-                        graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
+                    yield node
 
-            if not acyclic:
-                raise AirflowException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        return tuple(graph_sorted)
+        return tuple(nested_topo(self.task_group))
 
     @provide_session
     def set_dag_runs_state(
@@ -2018,11 +1990,13 @@ class DAG(LoggingMixin):
                 also_include.extend(upstream)
 
         # Compiling the unique list of tasks that made the cut
-        # Make sure to not recursively deepcopy the dag while copying the task
-        dag.task_dict = {
-            t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
-            for t in matched_tasks + also_include
-        }
+        # Make sure to not recursively deepcopy the dag or task_group while copying the task.
+        # task_group is reset later
+        def _deepcopy_task(t) -> "Operator":
+            memo.setdefault(id(t.task_group), None)
+            return copy.deepcopy(t, memo)
+
+        dag.task_dict = {t.task_id: _deepcopy_task(t) for t in matched_tasks + also_include}
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
@@ -2035,7 +2009,8 @@ class DAG(LoggingMixin):
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
-                        copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task = copied.children[child.task_id] = dag.task_dict[child.task_id]
+                        task.task_group = weakref.proxy(copied)
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
@@ -2200,6 +2175,7 @@ class DAG(LoggingMixin):
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
+        continue_on_failures=False,
     ):
         """
         Runs the DAG.
@@ -2249,6 +2225,7 @@ class DAG(LoggingMixin):
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
         )
         job.run()
 
@@ -2295,12 +2272,12 @@ class DAG(LoggingMixin):
         """
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
-                raise ValueError(f"`run_id` expected to be a str is {type(run_id)}")
+                raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
             if not run_type:
                 run_type = DagRunType.from_run_id(run_id)
         elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
-                raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
+                raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
             run_id = DagRun.generate_run_id(run_type, execution_date)
         else:
             raise AirflowException(
@@ -2679,7 +2656,7 @@ class DagModel(Base):
     owners = Column(String(2000))
     # Description of the dag
     description = Column(Text)
-    # Default view of the inside the webserver
+    # Default view of the DAG inside the webserver
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)

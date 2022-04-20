@@ -85,6 +85,7 @@ class TestGoogleCalendarToGCSOperator:
         context = {}
         data = [EVENT]
         mock_upload_data.side_effect = PATH
+        mock_calendar_hook.return_value.get_events.return_value = data
 
         op = GoogleCalendarToGCSOperator(
             api_version=API_VERSION,
@@ -104,26 +105,23 @@ class TestGoogleCalendarToGCSOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        call = mock.call(
+        mock_calendar_hook.return_value.get_events.assert_called_once_with(
             calendar_id=CALENDAR_ID,
-            iCalUID=None,
-            maxAttendees=None,
-            maxResults=None,
-            orderBy=None,
-            pageToken=None,
-            privateExtendedProperty=None,
+            i_cal_uid=None,
+            max_attendees=None,
+            max_results=None,
+            order_by=None,
+            private_extended_property=None,
             q=None,
-            sharedExtendedProperty=None,
-            showDeleted=False,
-            showHiddenInvitations=False,
-            singleEvents=False,
-            syncToken=None,
-            timeMax=None,
-            timeMin=None,
-            timeZone=None,
-            updatedMin=None,
+            shared_extended_property=None,
+            show_deleted=None,
+            show_hidden_invitation=None,
+            single_events=None,
+            sync_token=None,
+            time_max=None,
+            time_min=None,
+            time_zone=None,
+            updated_min=None,
         )
-        mock_calendar_hook.return_value.get_values.has_calls(call)
 
-        call = mock.call(data)
-        mock_upload_data.has_calls(call)
+        mock_upload_data.assert_called_once_with(data)

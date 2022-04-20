@@ -17,6 +17,7 @@
 # under the License.
 
 from datetime import timedelta
+from typing import Callable
 
 import pytest
 from sqlalchemy.orm import eagerload
@@ -26,6 +27,7 @@ from airflow.api.common.mark_tasks import (
     _create_dagruns,
     _DagRunInfo,
     set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
     set_dag_run_state_to_running,
     set_dag_run_state_to_success,
     set_state,
@@ -153,7 +155,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -167,7 +169,7 @@ class TestMarkTasks:
         # set one and only one task to success
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -181,7 +183,7 @@ class TestMarkTasks:
         # set no tasks
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -195,7 +197,7 @@ class TestMarkTasks:
         # set task to other than success
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -211,7 +213,7 @@ class TestMarkTasks:
         task = self.dag1.get_task("runme_0")
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -228,7 +230,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -255,7 +257,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,
@@ -277,7 +279,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=True,
             downstream=False,
             future=False,
@@ -295,7 +297,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -311,7 +313,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -330,7 +332,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -346,7 +348,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -365,7 +367,7 @@ class TestMarkTasks:
         dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=tasks,
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -392,7 +394,7 @@ class TestMarkTasks:
 
         altered = set_state(
             tasks=[task],
-            dag_run_id=dr.run_id,
+            run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,
@@ -447,6 +449,20 @@ class TestMarkDAGRun:
             return x == y if inclusion else x != y
 
         return len([s for s in states if compare(s, state)])
+
+    def _get_num_tasks_with_non_completed_state(self):
+        """
+        Return the non completed tasks.
+        :return: number of tasks in non completed state (SUCCESS, FAILED, SKIPPED, UPSTREAM_FAILED)
+        """
+        expected = len(self.INITIAL_TASK_STATES.values()) - self._get_num_tasks_with_starting_state(
+            State.SUCCESS, inclusion=True
+        )
+        expected = expected - self._get_num_tasks_with_starting_state(State.FAILED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.SKIPPED, inclusion=True)
+        expected = expected - self._get_num_tasks_with_starting_state(State.UPSTREAM_FAILED, inclusion=True)
+
+        return expected
 
     def _set_default_task_instance_states(self, dr):
         for task_id, state in self.INITIAL_TASK_STATES.items():
@@ -512,26 +528,30 @@ class TestMarkDAGRun:
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_running_dag_run_to_running(self):
-        date = self.execution_dates[0]
+    @pytest.mark.parametrize(
+        "dag_run_alter_function, new_state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_running_dag_run_to_activate_state(self, dag_run_alter_function: Callable, new_state: State):
+        date = self.execution_dates[0]  # type: ignore
         dr = self._create_test_dag_run(State.RUNNING, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
 
         # None of the tasks should be altered, only the dag itself
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, new_state)  # type: ignore
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+        self._verify_dag_run_dates(self.dag1, date, new_state, middle_time)  # type: ignore
 
     def test_set_success_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -555,26 +575,30 @@ class TestMarkDAGRun:
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_success_dag_run_to_running(self):
-        date = self.execution_dates[0]
+    @pytest.mark.parametrize(
+        "dag_run_alter_function,new_state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_success_dag_run_to_activate_state(self, dag_run_alter_function: Callable, new_state: State):
+        date = self.execution_dates[0]  # type: ignore
         dr = self._create_test_dag_run(State.SUCCESS, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
 
         # None of the tasks should be altered, but only the dag object should be changed
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, new_state)  # type: ignore
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+        self._verify_dag_run_dates(self.dag1, date, new_state, middle_time)  # type: ignore
 
     def test_set_failed_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -599,26 +623,30 @@ class TestMarkDAGRun:
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
 
-        # Only running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only non-completed tasks should be altered.
+        expected = self._get_num_tasks_with_non_completed_state()
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    def test_set_failed_dag_run_to_running(self):
-        date = self.execution_dates[0]
+    @pytest.mark.parametrize(
+        "dag_run_alter_function,state",
+        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
+    )
+    def test_set_failed_dag_run_to_activate_state(self, dag_run_alter_function: Callable, state: State):
+        date = self.execution_dates[0]  # type: ignore
         dr = self._create_test_dag_run(State.SUCCESS, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
+        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
 
         # None of the tasks should be altered, since we've only altered the DAG itself
         assert len(altered) == 0
-        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_dag_run_state(self.dag1, date, state)  # type: ignore
         self._verify_task_instance_states_remain_default(dr)
-        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+        self._verify_dag_run_dates(self.dag1, date, state, middle_time)  # type: ignore
 
     def test_set_state_without_commit(self):
         date = self.execution_dates[0]
@@ -632,10 +660,17 @@ class TestMarkDAGRun:
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
+        will_be_altered = set_dag_run_state_to_queued(dag=self.dag1, run_id=dr.run_id, commit=False)
+
+        # None of the tasks will be altered.
+        assert len(will_be_altered) == 0
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+
         will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=False)
 
-        # Only the running task should be altered.
-        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        # Only the non-completed tasks should be altered.
+        expected = self._get_num_tasks_with_non_completed_state()
         assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
@@ -695,6 +730,8 @@ class TestMarkDAGRun:
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=None, execution_date=self.execution_dates[0])
         assert len(altered) == 0
+        altered = set_dag_run_state_to_queued(dag=None, execution_date=self.execution_dates[0])
+        assert len(altered) == 0
 
         # No dag_run_id
         altered = set_dag_run_state_to_success(dag=self.dag1, run_id=None)
@@ -702,6 +739,8 @@ class TestMarkDAGRun:
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=None)
         assert len(altered) == 0
         altered = set_dag_run_state_to_running(dag=self.dag1, run_id=None)
+        assert len(altered) == 0
+        altered = set_dag_run_state_to_queued(dag=self.dag1, run_id=None)
         assert len(altered) == 0
 
         # This will throw ValueError since dag.last_dagrun is None

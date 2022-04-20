@@ -21,8 +21,6 @@
 Define an operator extra link
 =============================
 
-
-
 .. image:: ../img/operator_extra_link.png
 
 The following code shows how to add extra links to an operator via Plugins:
@@ -36,7 +34,7 @@ The following code shows how to add extra links to an operator via Plugins:
     class GoogleLink(BaseOperatorLink):
         name = "Google"
 
-        def get_link(self, operator, dttm):
+        def get_link(self, operator, *, ti_key):
             return "https://www.google.com"
 
 
@@ -62,7 +60,7 @@ The following code shows how to add extra links to an operator via Plugins:
 
 You can also add a global operator extra link that will be available to
 all the operators through an Airflow plugin or through Airflow providers. You can learn more about it in the
-:ref:`plugin example <plugin-example>` and in :doc:`apache-airflow-providers:index`.
+:ref:`plugin interface <plugins:interface>` and in :doc:`apache-airflow-providers:index`.
 
 You can see all the extra links available via community-managed providers in
 :doc:`apache-airflow-providers:core-extensions/extra-links`.
@@ -94,11 +92,13 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
       operators = [GCSToS3Operator]
 
-      def get_link(self, operator, dttm):
-          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
-              dag_id=operator.dag_id,
-              task_id=operator.task_id,
-              logical_date=dttm,
+      def get_link(self, operator, *, ti_key):
+          return (
+              "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
+                  dag_id=operator.dag_id,
+                  task_id=operator.task_id,
+                  run_id=ti_key.run_id,
+              )
           )
 
 
@@ -136,12 +136,8 @@ Console, but if we wanted to change that link we could:
         name = "BigQuery Console"
         operators = [BigQueryOperator]
 
-        def get_link(self, operator, dttm):
-            job_id = XCom.get_one(
-                execution_date=dttm,
-                task_id=operator.task_id,
-                key="job_id",
-            )
+        def get_link(self, operator, *, ti_key):
+            job_id = XCom.get_one(ti_key=ti_key, key="job_id")
             return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 
 

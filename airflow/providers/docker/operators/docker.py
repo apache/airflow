@@ -23,9 +23,10 @@ import tarfile
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
-from docker import APIClient, tls
-from docker.errors import APIError
-from docker.types import Mount
+from docker import APIClient, tls  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
+from docker.errors import APIError  # type: ignore[attr-defined]
+from docker.types import Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -90,6 +91,13 @@ class DockerOperator(BaseOperator):
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
     :param network_mode: Network mode for the container.
+        It can be one of the following:
+        bridge - Create new network stack for the container with default docker bridge network
+        None - No networking for this container
+        container:<name|id> - Use the network stack of another container specified via <name|id>
+        host - Use the host network stack. Incompatible with `port_bindings`
+        '<network-name>|<network-id>' - Connects the container to user created network
+        (using `docker network create` command)
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
     :param tls_client_cert: Path to the PEM-encoded certificate
@@ -174,6 +182,7 @@ class DockerOperator(BaseOperator):
         extra_hosts: Optional[Dict[str, str]] = None,
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -217,6 +226,7 @@ class DockerOperator(BaseOperator):
         self.container = None
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
+        self.timeout = timeout
 
     def get_hook(self) -> DockerHook:
         """
@@ -229,6 +239,7 @@ class DockerOperator(BaseOperator):
             base_url=self.docker_url,
             version=self.api_version,
             tls=self.__get_tls_config(),
+            timeout=self.timeout,
         )
 
     def _run_image(self) -> Optional[Union[List[str], str]]:
@@ -380,7 +391,9 @@ class DockerOperator(BaseOperator):
             return self.get_hook().get_conn()
         else:
             tls_config = self.__get_tls_config()
-            return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+            return APIClient(
+                base_url=self.docker_url, version=self.api_version, tls=tls_config, timeout=self.timeout
+            )
 
     @staticmethod
     def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
@@ -399,6 +412,9 @@ class DockerOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Stopping docker container')
+            if self.container is None:
+                self.log.info('Not attempting to kill container as it was not created')
+                return
             self.cli.stop(self.container['Id'])
 
     def __get_tls_config(self) -> Optional[tls.TLSConfig]:

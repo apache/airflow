@@ -23,7 +23,7 @@ import pytest
 from airflow import settings
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -41,7 +41,7 @@ def get_task_instance(session, dag_maker):
                 task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
             if upstream_task_ids:
-                task.upstream_task_ids.update(upstream_task_ids)
+                [EmptyOperator(task_id=task_id) for task_id in upstream_task_ids] >> task
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
@@ -625,11 +625,11 @@ class TestTriggerRuleDep:
         dag = DAG('test_dagrun_with_pre_tis', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E', trigger_rule=TriggerRule.ONE_FAILED)
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='D')
+            op5 = EmptyOperator(task_id='E', trigger_rule=TriggerRule.ONE_FAILED)
 
             op1.set_downstream([op2, op3])  # op1 >> op2, op3
             op4.set_upstream([op3, op2])  # op3, op2 >> op4
@@ -662,10 +662,10 @@ class TestTriggerRuleDep:
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tis = DepContext().ensure_finished_tis(ti_op2.dag_run, session)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op2) == (1, 0, 0, 0, 1)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op2) == (1, 0, 0, 0, 1)
         finished_tis = dr.get_task_instances(state=State.finished, session=session)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op4) == (1, 0, 1, 0, 2)
-        assert get_states_count_upstream_ti(finished_tis=finished_tis, ti=ti_op5) == (2, 0, 1, 0, 3)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op4) == (1, 0, 1, 0, 2)
+        assert get_states_count_upstream_ti(finished_tis=finished_tis, task=op5) == (2, 0, 1, 0, 3)
 
         dr.update_state()
         assert State.SUCCESS == dr.state

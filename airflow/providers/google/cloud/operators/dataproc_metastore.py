@@ -22,6 +22,7 @@ from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
 from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
@@ -36,6 +37,7 @@ from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMeta
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -78,13 +80,22 @@ class DataprocMetastoreLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreLink.key,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key is not None:
+            conf = XCom.get_value(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            conf = XCom.get_one(
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+                key=self.key,
+            )
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -124,13 +135,22 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
             },
         )
 
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataprocMetastoreDetailedLink.key,
-        )
+    def get_link(
+        self,
+        operator,
+        dttm: Optional[datetime] = None,
+        ti_key: Optional["TaskInstanceKey"] = None,
+    ) -> str:
+        if ti_key is not None:
+            conf = XCom.get_value(key=self.key, ti_key=ti_key)
+        else:
+            assert dttm
+            conf = XCom.get_one(
+                dag_id=operator.dag.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+                key=DataprocMetastoreDetailedLink.key,
+            )
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -199,7 +219,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         backup: Union[Dict, Backup],
         backup_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -314,7 +334,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         metadata_import: MetadataImport,
         metadata_import_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -408,7 +428,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         service: Union[Dict, Service],
         service_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -508,7 +528,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         service_id: str,
         backup_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -570,7 +590,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
         region: str,
         project_id: str,
         service_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -650,7 +670,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
         service_id: str,
         request_id: Optional[str] = None,
         database_dump_type: Optional[DatabaseDumpSpec] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -761,7 +781,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         region: str,
         project_id: str,
         service_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -838,7 +858,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -937,7 +957,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
         backup_id: str,
         restore_type: Optional[Restore] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1064,7 +1084,7 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
         service: Union[Dict, Service],
         update_mask: FieldMask,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

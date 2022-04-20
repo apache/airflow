@@ -203,10 +203,24 @@ class KubernetesHook(BaseHook):
         if namespace is None:
             namespace = self.get_namespace()
         if isinstance(body, str):
-            body = _load_body_to_dict(body)
+            body_dict = _load_body_to_dict(body)
+        else:
+            body_dict = body
+        try:
+            api.delete_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                name=body_dict["metadata"]["name"],
+            )
+            self.log.warning("Deleted SparkApplication with the same name.")
+        except client.rest.ApiException:
+            self.log.info(f"SparkApp {body_dict['metadata']['name']} not found.")
+
         try:
             response = api.create_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, body=body
+                group=group, version=version, namespace=namespace, plural=plural, body=body_dict
             )
             self.log.debug("Response: %s", response)
             return response

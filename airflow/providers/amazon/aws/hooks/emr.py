@@ -114,6 +114,12 @@ class EmrContainerHook(AwsBaseHook):
         "CANCEL_PENDING",
     )
     SUCCESS_STATES = ("COMPLETED",)
+    TERMINAL_STATES = (
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+        "CANCEL_PENDING",
+    )
 
     def __init__(self, *args: Any, virtual_cluster_id: Optional[str] = None, **kwargs: Any) -> None:
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
@@ -129,7 +135,7 @@ class EmrContainerHook(AwsBaseHook):
         client_request_token: Optional[str] = None,
     ) -> str:
         """
-        Submit a job to the EMR Containers API and and return the job ID.
+        Submit a job to the EMR Containers API and return the job ID.
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
         See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run  # noqa: E501
@@ -228,19 +234,16 @@ class EmrContainerHook(AwsBaseHook):
         try_number = 1
         final_query_state = None  # Query state when query reaches final state or max_tries reached
 
-        # TODO: Make this logic a little bit more robust.
-        # Currently this polls until the state is *not* one of the INTERMEDIATE_STATES
-        # While that should work in most cases...it might not. :)
         while True:
             query_state = self.check_query_status(job_id)
             if query_state is None:
                 self.log.info("Try %s: Invalid query state. Retrying again", try_number)
-            elif query_state in self.INTERMEDIATE_STATES:
-                self.log.info("Try %s: Query is still in an intermediate state - %s", try_number, query_state)
-            else:
+            elif query_state in self.TERMINAL_STATES:
                 self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
                 final_query_state = query_state
                 break
+            else:
+                self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
             if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
                 final_query_state = query_state
                 break

@@ -17,9 +17,23 @@
 # under the License.
 
 import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, List, Optional, Set, Type, Union
-
-from sqlalchemy.orm import Session
+import inspect
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Type,
+    Union,
+)
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -32,23 +46,30 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
+TaskStateChangeCallback = Callable[[Context], None]
+
 if TYPE_CHECKING:
     import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER = conf.get("operators", "default_owner")
-DEFAULT_POOL_SLOTS = 1
-DEFAULT_PRIORITY_WEIGHT = 1
-DEFAULT_QUEUE = conf.get("operators", "default_queue")
-DEFAULT_RETRIES = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY = datetime.timedelta(seconds=300)
-DEFAULT_WEIGHT_RULE = conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
-DEFAULT_TRIGGER_RULE = TriggerRule.ALL_SUCCESS
-
-TaskStateChangeCallback = Callable[[Context], None]
+DEFAULT_OWNER: str = conf.get("operators", "default_owner")
+DEFAULT_POOL_SLOTS: int = 1
+DEFAULT_PRIORITY_WEIGHT: int = 1
+DEFAULT_QUEUE: str = conf.get("operators", "default_queue")
+DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
+    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+)
+DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
+DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+    "core", "default_task_execution_timeout"
+)
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -64,7 +85,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
-    operator_class: Union[str, Type["BaseOperator"]]
+    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
     weight_rule: str
     priority_weight: int
@@ -74,10 +95,29 @@ class AbstractOperator(LoggingMixin, DAGNode):
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]
     # Defines which files extensions to look for in the templated fields.
-    template_ext: Collection[str]
+    template_ext: Sequence[str]
 
     owner: str
     task_id: str
+
+    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
+        (
+            'log',
+            'dag',  # We show dag_id, don't need to show this too
+            'node_id',  # Duplicates task_id
+            'task_group',  # Doesn't have a useful repr, no point showing in UI
+            'inherits_from_empty_operator',  # impl detail
+            # For compatibility with TG, for operators these are just the current task, no point showing
+            'roots',
+            'leaves',
+            # These lists are already shown via *_task_ids
+            'upstream_list',
+            'downstream_list',
+            # Not useful, implementation detail, already shown elsewhere
+            'global_operator_extra_link_dict',
+            'operator_extra_link_dict',
+        )
+    )
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
@@ -87,7 +127,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         raise NotImplementedError()
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
     @property
@@ -111,7 +151,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         dag = self.get_dag()
         if dag:
-            return dag.get_template_env()
+            return dag.get_template_env(force_sandboxed=False)
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:
@@ -239,19 +279,29 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def extra_links(self) -> List[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
-    def get_extra_links(self, dttm: datetime.datetime, link_name: str) -> Optional[Dict[str, Any]]:
+    def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
 
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
-        :param dttm: The datetime parsed execution date for the URL being searched for.
+        :param ti: The TaskInstance for the URL being searched for.
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        if link_name in self.operator_extra_link_dict:
-            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
-        elif link_name in self.global_operator_extra_link_dict:
-            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
+        link: Optional["BaseOperatorLink"] = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+        # Check for old function signature
+        parameters = inspect.signature(link.get_link).parameters
+        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
+        if "ti_key" in args:
+            return link.get_link(self, ti_key=ti.key)
+        else:
+            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
         return None
 
     def render_template_fields(
@@ -279,7 +329,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         jinja_env: "jinja2.Environment",
         seen_oids: Set,
         *,
-        session: Session = NEW_SESSION,
+        session: "Session" = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             try:
@@ -291,28 +341,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self._render_template_field(
-                attr_name,
+            rendered_content = self.render_template(
                 value,
                 context,
                 jinja_env,
                 seen_oids,
-                session=session,
             )
             setattr(parent, attr_name, rendered_content)
-
-    def _render_template_field(
-        self,
-        key: str,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-        *,
-        session: Session,
-    ) -> Any:
-        """Override point for MappedOperator to perform further resolution."""
-        return self.render_template(value, context, jinja_env, seen_oids)
 
     def render_template(
         self,

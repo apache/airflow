@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.models import RenderedTaskInstanceFields as RTIF, SlaMiss, TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -39,7 +39,7 @@ class TestTaskInstanceSchema:
     def set_attrs(self, session, dag_maker):
         self.default_time = datetime(2020, 1, 1)
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
-            self.task = DummyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
+            self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
         self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
         session.flush()
@@ -74,8 +74,9 @@ class TestTaskInstanceSchema:
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
-            "operator": "DummyOperator",
+            "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -106,8 +107,8 @@ class TestTaskInstanceSchema:
             setattr(ti, key, value)
         self.task.template_fields = ["partitions"]
         setattr(self.task, "partitions", "data/ds=2022-02-17")
-        rendered_fields = RTIF(ti, render_templates=False)
-        serialized_ti = task_instance_schema.dump((ti, sla_miss, rendered_fields))
+        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        serialized_ti = task_instance_schema.dump((ti, sla_miss))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -115,8 +116,9 @@ class TestTaskInstanceSchema:
             "execution_date": "2020-01-01T00:00:00+00:00",
             "executor_config": "{}",
             "hostname": "",
+            "map_index": -1,
             "max_tries": 0,
-            "operator": "DummyOperator",
+            "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -214,7 +216,7 @@ class TestSetTaskInstanceStateFormSchema:
             ({"include_future": "foo"},),
             ({"execution_date": "NOW"},),
             ({"new_state": "INVALID_STATE"},),
-            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "dagrun_id"},),
+            ({"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},),
         ]
     )
     def test_validation_error(self, override_data):

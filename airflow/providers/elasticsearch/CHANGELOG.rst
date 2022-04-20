@@ -19,6 +19,53 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make ElasticSearch Provider compatible for Airflow<2.3 (#22814)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+3.0.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Change default log filename template to include map_index (#21495)``
+
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Type TaskInstance.task to Operator and call unmap() when needed (#21563)``
+
 2.2.0
 .....
 

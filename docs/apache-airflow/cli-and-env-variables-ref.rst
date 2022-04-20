@@ -61,7 +61,7 @@ Environment Variables
 
   This is only supported by the following config options:
 
-* ``sql_alchemy_conn`` in ``[core]`` section
+* ``sql_alchemy_conn`` in ``[database]`` section
 * ``fernet_key`` in ``[core]`` section
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
