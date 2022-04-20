@@ -87,8 +87,13 @@ class TestGKEHookDelete(unittest.TestCase):
         wait_mock.assert_not_called()
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
+    @mock.patch(
+        BASE_STRING.format("GoogleBaseHook.project_id"),
+        new_callable=mock.PropertyMock,
+        return_value=None,
+    )
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
-    def test_delete_cluster_error(self, wait_mock):
+    def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
 
