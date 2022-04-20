@@ -18,12 +18,12 @@
 Apache Trino Connection
 =======================
 
-The Apache Trino connection type enables connection to Trino which is s a distributed SQL query engine designed to query large data sets distributed over one or more heterogeneous data sources.
+The Apache Trino connection type enables connection to Trino which is a distributed SQL query engine designed to query large data sets distributed over one or more heterogeneous data sources.
 
 Default Connection IDs
 ----------------------
 
-Trino Hook uses parameter ``trino_conn_id`` for Connection IDs and the value of the parameter as ``trino_default`` by default.
+Trino Hook uses the parameter ``trino_conn_id`` for Connection IDs and the value of the parameter as ``trino_default`` by default.
 Trino Hook supports multiple authentication types to ensure all users of the system are authenticated, the parameter ``auth`` can be set to enable authentication. The value of the parameter is ``None`` by default.
 
 Configuring the Connection
@@ -32,19 +32,19 @@ Host
     The host to connect to, it can be ``local``, ``yarn`` or an URL.
 
 Port
-    Specify the port in case of host be an URL.
+    Specify the port in case of host is an URL.
 
 Login
     Effective user for connection.
 
 Password
-    This can be to passed to enable Basic Authentication. This is optional parameter and is not required if different authentication mechanism is used.
+    This can be to pass to enable Basic Authentication. This is an optional parameter and is not required if a different authentication mechanism is used.
 
 Extra (optional, connection parameters)
     Specify the extra parameters (as json dictionary) that can be used in Trino connection. The following parameters out of the standard python parameters are supported:
 
     * ``auth`` - Specifies which type of authentication needs to be enabled. The value can be ``kerberos``, ``jwt``. 
-    * ``impersonate_as_owner`` - Boolean that allows to set ``AIRFLOW_CTX_DAG_OWNER`` as user of the connection.
+    * ``impersonate_as_owner`` - Boolean that allows to set ``AIRFLOW_CTX_DAG_OWNER`` as a user of the connection.
 
     The following extra parameters can be used to configure authentication:
 

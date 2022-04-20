@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections>
     TrinoTransferOperator types <operators/transfer/gcs_to_trino>
 
 .. toctree::
@@ -51,13 +52,6 @@ Content
 
     Detailed list of commits <commits>
 
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    Connection types <connections>
-    Operators <operators/index>
 
 
 Package apache-airflow-providers-trino
