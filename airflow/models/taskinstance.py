@@ -1931,7 +1931,7 @@ class TaskInstance(Base, LoggingMixin):
         try:
             task = self.task.unmap()
         except Exception:
-            self.log.error("Unable to unmap task, can't determine if we need to send an alert email ot not")
+            self.log.error("Unable to unmap task, can't determine if we need to send an alert email or not")
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
