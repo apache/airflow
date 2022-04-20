@@ -148,7 +148,7 @@ TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 TEST_ENDPOINT = {
     "display_name": "endpoint_test",
 }
-TEST_ENDPOINT_ID = "test_endpoint_id"
+TEST_ENDPOINT_ID = "1234567890"
 TEST_DEPLOYED_MODEL = {
     # format: 'projects/{project}/locations/{location}/models/{model}'
     'model': f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id",
