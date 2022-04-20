@@ -60,6 +60,6 @@ export const ClipboardButton = forwardRef(
 export const ClipboardText = ({ value }) => (
   <>
     {value}
-    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="lg" ml={1} />
+    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="xl" ml={1} />
   </>
 );
