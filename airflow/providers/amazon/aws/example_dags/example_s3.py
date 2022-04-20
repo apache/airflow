@@ -24,6 +24,7 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
     S3CreateBucketOperator,
+    S3CreateObjectOperator,
     S3DeleteBucketOperator,
     S3DeleteBucketTaggingOperator,
     S3DeleteObjectsOperator,
@@ -38,6 +39,15 @@ KEY = os.environ.get('KEY', 'key')
 KEY_2 = os.environ.get('KEY_2', 'key2')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
+KEY = os.environ.get('KEY', 'key')
+DATA = os.environ.get(
+    'DATA',
+    '''
+apple,0.5
+milk,2.5
+bread,4.0
+''',
+)
 
 with DAG(
     dag_id='example_s3',
@@ -91,6 +101,16 @@ with DAG(
         bucket_name=BUCKET_NAME,
     )
     # [END howto_operator_s3_delete_bucket_tagging]
+
+    # [START howto_operator_s3_create_object]
+    s3_create_object = S3CreateObjectOperator(
+        task_id="s3_create_object",
+        s3_bucket=BUCKET_NAME,
+        s3_key=KEY,
+        data=DATA,
+        replace=True,
+    )
+    # [END howto_operator_s3_create_object]
 
     # [START howto_sensor_s3_key_single_key]
     # Check if a file exists
@@ -149,6 +169,7 @@ with DAG(
         put_tagging,
         get_tagging,
         delete_tagging,
+        s3_create_object,
         [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
         s3_copy_object,
         s3_delete_objects,
