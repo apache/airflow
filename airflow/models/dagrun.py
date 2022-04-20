@@ -70,7 +70,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
@@ -1022,7 +1022,7 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append(ti.task_id)
             else:
-                schedulable_ti_ids.append(ti.task_id)
+                schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
         count = 0
 
@@ -1032,7 +1032,7 @@ class DagRun(Base, LoggingMixin):
                 .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
-                    TI.task_id.in_(schedulable_ti_ids),
+                    tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids),
                 )
                 .update({TI.state: State.SCHEDULED}, synchronize_session=False)
             )

@@ -1157,3 +1157,24 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert decision.schedulable_tis == []
     assert result == [2, 4]
+
+
+def test_schedule_tis_map_index(dag_maker, session):
+    with dag_maker(session=session, dag_id="test"):
+        task = BaseOperator(task_id='task_1')
+
+    dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
+    ti0 = TI(task=task, run_id=dr.run_id, map_index=0, state=TaskInstanceState.SUCCESS)
+    ti1 = TI(task=task, run_id=dr.run_id, map_index=1, state=None)
+    ti2 = TI(task=task, run_id=dr.run_id, map_index=2, state=TaskInstanceState.SUCCESS)
+    session.add_all((dr, ti0, ti1, ti2))
+    session.flush()
+
+    assert dr.schedule_tis((ti1,), session=session) == 1
+
+    session.refresh(ti0)
+    session.refresh(ti1)
+    session.refresh(ti2)
+    assert ti0.state == TaskInstanceState.SUCCESS
+    assert ti1.state == TaskInstanceState.SCHEDULED
+    assert ti2.state == TaskInstanceState.SUCCESS
