@@ -114,8 +114,8 @@ class TestKubernetesHook:
         in_cluster_fails,
     ):
         """
-        Verifies whether in_cluster is called depending on combination of hook param and connection extra.
-        Hook param should beat extra.
+        Verifies the behavior of the ``_get_default_client`` function.  It should try the "in cluster"
+        loader first but if that fails, try to use the default kubeconfig file.
         """
         if in_cluster_fails:
             mock_incluster.side_effect = ConfigException('any')
