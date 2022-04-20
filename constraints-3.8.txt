@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-20T07:40:34Z
+# This constraints file was automatically generated on 2022-04-20T17:26:44Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -11,7 +11,7 @@
 # Editable install with no version control (apache-airflow==2.3.0.dev0)
 APScheduler==3.6.3
 Authlib==1.0.1
-Babel==2.9.1
+Babel==2.10.0
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
@@ -179,6 +179,7 @@ cffi==1.15.0
 cfgv==3.3.1
 cgroupspy==0.2.2
 charset-normalizer==2.0.12
+click-default-group==1.2.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
@@ -304,6 +305,7 @@ ijson==3.1.4
 imagesize==1.3.0
 importlib-metadata==4.11.3
 importlib-resources==5.7.1
+incremental==21.3.0
 inflection==0.5.1
 influxdb-client==1.28.0
 iniconfig==1.1.1
@@ -532,6 +534,7 @@ toml==0.10.2
 tomli==2.0.1
 toolz==0.11.2
 tornado==6.1
+towncrier==21.9.0
 tqdm==4.64.0
 traitlets==5.1.1
 trino==0.312.0
