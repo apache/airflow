@@ -100,9 +100,6 @@ class TestKubernetesHook:
             mock_loader.assert_not_called()
         else:
             mock_get_default_client.assert_called()
-            # mock_in_cluster_loader.assert_not_called()
-            # mock_merger.assert_called_once_with(KUBE_CONFIG_PATH)
-            # mock_loader.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize('in_cluster_fails', [True, False])
