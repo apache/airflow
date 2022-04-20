@@ -866,8 +866,7 @@ class TestDagBag:
     @patch("airflow.www.security.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        when DAG specific perm views don't exist already or the DAG has access_control set.
+        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag.
         """
         db_clean_up()
         with create_session() as session:
@@ -885,20 +884,22 @@ class TestDagBag:
                 mock_sync_perm_for_dag.reset_mock()
                 dagbag._sync_perm_for_dag(dag, session=session)
 
-            # perms dont exist
+            # sync with no access_control
+            dag.access_control = None
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
-            # perms now exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_not_called()
-
-            # Always sync if we have access_control
+            # sync with access_control
             dag.access_control = {"Public": {"can_read"}}
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
                 "test_example_bash_operator", {"Public": {"can_read"}}
             )
+
+            # sync with no access_control after syncing with access_control
+            dag.access_control = None
+            _sync_perms()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)

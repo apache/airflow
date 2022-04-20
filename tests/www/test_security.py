@@ -503,6 +503,28 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
 
 
+def test_sync_perm_for_dag_revokes_stale_permissions_on_resources(security_manager):
+    test_dag_id = 'TEST_DAG_STALE_PERMISSIONS'
+    prefixed_test_dag_id = f'DAG:{test_dag_id}'
+
+    test_role = 'role_stale_permissions'
+    security_manager.add_role(test_role)
+
+    def _test_role_has_permission():
+        _role = security_manager.find_role(test_role)
+        return any(
+            _perm.resource.name == prefixed_test_dag_id and _perm.action.name == permissions.ACTION_CAN_READ
+            for _perm in _role.permissions
+        )
+
+    security_manager.sync_perm_for_dag(test_dag_id, access_control={test_role: {permissions.ACTION_CAN_READ}})
+    assert _test_role_has_permission()
+
+    # test permissions revoked
+    security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+    assert not _test_role_has_permission()
+
+
 def test_has_all_dag_access(app, security_manager):
     for role_name in ['Admin', 'Viewer', 'Op', 'User']:
         with app.app_context():
@@ -725,13 +747,12 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ('can_read', dag_resource_name) in all_perms
         assert ('can_edit', dag_resource_name) in all_perms
 
-    security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag('has_access_control'), access_control
+    security_manager._sync_dag_view_permissions.assert_has_calls(
+        [
+            mock.call(permissions.resource_name_for_dag('has_access_control'), access_control),
+            mock.call(permissions.resource_name_for_dag('no_access_control'), None),
+        ]
     )
-
-    del dagbag_mock.dags["has_access_control"]
-    with assert_queries_count(1):  # one query to get all perms; dagbag is mocked
-        security_manager.create_dag_specific_permissions()
 
 
 def test_get_all_permissions(security_manager):
