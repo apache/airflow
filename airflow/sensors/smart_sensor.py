@@ -393,7 +393,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 )
 
             for ti in session.query(TI).join(TI.dag_run).filter(ti_filter):
-                ti.hostname = self.hostname
+                ti.hostnames[-1] = self.hostname
             session.commit()
 
             return count + len(sensor_works)
