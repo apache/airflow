@@ -63,13 +63,13 @@ click_show_sql_only = click.option(
 @airflow_cmd.group()
 @click.pass_context
 def db(ctx):
-    """Commands for the metadata database"""
+    """Database operations"""
 
 
 @db.command('init')
 @click.pass_context
 def db_init(ctx):
-    """Initializes the metadata database"""
+    """Initialize the metadata database"""
     from airflow.utils import db as db_utils
 
     console = Console()
@@ -87,7 +87,7 @@ def db_init(ctx):
     help="This command will wait for up to this time, specified in seconds",
 )
 def check_migrations(ctx, migration_wait_timeout):
-    """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
+    """Wait for all airflow migrations to complete (used for launching airflow in k8s)"""
     from airflow.utils import db as db_utils
 
     console = Console()
@@ -289,11 +289,11 @@ def shell(ctx):
     '--migration-wait-timeout',
     type=int,
     default=60,
-    help="Tmeout to wait for the database to migrate",
+    help="Timeout to wait for the database to migrate",
 )
 @cli_utils.action_cli(check_db=False)
 def check(ctx, migration_wait_timeout):
-    """Runs a check command that checks if db is reachable"""
+    """Check if the database can be reached"""
     from airflow.utils import db as db_utils
 
     console = Console()
@@ -314,7 +314,7 @@ class _CleanTableDefault:
         return str(sorted(config_dict))
 
 
-@db.command('cleanup')
+@db.command('clean')
 @click.pass_context
 @click.option(
     '-t',
