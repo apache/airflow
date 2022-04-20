@@ -23,6 +23,7 @@ from json import JSONDecodeError
 from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
+from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
@@ -187,6 +188,21 @@ class Connection(Base, LoggingMixin):
             conn_type = conn_type.replace('-', '_')
         return conn_type
 
+    def _safe_fernet_decode(self, key: str, value: str) -> Optional[str]:
+        fernet = get_fernet()
+        if not fernet.is_encrypted:
+            raise AirflowException(
+                f"Can't decrypt encrypted {key!r} for login={self.login}  "
+                f"FERNET_KEY configuration is missing"
+            )
+        try:
+            return fernet.decrypt(bytes(value, "utf-8")).decode()
+        except InvalidFernetToken:
+            self.log.error("Can't decrypt %s for login=%s, invalid token or value", key, self.login)
+        except Exception:
+            self.log.error("Can't decrypt %s for login=%s, FERNET_KEY configuration missing", key, self.login)
+        return None
+
     def _parse_from_uri(self, uri: str):
         uri_parts = urlparse(uri)
         conn_type = uri_parts.scheme
@@ -256,15 +272,8 @@ class Connection(Base, LoggingMixin):
     def get_password(self) -> Optional[str]:
         """Return encrypted password."""
         if self._password and self.is_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt encrypted password for login={self.login}  "
-                    f"FERNET_KEY configuration is missing"
-                )
-            return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
-        else:
-            return self._password
+            return self._safe_fernet_decode("password", self._password)
+        return self._password
 
     def set_password(self, value: Optional[str]):
         """Encrypt password and set in object attribute."""
@@ -278,16 +287,10 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> Dict:
+    def get_extra(self) -> Optional[str]:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt `extra` params for login={self.login}, "
-                    f"FERNET_KEY configuration is missing"
-                )
-            extra_val = fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
+            extra_val = self._safe_fernet_decode("extra", self._extra)
         else:
             extra_val = self._extra
         if extra_val:
