@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-20T01:51:27Z
+# This constraints file was automatically generated on 2022-04-20T07:40:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -130,7 +130,7 @@ argcomplete==1.12.3
 arrow==1.2.2
 asana==0.10.13
 asn1crypto==1.5.1
-astroid==2.11.2
+astroid==2.11.3
 asttokens==2.0.5
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -340,7 +340,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.1.4
+moto==3.1.5
 msal-extensions==0.3.1
 msal==1.17.0
 msgpack==1.0.3
@@ -456,7 +456,7 @@ pytzdata==2020.1
 pywinrm==0.4.3
 pyzmq==22.3.0
 qds-sdk==1.16.1
-readme-renderer==34.0
+readme-renderer==35.0
 redis==3.5.3
 redshift-connector==2.0.906
 requests-file==1.5.1
@@ -534,29 +534,29 @@ tqdm==4.64.0
 traitlets==5.1.1
 trino==0.312.0
 twine==4.0.0
-types-Deprecated==1.2.5
-types-Markdown==3.3.12
-types-PyMySQL==1.0.15
-types-PyYAML==6.0.5
-types-boto==2.49.11
+types-Deprecated==1.2.6
+types-Markdown==3.3.13
+types-PyMySQL==1.0.17
+types-PyYAML==6.0.6
+types-boto==2.49.13
 types-certifi==2021.10.8.1
-types-croniter==1.0.8
-types-cryptography==3.3.19
-types-docutils==0.17.0
-types-freezegun==1.1.8
-types-paramiko==2.8.17
-types-protobuf==3.19.15
-types-python-dateutil==2.8.10
-types-python-slugify==5.0.3
+types-croniter==1.0.9
+types-cryptography==3.3.20
+types-docutils==0.18.2
+types-freezegun==1.1.9
+types-paramiko==2.8.19
+types-protobuf==3.19.17
+types-python-dateutil==2.8.11
+types-python-slugify==5.0.4
 types-pytz==2021.3.6
-types-redis==4.1.19
-types-requests==2.27.16
-types-setuptools==57.4.12
+types-redis==4.1.21
+types-requests==2.27.19
+types-setuptools==57.4.14
 types-six==1.16.15
-types-tabulate==0.8.6
+types-tabulate==0.8.7
 types-termcolor==1.1.3
-types-toml==0.10.4
-types-urllib3==1.26.11
+types-toml==0.10.5
+types-urllib3==1.26.13
 typing_extensions==4.2.0
 tzdata==2022.1
 tzlocal==4.2
@@ -575,7 +575,7 @@ websocket-client==1.3.2
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.154.0
+yandexcloud==0.155.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
