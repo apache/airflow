@@ -1257,3 +1257,15 @@ Breeze uses built-in capability of ``rich`` to record and print the command help
 It's enabled by setting ``RECORD_BREEZE_OUTPUT_FILE`` to a file name where it will be recorded.
 By default it records the screenshots with default characters width and with "Breeze screenshot" title,
 but you can override it with ``RECORD_BREEZE_WIDTH`` and ``RECORD_BREEZE_TITLE`` variables respectively.
+
+Uninstalling Breeze
+===================
+Breeze was installed with ``pipx``, with ``pipx list``, you can list the installed packages.
+Once you have the name of ``breeze`` package you can proceed to uninstall it.
+
+.. code-block:: bash
+    pipx list
+This will also remove breeze from the folder: ``${HOME}.local/bin/``
+
+.. code-block:: bash
+    pipx uninstall apache-airflow-breeze
