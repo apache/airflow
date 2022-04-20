@@ -22,7 +22,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import List, Optional, Tuple, Union
+from typing import Hashable, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -153,7 +153,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         grouped_logs = defaultdict(list)
         for log in logs:
             key = getattr(log, self.host_field, 'default_host')
-            grouped_logs[key].append(log)
+            
+            try:
+                grouped_logs[key].append(log) 
+            except TypeError as e:
+                if not isinstance(key, Hashable): 
+                    raise ValueError("The host field in all log records needs to be hashable. "
+                    "If you are using filebeat, read here: "
+                    "https://github.com/apache/airflow/issues/15613#issuecomment-1104487752") from e
+                else:
+                    raise # Type error happened for another reason. 
+
 
         # return items sorted by timestamp.
         result = sorted(grouped_logs.items(), key=lambda kv: getattr(kv[1][0], 'message', '_'))
