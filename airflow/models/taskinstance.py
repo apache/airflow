@@ -2630,7 +2630,7 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict):
-        ti_key = TaskInstanceKey(**obj_dict.pop('key'))
+        ti_key = TaskInstanceKey(*obj_dict.pop('key'))
         start_date = None
         end_date = None
         start_date_str: Optional[str] = obj_dict.pop('start_date')
