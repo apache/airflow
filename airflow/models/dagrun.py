@@ -657,6 +657,13 @@ class DagRun(Base, LoggingMixin):
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
             schedulable_tis, changed_tis = self._get_ready_tis(schedulable_tis, finished_tis, session)
 
+            if changed_tis:
+                # It's possible when we expanded a mapped task that we now skipped some, so what was
+                # previously unfinished might now be finished -- we need to re-compute
+                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
+                unfinished_tis = new_unfinished_tis
+
         return TISchedulingDecision(
             tis=tis,
             schedulable_tis=schedulable_tis,
@@ -708,7 +715,9 @@ class DagRun(Base, LoggingMixin):
                         assert isinstance(schedulable.task, MappedOperator)
                         new_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
                         if schedulable.state == TaskInstanceState.SKIPPED:
-                            # Task is now skipped (likely cos upstream returned 0 tasks
+                            # Task is now skipped (likely cos upstream returned 0 tasks)
+                            ready_tis.pop()
+                            changed_tis = True
                             continue
                         assert new_tis[0] is schedulable
                         expanded_tis.extend(new_tis[1:])
@@ -716,7 +725,7 @@ class DagRun(Base, LoggingMixin):
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states.keys())
-        if tis_filter is not None:
+        if not changed_tis or tis_filter is not None:
             fresh_tis = session.query(TI).filter(tis_filter).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
