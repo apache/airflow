@@ -442,7 +442,7 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
 
         validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
+        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
