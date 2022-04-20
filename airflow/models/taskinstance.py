@@ -451,7 +451,7 @@ class TaskInstance(Base, LoggingMixin):
     state = Column(String(20))
     _try_number = Column('try_number', Integer, default=0)
     max_tries = Column(Integer)
-    hostname = Column(String(1000))
+    hostnames = Column(PickleType(pickler=dill))
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
@@ -581,7 +581,7 @@ class TaskInstance(Base, LoggingMixin):
         self.unixname = getuser()
         if state:
             self.state = state
-        self.hostname = ''
+        self.hostnames = []
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
@@ -597,7 +597,7 @@ class TaskInstance(Base, LoggingMixin):
             'task_id': task.task_id,
             'run_id': run_id,
             '_try_number': 0,
-            'hostname': '',
+            'hostnames': [],
             'unixname': getuser(),
             'queue': task.queue,
             'pool': task.pool,
@@ -872,7 +872,7 @@ class TaskInstance(Base, LoggingMixin):
             # accessor here otherwise it will be incremented by one already.
             self.try_number = ti._try_number
             self.max_tries = ti.max_tries
-            self.hostname = ti.hostname
+            self.hostnames = ti.hostnames
             self.unixname = ti.unixname
             self.job_id = ti.job_id
             self.pool = ti.pool
@@ -1280,7 +1280,6 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
-        self.hostname = get_hostname()
         self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
@@ -1366,6 +1365,9 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info("Marking success for %s on %s", self.task, self.execution_date)
             else:
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
+
+        self.hostnames.append(get_hostname())
+
         return True
 
     def _date_or_empty(self, attr: str):
@@ -1425,7 +1427,6 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
-        self.hostname = get_hostname()
         self.pid = os.getpid()
         if not test_mode:
             session.merge(self)
@@ -2255,7 +2256,7 @@ class TaskInstance(Base, LoggingMixin):
             'Try {{try_number}} out of {{max_tries + 1}}<br>'
             'Exception:<br>{{exception_html}}<br>'
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            'Host: {{ti.hostname}}<br>'
+            'Host: {{ti.hostnames[try_number-1]}}<br>'
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
@@ -2263,7 +2264,7 @@ class TaskInstance(Base, LoggingMixin):
             'Try {{try_number}} out of {{max_tries + 1}}<br>'
             'Exception:<br>Failed attempt to attach error logs<br>'
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            'Host: {{ti.hostname}}<br>'
+            'Host: {{ti.hostnames[try_number-1]}}<br>'
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 

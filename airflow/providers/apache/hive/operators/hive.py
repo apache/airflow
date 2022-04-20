@@ -139,7 +139,7 @@ class HiveOperator(BaseOperator):
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 execution_date=ti.execution_date.isoformat(),
-                hostname=ti.hostname.split('.')[0],
+                hostname=ti.hostnames[-1].split('.')[0],
             )
 
         if self.hiveconf_jinja_translate:

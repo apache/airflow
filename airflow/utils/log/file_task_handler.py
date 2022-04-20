@@ -146,7 +146,7 @@ class FileTaskHandler(logging.Handler):
 
                 kube_client = get_kube_client()
 
-                if len(ti.hostname) >= 63:
+                if len(ti.hostnames[try_number]) >= 63:
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
@@ -154,16 +154,16 @@ class FileTaskHandler(logging.Handler):
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
-                        if pod.metadata.name.startswith(ti.hostname)
+                        if pod.metadata.name.startswith(ti.hostnames[try_number])
                     ]
                     if len(matches) == 1:
-                        if len(matches[0]) > len(ti.hostname):
+                        if len(matches[0]) > len(ti.hostnames[try_number]):
                             ti.hostname = matches[0]
 
-                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostnames[try_number]} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
+                    name=ti.hostnames[try_number],
                     namespace=conf.get('kubernetes', 'namespace'),
                     container='base',
                     follow=False,
@@ -175,11 +175,11 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:
-                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+                log += f'*** Unable to fetch logs from worker pod {ti.hostnames[try_number]} ***\n{str(f)}\n\n'
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
+            url = os.path.join("http://{ti.hostnames[try_number]}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"
@@ -257,7 +257,7 @@ class FileTaskHandler(logging.Handler):
             log, metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
-            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
+            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostnames[try_number_element], log)]
             metadata_array[i] = metadata
 
         return logs, metadata_array
