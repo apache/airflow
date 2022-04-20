@@ -23,7 +23,6 @@ import sys
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
-from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -100,18 +99,8 @@ class S3KeySensor(BaseSensorOperator):
         self.verify = verify
         self.hook: Optional[S3Hook] = None
 
-    def _resolve_bucket_and_key(self, key):
-        """If key is URI, parse bucket"""
-        if self.bucket_name is None:
-            return S3Hook.parse_s3_url(key)
-        else:
-            parsed_url = urlparse(key)
-            if parsed_url.scheme != '' or parsed_url.netloc != '':
-                raise AirflowException('If bucket_name provided, bucket_key must be relative path, not URI.')
-            return self.bucket_name, key
-
     def _check_key(self, key):
-        bucket_name, key = self._resolve_bucket_and_key(key)
+        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, 'bucket_name', 'bucket_key')
         self.log.info('Poking for key : s3://%s/%s', bucket_name, key)
 
         """

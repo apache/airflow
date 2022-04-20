@@ -73,6 +73,20 @@ class TestAwsS3Hook:
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-s3-directory/")
         assert parsed == ("test", "this/is/not/a-real-s3-directory/"), "Incorrect parsing of the s3 url"
 
+    def test_get_s3_bucket_key_valid_full_s3_url(self):
+        bucket, key = S3Hook.get_s3_bucket_key(None, "s3://test/test.txt", '', '')
+        assert bucket == "test"
+        assert key == "test.txt"
+
+    def test_get_s3_bucket_key_valid_bucket_and_key(self):
+        bucket, key = S3Hook.get_s3_bucket_key("test", "test.txt", '', '')
+        assert bucket == "test"
+        assert key == "test.txt"
+
+    def test_get_s3_bucket_key_incompatible(self):
+        with pytest.raises(TypeError):
+            S3Hook.get_s3_bucket_key("test", "s3://test/test.txt", '', '')
+
     def test_check_for_bucket(self, s3_bucket):
         hook = S3Hook()
         assert hook.check_for_bucket(s3_bucket) is True

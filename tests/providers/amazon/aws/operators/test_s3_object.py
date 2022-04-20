@@ -282,3 +282,15 @@ class TestS3CreateObjectOperator(unittest.TestCase):
         operator.execute(None)
 
         mock_load_bytes.assert_called_once_with(data, S3_KEY, S3_BUCKET, False, False, None)
+
+    @mock.patch.object(S3Hook, "load_string")
+    def test_execute_if_s3_bucket_not_provided(self, mock_load_string):
+        data = "data"
+        operator = S3CreateObjectOperator(
+            task_id=TASK_ID,
+            s3_key=f's3://{S3_BUCKET}/{S3_KEY}',
+            data=data,
+        )
+        operator.execute(None)
+
+        mock_load_string.assert_called_once_with(data, S3_KEY, S3_BUCKET, False, False, None, None, None)

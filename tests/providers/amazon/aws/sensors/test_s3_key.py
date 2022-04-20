@@ -62,7 +62,7 @@ class TestS3KeySensor(unittest.TestCase):
         op = S3KeySensor(
             task_id='s3_key_sensor', bucket_key="s3://test_bucket/file", bucket_name='test_bucket'
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             op.poke(None)
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
@@ -78,7 +78,7 @@ class TestS3KeySensor(unittest.TestCase):
             bucket_key=["test_bucket", "s3://test_bucket/file"],
             bucket_name='test_bucket',
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             op.poke(None)
 
     @parameterized.expand(
