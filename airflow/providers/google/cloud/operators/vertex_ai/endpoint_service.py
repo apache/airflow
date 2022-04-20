@@ -55,7 +55,8 @@ class CreateEndpointOperator(BaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param endpoint: Required. The Endpoint to create.
-    :param endpoint_id: The ID of Endpoint. If not provided, Vertex AI will generate a value for this ID.
+    :param endpoint_id: The ID of Endpoint. This value should be 1-10 characters, and valid characters
+        are /[0-9]/. If not provided, Vertex AI will generate a value for this ID.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
