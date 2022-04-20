@@ -347,11 +347,10 @@ $('form[data-action]').on('submit', function submit(e) {
     if (form.task_id) {
       form.task_id.value = taskId;
     }
-    if (form.map_index) {
-      form.map_index.value = mapIndex === undefined ? '' : mapIndex;
-    }
-    if (form.map_indexes) {
-      form.map_indexes.value = mapIndex === undefined ? '' : mapIndex;
+    if (form.map_index && mapIndex >= 0) {
+      form.map_index.value = mapIndex;
+    } else if (form.map_index) {
+      form.map_index.remove();
     }
     form.action = $(this).data('action');
     form.submit();
