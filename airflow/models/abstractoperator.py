@@ -180,8 +180,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
                         if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
-                            except Exception as e:
-                                self.log.exception(e)
+                            except Exception:
+                                self.log.exception("Failed to get source %s", item)
         self.prepare_template()
 
     def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
