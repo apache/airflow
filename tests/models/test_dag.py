@@ -49,6 +49,7 @@ from airflow.models.dag import dag as dag_decorator
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
@@ -1397,6 +1398,84 @@ class TestDag(unittest.TestCase):
             session=session,
         )
 
+        dagruns = (
+            session.query(
+                DagRun,
+            )
+            .filter(
+                DagRun.dag_id == dag_id,
+            )
+            .all()
+        )
+
+        assert len(dagruns) == 1
+        dagrun = dagruns[0]  # type: DagRun
+        assert dagrun.state == dag_run_state
+
+    @parameterized.expand(
+        [
+            (State.QUEUED,),
+            (State.RUNNING,),
+        ]
+    )
+    def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
+        dag_id = 'test_clear_set_dagrun_state'
+        self._clean_up(dag_id)
+        task_id = 't1'
+
+        def consumer(value):
+            print(value)
+
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(op_args=[1, 2, 4])
+
+        session = settings.Session()
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        session.merge(dagrun_1)
+        ti = (
+            session.query(TI)
+            .filter(TI.map_index == 0, TI.task_id == task_id, TI.dag_id == dag.dag_id)
+            .first()
+        )
+        ti2 = (
+            session.query(TI)
+            .filter(TI.map_index == 1, TI.task_id == task_id, TI.dag_id == dag.dag_id)
+            .first()
+        )
+        ti.state = State.SUCCESS
+        ti2.state = State.SUCCESS
+        ti.execution_date = DEFAULT_DATE
+        ti2.execution_date = DEFAULT_DATE
+        session.merge(ti)
+        session.merge(ti2)
+        session.flush()
+
+        dag.clear(
+            task_ids=[(task_id, 0)],
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            dag_run_state=dag_run_state,
+            include_subdags=False,
+            include_parentdag=False,
+            session=session,
+        )
+        ti = (
+            session.query(TI)
+            .filter(TI.map_index == ti.map_index, TI.task_id == ti.task_id, TI.dag_id == ti.dag_id)
+            .first()
+        )
+        ti2 = (
+            session.query(TI)
+            .filter(TI.map_index == ti2.map_index, TI.task_id == ti2.task_id, TI.dag_id == ti2.dag_id)
+            .first()
+        )
+        assert ti.state is None  # cleared
+        assert ti2.state == State.SUCCESS  # not cleared
         dagruns = (
             session.query(
                 DagRun,

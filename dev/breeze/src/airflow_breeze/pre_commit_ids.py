@@ -71,6 +71,7 @@ PRE_COMMIT_LIST = [
     'migration-reference',
     'mixed-line-ending',
     'mypy',
+    'newsfragments',
     'no-providers-in-core-examples',
     'no-relative-imports',
     'persist-credentials-disabled',

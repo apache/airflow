@@ -49,7 +49,7 @@
 !.flake8
 !.dockerignore
 !pytest.ini
-!CHANGELOG.txt
+!RELEASE_NOTES.rst
 !LICENSE
 !MANIFEST.in
 !NOTICE
