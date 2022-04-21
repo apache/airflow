@@ -257,13 +257,14 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   mkvirtualenv myenv --python=python3.7
+   mkvirtualenv myenv --python=python3.9
 
 5. Initialize the created environment:
 
 .. code-block:: bash
 
-   ./breeze-legacy initialize-local-virtualenv --python 3.7
+   ./scripts/tools/initialize_virtualenv.py
+
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
@@ -886,39 +887,33 @@ There are several sets of constraints we keep:
 
 We also have constraints with "source-providers" but they are used i
 
-The first ones can be used as constraints file when installing Apache Airflow in a repeatable way.
+The first two can be used as constraints file when installing Apache Airflow in a repeatable way.
 It can be done from the sources:
+
+from the PyPI package:
+
+.. code-block:: bash
+
+  pip install apache-airflow==2.2.5 \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+
+When you install airflow from sources (in editable mode) you should use "constraints-source-providers"
+instead (this accounts for the case when some providers have not yet been released and have conflicting
+requirements).
 
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
-
-
-or from the PyPI package:
-
-.. code-block:: bash
-
-  pip install apache-airflow \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
 
 
 This works also with extras - for example:
 
 .. code-block:: bash
 
-  pip install .[ssh] \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  pip install ".[ssh]" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints--source-providers-3.7.txt"
 
-
-As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
-tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
-fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
-
-.. code-block:: bash
-
-  pip install apache-airflow[ssh]==1.10.12 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 
 There are different set of fixed constraint files for different python major/minor versions and you should
 use the right file for the right python version.
@@ -940,7 +935,9 @@ if the tests are successful.
 Documentation
 =============
 
-Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
+Documentation for ``apache-airflow`` package and other packages that are closely related to it ie.
+providers packages are in ``/docs/`` directory. For detailed information on documentation development,
+see: `docs/README.rst <docs/README.rst>`_
 
 Static code checks
 ==================
