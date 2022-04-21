@@ -81,6 +81,8 @@ const MarkSuccess = ({
     onClose();
   };
 
+  const isLoading = isMarkLoading || isConfirmLoading;
+
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
@@ -89,13 +91,14 @@ const MarkSuccess = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
+      <Button colorScheme="green" onClick={onClick} isLoading={isLoading}>
         Mark Success
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as success:"
         body={affectedTasks}
       />
