@@ -1448,25 +1448,10 @@ class DAG(LoggingMixin):
         if start_date:
             tis = tis.filter(DagRun.execution_date >= start_date)
 
-        def _task_id_map_filter(val):
-            # Compute a filter  for TI.task_id and TI.map_index based on input values
-            # For each item, it will either be a task_id, or (task_id, map_index)
-            task_id_only = list(filter(lambda v: isinstance(v, str), val))
-            with_map_index = list(filter(lambda v: not isinstance(v, str), val))
-            filters = []
-
-            if task_id_only:
-                filters.append(TI.task_id.in_(task_id_only))
-            if with_map_index:
-                filters.append(
-                    tuple_in_condition((TI.task_id, TI.map_index), with_map_index),
-                )
-            return or_(*filters) if len(filters) > 1 else filters[0]
-
         if task_ids is None:
             pass  # Disable filter if not set.
         else:
-            tis = tis.filter(_task_id_map_filter(task_ids))
+            tis = tis.filter(TaskInstance.filter_for_task_id_map_index_lists(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
@@ -1678,8 +1663,8 @@ class DAG(LoggingMixin):
         task = self.get_task(task_id)
         task.dag = self
 
-        tasks_to_set_state: Union[List[Operator], List[Tuple[Operator, int]]]
-        task_ids_to_exclude_from_clear: Union[Set[str], Set[Tuple[str, int]]]
+        tasks_to_set_state: List[Union[Operator, Tuple[Operator, int]]]
+        task_ids_to_exclude_from_clear: Set[Union[str, Tuple[str, int]]]
         if map_indexes is None:
             tasks_to_set_state = [task]
             task_ids_to_exclude_from_clear = {task_id}
