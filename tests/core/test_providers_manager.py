@@ -182,7 +182,7 @@ class TestProviderManager(unittest.TestCase):
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
-        with self._caplog.at_level(logging.DEBUG):
+        with self._caplog.at_level(logging.INFO):
             mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
             providers_manager = ProvidersManager()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
@@ -192,6 +192,5 @@ class TestProviderManager(unittest.TestCase):
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [
-                "Optional feature disabled on exception when importing 'HookClass' from "
-                "'test_package' package"
+                "Optional provider feature disabled when importing 'HookClass' from " "'test_package' package"
             ] == self._caplog.messages

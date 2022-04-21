@@ -29,8 +29,8 @@ import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
 import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
-const Run = ({
-  dagId, runId, taskId,
+const MarkSuccess = ({
+  dagId, runId, taskId, mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -58,33 +58,27 @@ const Run = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await confirmChangeMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await confirmChangeMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await markSuccessMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await markSuccessMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
@@ -109,4 +103,4 @@ const Run = ({
   );
 };
 
-export default Run;
+export default MarkSuccess;

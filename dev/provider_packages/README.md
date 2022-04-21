@@ -227,19 +227,19 @@ that any new added providers are not added as packages (in case they are not yet
 
 ```shell script
 INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -e ".[devel_all]" \
-    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt
+    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraintsource-providers-3.7.txt
 ```
 
 Note that you might need to add some extra dependencies to your system to install "devel_all" - many
 dependencies are needed to make a clean install - the `Breeze` environment has all the
 dependencies installed in case you have problem with setting up your local virtualenv.
 
-You can also use `breeze` to prepare your virtualenv (it will print extra information if some
+You can also use the script `initialize_virtualenv.py` to prepare your virtualenv (it will print extra information if some
 dependencies are missing/installation fails and it will also reset your SQLite test db in
 the `${HOME}/airflow` directory:
 
 ```shell script
-./breeze initialize-local-virtualenv
+./scripts/tools/initialize_virtualenv.py
 ```
 
 You can find description of all the commands and more information about the "prepare"

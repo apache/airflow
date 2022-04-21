@@ -30,24 +30,16 @@ const QueueRun = ({ dagId, runId }) => {
 
   // Get what the changes will be and show it in a modal
   const onClick = async () => {
-    try {
-      const data = await onQueue({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await onQueue({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   // Confirm changes
   const onConfirm = async () => {
-    try {
-      await onQueue({ confirmed: true });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await onQueue({ confirmed: true });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (

@@ -33,6 +33,7 @@ const MarkFailed = ({
   dagId,
   runId,
   taskId,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -62,33 +63,27 @@ const MarkFailed = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await confirmChangeMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await confirmChangeMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await markFailedMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await markFailedMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
