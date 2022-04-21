@@ -23,18 +23,17 @@ import math
 import os
 import pickle
 import signal
-import threading
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
-from inspect import currentframe
 from tempfile import NamedTemporaryFile
 from types import TracebackType
 from typing import (
     IO,
     TYPE_CHECKING,
     Any,
+    Callable,
     ContextManager,
     Dict,
     Generator,
@@ -135,8 +134,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-
-_TASK_EXECUTION_FRAME_LOCAL_STORAGE = threading.local()
 
 
 @contextlib.contextmanager
@@ -1624,31 +1621,27 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
-        try:
-            if task_to_execute.execution_timeout:
-                # If we are coming in with a next_method (i.e. from a deferral),
-                # calculate the timeout from our start_date.
-                if self.next_method:
-                    timeout_seconds = (
-                        task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
-                    ).total_seconds()
-                else:
-                    timeout_seconds = task_to_execute.execution_timeout.total_seconds()
-                try:
-                    # It's possible we're already timed out, so fast-fail if true
-                    if timeout_seconds <= 0:
-                        raise AirflowTaskTimeout()
-                    # Run task in timeout wrapper
-                    with timeout(timeout_seconds):
-                        result = execute_callable(context=context)
-                except AirflowTaskTimeout:
-                    task_to_execute.on_kill()
-                    raise
+        if task_to_execute.execution_timeout:
+            # If we are coming in with a next_method (i.e. from a deferral),
+            # calculate the timeout from our start_date.
+            if self.next_method:
+                timeout_seconds = (
+                    task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
+                ).total_seconds()
             else:
-                result = execute_callable(context=context)
-        except:  # noqa: E722
-            _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
-            raise
+                timeout_seconds = task_to_execute.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = execute_callable(context=context)
+            except AirflowTaskTimeout:
+                task_to_execute.on_kill()
+                raise
+        else:
+            result = execute_callable(context=context)
         with create_session() as session:
             if task_to_execute.do_xcom_push:
                 xcom_value = result
@@ -1844,33 +1837,21 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
-    def get_truncated_error_traceback(self, error: BaseException) -> Optional[TracebackType]:
+    @staticmethod
+    def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> Optional[TracebackType]:
         """
-        Returns truncated error traceback.
-
-        This method returns traceback of the error truncated to the
-        frame saved by earlier try/except along the way. If the frame
-        is found, the traceback will be truncated to below the frame.
+        Truncates the traceback of an exception to the first frame called from within a given function
 
         :param error: exception to get traceback from
-        :return: traceback to print
+        :param truncate_to: Function to truncate TB to. Must have a ``__code__`` attribute
+
+        :meta private:
         """
         tb = error.__traceback__
-        try:
-            execution_frame = _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame
-        except AttributeError:
-            self.log.warning(
-                "We expected to get frame set in local storage but it was not."
-                " Please report this as an issue with full logs"
-                " at https://github.com/apache/airflow/issues/new",
-                exc_info=True,
-            )
-            return tb
-        _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = None
+        code = truncate_to.__func__.__code__  # type: ignore[attr-defined]
         while tb is not None:
-            if tb.tb_frame is execution_frame:
-                tb = tb.tb_next
-                break
+            if tb.tb_frame.f_code is code:
+                return tb.tb_next
             tb = tb.tb_next
         return tb or error.__traceback__
 
@@ -1889,7 +1870,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                tb = self.get_truncated_error_traceback(error)
+                tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
                 self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
