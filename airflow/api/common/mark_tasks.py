@@ -144,12 +144,12 @@ def set_state(
 
     # now look for the task instances that are affected
 
-    qry_dag = _get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
+    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
         tis_altered = qry_dag.with_for_update().all()
         if sub_dag_run_ids:
-            qry_sub_dag = _all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
+            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
             task_instance.set_state(state, session=session)
@@ -157,12 +157,12 @@ def set_state(
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
-            qry_sub_dag = _all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
+            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.all()
     return tis_altered
 
 
-def _all_subdag_tasks_query(
+def all_subdag_tasks_query(
     sub_dag_run_ids: List[str],
     session: SASession,
     state: TaskInstanceState,
@@ -177,7 +177,7 @@ def _all_subdag_tasks_query(
     return qry_sub_dag
 
 
-def _get_all_dag_task_query(
+def get_all_dag_task_query(
     dag: DAG,
     session: SASession,
     state: TaskInstanceState,
