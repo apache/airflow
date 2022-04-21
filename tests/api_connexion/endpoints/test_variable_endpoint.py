@@ -109,7 +109,7 @@ class TestGetVariable(TestVariableEndpoint):
             "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value}
+        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
 
     def test_should_respond_404_if_not_found(self):
         response = self.client.get(
@@ -132,8 +132,8 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=2&offset=0",
                 {
                     "variables": [
-                        {"key": "var1", "value": "1"},
-                        {"key": "var2", "value": "foo"},
+                        {"key": "var1", "value": "1", "description": None},
+                        {"key": "var2", "value": "foo", "description": None},
                     ],
                     "total_entries": 3,
                 },
@@ -142,8 +142,8 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=2&offset=1",
                 {
                     "variables": [
-                        {"key": "var2", "value": "foo"},
-                        {"key": "var3", "value": "[100, 101]"},
+                        {"key": "var2", "value": "foo", "description": None},
+                        {"key": "var3", "value": "[100, 101]", "description": None},
                     ],
                     "total_entries": 3,
                 },
@@ -152,7 +152,7 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=1&offset=2",
                 {
                     "variables": [
-                        {"key": "var3", "value": "[100, 101]"},
+                        {"key": "var3", "value": "[100, 101]", "description": None},
                     ],
                     "total_entries": 3,
                 },
@@ -279,6 +279,7 @@ class TestPostVariables(TestVariableEndpoint):
         assert response.json == {
             "key": "var_create",
             "value": "{}",
+            "description": None,
         }
 
     def test_should_reject_invalid_request(self):

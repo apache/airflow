@@ -23,6 +23,7 @@ class VariableSchema(Schema):
 
     key = fields.String(required=True)
     value = fields.String(attribute="val", required=True)
+    description = fields.String()
 
 
 class VariableCollectionSchema(Schema):
