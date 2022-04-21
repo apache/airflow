@@ -63,13 +63,13 @@ class TaskFail(Base):
         viewonly=True,
     )
 
-    def __init__(self, task, run_id, start_date, end_date, map_index):
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
-        self.run_id = run_id
-        self.map_index = map_index
-        self.start_date = start_date
-        self.end_date = end_date
+    def __init__(self, ti):
+        self.dag_id = ti.dag_id
+        self.task_id = ti.task_id
+        self.run_id = ti.run_id
+        self.map_index = ti.map_index
+        self.start_date = ti.start_date
+        self.end_date = ti.end_date
         if self.end_date and self.start_date:
             self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
