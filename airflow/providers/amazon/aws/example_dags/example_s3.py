@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
     S3DeleteBucketTaggingOperator,
     S3DeleteObjectsOperator,
+    S3FileTransformOperator,
     S3GetBucketTaggingOperator,
     S3PutBucketTaggingOperator,
 )
@@ -39,7 +40,6 @@ KEY = os.environ.get('KEY', 'key')
 KEY_2 = os.environ.get('KEY_2', 'key2')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
-KEY = os.environ.get('KEY', 'key')
 DATA = os.environ.get(
     'DATA',
     '''
@@ -149,6 +149,17 @@ with DAG(
         dest_bucket_key=KEY_2,
     )
     # [END howto_operator_s3_copy_object]
+
+    # [START howto_operator_s3_file_transform]
+    s3_file_transform = S3FileTransformOperator(
+        task_id="s3_file_transform",
+        source_s3_key=f's3://{BUCKET_NAME}/{KEY}',
+        dest_s3_key=f's3://{BUCKET_NAME_2}/{KEY_2}',
+        # Use `cp` command as transform script as an example
+        transform_script='cp',
+        replace=True,
+    )
+    # [END howto_operator_s3_file_transform]
 
     # [START howto_operator_s3_delete_objects]
     s3_delete_objects = S3DeleteObjectsOperator(
