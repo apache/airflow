@@ -18,6 +18,7 @@
 """Base operator for all operators."""
 import abc
 import collections
+import collections.abc
 import contextlib
 import copy
 import functools
@@ -64,6 +65,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
+    DEFAULT_TASK_EXECUTION_TIMEOUT,
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
@@ -131,7 +133,7 @@ def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]
     return Resources(**resources)
 
 
-def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
+def _get_parent_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
     if not dag:
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
@@ -143,20 +145,24 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     return dag_args, dag_params
 
 
-def _merge_defaults(
-    dag_args: dict,
-    dag_params: ParamsDict,
+def get_merged_defaults(
+    dag: Optional["DAG"],
+    task_group: Optional["TaskGroup"],
     task_params: Optional[dict],
-    task_default_args: dict,
+    task_default_args: Optional[dict],
 ) -> Tuple[dict, ParamsDict]:
+    args, params = _get_parent_defaults(dag, task_group)
     if task_params:
-        dag_params.update(task_params)
-    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
-        raise TypeError("default_args must be a mapping")
-    dag_args.update(task_default_args)
-    with contextlib.suppress(KeyError):
-        dag_params.update(task_default_args.pop("params"))
-    return dag_args, dag_params
+        if not isinstance(task_params, collections.abc.Mapping):
+            raise TypeError("params must be a mapping")
+        params.update(task_params)
+    if task_default_args:
+        if not isinstance(task_default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
+        args.update(task_default_args)
+        with contextlib.suppress(KeyError):
+            params.update(task_default_args["params"] or {})
+    return args, params
 
 
 class _PartialDescriptor:
@@ -196,7 +202,7 @@ def partial(
     queue: str = DEFAULT_QUEUE,
     pool: Optional[str] = None,
     pool_slots: int = DEFAULT_POOL_SLOTS,
-    execution_timeout: Optional[timedelta] = None,
+    execution_timeout: Optional[timedelta] = DEFAULT_TASK_EXECUTION_TIMEOUT,
     retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
     retry_exponential_backoff: bool = False,
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
@@ -217,7 +223,6 @@ def partial(
     from airflow.utils.task_group import TaskGroupContext
 
     validate_mapping_kwargs(operator_class, "partial", kwargs)
-    user_supplied_task_id = task_id
 
     dag = dag or DagContext.get_current_dag()
     if dag:
@@ -226,12 +231,11 @@ def partial(
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    dag_args, dag_params = _get_dag_defaults(dag, task_group)
-    partial_kwargs, default_params = _merge_defaults(
-        dag_args=dag_args,
-        dag_params=dag_params,
+    partial_kwargs, default_params = get_merged_defaults(
+        dag=dag,
+        task_group=task_group,
         task_params=params,
-        task_default_args=kwargs.pop("default_args", {}),
+        task_default_args=kwargs.pop("default_args", None),
     )
     partial_kwargs.update(kwargs)
 
@@ -282,11 +286,7 @@ def partial(
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
-    return OperatorPartial(
-        operator_class=operator_class,
-        user_supplied_task_id=user_supplied_task_id,
-        kwargs=partial_kwargs,
-    )
+    return OperatorPartial(operator_class=operator_class, kwargs=partial_kwargs)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -357,12 +357,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
 
-            dag_args, dag_params = _get_dag_defaults(dag, task_group)
-            default_args, merged_params = _merge_defaults(
-                dag_args=dag_args,
-                dag_params=dag_params,
+            default_args, merged_params = get_merged_defaults(
+                dag=dag,
+                task_group=task_group,
                 task_params=kwargs.pop("params", None),
-                task_default_args=kwargs.pop("default_args", {}),
+                task_default_args=kwargs.pop("default_args", None),
             )
 
             for arg in sig_cache.parameters:
@@ -598,8 +597,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     # Implementing Operator.
-    template_fields: Collection[str] = ()
-    template_ext: Collection[str] = ()
+    template_fields: Sequence[str] = ()
+    template_ext: Sequence[str] = ()
 
     template_fields_renderers: Dict[str, str] = {}
 
@@ -681,25 +680,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    def __new__(
-        cls,
-        dag: Optional['DAG'] = None,
-        task_group: Optional["TaskGroup"] = None,
-        _airflow_from_mapped: bool = False,  # Whether called from a MappedOperator.
-        **kwargs,
-    ):
-        # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
-        # create mapped operators.
-        from airflow.models.dag import DagContext
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
-
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-
-        if not _airflow_from_mapped and isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs).expand()
-        return super().__new__(cls)
-
     def __init__(
         self,
         task_id: str,
@@ -727,7 +707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool: Optional[str] = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: Optional[timedelta] = None,
-        execution_timeout: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = DEFAULT_TASK_EXECUTION_TIMEOUT,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
@@ -1479,12 +1459,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     is_mapped: ClassVar[bool] = False
 
     @property
-    def inherits_from_dummy_operator(self):
-        """Used to determine if an Operator is inherited from DummyOperator"""
-        # This looks like `isinstance(self, DummyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+    def inherits_from_empty_operator(self):
+        """Used to determine if an Operator is inherited from EmptyOperator"""
+        # This looks like `isinstance(self, EmptyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its sub-classes (which don't inherit from anything but BaseOperator).
-        return getattr(self, '_is_dummy', False)
+        return getattr(self, '_is_empty', False)
 
     def defer(
         self,

@@ -39,7 +39,6 @@ const TaskName = ({
   >
     <Text
       display="inline"
-      fontSize="12px"
       ml={level * 4 + 4}
       isTruncated
     >

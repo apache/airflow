@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock as MM
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.exceptions import AirflowException
@@ -52,7 +53,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             run_id=RUN_ID,
             project_id=PROJECT_ID,
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -76,6 +77,6 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             run_id=RUN_ID,
             project_id=PROJECT_ID,
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )

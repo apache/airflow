@@ -680,7 +680,7 @@ cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  ./breeze-legacy --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -707,13 +707,7 @@ In order to add a new version the following operations should be done (example u
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.10
-
-* push image as cache to GitHub:
-
-.. code-block:: bash
-
-  ./breeze push-image --python 3.10
+  breeze build-image --python 3.10
 
 * Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_

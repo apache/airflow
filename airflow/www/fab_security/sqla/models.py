@@ -20,9 +20,9 @@ import datetime
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Set, Tuple, Union
 
-from flask import g
+from flask import current_app, g
 from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
     Boolean,
@@ -181,7 +181,7 @@ class User(Model):
     last_login = Column(DateTime)
     login_count = Column(Integer)
     fail_login_count = Column(Integer)
-    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="joined")
+    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="selectin")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
 
@@ -229,10 +229,24 @@ class User(Model):
 
     @property
     def perms(self):
-        perms = set()
-        for role in self.roles:
-            perms.update((perm.action.name, perm.resource.name) for perm in role.permissions)
-        return perms
+        if not self._perms:
+            # Using the ORM here is _slow_ (Creating lots of objects to then throw them away) since this is in
+            # the path for every request. Avoid it if we can!
+            if current_app:
+                sm = current_app.appbuilder.sm
+                self._perms: Set[Tuple[str, str]] = set(
+                    sm.get_session.query(sm.action_model.name, sm.resource_model.name)
+                    .join(sm.permission_model.action)
+                    .join(sm.permission_model.resource)
+                    .join(sm.permission_model.role)
+                    .filter(sm.role_model.user.contains(self))
+                    .all()
+                )
+            else:
+                self._perms = {
+                    (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
+                }
+        return self._perms
 
     def get_id(self):
         return self.id
@@ -242,6 +256,8 @@ class User(Model):
 
     def __repr__(self):
         return self.get_full_name()
+
+    _perms = None
 
 
 class RegisterUser(Model):

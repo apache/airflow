@@ -49,9 +49,12 @@ class BuildCiParams:
     airflow_constraints_reference: Optional[str] = "constraints-main"
     airflow_constraints_location: Optional[str] = ""
     airflow_pre_cached_pip_packages: str = "true"
+    login_to_github_registry: str = "false"
+    github_username: str = ""
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     image_tag: str = ""
+    github_token: str = ""
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
@@ -63,6 +66,8 @@ class BuildCiParams:
     platform: str = f"linux/{os.uname().machine}"
     debian_version: str = "bullseye"
     prepare_buildx_cache: bool = False
+    push_image: bool = False
+    empty_image: bool = False
     skip_rebuild_check: bool = False
 
     @property
@@ -77,7 +82,7 @@ class BuildCiParams:
         return image
 
     @property
-    def airflow_ci_image_name_with_tag(self):
+    def airflow_image_name_with_tag(self):
         """Construct CI image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
         return image if not self.image_tag else image + f":{self.image_tag}"
@@ -111,18 +116,18 @@ class BuildCiParams:
         return get_airflow_version()
 
     @property
-    def docker_cache_ci_directive(self) -> List[str]:
-        docker_cache_ci_directive = []
+    def docker_cache_directive(self) -> List[str]:
+        docker_cache_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_ci_directive.append(f"--cache-from={self.airflow_image_name}")
+            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
-            docker_cache_ci_directive.append("--no-cache")
+            docker_cache_directive.append("--no-cache")
         else:
-            docker_cache_ci_directive = []
+            docker_cache_directive = []
         if self.prepare_buildx_cache:
-            docker_cache_ci_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_ci_directive
+            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
+        return docker_cache_directive
 
     @property
     def extra_docker_build_flags(self) -> List[str]:

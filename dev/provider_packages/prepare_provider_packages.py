@@ -105,7 +105,8 @@ sys.path.insert(0, str(SOURCE_DIR_PATH))
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
-from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS  # type: ignore[attr-defined] # isort:skip # noqa
+from setup import PREINSTALLED_PROVIDERS  # type: ignore[attr-defined] # isort:skip # noqa
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -2068,7 +2069,7 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
         console.print(f"[red]ERROR! There were {len(warns)} warnings generated during the import[/]")
         console.print()
         console.print("[yellow]Ideally, fix it, so that no warnings are generated during import.[/]")
-        console.print("[yellow]There are two cases that are legitimate deprecation warnings though:[/]")
+        console.print("[yellow]There are three cases that are legitimate deprecation warnings though:[/]")
         console.print("[yellow] 1) when you deprecate whole module or class and replace it in provider[/]")
         console.print("[yellow] 2) when 3rd-party module generates Deprecation and you cannot upgrade it[/]")
         console.print(
@@ -2155,6 +2156,16 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "jdbc"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "azure"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "qubole"),
+    ("This module is deprecated. Please use `airflow.operators.empty`.", "winrm"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "dbt"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "jdbc"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "azure"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "qubole"),
+    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "winrm"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {

@@ -40,7 +40,7 @@ interval till one of the following will happen:
 import pendulum
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
 start_date = pendulum.datetime(2021, 1, 1, tz="UTC")
@@ -78,5 +78,5 @@ with DAG(
         mode="reschedule",
     )
     # [END howto_operator_external_task_sensor]
-    child_task2 = DummyOperator(task_id="child_task2")
+    child_task2 = EmptyOperator(task_id="child_task2")
     child_task1 >> child_task2

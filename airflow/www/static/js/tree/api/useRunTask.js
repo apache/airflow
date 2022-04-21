@@ -18,56 +18,52 @@
  */
 
 import axios from 'axios';
-import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const runUrl = getMetaValue('run_url');
 
 export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['runTask', dagId, runId, taskId],
-    ({
+    async ({
       ignoreAllDeps,
       ignoreTaskState,
       ignoreTaskDeps,
-    }) => {
-      const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        dag_id: dagId,
-        dag_run_id: runId,
-        task_id: taskId,
-        ignore_all_deps: ignoreAllDeps,
-        ignore_task_deps: ignoreTaskDeps,
-        ignore_ti_state: ignoreTaskState,
-      }).toString();
+      mapIndexes,
+    }) => Promise.all(
+      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
+        const params = new URLSearchParams({
+          csrf_token: csrfToken,
+          dag_id: dagId,
+          dag_run_id: runId,
+          task_id: taskId,
+          ignore_all_deps: ignoreAllDeps,
+          ignore_task_deps: ignoreTaskDeps,
+          ignore_ti_state: ignoreTaskState,
+          map_index: mi,
+        }).toString();
 
-      return axios.post(runUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
+        return axios.post(runUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+      }),
+    ),
     {
-      onSuccess: (data) => {
-        const { message, status } = data;
-        if (message && status === 'error') {
-          toast({
-            description: message,
-            isClosable: true,
-            status,
-          });
-        }
-        if (!status || status !== 'error') {
-          queryClient.invalidateQueries('treeData');
-          startRefresh();
-        }
+      onSuccess: () => {
+        queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

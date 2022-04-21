@@ -32,7 +32,7 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -211,7 +211,7 @@ class TestDagFileProcessor:
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         ) as dag:
-            task = DummyOperator(task_id='dummy')
+            task = EmptyOperator(task_id='dummy')
 
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
@@ -289,7 +289,7 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
         email2 = 'test2@test.com'
-        DummyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
+        EmptyOperator(task_id='sla_not_missed', dag=dag, owner='airflow', email=email2)
 
         session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
 
@@ -567,6 +567,34 @@ class TestDagFileProcessor:
         assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 2)"
 
         session.rollback()
+
+    def test_import_error_record_is_updated_not_deleted_and_recreated(self, tmpdir):
+        """
+        Test that existing import error is updated and new record not created
+        for a dag with the same filename
+        """
+        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+        session = settings.Session()
+        self._process_file(filename_to_parse, session)
+
+        import_error_1 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # process the file multiple times
+        for _ in range(10):
+            self._process_file(filename_to_parse, session)
+
+        import_error_2 = (
+            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+        )
+
+        # assert that the ID of the import error did not change
+        assert import_error_1.id == import_error_2.id
 
     def test_remove_error_clears_import_error(self, tmpdir):
         filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)

@@ -23,6 +23,7 @@ from uuid import UUID
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from googleapiclient.errors import HttpError
@@ -100,7 +101,7 @@ class TestPubSubHook(unittest.TestCase):
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
             request=dict(name=EXPANDED_TOPIC, labels=LABELS, message_storage_policy=None, kms_key_name=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -110,7 +111,7 @@ class TestPubSubHook(unittest.TestCase):
         delete_method = mock_service.return_value.delete_topic
         self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         delete_method.assert_called_once_with(
-            request=dict(topic=EXPANDED_TOPIC), retry=None, timeout=None, metadata=()
+            request=dict(topic=EXPANDED_TOPIC), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -177,7 +178,7 @@ class TestPubSubHook(unittest.TestCase):
                 dead_letter_policy=None,
                 retry_policy=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -208,7 +209,7 @@ class TestPubSubHook(unittest.TestCase):
                 dead_letter_policy=None,
                 retry_policy=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -220,7 +221,7 @@ class TestPubSubHook(unittest.TestCase):
         self.pubsub_hook.delete_subscription(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION)
         delete_method = mock_service.delete_subscription
         delete_method.assert_called_once_with(
-            request=dict(subscription=EXPANDED_SUBSCRIPTION), retry=None, timeout=None, metadata=()
+            request=dict(subscription=EXPANDED_SUBSCRIPTION), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -266,7 +267,7 @@ class TestPubSubHook(unittest.TestCase):
                 dead_letter_policy=None,
                 retry_policy=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -294,7 +295,7 @@ class TestPubSubHook(unittest.TestCase):
                 dead_letter_policy=None,
                 retry_policy=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -325,7 +326,7 @@ class TestPubSubHook(unittest.TestCase):
                 dead_letter_policy=None,
                 retry_policy=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -400,7 +401,7 @@ class TestPubSubHook(unittest.TestCase):
                 max_messages=10,
                 return_immediately=False,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -420,7 +421,7 @@ class TestPubSubHook(unittest.TestCase):
                 max_messages=10,
                 return_immediately=False,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -448,7 +449,7 @@ class TestPubSubHook(unittest.TestCase):
                     max_messages=10,
                     return_immediately=False,
                 ),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )
@@ -465,7 +466,7 @@ class TestPubSubHook(unittest.TestCase):
                 subscription=EXPANDED_SUBSCRIPTION,
                 ack_ids=['1', '2', '3'],
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -484,7 +485,7 @@ class TestPubSubHook(unittest.TestCase):
                 subscription=EXPANDED_SUBSCRIPTION,
                 ack_ids=['1', '2', '3'],
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -512,7 +513,7 @@ class TestPubSubHook(unittest.TestCase):
                     subscription=EXPANDED_SUBSCRIPTION,
                     ack_ids=['1', '2', '3'],
                 ),
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
                 metadata=(),
             )

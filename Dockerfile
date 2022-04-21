@@ -836,7 +836,7 @@ function wait_for_connection {
     local detected_backend
     detected_backend=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).scheme)" "${connection_url}")
     local detected_host
-    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname)" "${connection_url}")
+    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname or '')" "${connection_url}")
     local detected_port
     detected_port=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).port or '')" "${connection_url}")
 
@@ -865,7 +865,11 @@ function wait_for_connection {
 
     echo DB_PORT="${DB_PORT:=${detected_port}}"
     readonly DB_PORT
-    run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    if [[ -n "${DB_HOST=}" ]] && [[ -n "${DB_PORT=}" ]]; then
+        run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    else
+        >&2 echo "The connection details to the broker could not be determined. Connectivity checks were skipped."
+    fi
 }
 
 function create_www_user() {
@@ -1338,8 +1342,7 @@ ARG INSTALL_FROM_PYPI="true"
 # Force them on the main Airflow package.
 # * certifi<2021.0.0 required to keep snowflake happy
 # * dill<0.3.3 required by apache-beam
-# * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \

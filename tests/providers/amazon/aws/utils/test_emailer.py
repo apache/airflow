@@ -31,6 +31,7 @@ class TestSendEmailSes(TestCase):
             subject="subject",
             html_content="content",
             from_email="From Test <from@test.com>",
+            custom_headers={"X-Test-Header": "test-val"},
         )
 
         mock_hook.return_value.send_email.assert_called_once_with(
@@ -43,6 +44,7 @@ class TestSendEmailSes(TestCase):
             files=None,
             mime_charset="utf-8",
             mime_subtype="mixed",
+            custom_headers={"X-Test-Header": "test-val"},
         )
 
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SesHook")

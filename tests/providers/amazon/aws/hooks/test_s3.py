@@ -178,6 +178,26 @@ class TestAwsS3Hook:
 
         assert sorted(keys) == sorted(hook.list_keys(s3_bucket, delimiter='/', page_size=1))
 
+    def test_get_file_metadata(self, s3_bucket):
+        hook = S3Hook()
+        bucket = hook.get_bucket(s3_bucket)
+        bucket.put_object(Key='test', Body=b'a')
+
+        assert len(hook.get_file_metadata('t', s3_bucket)) == 1
+        assert hook.get_file_metadata('t', s3_bucket)[0]['Size'] is not None
+        assert len(hook.get_file_metadata('test', s3_bucket)) == 1
+        assert len(hook.get_file_metadata('a', s3_bucket)) == 0
+
+    def test_head_object(self, s3_bucket):
+        hook = S3Hook()
+        bucket = hook.get_bucket(s3_bucket)
+        bucket.put_object(Key='a', Body=b'a')
+
+        assert hook.head_object('a', s3_bucket) is not None
+        assert hook.head_object(f's3://{s3_bucket}//a') is not None
+        assert hook.head_object('b', s3_bucket) is None
+        assert hook.head_object(f's3://{s3_bucket}//b') is None
+
     def test_check_for_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)

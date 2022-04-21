@@ -17,13 +17,15 @@
  * under the License.
  */
 
-/* global treeData, autoRefreshInterval, fetch */
+/* global treeData, autoRefreshInterval */
 
 import { useQuery } from 'react-query';
+import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import { formatData, areActiveRuns } from '../treeDataUtils';
+import useErrorToast from '../useErrorToast';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -39,26 +41,23 @@ const useTreeData = () => {
   };
   const initialData = formatData(treeData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
+  const errorToast = useErrorToast();
   return useQuery('treeData', async () => {
     try {
       const root = urlRoot ? `&root=${urlRoot}` : '';
       const base = baseDate ? `&base_date=${baseDate}` : '';
-      const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
-      if (resp) {
-        let newData = await resp.json();
-        newData = formatData(newData);
-        // turn off auto refresh if there are no active runs
-        if (!areActiveRuns(newData.dagRuns)) stopRefresh();
-        return newData;
-      }
-    } catch (e) {
+      const newData = await axios.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
+      // turn off auto refresh if there are no active runs
+      if (!areActiveRuns(newData.dagRuns)) stopRefresh();
+      return newData;
+    } catch (error) {
       stopRefresh();
-      console.error(e);
+      errorToast({
+        title: 'Auto-refresh Error',
+        error,
+      });
+      throw (error);
     }
-    return {
-      groups: {},
-      dagRuns: [],
-    };
   }, {
     // only enabled and refetch if the refresh switch is on
     enabled: isRefreshOn,

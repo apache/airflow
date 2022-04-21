@@ -41,7 +41,7 @@ class BuildProdParams:
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    docker_cache: str
+    docker_cache: str = "pulled"
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
@@ -50,6 +50,8 @@ class BuildProdParams:
     install_providers_from_sources: bool = True
     cleanup_docker_context_files: bool = False
     prepare_buildx_cache: bool = False
+    push_image: bool = False
+    empty_image: bool = False
     disable_pypi: bool = False
     upgrade_to_newer_dependencies: str = "false"
     airflow_version: str = get_airflow_version()
@@ -76,8 +78,8 @@ class BuildProdParams:
     image_tag: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
-    airflow_login_to_github_registry: str = "false"
-    github_username: str = "apache"
+    login_to_github_registry: str = "false"
+    github_username: str = ""
     platform: str = f"linux/{os.uname().machine}"
     airflow_constraints_reference: str = ""
     airflow_constraints_location: str = ""
@@ -203,19 +205,19 @@ class BuildProdParams:
         return extra_build_flags
 
     @property
-    def docker_cache_prod_directive(self) -> List[str]:
-        docker_cache_prod_directive = []
+    def docker_cache_directive(self) -> List[str]:
+        docker_cache_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_image_name}")
+            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
-            docker_cache_prod_directive.append("--no-cache")
+            docker_cache_directive.append("--no-cache")
         else:
-            docker_cache_prod_directive = []
+            docker_cache_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_prod_directive
+            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
+        return docker_cache_directive
 
     @property
     def python_base_image(self):
@@ -288,3 +290,9 @@ class BuildProdParams:
     @property
     def docker_context_files(self) -> str:
         return "docker-context-files"
+
+    @property
+    def airflow_image_name_with_tag(self):
+        """Construct PROD image link"""
+        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
+        return image if not self.image_tag else image + f":{self.image_tag}"

@@ -21,16 +21,14 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.models import DAG
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import MockOperator
 
 EXPECTED_JSON = {
     'id': None,
@@ -147,15 +145,15 @@ EXPECTED_JSON = {
 def test_build_task_group_context_manager():
     execution_date = pendulum.parse("20200101")
     with DAG("test_build_task_group_context_manager", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
+        task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
-            _ = DummyOperator(task_id="task2")
+            _ = EmptyOperator(task_id="task2")
 
             with TaskGroup("group34") as group34:
-                _ = DummyOperator(task_id="task3")
-                _ = DummyOperator(task_id="task4")
+                _ = EmptyOperator(task_id="task3")
+                _ = EmptyOperator(task_id="task4")
 
-        task5 = DummyOperator(task_id="task5")
+        task5 = EmptyOperator(task_id="task5")
         task1 >> group234
         group34 >> task5
 
@@ -184,13 +182,13 @@ def test_build_task_group():
     """
     execution_date = pendulum.parse("20200101")
     dag = DAG("test_build_task_group", start_date=execution_date)
-    task1 = DummyOperator(task_id="task1", dag=dag)
+    task1 = EmptyOperator(task_id="task1", dag=dag)
     group234 = TaskGroup("group234", dag=dag)
-    _ = DummyOperator(task_id="task2", dag=dag, task_group=group234)
+    _ = EmptyOperator(task_id="task2", dag=dag, task_group=group234)
     group34 = TaskGroup("group34", dag=dag, parent_group=group234)
-    _ = DummyOperator(task_id="task3", dag=dag, task_group=group34)
-    _ = DummyOperator(task_id="task4", dag=dag, task_group=group34)
-    task5 = DummyOperator(task_id="task5", dag=dag)
+    _ = EmptyOperator(task_id="task3", dag=dag, task_group=group34)
+    _ = EmptyOperator(task_id="task4", dag=dag, task_group=group34)
+    task5 = EmptyOperator(task_id="task5", dag=dag)
 
     task1 >> group234
     group34 >> task5
@@ -218,17 +216,17 @@ def test_build_task_group_with_prefix():
     """
     execution_date = pendulum.parse("20200101")
     with DAG("test_build_task_group_with_prefix", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
+        task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234", prefix_group_id=False) as group234:
-            task2 = DummyOperator(task_id="task2")
+            task2 = EmptyOperator(task_id="task2")
 
             with TaskGroup("group34") as group34:
-                task3 = DummyOperator(task_id="task3")
+                task3 = EmptyOperator(task_id="task3")
 
                 with TaskGroup("group4", prefix_group_id=False) as group4:
-                    task4 = DummyOperator(task_id="task4")
+                    task4 = EmptyOperator(task_id="task4")
 
-        task5 = DummyOperator(task_id="task5")
+        task5 = EmptyOperator(task_id="task5")
         task1 >> group234
         group34 >> task5
 
@@ -352,19 +350,19 @@ def test_sub_dag_task_group():
     """
     execution_date = pendulum.parse("20200101")
     with DAG("test_test_task_group_sub_dag", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
+        task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
-            _ = DummyOperator(task_id="task2")
+            _ = EmptyOperator(task_id="task2")
 
             with TaskGroup("group34") as group34:
-                _ = DummyOperator(task_id="task3")
-                _ = DummyOperator(task_id="task4")
+                _ = EmptyOperator(task_id="task3")
+                _ = EmptyOperator(task_id="task4")
 
         with TaskGroup("group6") as group6:
-            _ = DummyOperator(task_id="task6")
+            _ = EmptyOperator(task_id="task6")
 
-        task7 = DummyOperator(task_id="task7")
-        task5 = DummyOperator(task_id="task5")
+        task7 = EmptyOperator(task_id="task7")
+        task5 = EmptyOperator(task_id="task5")
 
         task1 >> group234
         group34 >> task5
@@ -425,37 +423,37 @@ def test_sub_dag_task_group():
 def test_dag_edges():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
+        task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group_a") as group_a:
             with TaskGroup("group_b") as group_b:
-                task2 = DummyOperator(task_id="task2")
-                task3 = DummyOperator(task_id="task3")
-                task4 = DummyOperator(task_id="task4")
+                task2 = EmptyOperator(task_id="task2")
+                task3 = EmptyOperator(task_id="task3")
+                task4 = EmptyOperator(task_id="task4")
                 task2 >> [task3, task4]
 
-            task5 = DummyOperator(task_id="task5")
+            task5 = EmptyOperator(task_id="task5")
 
             task5 << group_b
 
         task1 >> group_a
 
         with TaskGroup("group_c") as group_c:
-            task6 = DummyOperator(task_id="task6")
-            task7 = DummyOperator(task_id="task7")
-            task8 = DummyOperator(task_id="task8")
+            task6 = EmptyOperator(task_id="task6")
+            task7 = EmptyOperator(task_id="task7")
+            task8 = EmptyOperator(task_id="task8")
             [task6, task7] >> task8
             group_a >> group_c
 
         task5 >> task8
 
-        task9 = DummyOperator(task_id="task9")
-        task10 = DummyOperator(task_id="task10")
+        task9 = EmptyOperator(task_id="task9")
+        task10 = EmptyOperator(task_id="task10")
 
         group_c >> [task9, task10]
 
         with TaskGroup("group_d") as group_d:
-            task11 = DummyOperator(task_id="task11")
-            task12 = DummyOperator(task_id="task12")
+            task11 = EmptyOperator(task_id="task11")
+            task12 = EmptyOperator(task_id="task12")
             task11 >> task12
 
         group_d << group_c
@@ -538,13 +536,13 @@ def test_duplicate_group_id():
 
     with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
         with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
+            _ = EmptyOperator(task_id="task1")
             with TaskGroup("task1"):
                 pass
 
     with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
         with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
+            _ = EmptyOperator(task_id="task1")
             with TaskGroup("group1", prefix_group_id=False):
                 with TaskGroup("group1"):
                     pass
@@ -552,19 +550,19 @@ def test_duplicate_group_id():
     with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
         with DAG("test_duplicate_group_id", start_date=execution_date):
             with TaskGroup("group1", prefix_group_id=False):
-                _ = DummyOperator(task_id="group1")
+                _ = EmptyOperator(task_id="group1")
 
     with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
         with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
+            _ = EmptyOperator(task_id="task1")
             with TaskGroup("group1"):
-                _ = DummyOperator(task_id="downstream_join_id")
+                _ = EmptyOperator(task_id="downstream_join_id")
 
     with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
         with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
+            _ = EmptyOperator(task_id="task1")
             with TaskGroup("group1"):
-                _ = DummyOperator(task_id="upstream_join_id")
+                _ = EmptyOperator(task_id="upstream_join_id")
 
 
 def test_task_without_dag():
@@ -573,9 +571,9 @@ def test_task_without_dag():
     has a DAG, the task should be added to the root TaskGroup of the other task's DAG.
     """
     dag = DAG(dag_id='test_task_without_dag', start_date=pendulum.parse("20200101"))
-    op1 = DummyOperator(task_id='op1', dag=dag)
-    op2 = DummyOperator(task_id='op2')
-    op3 = DummyOperator(task_id="op3")
+    op1 = EmptyOperator(task_id='op1', dag=dag)
+    op2 = EmptyOperator(task_id='op2')
+    op3 = EmptyOperator(task_id="op3")
     op1 >> op2
     op3 >> op2
 
@@ -821,9 +819,9 @@ def test_task_group_context_mix():
 
         with TaskGroup("section_1", tooltip="section_1") as section_1:
             sec_2 = section_2(t_start.output)
-            task_s1 = DummyOperator(task_id="task_1")
+            task_s1 = EmptyOperator(task_id="task_1")
             task_s2 = BashOperator(task_id="task_2", bash_command='echo 1')
-            task_s3 = DummyOperator(task_id="task_3")
+            task_s3 = EmptyOperator(task_id="task_3")
 
             sec_2.set_downstream(task_s1)
             task_s1 >> [task_s2, task_s3]
@@ -872,9 +870,9 @@ def test_default_args():
         },
     ):
         with TaskGroup("group1", default_args={"owner": "group"}):
-            task_1 = DummyOperator(task_id='task_1')
-            task_2 = DummyOperator(task_id='task_2', owner='task')
-            task_3 = DummyOperator(task_id='task_3', default_args={"owner": "task"})
+            task_1 = EmptyOperator(task_id='task_1')
+            task_2 = EmptyOperator(task_id='task_2', owner='task')
+            task_3 = EmptyOperator(task_id='task_3', default_args={"owner": "task"})
 
             assert task_1.owner == 'group'
             assert task_2.owner == 'task'
@@ -1039,54 +1037,6 @@ def test_pass_taskgroup_output_to_task():
     wrap()
 
 
-def test_map() -> None:
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        start = MockOperator(task_id="start")
-        end = MockOperator(task_id="end")
-        literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").expand(literal) as process_one:
-            one = MockOperator(task_id='one')
-            two = MockOperator(task_id='two')
-            three = MockOperator(task_id='three')
-
-            one >> two >> three
-
-        start >> process_one >> end
-
-    # check the mapped operators are attached to the task broup
-    assert isinstance(process_one, MappedTaskGroup)
-    assert process_one.has_task(one)
-    assert process_one.mapped_arg is literal
-
-    assert isinstance(one, MappedOperator)
-    assert start.downstream_list == [one]
-    assert one in dag.tasks
-    # At parse time there should only be two tasks!
-    assert len(dag.tasks) == 5
-
-    assert end.upstream_list == [three]
-    assert three.downstream_list == [end]
-
-
-def test_nested_map() -> None:
-    with DAG("test-dag", start_date=DEFAULT_DATE):
-        start = MockOperator(task_id="start")
-        end = MockOperator(task_id="end")
-        literal = ['a', 'b', 'c']
-        with TaskGroup("process_one").expand(literal) as process_one:
-            one = MockOperator(task_id='one')
-
-            with TaskGroup("process_two").expand(literal) as process_one_two:
-                two = MockOperator(task_id='two')
-                three = MockOperator(task_id='three')
-                two >> three
-
-            four = MockOperator(task_id='four')
-            one >> process_one_two >> four
-
-        start >> process_one >> end
-
-
 def test_decorator_unknown_args():
     """Test that unknown args passed to the decorator cause an error at parse time"""
     with pytest.raises(TypeError):
@@ -1122,40 +1072,6 @@ def test_decorator_multiple_use_task():
     ]
 
 
-def test_decorator_partial_unmapped():
-    @task_group_decorator
-    def tg():
-        ...
-
-    with pytest.warns(UserWarning, match='was never mapped'):
-        with DAG("test-dag", start_date=DEFAULT_DATE):
-            tg.partial()
-
-
-def test_decorator_map():
-    @task_group_decorator
-    def my_task_group(my_arg_1: str, unmapped: bool):
-        assert unmapped is True
-        assert isinstance(my_arg_1, object)
-        task_1 = DummyOperator(task_id="task_1")
-        task_2 = BashOperator(task_id="task_2", bash_command='echo "${my_arg_1}"', env={'my_arg_1': my_arg_1})
-        task_3 = DummyOperator(task_id="task_3")
-        task_1 >> [task_2, task_3]
-
-        return task_1, task_2, task_3
-
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        lines = ["foo", "bar", "baz"]
-
-        (task_1, task_2, task_3) = my_task_group.partial(unmapped=True).expand(my_arg_1=lines)
-
-    assert task_1 in dag.tasks
-
-    tg = dag.task_group.get_child_by_label("my_task_group")
-    assert isinstance(tg, MappedTaskGroup)
-    assert "my_arg_1" in tg.mapped_kwargs
-
-
 def test_topological_sort1():
     dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
@@ -1163,10 +1079,10 @@ def test_topological_sort1():
     # A -> C -> D
     # ordered: B, D, C, A or D, B, C, A or D, C, B, A
     with dag:
-        op1 = DummyOperator(task_id='A')
-        op2 = DummyOperator(task_id='B')
-        op3 = DummyOperator(task_id='C')
-        op4 = DummyOperator(task_id='D')
+        op1 = EmptyOperator(task_id='A')
+        op2 = EmptyOperator(task_id='B')
+        op3 = EmptyOperator(task_id='C')
+        op4 = EmptyOperator(task_id='D')
         [op2, op3] >> op1
         op3 >> op4
 
@@ -1189,11 +1105,11 @@ def test_topological_sort2():
     # C -> E
     # ordered: E | D, A | B, C
     with dag:
-        op1 = DummyOperator(task_id='A')
-        op2 = DummyOperator(task_id='B')
-        op3 = DummyOperator(task_id='C')
-        op4 = DummyOperator(task_id='D')
-        op5 = DummyOperator(task_id='E')
+        op1 = EmptyOperator(task_id='A')
+        op2 = EmptyOperator(task_id='B')
+        op3 = EmptyOperator(task_id='C')
+        op4 = EmptyOperator(task_id='D')
+        op5 = EmptyOperator(task_id='E')
         op3 << [op1, op2]
         op4 >> [op1, op2]
         op5 >> op3
@@ -1220,13 +1136,13 @@ def test_topological_sort2():
 def test_topological_nested_groups():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
-        task5 = DummyOperator(task_id="task5")
+        task1 = EmptyOperator(task_id="task1")
+        task5 = EmptyOperator(task_id="task5")
         with TaskGroup("group_a") as group_a:
             with TaskGroup("group_b"):
-                task2 = DummyOperator(task_id="task2")
-                task3 = DummyOperator(task_id="task3")
-                task4 = DummyOperator(task_id="task4")
+                task2 = EmptyOperator(task_id="task2")
+                task3 = EmptyOperator(task_id="task3")
+                task4 = EmptyOperator(task_id="task4")
                 task2 >> [task3, task4]
 
         task1 >> group_a
@@ -1255,14 +1171,14 @@ def test_topological_nested_groups():
 def test_topological_group_dep():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
-        task1 = DummyOperator(task_id="task1")
-        task6 = DummyOperator(task_id="task6")
+        task1 = EmptyOperator(task_id="task1")
+        task6 = EmptyOperator(task_id="task6")
         with TaskGroup("group_a") as group_a:
-            task2 = DummyOperator(task_id="task2")
-            task3 = DummyOperator(task_id="task3")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
         with TaskGroup("group_b") as group_b:
-            task4 = DummyOperator(task_id="task4")
-            task5 = DummyOperator(task_id="task5")
+            task4 = EmptyOperator(task_id="task4")
+            task5 = EmptyOperator(task_id="task5")
 
         task1 >> group_a >> group_b >> task6
 

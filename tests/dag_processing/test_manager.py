@@ -148,7 +148,7 @@ class TestDagFileProcessorManager:
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
@@ -183,7 +183,7 @@ class TestDagFileProcessorManager:
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
         with TemporaryDirectory(prefix="empty-airflow-dags-") as dags_folder:
-            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
             manager = DagFileProcessorManager(
                 dag_directory=dags_folder,
                 max_runs=1,
@@ -501,10 +501,14 @@ class TestDagFileProcessorManager:
 
             assert len(active_dags) == 0
 
+    @mock.patch(
+        "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
+    )
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.kill")
-    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid):
+    def test_kill_timed_out_processors_kill(self, mock_kill, mock_pid, mock_waitable_handle):
         mock_pid.return_value = 1234
+        mock_waitable_handle.return_value = 3
         manager = DagFileProcessorManager(
             dag_directory='directory',
             max_runs=1,
@@ -518,8 +522,12 @@ class TestDagFileProcessorManager:
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.min)
         manager._processors = {'abc.txt': processor}
+        manager.waitables[3] = processor
+        initial_waitables = len(manager.waitables)
         manager._kill_timed_out_processors()
         mock_kill.assert_called_once_with()
+        assert len(manager._processors) == 0
+        assert len(manager.waitables) == initial_waitables - 1
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess")
@@ -670,7 +678,7 @@ class TestDagFileProcessorManager:
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
@@ -868,7 +876,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
             test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
             log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
             try:
@@ -896,7 +904,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         clear_db_dags()
 
         test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [], False, async_mode)
         processor_agent.start()
         if not async_mode:
@@ -918,7 +926,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     def test_launch_process(self):
         test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
 
         log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
         try:

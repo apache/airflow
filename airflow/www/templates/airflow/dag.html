@@ -62,10 +62,10 @@
   <meta name="dagrun_details_url" content="{{ url_for('Airflow.dagrun_details', redirect_url=request.base_url, dag_id=dag.dag_id) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
   <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
+  <meta name="xcom_url" content="{{ url_for('Airflow.xcom', dag_id=dag.dag_id) }}">
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
-  <meta name="task_instances_url" content="{{ url_for('TaskInstanceModelView.list') }}">
-  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
+  <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
   <meta name="tasks_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_tasks', dag_id=dag.dag_id) }}">
   <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <!-- End Urls -->
@@ -209,8 +209,17 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <h4 class="modal-title" id="taskInstanceModalLabel">
             <span class="text-muted">Task Instance:</span> <span id="task_id"></span>
-            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span> <span class="value"></span></span>
             <br><span class="text-muted">at:</span> <span id="execution_date"></span>
+            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span>
+              <span class="value"></span>
+              <div class="dropdown" id="mapped_dropdown">
+                <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                  <span id="dropdown-label" title="Select Mapped Instance"></span>
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu menu-scroll"></ul>
+              </div>
+            </span>
           </h4>
         </div>
         <div class="modal-body">
@@ -234,8 +243,14 @@
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
             Log
           </a>
+          <a id="btn_xcom" class="btn btn-sm" data-base-url="{{ url_for('Airflow.xcom') }}">
+            XCom
+          </a>
+          <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
+            List Instances, current run
+          </a>
           <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="View all instances across all DAG runs">
-            All Instances
+            List Instances, all runs
           </a>
           <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream">
             Filter Upstream
@@ -247,22 +262,6 @@
             </ul>
             <hr>
           </div>
-          <div id="mapped_instances">
-            <button id="btn_back" style="display: none;" type="button" class="btn btn-sm" title="Go back to the mapped task summary page">
-              Back to Mapped Summary
-            </button>
-            <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}" title="Show the mapped instances for this DAG run">
-              Mapped Instances
-            </a>
-            <div class="dropdown" id="mapped_dropdown">
-              <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                <span id="dropdown-label" title="Select Mapped Instance"></span>
-                <span class="caret"></span>
-              </button>
-              <ul class="dropdown-menu menu-scroll"></ul>
-            </div>
-            <hr style="margin-bottom: 8px;">
-          </div>
           {% if external_log_name is defined %}
             <div id="dag_redir_logs">
               <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts):</label>
@@ -272,8 +271,8 @@
               <hr>
             </div>
           {% endif %}
-          <h4>Task Actions</h4>
-          <form method="POST" data-action="{{ url_for('Airflow.run') }}">
+          <h4 id="task_actions">Task Actions</h4>
+          <form method="POST" data-action="{{ url_for('Airflow.run') }}" id="run_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
@@ -304,13 +303,14 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.clear') }}">
+          <form method="POST" data-action="{{ url_for('Airflow.clear') }}" id="clear_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="execution_date">
+            <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
@@ -346,12 +346,13 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="failed_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
+            <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <input type="hidden" name="state" value="failed">
             <div class="row">
@@ -379,12 +380,13 @@
                 </button>
               </span>
             </div>
+            <hr style="margin-bottom: 8px;">
           </form>
-          <hr style="margin-bottom: 8px;">
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="success_action">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="dag_run_id">
+            <input type="hidden" name="map_index">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <input type="hidden" name="state" value="success">
             <div class="row">

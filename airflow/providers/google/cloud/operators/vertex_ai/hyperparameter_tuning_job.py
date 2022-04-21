@@ -30,6 +30,7 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform import gapic, hyperparameter_tuning
 from google.cloud.aiplatform_v1.types import HyperparameterTuningJob
@@ -310,7 +311,7 @@ class GetHyperparameterTuningJobOperator(BaseOperator):
         region: str,
         project_id: str,
         hyperparameter_tuning_job_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -378,7 +379,7 @@ class DeleteHyperparameterTuningJobOperator(BaseOperator):
         hyperparameter_tuning_job_id: str,
         region: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -461,7 +462,7 @@ class ListHyperparameterTuningJobOperator(BaseOperator):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

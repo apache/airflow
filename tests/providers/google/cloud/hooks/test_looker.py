@@ -62,7 +62,7 @@ class TestLookerHook(unittest.TestCase):
             mock.call(materialization_id=JOB_ID),
             mock.call(materialization_id=JOB_ID),
         ]
-        mock_pdt_build_status.has_calls(calls)
+        mock_pdt_build_status.assert_has_calls(calls)
 
     @mock.patch(HOOK_PATH.format("get_looker_sdk"))
     def test_check_pdt_build(self, mock_sdk):

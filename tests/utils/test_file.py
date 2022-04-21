@@ -20,7 +20,7 @@ import os.path
 import unittest
 from unittest import mock
 
-from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
+from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
 
 
@@ -75,3 +75,38 @@ class TestOpenMaybeZipped(unittest.TestCase):
         with open_maybe_zipped(test_file_path, 'r') as test_file:
             content = test_file.read()
         assert isinstance(content, str)
+
+
+class TestListPyFilesPath(unittest.TestCase):
+    def test_find_path_from_directory_regex_ignore(self):
+        should_ignore = [
+            "test_invalid_cron.py",
+            "test_invalid_param.py",
+            "test_ignore_this.py",
+        ]
+        files = find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore")
+
+        assert files
+        assert all(os.path.basename(file) not in should_ignore for file in files)
+
+    def test_find_path_from_directory_glob_ignore(self):
+        should_ignore = [
+            "test_invalid_cron.py",
+            "test_invalid_param.py",
+            "test_ignore_this.py",
+            "test_prev_dagrun_dep.py",
+            "test_retry_handling_job.py",
+            "test_nested_dag.py",
+            ".airflowignore",
+        ]
+        should_not_ignore = [
+            "test_on_kill.py",
+            "test_dont_ignore_this.py",
+        ]
+        files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
+
+        assert files
+        assert all(os.path.basename(file) not in should_ignore for file in files)
+        assert len(list(filter(lambda file: os.path.basename(file) in should_not_ignore, files))) == len(
+            should_not_ignore
+        )

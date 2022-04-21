@@ -2912,7 +2912,49 @@ components:
                 User-specified DAG params.
 
                 *New in version 2.0.1*
+            end_date:
+              type: string
+              format: 'date-time'
+              readOnly: true
+              nullable: true
+              description: |
+                The DAG's end date.
 
+                *New in version 2.3.0*.
+            is_paused_upon_creation:
+              type: boolean
+              readOnly: true
+              nullable: true
+              description: |
+                Whether the DAG is paused upon creation.
+
+                *New in version 2.3.0*
+            last_parsed:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              description: |
+                The last time the DAG was parsed.
+
+                *New in version 2.3.0*
+            template_search_path:
+              type: array
+              nullable: true
+              items:
+                type: string
+              description: |
+                The template search path.
+
+                *New in version 2.3.0*
+            render_template_as_native_obj:
+              type: boolean
+              nullable: true
+              readOnly: true
+              description: |
+                Whether to render templates as native Python objects.
+
+                *New in version 2.3.0*
     ExtraLink:
       type: object
       description: Additional links containing additional information about the task.

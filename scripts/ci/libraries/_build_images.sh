@@ -353,9 +353,9 @@ function build_images::login_to_docker_registry() {
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
             verbosity::print_info
-        elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+        elif [[ ${LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
             verbosity::print_info
-            verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+            verbosity::print_info "Skip logging in to GitHub Registry. LOGIN_TO_GITHUB_REGISTRY != true"
             verbosity::print_info
         elif [[ -n "${token}" ]]; then
             # logout from the repository first - so that we do not keep us logged in if the token

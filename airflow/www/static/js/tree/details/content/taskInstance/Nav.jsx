@@ -31,15 +31,20 @@ const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
-const taskInstancesUrl = getMetaValue('task_instances_url');
+const taskInstancesUrl = getMetaValue('task_instances_list_url');
 const renderedK8sUrl = getMetaValue('rendered_k8s_url');
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
+const xcomUrl = getMetaValue('xcom_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
 const gridUrl = getMetaValue('grid_url');
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const LinkButton = ({ children, ...rest }) => (
+  <Button as={Link} aria-label={children} variant="ghost" colorScheme="blue" {...rest}>
+    {children}
+  </Button>
+);
 
 const Nav = ({
   taskId, executionDate, operator, isMapped,
@@ -51,6 +56,7 @@ const Nav = ({
   const detailsLink = `${taskUrl}&${params}`;
   const renderedLink = `${renderedTemplatesUrl}&${params}`;
   const logLink = `${logUrl}&${params}`;
+  const xcomLink = `${xcomUrl}&${params}`;
   const k8sLink = `${renderedK8sUrl}&${params}`;
   const listParams = new URLSearchParams({
     _flt_3_dag_id: dagId,
@@ -89,9 +95,10 @@ const Nav = ({
           <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
           )}
           <LinkButton href={logLink}>Log</LinkButton>
+          <LinkButton href={xcomLink}>XCom</LinkButton>
         </>
         )}
-        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
+        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">List Instances, all runs</LinkButton>
         <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
       <Divider mt={3} />

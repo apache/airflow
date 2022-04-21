@@ -22,7 +22,7 @@ import pytest
 from airflow import models
 from airflow.api.common.delete_dag import delete_dag
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -71,7 +71,7 @@ class TestDeleteDAGSuccessfulDelete:
         if for_sub_dag:
             self.key = "test_dag_id.test_subdag"
 
-        task = DummyOperator(
+        task = EmptyOperator(
             task_id='dummy',
             dag=models.DAG(dag_id=self.key, default_args={'start_date': days_ago(2)}),
             owner='airflow',
@@ -96,15 +96,7 @@ class TestDeleteDAGSuccessfulDelete:
                     event="varimport",
                 )
             )
-            session.add(
-                TF(
-                    task=task,
-                    run_id=ti.run_id,
-                    start_date=test_date,
-                    end_date=test_date,
-                    map_index=ti.map_index,
-                )
-            )
+            session.add(TF(ti=ti))
             session.add(
                 TR(
                     task=ti.task,

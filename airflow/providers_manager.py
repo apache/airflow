@@ -195,6 +195,47 @@ T = TypeVar("T", bound=Callable)
 logger = logging.getLogger(__name__)
 
 
+def log_debug_import_from_sources(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+def log_optional_feature_disabled(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+    log.info(
+        "Optional provider feature disabled when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+    )
+
+
+def log_import_warning(class_name, e, provider_package):
+    log.warning(
+        "Exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+# This is a temporary measure until all community providers will add AirflowOptionalProviderFeatureException
+# where they have optional features. We are going to add tests in our CI to catch all such cases and will
+# fix them, but until now all "known unhandled optional feature errors" from community providers
+# should be added here
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [
+    ("apache-airflow-providers-google", "ModuleNotFoundError: No module named 'paramiko'")
+]
+
+
 def _sanity_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
 ) -> Optional[Type[BaseHook]]:
@@ -216,38 +257,34 @@ def _sanity_check(
     except AirflowOptionalProviderFeatureException as e:
         # When the provider class raises AirflowOptionalProviderFeatureException
         # this is an expected case when only some classes in provider are
-        # available. We just log debug level here
-        log.debug(
-            "Optional feature disabled on exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
+        # available. We just log debug level here and print info message in logs so that
+        # the user is aware of it
+        log_optional_feature_disabled(class_name, e, provider_package)
         return None
     except ImportError as e:
-        # When there is an ImportError we turn it into debug warnings as this is
-        # an expected case when only some providers are installed
         if provider_info.is_source:
-            log.debug(
-                "Exception when importing '%s' from '%s' package",
-                class_name,
-                provider_package,
-            )
-        else:
-            log.warning(
-                "Exception when importing '%s' from '%s' package",
-                class_name,
-                provider_package,
-                exc_info=e,
-            )
+            # When we have providers from sources, then we just turn all import logs to debug logs
+            # As this is pretty expected that you have a number of dependencies not installed
+            # (we always have all providers from sources until we split providers to separate repo)
+            log_debug_import_from_sources(class_name, e, provider_package)
+            return None
+        if "ModuleNotFoundError: No module named 'airflow.providers." in e.msg:
+            # handle cases where another provider is missing. This can only happen if
+            # there is an optional feature, so we log debug and print information about it
+            log_optional_feature_disabled(class_name, e, provider_package)
+            return None
+        for known_error in KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS:
+            # Until we convert all providers to use AirflowOptionalProviderFeatureException
+            # we assume any problem with importing another "provider" is because this is an
+            # optional feature, so we log debug and print information about it
+            if known_error[0] == provider_package and known_error[1] == e.msg:
+                log_optional_feature_disabled(class_name, e, provider_package)
+                return None
+        # But when we have no idea - we print warning to logs
+        log_import_warning(class_name, e, provider_package)
         return None
     except Exception as e:
-        log.warning(
-            "Exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
+        log_import_warning(class_name, e, provider_package)
         return None
     return imported_class
 

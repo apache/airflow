@@ -153,9 +153,18 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info('Polling jenkins queue at the url %s', location)
         while try_count < self.max_try_before_job_appears:
-            location_answer = jenkins_request_with_headers(
-                jenkins_server, Request(method='POST', url=location)
-            )
+            try:
+                location_answer = jenkins_request_with_headers(
+                    jenkins_server, Request(method='POST', url=location)
+                )
+            # we don't want to fail the operator, this will continue to poll
+            # until max_try_before_job_appears reached
+            except (HTTPError, JenkinsException):
+                self.log.warning('polling failed, retrying', exc_info=True)
+                try_count += 1
+                time.sleep(self.sleep_time)
+                continue
+
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
                 if (
@@ -168,8 +177,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     return build_number
             try_count += 1
             time.sleep(self.sleep_time)
+
         raise AirflowException(
-            "The job hasn't been executed after polling " f"the queue {self.max_try_before_job_appears} times"
+            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
         )
 
     def get_hook(self) -> JenkinsHook:

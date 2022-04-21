@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Sequence, Tuple, Union
 from unittest import TestCase, mock
 
 import pytest
+from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
@@ -36,7 +37,7 @@ TEST_PROJECT_ID_2: str = "test-project-id-2"
 TEST_USER: str = "test-user"
 TEST_CREDENTIALS = mock.MagicMock()
 TEST_BODY: Dict = mock.MagicMock()
-TEST_RETRY: Retry = mock.MagicMock()
+TEST_RETRY: Union[Retry, _MethodDefault] = mock.MagicMock()
 TEST_TIMEOUT: float = 4
 TEST_METADATA: Sequence[Tuple[str, str]] = ()
 TEST_PARENT: str = "users/test-user"
