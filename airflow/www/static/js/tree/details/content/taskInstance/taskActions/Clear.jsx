@@ -34,6 +34,7 @@ const Run = ({
   runId,
   taskId,
   executionDate,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -73,6 +74,7 @@ const Run = ({
         recursive,
         failed,
         confirmed: false,
+        mapIndexes,
       });
       setAffectedTasks(data);
       onOpen();
@@ -91,6 +93,7 @@ const Run = ({
         recursive,
         failed,
         confirmed: true,
+        mapIndexes,
       });
       setAffectedTasks([]);
       onClose();

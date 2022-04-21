@@ -32,32 +32,34 @@ export default function useRunTask(dagId, runId, taskId) {
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['runTask', dagId, runId, taskId],
-    ({
+    async ({
       ignoreAllDeps,
       ignoreTaskState,
       ignoreTaskDeps,
-      mapIndex = -1,
-    }) => {
-      const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        dag_id: dagId,
-        dag_run_id: runId,
-        task_id: taskId,
-        ignore_all_deps: ignoreAllDeps,
-        ignore_task_deps: ignoreTaskDeps,
-        ignore_ti_state: ignoreTaskState,
-        map_index: mapIndex,
-      }).toString();
+      mapIndexes,
+    }) => Promise.all(
+      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
+        const params = new URLSearchParams({
+          csrf_token: csrfToken,
+          dag_id: dagId,
+          dag_run_id: runId,
+          task_id: taskId,
+          ignore_all_deps: ignoreAllDeps,
+          ignore_task_deps: ignoreTaskDeps,
+          ignore_ti_state: ignoreTaskState,
+          map_index: mi,
+        }).toString();
 
-      return axios.post(runUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
+        return axios.post(runUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+      }),
+    ),
     {
       onSuccess: (data) => {
-        const { message, status } = data;
+        const { message, status } = data.length ? data[0] : data;
         if (message && status === 'error') {
           toast({
             description: message,
@@ -67,6 +69,7 @@ export default function useRunTask(dagId, runId, taskId) {
         }
         if (!status || status !== 'error') {
           queryClient.invalidateQueries('treeData');
+          queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
           startRefresh();
         }
       },

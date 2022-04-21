@@ -33,6 +33,7 @@ const MarkFailed = ({
   dagId,
   runId,
   taskId,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -68,6 +69,7 @@ const MarkFailed = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks(data);
       onOpen();
@@ -83,6 +85,7 @@ const MarkFailed = ({
         future,
         upstream,
         downstream,
+        mapIndexes,
       });
       setAffectedTasks([]);
       onClose();

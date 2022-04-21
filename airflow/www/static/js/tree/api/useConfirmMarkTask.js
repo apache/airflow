@@ -29,9 +29,9 @@ export default function useConfirmMarkTask({
   return useMutation(
     ['confirmStateChange', dagId, runId, taskId, state],
     ({
-      past, future, upstream, downstream,
-    }) => axios.get(confirmUrl, {
-      params: {
+      past, future, upstream, downstream, mapIndexes = [],
+    }) => {
+      const params = new URLSearchParams({
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
@@ -40,7 +40,13 @@ export default function useConfirmMarkTask({
         upstream,
         downstream,
         state,
-      },
-    }),
+      });
+
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.get(confirmUrl, { params });
+    },
   );
 }
