@@ -21,6 +21,7 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const failedUrl = getMetaValue('failed_url');
 const csrfToken = getMetaValue('csrf_token');
@@ -29,6 +30,7 @@ export default function useMarkFailedTask({
   dagId, runId, taskId,
 }) {
   const queryClient = useQueryClient();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['markFailed', dagId, runId, taskId],
@@ -63,6 +65,7 @@ export default function useMarkFailedTask({
         queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
         startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }
