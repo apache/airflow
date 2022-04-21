@@ -64,7 +64,7 @@ repos:
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: ^\.github/.*$|^airflow/_vendor/|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -266,7 +266,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
+        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
@@ -741,14 +741,32 @@ repos:
         files: CHANGELOG\.txt$|CHANGELOG\.rst$
         entry: ./scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
         pass_filenames: true
+      - id: newsfragments
+        name: Check newsfragments are valid
+        language: python
+        files: newsfragments/.*\.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_newsfragments.py
+        pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy
-        name: Run mypy
+        name: Run mypy for dev
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        files: ^dev/.*\.py$
+        require_serial: true
+      - id: mypy
+        name: Run mypy for core
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        require_serial: true
+      - id: mypy
+        name: Run mypy for providers
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
+        files: ^airflow/providers/.*\.py$
         require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder

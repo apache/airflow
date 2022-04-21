@@ -2382,8 +2382,8 @@ class TestTaskInstanceRecordTaskMapXComPush:
             session.query(TaskMap).delete()
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
-    def test_not_recorded_for_unused(self, dag_maker, xcom_value):
-        """A value not used for task-mapping should not be recorded."""
+    def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
+        """Return value should not be recorded if there are no downstreams."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
@@ -2396,6 +2396,53 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti.run()
 
         assert dag_maker.session.query(TaskMap).count() == 0
+
+    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
+        """Return value should not be recorded if no downstreams are mapped."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_something():
+                return xcom_value
+
+            @dag.task()
+            def completely_different():
+                pass
+
+            push_something() >> completely_different()
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
+        ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+
+    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_value):
+        """Return value should only be recorded if a mapped downstream uses the it."""
+        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
+            @dag.task()
+            def push_1():
+                return xcom_value
+
+            @dag.task()
+            def push_2():
+                return [-1, -2]
+
+            @dag.task()
+            def show(arg1, arg2):
+                print(arg1, arg2)
+
+            show.partial(arg1=push_1()).expand(arg2=push_2())
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+
+        tis["push_1"].run()
+        assert dag_maker.session.query(TaskMap).count() == 0
+
+        tis["push_2"].run()
+        assert dag_maker.session.query(TaskMap).count() == 1
 
     @pytest.mark.parametrize(
         "return_value, exception_type, error_message",

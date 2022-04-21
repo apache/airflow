@@ -43,7 +43,7 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    verbose: bool
+    verbose: bool = False
     extra_args: Tuple = ()
     force_build: bool = False
     integration: Tuple[str, ...] = ()

@@ -129,6 +129,7 @@ migration-reference
 mixed-line-ending
 mypy
 mypy-helm
+newsfragments
 no-providers-in-core-examples
 no-relative-imports
 persist-credentials-disabled

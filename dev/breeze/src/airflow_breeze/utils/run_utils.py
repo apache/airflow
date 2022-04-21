@@ -22,6 +22,7 @@ import shutil
 import stat
 import subprocess
 import sys
+from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
@@ -103,7 +104,6 @@ def check_pre_commit_installed(verbose: bool) -> bool:
     """
     # Local import to make autocomplete work
     import yaml
-    from pkg_resources import parse_version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
@@ -116,7 +116,7 @@ def check_pre_commit_installed(verbose: bool) -> bool:
         )
         if process and process.stdout:
             pre_commit_version = process.stdout.split(" ")[-1].strip()
-            if parse_version(pre_commit_version) >= parse_version(min_pre_commit_version):
+            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
                 console.print(
                     f"\n[green]Package {pre_commit_name} is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"

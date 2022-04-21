@@ -1034,6 +1034,7 @@ Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.azure`` for ``az`` - Microsoft Azure client
   * credentials stored in ``${HOME}/.config`` for ``gcloud`` - Google Cloud client (among others)
   * credentials stored in ``${HOME}/.docker`` for ``docker`` client
+  * credentials stored in ``${HOME}/.snowsql`` for ``snowsql`` - SnowSQL (Snowflake CLI client)
 
 Adding a New System Test
 --------------------------

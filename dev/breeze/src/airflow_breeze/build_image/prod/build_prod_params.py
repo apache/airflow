@@ -41,7 +41,7 @@ class BuildProdParams:
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    docker_cache: str
+    docker_cache: str = "pulled"
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
@@ -205,19 +205,19 @@ class BuildProdParams:
         return extra_build_flags
 
     @property
-    def docker_cache_prod_directive(self) -> List[str]:
-        docker_cache_prod_directive = []
+    def docker_cache_directive(self) -> List[str]:
+        docker_cache_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_image_name}")
+            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
-            docker_cache_prod_directive.append("--no-cache")
+            docker_cache_directive.append("--no-cache")
         else:
-            docker_cache_prod_directive = []
+            docker_cache_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_prod_directive
+            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
+        return docker_cache_directive
 
     @property
     def python_base_image(self):
