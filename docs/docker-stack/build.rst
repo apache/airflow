@@ -292,7 +292,7 @@ Example of adding Airflow Provider package and ``apt`` package
 The following example adds ``apache-spark`` airflow-providers which requires both ``java`` and
 python package from PyPI.
 
-.. exampleinclude:: docker-examples/extending/add-provider-extend/Dockerfile
+.. exampleinclude:: docker-examples/extending/add-providers/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
