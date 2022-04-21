@@ -2546,6 +2546,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         # Compute a filter for TI.task_id and TI.map_index based on input values
         # For each item, it will either be a task_id, or (task_id, map_index)
+        assert len(vals)
         task_id_only = list(filter(lambda v: isinstance(v, str), vals))
         with_map_index = list(filter(lambda v: not isinstance(v, str), vals))
         filters = []
