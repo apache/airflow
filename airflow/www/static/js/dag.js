@@ -352,9 +352,6 @@ $('form[data-action]').on('submit', function submit(e) {
     } else if (form.map_index) {
       form.map_index.remove();
     }
-    if (form.map_indexes) {
-      form.map_indexes.value = mapIndex === undefined ? '' : mapIndex;
-    }
     form.action = $(this).data('action');
     form.submit();
   }
