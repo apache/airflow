@@ -696,6 +696,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_pod_template_file_system(self):
+        """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),

@@ -205,7 +205,9 @@ class KubernetesHook(BaseHook):
         if disable_verify_ssl is None and self._deprecated_core_disable_verify_ssl is True:
             deprecation_warnings.append(('verify_ssl', False))
             disable_verify_ssl = self._deprecated_core_disable_verify_ssl
-        if in_cluster is None and self._deprecated_core_in_cluster is not None:
+        # by default, hook will try in_cluster first. so we only need to
+        # apply core airflow config and alert when False and in_cluster not otherwise set.
+        if in_cluster is None and self._deprecated_core_in_cluster is False:
             deprecation_warnings.append(('in_cluster', self._deprecated_core_in_cluster))
             in_cluster = self._deprecated_core_in_cluster
         if not cluster_context and self._deprecated_core_cluster_context:
