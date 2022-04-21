@@ -1064,10 +1064,13 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions(session=session)
+
+    # ti1 finished execution. ti2 goes directly to finished state because it's
+    # expanded against a zero-length XCom.
     assert decision == TISchedulingDecision(
         tis=[ti1, ti2],
         schedulable_tis=[],
-        changed_tis=True,
+        changed_tis=False,
         unfinished_tis=[],
         finished_tis=[ti1, ti2],
     )

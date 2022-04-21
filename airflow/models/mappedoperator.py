@@ -622,7 +622,7 @@ class MappedOperator(AbstractOperator):
             .one_or_none()
         )
 
-        ret: List[TaskInstance] = []
+        all_expanded_tis: List[TaskInstance] = []
 
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
@@ -636,14 +636,13 @@ class MappedOperator(AbstractOperator):
                     total_length,
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
-                session.flush()
-                return ret, 0
-            # Otherwise convert this into the first mapped index, and create
-            # TaskInstance for other indexes.
-            unmapped_ti.map_index = 0
+            else:
+                # Otherwise convert this into the first mapped index, and create
+                # TaskInstance for other indexes.
+                unmapped_ti.map_index = 0
+                self.log.debug("Updated in place to become %s", unmapped_ti)
+                all_expanded_tis.append(unmapped_ti)
             state = unmapped_ti.state
-            self.log.debug("Updated in place to become %s", unmapped_ti)
-            ret.append(unmapped_ti)
             indexes_to_map = range(1, total_length)
         else:
             # Only create "missing" ones.
@@ -660,13 +659,12 @@ class MappedOperator(AbstractOperator):
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            # TODO: Change `TaskInstance` ctor to take Operator, not BaseOperator
-            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)  # type: ignore
+            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
-            ti.task = self
-            ret.append(ti)
+            ti.refresh_from_task(self)  # session.merge() loses task information.
+            all_expanded_tis.append(ti)
 
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
@@ -678,8 +676,7 @@ class MappedOperator(AbstractOperator):
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
-
-        return ret, total_length
+        return all_expanded_tis, total_length
 
     def prepare_for_execution(self) -> "MappedOperator":
         # Since a mapped operator cannot be used for execution, and an unmapped
