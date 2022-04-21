@@ -65,6 +65,7 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
@@ -1423,11 +1424,18 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
         task_id = 't1'
 
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+
+        @dag.task
+        def make_arg_lists():
+            return [[1], [2], [{'a': 'b'}]]
+
         def consumer(value):
             print(value)
 
-        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(op_args=[1, 2, 4])
+        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
+            op_args=make_arg_lists()
+        )
 
         session = settings.Session()
         dagrun_1 = dag.create_dagrun(
@@ -1435,28 +1443,20 @@ class TestDag(unittest.TestCase):
             state=State.FAILED,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
+            session=session,
         )
-        session.merge(dagrun_1)
-        ti = (
-            session.query(TI)
-            .filter(TI.map_index == 0, TI.task_id == task_id, TI.dag_id == dag.dag_id)
-            .first()
-        )
-        ti2 = (
-            session.query(TI)
-            .filter(TI.map_index == 1, TI.task_id == task_id, TI.dag_id == dag.dag_id)
-            .first()
-        )
+        expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
+
+        upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
+        ti = dagrun_1.get_task_instance(task_id, map_index=0, session=session)
+        ti2 = dagrun_1.get_task_instance(task_id, map_index=1, session=session)
+        upstream_ti.state = State.SUCCESS
         ti.state = State.SUCCESS
         ti2.state = State.SUCCESS
-        ti.execution_date = DEFAULT_DATE
-        ti2.execution_date = DEFAULT_DATE
-        session.merge(ti)
-        session.merge(ti2)
         session.flush()
 
         dag.clear(
-            task_ids=[(task_id, 0)],
+            task_ids=[(task_id, 0), ("make_arg_lists")],
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             dag_run_state=dag_run_state,
@@ -1464,16 +1464,10 @@ class TestDag(unittest.TestCase):
             include_parentdag=False,
             session=session,
         )
-        ti = (
-            session.query(TI)
-            .filter(TI.map_index == ti.map_index, TI.task_id == ti.task_id, TI.dag_id == ti.dag_id)
-            .first()
-        )
-        ti2 = (
-            session.query(TI)
-            .filter(TI.map_index == ti2.map_index, TI.task_id == ti2.task_id, TI.dag_id == ti2.dag_id)
-            .first()
-        )
+        session.refresh(upstream_ti)
+        session.refresh(ti)
+        session.refresh(ti2)
+        assert upstream_ti.state is None  # cleared
         assert ti.state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
         dagruns = (
