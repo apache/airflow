@@ -29,23 +29,15 @@ const ClearRun = ({ dagId, runId }) => {
   const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
 
   const onClick = async () => {
-    try {
-      const data = await onClear({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await onClear({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await onClear({ confirmed: true });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await onClear({ confirmed: true });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
