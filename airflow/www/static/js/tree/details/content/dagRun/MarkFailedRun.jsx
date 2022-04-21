@@ -47,6 +47,7 @@ const MarkFailedRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as failed or skipped:"
         body={affectedTasks}
       />

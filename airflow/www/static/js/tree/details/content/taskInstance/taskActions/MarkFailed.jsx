@@ -86,6 +86,8 @@ const MarkFailed = ({
     onClose();
   };
 
+  const isLoading = isMarkLoading || isConfirmLoading;
+
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline">
@@ -94,13 +96,14 @@ const MarkFailed = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
+      <Button colorScheme="red" onClick={onClick} isLoading={isLoading}>
         Mark Failed
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as failed:"
         body={affectedTasks}
       />
