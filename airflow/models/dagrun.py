@@ -655,7 +655,18 @@ class DagRun(Base, LoggingMixin):
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
-            schedulable_tis, changed_tis = self._get_ready_tis(schedulable_tis, finished_tis, session)
+            schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
+                schedulable_tis,
+                finished_tis,
+                session=session,
+            )
+
+            # During expansion we may change some tis into non-schedulable
+            # states, so we need to re-compute.
+            if expansion_happened:
+                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
+                unfinished_tis = new_unfinished_tis
 
         return TISchedulingDecision(
             tis=tis,
@@ -670,57 +681,51 @@ class DagRun(Base, LoggingMixin):
         schedulable_tis: List[TI],
         finished_tis: List[TI],
         session: Session,
-    ) -> Tuple[List[TI], bool]:
+    ) -> Tuple[List[TI], bool, bool]:
         old_states = {}
         ready_tis: List[TI] = []
         changed_tis = False
 
         if not schedulable_tis:
-            return ready_tis, changed_tis
+            return ready_tis, changed_tis, False
 
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
-        expanded_tis: List[TI] = []
+        additional_tis: List[TI] = []
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
             finished_tis=finished_tis,
         )
 
-        # Check dependencies
-        for schedulable in itertools.chain(schedulable_tis, expanded_tis):
-
+        # Check dependencies.
+        expansion_happened = False
+        for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
-            if schedulable.are_dependencies_met(session=session, dep_context=dep_context):
-                ready_tis.append(schedulable)
-            else:
+            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
                 continue
-
-            # This is called in two places: First (and ideally) is in the mini scheduler at the end of
-            # LocalTaskJob, and then as an "expansion of last resort" in the scheduler
-            # to ensure that the mapped task is correctly expanded before we try to execute it.
-            if schedulable.map_index < 0 and schedulable.task.is_mapped:
-                # HACK. This needs a better way, one that copes with multiple upstreams!
-                for ti in finished_tis:
-                    if schedulable.task_id in ti.task.downstream_task_ids:
-
-                        assert isinstance(schedulable.task, MappedOperator)
-                        new_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
-                        if schedulable.state == TaskInstanceState.SKIPPED:
-                            # Task is now skipped (likely cos upstream returned 0 tasks
-                            continue
-                        assert new_tis[0] is schedulable
-                        expanded_tis.extend(new_tis[1:])
-                        break
+            # If schedulable is from a mapped task, but not yet expanded, do it
+            # now. This is called in two places: First and ideally in the mini
+            # scheduler at the end of LocalTaskJob, and then as an "expansion of
+            # last resort" in the scheduler to ensure that the mapped task is
+            # correctly expanded before executed.
+            if schedulable.map_index < 0 and isinstance(schedulable.task, MappedOperator):
+                expanded_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
+                if expanded_tis:
+                    assert expanded_tis[0] is schedulable
+                    additional_tis.extend(expanded_tis[1:])
+                expansion_happened = True
+            if schedulable.state in SCHEDULEABLE_STATES:
+                ready_tis.append(schedulable)
 
         # Check if any ti changed state
-        tis_filter = TI.filter_for_tis(old_states.keys())
+        tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
             fresh_tis = session.query(TI).filter(tis_filter).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
-        return ready_tis, changed_tis
+        return ready_tis, changed_tis, expansion_happened
 
     def _are_premature_tis(
         self,
