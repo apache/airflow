@@ -18,6 +18,7 @@
 # under the License.
 
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -43,14 +44,14 @@ def check_if_in_virtualenv() -> bool:
 def check_for_package_extras() -> str:
     """
     check if the user provided any extra packages to install.
-    defaults to package 'devel_all'.
+    defaults to package 'devel'.
     """
     if len(sys.argv) > 1:
         if len(sys.argv) > 2:
-            print("Provide extras as 1 argument like: \"devel, google, snowflake\"")
+            print("Provide extras as 1 argument like: \"devel,google,snowflake\"")
             sys.exit(1)
         return sys.argv[1]
-    return "devel_all"
+    return "devel"
 
 
 def pip_install_requirements() -> int:
@@ -60,12 +61,38 @@ def pip_install_requirements() -> int:
     """
 
     extras = check_for_package_extras()
+    print(
+        f"""
+Installing requirements.
+
+Airflow is installed with "{extras}" extra.
+
+----------------------------------------------------------------------------------------
+
+IMPORTANT NOTE ABOUT EXTRAS !!!
+
+You can specify extras as single coma-separated parameter to install. For example
+
+* google,amazon,microsoft.azure
+* devel_all
+
+Note that "devel_all" installs all possible dependencies and we have > 600 of them,
+which might not be possible to install cleanly on your host because of lack of
+system packages. It's easier to install extras one-by-one as needed.
+
+----------------------------------------------------------------------------------------
+
+"""
+    )
     version = get_python_version()
     constraint = (
-        f"https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-{version}.txt"
+        f"https://raw.githubusercontent.com/apache/airflow/constraints-main/"
+        f"constraints-source-providers-{version}.txt"
     )
     pip_install_command = ["pip", "install", "-e", f".[{extras}]", "--constraint", constraint]
-
+    quoted_command = " ".join([shlex.quote(parameter) for parameter in pip_install_command])
+    print()
+    print(f"Running command: \n   {quoted_command}\n")
     e = subprocess.run(pip_install_command)
     return e.returncode
 
@@ -113,26 +140,11 @@ def main():
 
     clean_up_airflow_home(airflow_home_dir)
 
-    print("\nInstalling requirements...")
     return_code = pip_install_requirements()
 
     if return_code != 0:
         print(
-            "Error installing the requirements\n\n"
-            "This command can fail when installed with the default \"devel_all\" extras package. "
-            "If you need to quickly install Airflow venv and work on a subset of Airflow code it might be "
-            "enough to install only the \"devel\" extra package"
-        )
-
-        print(
-            "You can do this via:\n\n"
-            "./scripts/tools/initialize_virtualenv.py \"devel\"\n\n"
-            "You can also install extras for only small subset of extras, for example:\n\n"
-            "./scripts/tools/initialize_virtualenv.py \"devel,google\""
-        )
-
-        print(
-            "To solve persisting issues with the default \"devel_all\" extras package, you might need the "
+            "To solve persisting issues with the installation, you might need the "
             "prerequisites installed on your system.\n "
             "Try running the command below and rerun virtualenv installation\n"
         )

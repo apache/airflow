@@ -136,6 +136,9 @@ the time of preparing of the airflow version. However, usually you can use "main
 to install latest version of providers. Usually the providers work with most versions of Airflow, if there
 will be any incompatibilities, it will be captured as package dependencies.
 
+Note that "main" is just an example - you might need to choose a specific airflow version to install providers
+in specific version.
+
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
