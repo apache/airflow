@@ -844,42 +844,26 @@ class TestKubernetesPodOperator:
         mock_delete_pod.assert_not_called()
 
     @pytest.mark.parametrize(
-        'conf_setting, conn_id, should_disable',
+        'key, value, attr, patched_value',
         [
-            ('True', None, False),
-            ('False', None, True),
-            ('True', 'abc', False),
-            ('False', 'abc', False),
+            ('verify_ssl', 'False', '_deprecated_core_disable_verify_ssl', True),
+            ('in_cluster', 'False', '_deprecated_core_in_cluster', False),
+            ('cluster_context', 'hi', '_deprecated_core_cluster_context', 'hi'),
+            ('config_file', '/path/to/file.txt', '_deprecated_core_config_file', '/path/to/file.txt'),
+            ('enable_tcp_keepalive', 'False', '_deprecated_core_disable_tcp_keepalive', True),
         ],
     )
-    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook')
-    def test_disable_verify_ssl(self, mock_hook, conf_setting, conn_id, should_disable):
-        with conf_vars({('kubernetes', 'verify_ssl'): conf_setting}):
-            op = KubernetesPodOperator(task_id='abc', name='hi', kubernetes_conn_id=conn_id)
-            op.get_hook()
-            if should_disable:
-                assert mock_hook.call_args[1]['disable_verify_ssl'] is True
-            else:
-                assert 'disable_verify_ssl' not in mock_hook.call_args[1]
-
-    @pytest.mark.parametrize(
-        'conf_setting, conn_id, should_disable',
-        [
-            ('True', None, False),
-            ('False', None, True),
-            ('True', 'abc', False),
-            ('False', 'abc', False),
-        ],
-    )
-    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook')
-    def test_disable_tcp_keepalive(self, mock_hook, conf_setting, conn_id, should_disable):
-        with conf_vars({('kubernetes', 'enable_tcp_keepalive'): conf_setting}):
-            op = KubernetesPodOperator(task_id='abc', name='hi', kubernetes_conn_id=conn_id)
-            op.get_hook()
-            if should_disable:
-                assert mock_hook.call_args[1]['disable_tcp_keepalive'] is True
-            else:
-                assert 'disable_tcp_keepalive' not in mock_hook.call_args[1]
+    def test_patch_core_settings(self, key, value, attr, patched_value):
+        # first verify the behavior for the default value
+        # the hook attr should be None
+        op = KubernetesPodOperator(task_id='abc', name='hi')
+        hook = op.get_hook()
+        assert getattr(hook, attr) is None
+        # now check behavior with a non-default value
+        with conf_vars({('kubernetes', key): value}):
+            op = KubernetesPodOperator(task_id='abc', name='hi')
+            hook = op.get_hook()
+            assert getattr(hook, attr) == patched_value
 
 
 def test__suppress():
