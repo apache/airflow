@@ -126,7 +126,7 @@ class KubernetesHook(BaseHook):
         self.disable_tcp_keepalive = disable_tcp_keepalive
 
         # these params used for transition in KPO to K8s hook
-        # for a deprecation period we will continue to consider
+        # for a deprecation period we will continue to consider k8s settings from airflow.cfg
         self._deprecated_core_disable_tcp_keepalive = None
         self._deprecated_core_disable_verify_ssl = None
         self._deprecated_core_in_cluster = None
