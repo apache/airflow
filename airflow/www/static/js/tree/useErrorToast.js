@@ -17,36 +17,30 @@
  * under the License.
  */
 
-import axios from 'axios';
-import { useMutation } from 'react-query';
-import { getMetaValue } from '../../utils';
+import { useToast } from '@chakra-ui/react';
 
-const confirmUrl = getMetaValue('confirm_url');
+const getErrorDescription = (error, fallbackMessage) => {
+  if (error.response && error.response.data) {
+    return error.response.data;
+  }
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return fallbackMessage || 'Something went wrong.';
+};
 
-export default function useConfirmMarkTask({
-  dagId, runId, taskId, state,
-}) {
-  return useMutation(
-    ['confirmStateChange', dagId, runId, taskId, state],
-    ({
-      past, future, upstream, downstream, mapIndexes = [],
-    }) => {
-      const params = new URLSearchParams({
-        dag_id: dagId,
-        dag_run_id: runId,
-        task_id: taskId,
-        past,
-        future,
-        upstream,
-        downstream,
-        state,
-      });
+const getErrorTitle = (error) => (error.message || 'Error');
 
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
-      });
+const useErrorToast = () => {
+  const toast = useToast();
+  // Add an error prop and handle it as a description
+  return ({ error, ...rest }) => {
+    toast({
+      status: 'error',
+      title: getErrorTitle(error),
+      description: getErrorDescription(error).slice(0, 500),
+      ...rest,
+    });
+  };
+};
 
-      return axios.get(confirmUrl, { params });
-    },
-  );
-}
+export default useErrorToast;

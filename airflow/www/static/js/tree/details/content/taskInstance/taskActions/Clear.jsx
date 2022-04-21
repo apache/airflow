@@ -34,6 +34,7 @@ const Run = ({
   runId,
   taskId,
   executionDate,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -64,39 +65,33 @@ const Run = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await clearTask({
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        failed,
-        confirmed: false,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await clearTask({
+      past,
+      future,
+      upstream,
+      downstream,
+      recursive,
+      failed,
+      confirmed: false,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await clearTask({
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        failed,
-        confirmed: true,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await clearTask({
+      past,
+      future,
+      upstream,
+      downstream,
+      recursive,
+      failed,
+      confirmed: true,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (

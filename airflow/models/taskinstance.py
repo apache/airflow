@@ -20,21 +20,21 @@ import contextlib
 import hashlib
 import logging
 import math
+import operator
 import os
 import pickle
 import signal
-import threading
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
-from inspect import currentframe
 from tempfile import NamedTemporaryFile
 from types import TracebackType
 from typing import (
     IO,
     TYPE_CHECKING,
     Any,
+    Callable,
     ContextManager,
     Dict,
     Generator,
@@ -132,11 +132,10 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-
-_TASK_EXECUTION_FRAME_LOCAL_STORAGE = threading.local()
 
 
 @contextlib.contextmanager
@@ -1625,31 +1624,27 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
-        try:
-            if task_to_execute.execution_timeout:
-                # If we are coming in with a next_method (i.e. from a deferral),
-                # calculate the timeout from our start_date.
-                if self.next_method:
-                    timeout_seconds = (
-                        task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
-                    ).total_seconds()
-                else:
-                    timeout_seconds = task_to_execute.execution_timeout.total_seconds()
-                try:
-                    # It's possible we're already timed out, so fast-fail if true
-                    if timeout_seconds <= 0:
-                        raise AirflowTaskTimeout()
-                    # Run task in timeout wrapper
-                    with timeout(timeout_seconds):
-                        result = execute_callable(context=context)
-                except AirflowTaskTimeout:
-                    task_to_execute.on_kill()
-                    raise
+        if task_to_execute.execution_timeout:
+            # If we are coming in with a next_method (i.e. from a deferral),
+            # calculate the timeout from our start_date.
+            if self.next_method:
+                timeout_seconds = (
+                    task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
+                ).total_seconds()
             else:
-                result = execute_callable(context=context)
-        except:  # noqa: E722
-            _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
-            raise
+                timeout_seconds = task_to_execute.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = execute_callable(context=context)
+            except AirflowTaskTimeout:
+                task_to_execute.on_kill()
+                raise
+        else:
+            result = execute_callable(context=context)
         with create_session() as session:
             if task_to_execute.do_xcom_push:
                 xcom_value = result
@@ -1845,33 +1840,21 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
-    def get_truncated_error_traceback(self, error: BaseException) -> Optional[TracebackType]:
+    @staticmethod
+    def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> Optional[TracebackType]:
         """
-        Returns truncated error traceback.
-
-        This method returns traceback of the error truncated to the
-        frame saved by earlier try/except along the way. If the frame
-        is found, the traceback will be truncated to below the frame.
+        Truncates the traceback of an exception to the first frame called from within a given function
 
         :param error: exception to get traceback from
-        :return: traceback to print
+        :param truncate_to: Function to truncate TB to. Must have a ``__code__`` attribute
+
+        :meta private:
         """
         tb = error.__traceback__
-        try:
-            execution_frame = _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame
-        except AttributeError:
-            self.log.warning(
-                "We expected to get frame set in local storage but it was not."
-                " Please report this as an issue with full logs"
-                " at https://github.com/apache/airflow/issues/new",
-                exc_info=True,
-            )
-            return tb
-        _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = None
+        code = truncate_to.__func__.__code__  # type: ignore[attr-defined]
         while tb is not None:
-            if tb.tb_frame is execution_frame:
-                tb = tb.tb_next
-                break
+            if tb.tb_frame.f_code is code:
+                return tb.tb_next
             tb = tb.tb_next
         return tb or error.__traceback__
 
@@ -1890,7 +1873,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                tb = self.get_truncated_error_traceback(error)
+                tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
                 self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
@@ -1901,24 +1884,15 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
+        Stats.incr(f'operator_failures_{self.task.task_type}')
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
-            session.add(
-                TaskFail(
-                    task=task,
-                    run_id=self.run_id,
-                    start_date=self.start_date,
-                    end_date=self.end_date,
-                    map_index=self.map_index,
-                )
-            )
+            session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
 
@@ -1934,20 +1908,26 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
+        task = None
+        try:
+            task = self.task.unmap()
+        except Exception:
+            self.log.error("Unable to unmap task, can't determine if we need to send an alert email or not")
+
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
-            email_for_state = task.email_on_failure
+            email_for_state = operator.attrgetter('email_on_failure')
         else:
             if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
             self.state = State.UP_FOR_RETRY
-            email_for_state = task.email_on_retry
+            email_for_state = operator.attrgetter('email_on_retry')
 
         self._log_state('Immediate failure requested. ' if force_fail else '')
-        if email_for_state and task.email:
+        if task and email_for_state(task) and task.email:
             try:
-                self.email_alert(error)
+                self.email_alert(error, task)
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
@@ -2241,11 +2221,15 @@ class TaskInstance(Base, LoggingMixin):
         sanitized_pod = ApiClient().sanitize_for_serialization(pod)
         return sanitized_pod
 
-    def get_email_subject_content(self, exception: BaseException) -> Tuple[str, str, str]:
+    def get_email_subject_content(
+        self, exception: BaseException, task: Optional["BaseOperator"] = None
+    ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
         # Reuse it for smart sensor to send default email alert
-        use_default = not hasattr(self, 'task')
+        if task is None:
+            task = getattr(self, 'task')
+        use_default = task is None
         exception_html = str(exception).replace('\n', '<br>')
 
         default_subject = 'Airflow alert: {{ti}}'
@@ -2312,13 +2296,14 @@ class TaskInstance(Base, LoggingMixin):
 
         return subject, html_content, html_content_err
 
-    def email_alert(self, exception):
+    def email_alert(self, exception, task: "BaseOperator"):
         """Send alert email with exception information."""
-        subject, html_content, html_content_err = self.get_email_subject_content(exception)
+        subject, html_content, html_content_err = self.get_email_subject_content(exception, task=task)
+        assert task.email
         try:
-            send_email(self.task.email, subject, html_content)
+            send_email(task.email, subject, html_content)
         except Exception:
-            send_email(self.task.email, subject, html_content_err)
+            send_email(task.email, subject, html_content_err)
 
     def set_duration(self) -> None:
         """Set TI duration"""
@@ -2563,9 +2548,10 @@ class SimpleTaskInstance:
         dag_id: str,
         task_id: str,
         run_id: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
         try_number: int,
+        map_index: int,
         state: str,
         executor_config: Any,
         pool: str,
@@ -2574,21 +2560,20 @@ class SimpleTaskInstance:
         run_as_user: Optional[str] = None,
         priority_weight: Optional[int] = None,
     ):
-        self._dag_id: str = dag_id
-        self._task_id: str = task_id
-        self._run_id: str = run_id
-        self._start_date: datetime = start_date
-        self._end_date: datetime = end_date
-        self._try_number: int = try_number
-        self._state: str = state
-        self._executor_config: Any = executor_config
-        self._run_as_user: Optional[str] = None
-        self._run_as_user = run_as_user
-        self._pool: str = pool
-        self._priority_weight: Optional[int] = None
-        self._priority_weight = priority_weight
-        self._queue: str = queue
-        self._key = key
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.start_date = start_date
+        self.end_date = end_date
+        self.try_number = try_number
+        self.state = state
+        self.executor_config = executor_config
+        self.run_as_user = run_as_user
+        self.pool = pool
+        self.priority_weight = priority_weight
+        self.queue = queue
+        self.key = key
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -2601,6 +2586,7 @@ class SimpleTaskInstance:
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
+            map_index=ti.map_index,
             start_date=ti.start_date,
             end_date=ti.end_date,
             try_number=ti.try_number,
@@ -2615,80 +2601,16 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict):
-        ti_key = obj_dict.get('_key', [])
-        start_date: Union[Any, datetime] = (
-            datetime.fromisoformat(str(obj_dict.get('_start_date')))
-            if obj_dict.get('_start_date') is not None
-            else None
-        )
-        end_date: Union[Any, datetime] = (
-            datetime.fromisoformat(str(obj_dict.get('_end_date')))
-            if obj_dict.get('_end_date') is not None
-            else None
-        )
-        return cls(
-            dag_id=str(obj_dict['_dag_id']),
-            task_id=str(obj_dict.get('_task_id')),
-            run_id=str(obj_dict.get('_run_id')),
-            start_date=start_date,
-            end_date=end_date,
-            try_number=obj_dict.get('_try_number', 1),
-            state=str(obj_dict.get('_state')),
-            executor_config=obj_dict.get('_executor_config'),
-            run_as_user=obj_dict.get('_run_as_user', None),
-            pool=str(obj_dict.get('_pool')),
-            priority_weight=obj_dict.get('_priority_weight', None),
-            queue=str(obj_dict.get('_queue')),
-            key=TaskInstanceKey(ti_key[0], ti_key[1], ti_key[2], ti_key[3], ti_key[4]),
-        )
-
-    @property
-    def dag_id(self) -> str:
-        return self._dag_id
-
-    @property
-    def task_id(self) -> str:
-        return self._task_id
-
-    @property
-    def run_id(self) -> str:
-        return self._run_id
-
-    @property
-    def start_date(self) -> datetime:
-        return self._start_date
-
-    @property
-    def end_date(self) -> datetime:
-        return self._end_date
-
-    @property
-    def try_number(self) -> int:
-        return self._try_number
-
-    @property
-    def state(self) -> str:
-        return self._state
-
-    @property
-    def pool(self) -> str:
-        return self._pool
-
-    @property
-    def priority_weight(self) -> Optional[int]:
-        return self._priority_weight
-
-    @property
-    def queue(self) -> str:
-        return self._queue
-
-    @property
-    def key(self) -> TaskInstanceKey:
-        return self._key
-
-    @property
-    def executor_config(self):
-        return self._executor_config
+        ti_key = TaskInstanceKey(*obj_dict.pop('key'))
+        start_date = None
+        end_date = None
+        start_date_str: Optional[str] = obj_dict.pop('start_date')
+        end_date_str: Optional[str] = obj_dict.pop('end_date')
+        if start_date_str:
+            start_date = timezone.parse(start_date_str)
+        if end_date_str:
+            end_date = timezone.parse(end_date_str)
+        return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
 STATICA_HACK = True
