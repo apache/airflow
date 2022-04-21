@@ -21,6 +21,7 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const failedUrl = getMetaValue('failed_url');
 const csrfToken = getMetaValue('csrf_token');
@@ -29,11 +30,12 @@ export default function useMarkFailedTask({
   dagId, runId, taskId,
 }) {
   const queryClient = useQueryClient();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['markFailed', dagId, runId, taskId],
     ({
-      past, future, upstream, downstream,
+      past, future, upstream, downstream, mapIndexes = [],
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -45,9 +47,13 @@ export default function useMarkFailedTask({
         future,
         upstream,
         downstream,
-      }).toString();
+      });
 
-      return axios.post(failedUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(failedUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -56,8 +62,10 @@ export default function useMarkFailedTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
         startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

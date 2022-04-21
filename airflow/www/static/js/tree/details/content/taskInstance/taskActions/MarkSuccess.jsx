@@ -29,8 +29,8 @@ import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
 import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
 
-const Run = ({
-  dagId, runId, taskId,
+const MarkSuccess = ({
+  dagId, runId, taskId, mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -58,34 +58,30 @@ const Run = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await confirmChangeMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await confirmChangeMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await markSuccessMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await markSuccessMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
+
+  const isLoading = isMarkLoading || isConfirmLoading;
 
   return (
     <Flex justifyContent="space-between" width="100%">
@@ -95,13 +91,14 @@ const Run = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
+      <Button colorScheme="green" onClick={onClick} isLoading={isLoading}>
         Mark Success
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as success:"
         body={affectedTasks}
       />
@@ -109,4 +106,4 @@ const Run = ({
   );
 };
 
-export default Run;
+export default MarkSuccess;

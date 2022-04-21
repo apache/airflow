@@ -513,13 +513,15 @@ def get_task_stats_from_query(qry):
     return data
 
 
-def redirect_or_json(origin, msg, status=""):
+def redirect_or_json(origin, msg, status="", status_code=200):
     """
     Some endpoints are called by javascript,
     returning json will allow us to more elegantly handle side-effects in-page
     """
     if request.headers.get('Accept') == 'application/json':
-        return {'status': status, 'message': msg}
+        if status == 'error' and status_code == 200:
+            status_code = 500
+        return Response(response=msg, status=status_code, mimetype="application/json")
     else:
         if status:
             flash(msg, status)
@@ -1757,13 +1759,13 @@ class Airflow(AirflowBaseView):
 
         if not getattr(executor, "supports_ad_hoc_ti_run", False):
             msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
             msg = "Could not queue task instance for execution, task instance is missing"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         ti.refresh_from_task(task)
 
@@ -1778,7 +1780,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         executor.job_id = "manual"
         executor.start()
@@ -1993,13 +1995,13 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            return redirect_or_json(origin, msg=str(ex), status="error")
+            return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
 
         assert isinstance(tis, collections.abc.Iterable)
         details = [str(t) for t in tis]
 
         if not details:
-            return redirect_or_json(origin, "No task instances to clear", status="error")
+            return redirect_or_json(origin, "No task instances to clear", status="error", status_code=404)
         elif request.headers.get('Accept') == 'application/json':
             return htmlsafe_json_dumps(details, separators=(',', ':'))
         return self.render_template(
@@ -2353,13 +2355,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             msg = f'DAG {dag_id} not found'
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=404)
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             msg = f"Task {task_id} not found"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=404)
 
         task.dag = dag
 
@@ -2368,12 +2370,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             msg = f"Invalid state {state}, must be either 'success' or 'failed'"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=400)
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=400)
 
         if map_indexes is None:
             tasks: Union[List[Operator], List[Tuple[Operator, int]]] = [task]

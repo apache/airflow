@@ -29,13 +29,9 @@ const MarkFailedRun = ({ dagId, runId }) => {
   const { mutateAsync: markFailed, isLoading } = useMarkFailedRun(dagId, runId);
 
   const onClick = async () => {
-    try {
-      const data = await markFailed({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (error) {
-      console.error(error);
-    }
+    const data = await markFailed({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = () => {
@@ -51,6 +47,7 @@ const MarkFailedRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as failed or skipped:"
         body={affectedTasks}
       />

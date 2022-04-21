@@ -246,7 +246,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
-                mock.call('operator_failures_EmptyOperator', 1, 1),
+                mock.call('operator_failures_EmptyOperator'),
                 mock.call('ti_failures'),
             ],
             any_order=True,
@@ -303,7 +303,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call('scheduler.tasks.killed_externally'),
-                mock.call('operator_failures_EmptyOperator', 1, 1),
+                mock.call('operator_failures_EmptyOperator'),
                 mock.call('ti_failures'),
             ],
             any_order=True,
@@ -3793,6 +3793,7 @@ class TestSchedulerJob:
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
             assert ti.task_id == requests[0].simple_task_instance.task_id
             assert ti.run_id == requests[0].simple_task_instance.run_id
+            assert ti.map_index == requests[0].simple_task_instance.map_index
 
             session.query(TaskInstance).delete()
             session.query(LocalTaskJob).delete()
