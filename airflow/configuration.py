@@ -325,7 +325,7 @@ class AirflowConfigParser(ConfigParser):
             # handled by deprecated_values
             pass
         elif old_value.find('airflow.api.auth.backend.session') == -1:
-            new_value = old_value + "\nairflow.api.auth.backend.session"
+            new_value = old_value + ",airflow.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
             warnings.warn(
                 'The auth_backends setting in [api] has had airflow.api.auth.backend.session added '
