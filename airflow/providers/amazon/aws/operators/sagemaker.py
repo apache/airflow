@@ -111,6 +111,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     experience on SageMaker to run your data processing workloads, such as feature
     engineering, data validation, model evaluation, and model interpretation.
 
+     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerProcessingOperator`
+
     :param config: The configuration necessary to start a processing job (templated).
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_processing_job`
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,

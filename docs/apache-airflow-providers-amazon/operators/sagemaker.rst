@@ -33,6 +33,21 @@ Prerequisite Tasks
 Manage Amazon SageMaker Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. _howto/operator:SageMakerProcessingOperator:
+
+Create an Amazon SageMaker Processing Job
+"""""""""""""""""""""""""""""""""""""""""
+
+To create an Amazon Sagemaker processing job to sanitize your dataset you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_processing]
+    :end-before: [END howto_operator_sagemaker_processing]
+
+
 .. _howto/operator:SageMakerTrainingOperator:
 
 Create an Amazon SageMaker Training Job
