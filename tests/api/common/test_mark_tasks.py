@@ -39,6 +39,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.mapping import expand_mapped_task
 
 DEV_NULL = "/dev/null"
 
@@ -138,7 +139,7 @@ class TestMarkTasks:
             )
 
     @provide_session
-    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None, map_indexes=None):
+    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None, map_task_pairs=None):
         TI = models.TaskInstance
         DR = models.DagRun
 
@@ -155,25 +156,24 @@ class TestMarkTasks:
         for ti in tis:
             assert ti.operator == dag.get_task(ti.task_id).task_type
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
-                if map_indexes:
-                    if ti.map_index in map_indexes:
+                if map_task_pairs:
+                    if (ti.task_id, ti.map_index) in map_task_pairs:
                         assert ti.state == state
                 else:
                     assert ti.state == state
-                if state in State.finished:
-                    if map_indexes:
-                        if ti.map_index in map_indexes:
-                            assert ti.end_date is not None
-                    else:
-                        assert ti.end_date is not None
+                if ti.state in State.finished:
+                    assert ti.end_date is not None
             else:
                 for old_ti in old_tis:
-                    if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
-                        if map_indexes:
-                            if ti.map_index in map_indexes:
-                                assert ti.state == old_ti.state
-                        else:
-                            assert ti.state == old_ti.state
+                    if (
+                        old_ti.task_id == ti.task_id
+                        and old_ti.run_id == ti.run_id
+                        and old_ti.map_index == ti.map_index
+                    ):
+                        assert ti.state == old_ti.state
+                        break
+                else:
+                    assert False, "New TI appeared!"
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
@@ -436,31 +436,34 @@ class TestMarkTasks:
         # tested logic.
         self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, [])
 
-    def test_mark_mapped_task_instance_state(self):
+    def test_mark_mapped_task_instance_state(self, session):
         # set mapped task instance to success
+        mapped = self.dag4.get_task("consumer")
+        tasks = [(mapped, 0), (mapped, 1)]
+        dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0], session=session)[0]
+        expand_mapped_task(mapped, dr.run_id, "make_arg_lists", length=3, session=session)
         snapshot = TestMarkTasks.snapshot_state(self.dag4, self.execution_dates)
-        task = self.dag4.get_task("consumer_literal")
-        tasks = [(task, 0), (task, 1)]
-        map_indexes = [0, 1]
-        dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=tasks,
             run_id=dr.run_id,
-            upstream=False,
+            upstream=True,
             downstream=False,
             future=False,
             past=False,
             state=State.SUCCESS,
             commit=True,
+            session=session,
         )
-        assert len(altered) == 2
+        assert len(altered) == 3
         self.verify_state(
             self.dag4,
-            [task.task_id for task, _ in tasks],
+            ["consumer", "make_arg_lists"],
             [self.execution_dates[0]],
             State.SUCCESS,
             snapshot,
-            map_indexes=map_indexes,
+            map_task_pairs=[(task.task_id, map_index) for (task, map_index) in tasks]
+            + [("make_arg_lists", -1)],
+            session=session,
         )
 
 
