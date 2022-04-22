@@ -79,7 +79,6 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
         def __init__(self):
             """Initialize the Sentry SDK."""
             ignore_logger("airflow.task")
-            ignore_logger("airflow.jobs.backfill_job.BackfillJob")
             executor_name = conf.get("core", "EXECUTOR")
 
             sentry_flask = FlaskIntegration()

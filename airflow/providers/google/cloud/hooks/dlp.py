@@ -30,6 +30,7 @@ import re
 import time
 from typing import List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2 import DlpServiceClient
 from google.cloud.dlp_v2.types import (
@@ -113,7 +114,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         dlp_job_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -145,7 +146,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         deidentify_template: Optional[Union[dict, DeidentifyTemplate]] = None,
         template_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
@@ -195,7 +196,7 @@ class CloudDLPHook(GoogleBaseHook):
         inspect_job: Optional[Union[dict, InspectJobConfig]] = None,
         risk_job: Optional[Union[dict, RiskAnalysisJobConfig]] = None,
         job_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         wait_until_finished: bool = True,
@@ -269,7 +270,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         inspect_template: Optional[InspectTemplate] = None,
         template_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
@@ -319,7 +320,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         job_trigger: Optional[Union[dict, JobTrigger]] = None,
         trigger_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
@@ -358,7 +359,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         config: Optional[Union[dict, StoredInfoTypeConfig]] = None,
         stored_info_type_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:
@@ -410,7 +411,7 @@ class CloudDLPHook(GoogleBaseHook):
         item: Optional[Union[dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
         deidentify_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyContentResponse:
@@ -456,7 +457,7 @@ class CloudDLPHook(GoogleBaseHook):
         )
 
     def delete_deidentify_template(
-        self, template_id, organization_id=None, project_id=None, retry=None, timeout=None, metadata=()
+        self, template_id, organization_id=None, project_id=None, retry=DEFAULT, timeout=None, metadata=()
     ) -> None:
         """
         Deletes a deidentify template.
@@ -496,7 +497,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         dlp_job_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -528,7 +529,7 @@ class CloudDLPHook(GoogleBaseHook):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -570,7 +571,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         job_trigger_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -601,7 +602,7 @@ class CloudDLPHook(GoogleBaseHook):
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -643,7 +644,7 @@ class CloudDLPHook(GoogleBaseHook):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
@@ -686,7 +687,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         dlp_job_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> DlpJob:
@@ -718,7 +719,7 @@ class CloudDLPHook(GoogleBaseHook):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
@@ -761,7 +762,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         job_trigger_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
@@ -793,7 +794,7 @@ class CloudDLPHook(GoogleBaseHook):
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:
@@ -838,7 +839,7 @@ class CloudDLPHook(GoogleBaseHook):
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         item: Optional[Union[dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectContentResponse:
@@ -881,7 +882,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[DeidentifyTemplate]:
@@ -936,7 +937,7 @@ class CloudDLPHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         job_type: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[DlpJob]:
@@ -979,7 +980,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         language_code: Optional[str] = None,
         results_filter: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListInfoTypesResponse:
@@ -1014,7 +1015,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[InspectTemplate]:
@@ -1067,7 +1068,7 @@ class CloudDLPHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
         results_filter: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[JobTrigger]:
@@ -1110,7 +1111,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[StoredInfoType]:
@@ -1166,7 +1167,7 @@ class CloudDLPHook(GoogleBaseHook):
         ] = None,
         include_findings: Optional[bool] = None,
         byte_item: Optional[Union[dict, ByteContentItem]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> RedactImageResponse:
@@ -1216,7 +1217,7 @@ class CloudDLPHook(GoogleBaseHook):
         item: Optional[Union[dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
         reidentify_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ReidentifyContentResponse:
@@ -1265,7 +1266,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         deidentify_template: Optional[Union[dict, DeidentifyTemplate]] = None,
         update_mask: Optional[Union[dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
@@ -1319,7 +1320,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         inspect_template: Optional[Union[dict, InspectTemplate]] = None,
         update_mask: Optional[Union[dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> InspectTemplate:
@@ -1372,7 +1373,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: str,
         job_trigger: Optional[Union[dict, JobTrigger]] = None,
         update_mask: Optional[Union[dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> JobTrigger:
@@ -1415,7 +1416,7 @@ class CloudDLPHook(GoogleBaseHook):
         project_id: Optional[str] = None,
         config: Optional[Union[dict, StoredInfoTypeConfig]] = None,
         update_mask: Optional[Union[dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> StoredInfoType:

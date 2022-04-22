@@ -28,6 +28,7 @@ import {
 import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../../StatusBox';
+import { ClipboardText } from '../../../Clipboard';
 import { formatDuration } from '../../../../datetime_utils';
 import Time from '../../../Time';
 import MarkFailedRun from './MarkFailedRun';
@@ -37,6 +38,7 @@ import ClearRun from './ClearRun';
 import { useTreeData } from '../../../api';
 import { appendSearchParams, getMetaValue } from '../../../../utils';
 
+const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
 const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
@@ -46,7 +48,6 @@ const DagRun = ({ runId }) => {
   if (!run) return null;
   const {
     executionDate,
-    dagId,
     state,
     runType,
     duration,
@@ -66,7 +67,7 @@ const DagRun = ({ runId }) => {
   const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);
 
   return (
-    <Box fontSize="12px" py="4px">
+    <Box py="4px">
       <Flex justifyContent="space-between" alignItems="center">
         <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
         <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
@@ -76,12 +77,10 @@ const DagRun = ({ runId }) => {
         <MarkSuccessRun dagId={dagId} runId={runId} />
       </Flex>
       <Divider my={3} />
-      <Flex justifyContent="space-between" alignItems="center">
-        <Text fontWeight="bold" ml="10px">Re-run:</Text>
-        <Flex>
-          <ClearRun dagId={dagId} runId={runId} />
-          <QueueRun dagId={dagId} runId={runId} />
-        </Flex>
+      <Flex justifyContent="flex-end" alignItems="center">
+        <Text fontWeight="bold" mr={2}>Re-run:</Text>
+        <ClearRun dagId={dagId} runId={runId} />
+        <QueueRun dagId={dagId} runId={runId} />
       </Flex>
       <Divider my={3} />
       <Flex alignItems="center">
@@ -93,7 +92,7 @@ const DagRun = ({ runId }) => {
       <Text whiteSpace="nowrap">
         Run Id:
         {' '}
-        {runId}
+        <ClipboardText value={runId} />
       </Text>
       <Text>
         Run Type:
@@ -114,6 +113,21 @@ const DagRun = ({ runId }) => {
       </Text>
       )}
       <br />
+      {startDate && (
+      <Text>
+        Started:
+        {' '}
+        <Time dateTime={startDate} />
+      </Text>
+      )}
+      {endDate && (
+      <Text>
+        Ended:
+        {' '}
+        <Time dateTime={endDate} />
+      </Text>
+      )}
+      <br />
       <Text as="strong">Data Interval:</Text>
       <Text>
         Start:
@@ -125,17 +139,7 @@ const DagRun = ({ runId }) => {
         {' '}
         <Time dateTime={dataIntervalEnd} />
       </Text>
-      <br />
-      <Text>
-        Started:
-        {' '}
-        <Time dateTime={startDate} />
-      </Text>
-      <Text>
-        Ended:
-        {' '}
-        <Time dateTime={endDate} />
-      </Text>
+
     </Box>
   );
 };

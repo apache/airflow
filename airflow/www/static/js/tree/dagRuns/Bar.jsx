@@ -33,23 +33,20 @@ import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
 import { useContainerRef } from '../context/containerRef';
-import { useSelection } from '../context/selection';
 import Time from '../Time';
 
 const BAR_HEIGHT = 100;
 
 const DagRunBar = ({
-  run, max, index, totalRuns,
+  run, max, index, totalRuns, isSelected, onSelect,
 }) => {
   const containerRef = useContainerRef();
-  const { selected, onSelect } = useSelection();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
-  const isSelected = run.runId === selected.runId;
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    if (selected.runId !== run.runId) {
+    if (!isSelected) {
       [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
         .forEach((e) => { e.style.backgroundColor = hoverBlue; });
     }
@@ -62,6 +59,7 @@ const DagRunBar = ({
   return (
     <Box
       className={`js-${run.runId}`}
+      data-selected={isSelected}
       bg={isSelected && 'blue.100'}
       transition="background-color 0.2s"
       px="1px"
@@ -90,7 +88,7 @@ const DagRunBar = ({
           <Flex
             width="10px"
             height={`${(run.duration / max) * BAR_HEIGHT}px`}
-            minHeight="12px"
+            minHeight="14px"
             backgroundColor={stateColors[run.state]}
             borderRadius={2}
             cursor="pointer"
@@ -108,7 +106,7 @@ const DagRunBar = ({
       </Flex>
       {index < totalRuns - 3 && index % 10 === 0 && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
-        <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
+        <Text fontSize="sm" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
           <Time dateTime={run.executionDate} format="MMM DD, HH:mm" />
         </Text>
         <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
@@ -128,6 +126,7 @@ const compareProps = (
   && prevProps.max === nextProps.max
   && prevProps.index === nextProps.index
   && prevProps.totalRuns === nextProps.totalRuns
+  && prevProps.isSelected === nextProps.isSelected
 );
 
 export default React.memo(DagRunBar, compareProps);

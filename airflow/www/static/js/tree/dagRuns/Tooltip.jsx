@@ -28,7 +28,7 @@ const DagRunTooltip = ({
     state, duration, dataIntervalEnd,
   },
 }) => (
-  <Box fontSize="12px" py="2px">
+  <Box py="2px">
     <Text>
       Status:
       {' '}

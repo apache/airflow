@@ -64,7 +64,7 @@ are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/ai
 
 The working directory is ``/opt/airflow`` by default.
 
-If no `AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable is set then SQLite database is created in
+If no `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite database is created in
 ``${AIRFLOW_HOME}/airflow.db``.
 
 For example commands that start Airflow see: [Executing commands](https://airflow.apache.org/docs/docker-stack/entrypoint.html#entrypoint-commands).

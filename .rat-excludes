@@ -33,7 +33,6 @@ metastore_db
 .*svg
 .*csv
 .*md5
-CHANGELOG.txt
 .*zip
 .*lock
 unittests.cfg

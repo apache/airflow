@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
+{{- $securityContext := include "localSecurityContext" .Values.redis }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -67,6 +68,7 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
+      securityContext: {{ $securityContext | nindent 8 }}
       containers:
         - name: redis
           image: {{ template "redis_image" . }}

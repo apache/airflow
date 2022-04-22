@@ -19,7 +19,7 @@
 ## Airflow SCC Role Binding
 #################################
 {{- if and .Values.rbac.create .Values.rbac.createSCCRoleBinding }}
-{{- $hasWorkers := has .Values.executor (list "CeleryExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor") }}
+{{- $hasWorkers := has .Values.executor (list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor") }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}

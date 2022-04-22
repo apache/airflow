@@ -27,28 +27,28 @@ import {
 
 import { getMetaValue, appendSearchParams } from '../../../../utils';
 
+const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
-const taskInstancesUrl = getMetaValue('task_instances_url');
+const taskInstancesUrl = getMetaValue('task_instances_list_url');
 const renderedK8sUrl = getMetaValue('rendered_k8s_url');
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
+const xcomUrl = getMetaValue('xcom_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
 const gridUrl = getMetaValue('grid_url');
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const LinkButton = ({ children, ...rest }) => (
+  <Button as={Link} aria-label={children} variant="ghost" colorScheme="blue" {...rest}>
+    {children}
+  </Button>
+);
 
-const Nav = ({ instance, isMapped }) => {
-  const {
-    taskId,
-    dagId,
-    runId,
-    operator,
-    executionDate,
-  } = instance;
-
+const Nav = ({
+  taskId, executionDate, operator, isMapped,
+}) => {
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
@@ -56,17 +56,12 @@ const Nav = ({ instance, isMapped }) => {
   const detailsLink = `${taskUrl}&${params}`;
   const renderedLink = `${renderedTemplatesUrl}&${params}`;
   const logLink = `${logUrl}&${params}`;
+  const xcomLink = `${xcomUrl}&${params}`;
   const k8sLink = `${renderedK8sUrl}&${params}`;
   const listParams = new URLSearchParams({
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: 'dag_run.execution_date',
-  });
-  const mapParams = new URLSearchParams({
-    _flt_3_dag_id: dagId,
-    _flt_3_task_id: taskId,
-    _flt_3_run_id: runId,
-    _oc_TaskInstanceModelView: 'map_index',
   });
   const subDagParams = new URLSearchParams({
     execution_date: executionDate,
@@ -79,7 +74,6 @@ const Nav = ({ instance, isMapped }) => {
   }).toString();
 
   const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
-  const mappedInstancesLink = `${taskInstancesUrl}?${mapParams.toString()}`;
 
   const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams);
   const subDagLink = appendSearchParams(gridUrl.replace(dagId, `${dagId}.${taskId}`), subDagParams);
@@ -101,12 +95,10 @@ const Nav = ({ instance, isMapped }) => {
           <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
           )}
           <LinkButton href={logLink}>Log</LinkButton>
+          <LinkButton href={xcomLink}>XCom</LinkButton>
         </>
         )}
-        {isMapped && (
-        <LinkButton href={mappedInstancesLink} title="Show the mapped instances for this DAG run">Mapped Instances</LinkButton>
-        )}
-        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
+        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">List Instances, all runs</LinkButton>
         <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
       <Divider mt={3} />

@@ -60,7 +60,6 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
     if check_allowed_values:
         allowed, allowed_values = check_if_values_allowed(param_name, param_value)
     if allowed or not check_allowed_values:
-        print('BUILD CACHE DIR:', BUILD_CACHE_DIR)
         cache_path = Path(BUILD_CACHE_DIR, f".{param_name}")
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(param_value)

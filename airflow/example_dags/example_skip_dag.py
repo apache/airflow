@@ -16,20 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
+"""Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
 
 import pendulum
 
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
 
 
 # Create some placeholder operators
-class DummySkipOperator(DummyOperator):
-    """Dummy operator which always skips the task."""
+class EmptySkipOperator(EmptyOperator):
+    """Empty operator which always skips the task."""
 
     ui_color = '#e8b7e4'
 
@@ -45,10 +45,10 @@ def create_test_pipeline(suffix, trigger_rule):
     :param str trigger_rule: TriggerRule for the join task
     :param DAG dag_: The DAG to run the operators on
     """
-    skip_operator = DummySkipOperator(task_id=f'skip_operator_{suffix}')
-    always_true = DummyOperator(task_id=f'always_true_{suffix}')
-    join = DummyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
-    final = DummyOperator(task_id=f'final_{suffix}')
+    skip_operator = EmptySkipOperator(task_id=f'skip_operator_{suffix}')
+    always_true = EmptyOperator(task_id=f'always_true_{suffix}')
+    join = EmptyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
+    final = EmptyOperator(task_id=f'final_{suffix}')
 
     skip_operator >> join
     always_true >> join

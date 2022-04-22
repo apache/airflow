@@ -20,6 +20,7 @@ import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
@@ -50,7 +51,7 @@ class TestCloudSql(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.recognize_speech.assert_called_once_with(
-            config=CONFIG, audio=AUDIO, retry=None, timeout=None
+            config=CONFIG, audio=AUDIO, retry=DEFAULT, timeout=None
         )
 
     @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")

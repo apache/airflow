@@ -247,16 +247,6 @@ definitions in Airflow.
 
 .. seealso:: :doc:`/howto/define_extra_link`
 
-Note on role based views
-------------------------
-
-Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
-``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
-the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
-
-``appbuilder_views`` supports both views-with-menu and views-without-menu - to add a view with menu link, add a "name"
-key in view's package dictionary, otherwise the view is added to flask appbuilder without menu item.
-
 Exclude views from CSRF protection
 ----------------------------------
 

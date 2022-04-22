@@ -56,27 +56,29 @@ const renderTaskRows = ({
 ));
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId,
+  task, dagRunIds, selectedRunId, onSelect,
 }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((gi) => gi.runId === runId);
+      const isSelected = selectedRunId === runId;
       return (
         <Box
           py="4px"
           px={boxPaddingPx}
           className={`js-${runId}`}
+          data-selected={isSelected}
           transition="background-color 0.2s"
           key={`${runId}-${task.id}`}
-          bg={selectedRunId === runId && 'blue.100'}
+          bg={isSelected && 'blue.100'}
         >
           {instance
             ? (
               <StatusBox
                 instance={instance}
-                extraLinks={task.extraLinks}
                 group={task}
+                onSelect={onSelect}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -93,10 +95,9 @@ const Row = (props) => {
     prevTaskId,
     isParentOpen = true,
     dagRunIds,
-    tableWidth,
   } = props;
   const { colors } = useTheme();
-  const { selected } = useSelection();
+  const { selected, onSelect } = useSelection();
 
   const hoverBlue = `${colors.blue[100]}50`;
   const isGroup = !!task.children;
@@ -145,7 +146,7 @@ const Row = (props) => {
           position="sticky"
           left={0}
           borderBottom={0}
-          width={`${tableWidth - (dagRunIds.length * columnWidth)}px`}
+          width="100%"
           zIndex={1}
         >
           <Collapse in={isFullyOpen} unmountOnExit>
@@ -171,6 +172,7 @@ const Row = (props) => {
               dagRunIds={dagRunIds}
               task={task}
               selectedRunId={selected.runId}
+              onSelect={onSelect}
             />
           </Collapse>
         </Td>

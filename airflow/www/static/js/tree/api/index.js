@@ -20,7 +20,6 @@
 import axios from 'axios';
 import camelcaseKeys from 'camelcase-keys';
 
-import useDag from './useDag';
 import useTasks from './useTasks';
 import useClearRun from './useClearRun';
 import useQueueRun from './useQueueRun';
@@ -33,6 +32,7 @@ import useMarkSuccessTask from './useMarkSuccessTask';
 import useExtraLinks from './useExtraLinks';
 import useConfirmMarkTask from './useConfirmMarkTask';
 import useTreeData from './useTreeData';
+import useMappedInstances from './useMappedInstances';
 
 axios.interceptors.response.use(
   (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -41,7 +41,6 @@ axios.interceptors.response.use(
 axios.defaults.headers.common.Accept = 'application/json';
 
 export {
-  useDag,
   useTasks,
   useClearRun,
   useQueueRun,
@@ -54,4 +53,5 @@ export {
   useExtraLinks,
   useConfirmMarkTask,
   useTreeData,
+  useMappedInstances,
 };

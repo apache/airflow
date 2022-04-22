@@ -1,0 +1,3 @@
+Zip files in the DAGs folder can no longer have a ``.py`` extension
+
+It was previously possible to have any extension for zip files in the DAGs folder. Now ``.py`` files are going to be loaded as modules without checking whether it is a zip file, as it leads to less IO. If a ``.py`` file in the DAGs folder is a zip compressed file, parsing it will fail with an exception.

@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Sequence, Tuple, Union
 from unittest import TestCase, mock
 
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.datacatalog_v1beta1.types import Entry, EntryGroup, Tag, TagTemplate, TagTemplateField
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -52,7 +53,7 @@ TEST_PROJECT_ID: str = "example_id"
 TEST_LOCATION: str = "en-west-3"
 TEST_ENTRY_ID: str = "test-entry-id"
 TEST_TAG_ID: str = "test-tag-id"
-TEST_RETRY: Retry = Retry()
+TEST_RETRY: Union[Retry, _MethodDefault] = Retry()
 TEST_TIMEOUT: float = 0.5
 TEST_METADATA: Sequence[Tuple[str, str]] = []
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
@@ -148,14 +149,10 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
         ti.xcom_push.assert_called_once_with(key="entry_id", value=TEST_ENTRY_ID)
         assert TEST_ENTRY_DICT == result
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{
-            "return_value.create_entry.side_effect": AlreadyExists(message="message"),
-            "return_value.get_entry.return_value": TEST_ENTRY,
-        },
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     def test_assert_valid_hook_call_when_exists(self, mock_hook) -> None:
+        mock_hook.return_value.create_entry.side_effect = AlreadyExists(message="message")
+        mock_hook.return_value.get_entry.return_value = TEST_ENTRY
         task = CloudDataCatalogCreateEntryOperator(
             task_id="task_id",
             location=TEST_LOCATION,

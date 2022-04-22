@@ -1,2 +1,3 @@
             f"DELETE {source_table} FROM { ', '.join(_from_name(tbl) for tbl in stmt.froms) }"
         for frm in source_query.selectable.froms:
+    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="selectin")

@@ -395,7 +395,7 @@ class DagFileProcessorManager(LoggingMixin):
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
-        if conf.get('core', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
+        if conf.get('database', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d) when using sqlite. So we set parallelism to 1.",
@@ -527,7 +527,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
-
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
             # in sync mode we need to be told to start a "loop"
@@ -578,7 +578,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if conf.getboolean("scheduler", "standalone_dag_processor"):
+            if standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             self._refresh_dag_dir()
@@ -1065,6 +1065,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = timezone.utcnow()
+        processors_to_remove = []
         for file_path, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self._processor_timeout:
@@ -1079,6 +1080,14 @@ class DagFileProcessorManager(LoggingMixin):
                 # TODO: Remove after Airflow 2.0
                 Stats.incr('dag_file_processor_timeouts')
                 processor.kill()
+
+                # Clean up processor references
+                self.waitables.pop(processor.waitable_handle)
+                processors_to_remove.append(file_path)
+
+        # Clean up `self._processors` after iterating over it
+        for proc in processors_to_remove:
+            self._processors.pop(proc)
 
     def max_runs_reached(self):
         """:return: whether all file paths have been processed max_runs times"""

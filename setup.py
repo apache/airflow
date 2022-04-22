@@ -248,13 +248,9 @@ celery = [
     'celery>=5.2.3,<6',
     'flower>=1.0.0',
 ]
-cgroups = [  # type:ignore
-    # Cgroups are now vendored in `airflow/_vendor/cgroupspy` for Python 3.10 compatibility
-    # The vendored code can be removed once cgroupspy released a new version after fixing
-    # the incompatibility https://github.com/cloudsigma/cgroupspy/issues/13 (hopefully >0.2.1 will
-    # be good for that. We should also be able to remove type:ignore above, as MyPy can't derive the type
-    # when this line is commented out
-    # 'cgroupspy>0.2.1',
+cgroups = [
+    # Cgroupspy 0.2.2 added Python 3.10 compatibility
+    'cgroupspy>=0.2.2',
 ]
 cloudant = [
     'cloudant>=2.0',
@@ -268,7 +264,7 @@ dask = [
 ]
 databricks = [
     'requests>=2.26.0, <3',
-    'databricks-sql-connector>=1.0.0, <2.0.0',
+    'databricks-sql-connector>=1.0.2, <2.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -328,11 +324,8 @@ google = [
     # Introduced breaking changes across the board. Those libraries should be upgraded soon
     # TODO: Upgrade all Google libraries that are limited to <2.0.0
     'PyOpenSSL',
-    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
-    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
-    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
-    'google-ads>=12.0.0,<14.0.1',
-    'google-api-core>=1.25.1,<3.0.0',
+    'google-ads>=15.1.1',
+    'google-api-core>=2.7.0,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -636,7 +629,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.1.0',
+    'moto[glue]>=3.1.0',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -664,6 +657,7 @@ devel_only = [
     'requests_mock',
     'rich_click',
     'semver',
+    'towncrier',
     'twine',
     'wheel',
     'yamllint',

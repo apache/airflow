@@ -21,7 +21,7 @@ import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
@@ -55,7 +55,7 @@ def custom_task_log_handler_config():
 @pytest.fixture()
 def task_instance():
     dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-    task = DummyOperator(task_id=TASK_ID, dag=dag)
+    task = EmptyOperator(task_id=TASK_ID, dag=dag)
     dagrun = dag.create_dagrun(DagRunState.RUNNING, execution_date=DEFAULT_DATE, run_type=DagRunType.MANUAL)
     ti = TaskInstance(task=task, run_id=dagrun.run_id)
     ti.log.disabled = False

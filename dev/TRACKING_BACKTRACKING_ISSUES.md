@@ -130,8 +130,8 @@ the version that was correctly installed before and is stored in the current con
 The process of tracking down which package is the "root cause" looks as follows:
 
 1. Checkout the latest main of Airflow
-2. Build the latest image (with constraints): `./breeze build-image --python 3.7`
-3. Enter breeze `./breeze`
+2. Build the latest image (with constraints): `breeze build-image --python 3.7`
+3. Enter breeze `breeze`
 4. Attempt to run the `pip install` command that was printed in the "Candidates ..." step
 5. The command should succeed (the candidates are pinned to the "working" version)
 6. Attempt to run `pip install ".[devel_all]" --upgrade --upgrade-strategy eager "dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"`
@@ -188,10 +188,9 @@ was able to find the right resolution without backtracking.
 
 You can also find the candidates manually. This is especially when you are not sure when the build broke,
 and you need to extend the time or when you need to run it for another branch.
-You need to install the new Breeze2 in one of two ways:
+You need to install the breeze:
 
 * `pipx install -e ./dev/breeze` if you use pipx install.
-* `pip install -e ./dev/breeze` in your own dev virtualenv.
 
 Then you can run airflow-find-newer-dependencies with optional flags. For example if you know that the build
 was likely broken on a given date and time (in your timezone) and you want to check python 3.8

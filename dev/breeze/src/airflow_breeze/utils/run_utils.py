@@ -22,6 +22,7 @@ import shutil
 import stat
 import subprocess
 import sys
+from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
@@ -39,6 +40,7 @@ def run_command(
     no_output_dump_on_exception: bool = False,
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
+    input: Optional[str] = None,
     **kwargs,
 ) -> Optional[subprocess.CompletedProcess]:
     """
@@ -59,6 +61,7 @@ def run_command(
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
+    :param input: input string to pass to stdin of the process
     :param kwargs: kwargs passed to POpen
     """
     workdir: str = str(cwd) if cwd else os.getcwd()
@@ -77,7 +80,7 @@ def run_command(
         cmd_env = os.environ.copy()
         if env:
             cmd_env.update(env)
-        return subprocess.run(cmd, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
             if ex.stdout:
@@ -101,7 +104,6 @@ def check_pre_commit_installed(verbose: bool) -> bool:
     """
     # Local import to make autocomplete work
     import yaml
-    from pkg_resources import parse_version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
@@ -114,7 +116,7 @@ def check_pre_commit_installed(verbose: bool) -> bool:
         )
         if process and process.stdout:
             pre_commit_version = process.stdout.split(" ")[-1].strip()
-            if parse_version(pre_commit_version) >= parse_version(min_pre_commit_version):
+            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
                 console.print(
                     f"\n[green]Package {pre_commit_name} is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
@@ -162,7 +164,7 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
     console.print('Please run this command at earliest convenience:\n')
-    console.print(f'      `./Breeze2 build-image --python {python}`\n')
+    console.print(f'      `./breeze build-image --python {python}`\n')
 
 
 @contextlib.contextmanager

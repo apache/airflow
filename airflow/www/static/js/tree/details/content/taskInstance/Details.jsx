@@ -28,107 +28,99 @@ import { finalStatesMap } from '../../../../utils';
 import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
 import Time from '../../../Time';
+import { ClipboardText } from '../../../Clipboard';
 
-const Details = ({ instance, task }) => {
-  const isGroup = !!task.children;
-  const groupSummary = [];
-  const mapSummary = [];
+const Details = ({ instance, group, operator }) => {
+  const isGroup = !!group.children;
+  const summary = [];
 
   const {
     taskId,
     runId,
     duration,
-    operator,
     startDate,
     endDate,
     state,
     mappedStates,
   } = instance;
 
+  const {
+    isMapped,
+    children,
+    tooltip,
+  } = group;
+
+  const numMap = finalStatesMap();
   if (isGroup) {
-    const numMap = finalStatesMap();
-    task.children.forEach((child) => {
+    children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
         const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
         if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        groupSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
-  }
-
-  if (task.isMapped && mappedStates) {
-    const numMap = finalStatesMap();
+  } else if (isMapped && mappedStates) {
     mappedStates.forEach((s) => {
       const stateKey = s || 'no_status';
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
-    numMap.forEach((key, val) => {
-      if (key > 0) {
-        mapSummary.push(
-          // eslint-disable-next-line react/no-array-index-key
-          <Text key={val} ml="10px">
-            {val}
-            {': '}
-            {key}
-          </Text>,
-        );
-      }
-    });
   }
 
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      summary.push(
+        // eslint-disable-next-line react/no-array-index-key
+        <Flex key={val} ml="10px" alignItems="center">
+          <SimpleStatus state={val} mx={2} />
+          {val}
+          {': '}
+          {key}
+        </Flex>,
+      );
+    }
+  });
+
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
+  const isStateFinal = ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
+  const isOverall = (isMapped || isGroup) && 'Overall ';
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Box>
-        {task.tooltip && (
-          <Text>{task.tooltip}</Text>
+        {tooltip && (
+          <>
+            <Text>{tooltip}</Text>
+            <br />
+          </>
+        )}
+        {mappedStates && mappedStates.length > 0 && (
+        <Text>
+          {mappedStates.length}
+          {' '}
+          {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+          Mapped
+        </Text>
         )}
         <Flex alignItems="center">
-          <Text as="strong">Status:</Text>
+          <Text as="strong">
+            {isOverall}
+            Status:
+          </Text>
           <SimpleStatus state={state} mx={2} />
           {state || 'no status'}
         </Flex>
-        {isGroup && (
-          <>
-            <br />
-            <Text as="strong">Task Group Summary</Text>
-            {groupSummary}
-          </>
-        )}
-        {task.isMapped && (
-          <>
-            <br />
-            <Text as="strong">
-              {mappedStates.length}
-              {' '}
-              {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
-              Mapped
-            </Text>
-            {mapSummary}
-          </>
+        {summary.length > 0 && (
+          summary
         )}
         <br />
         <Text>
           {taskIdTitle}
-          {taskId}
+          <ClipboardText value={taskId} />
         </Text>
         <Text whiteSpace="nowrap">
           Run Id:
           {' '}
-          {runId}
+          <ClipboardText value={runId} />
         </Text>
         {operator && (
           <Text>
@@ -137,23 +129,27 @@ const Details = ({ instance, task }) => {
             {operator}
           </Text>
         )}
+        <br />
         <Text>
+          {isOverall}
           Duration:
           {' '}
           {formatDuration(duration || getDuration(startDate, endDate))}
         </Text>
-      </Box>
-      <Box>
+        {startDate && (
         <Text>
           Started:
           {' '}
           <Time dateTime={startDate} />
         </Text>
+        )}
+        {endDate && isStateFinal && (
         <Text>
           Ended:
           {' '}
           <Time dateTime={endDate} />
         </Text>
+        )}
       </Box>
     </Flex>
   );

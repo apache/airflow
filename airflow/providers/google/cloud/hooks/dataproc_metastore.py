@@ -20,6 +20,8 @@
 
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.metastore_v1 import DataprocMetastoreClient
@@ -37,7 +39,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
 
     def get_dataproc_metastore_client(self) -> DataprocMetastoreClient:
         """Returns DataprocMetastoreClient."""
-        client_options = {'api_endpoint': 'metastore.googleapis.com:443'}
+        client_options = ClientOptions(api_endpoint='metastore.googleapis.com:443')
 
         return DataprocMetastoreClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -60,7 +62,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         backup: Union[Dict[Any, Any], Backup],
         backup_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -117,7 +119,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata_import: MetadataImport,
         metadata_import_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -174,7 +176,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         service: Union[Dict, Service],
         service_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -224,7 +226,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         service_id: str,
         backup_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -272,7 +274,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         region: str,
         service_id: str,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -316,7 +318,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         service_id: str,
         request_id: Optional[str] = None,
         database_dump_type: Optional[DatabaseDumpSpec] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -365,7 +367,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -405,7 +407,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         region: str,
         service_id: str,
         backup_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Backup:
@@ -448,7 +450,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -516,7 +518,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         backup_id: str,
         restore_type: Optional[Restore] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -577,7 +579,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         service: Union[Dict, Service],
         update_mask: FieldMask,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):

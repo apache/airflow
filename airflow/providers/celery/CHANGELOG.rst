@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.1.4
+.....
+
+Misc
+~~~~
+
+* ``Update our approach for executor-bound dependencies (#22573)``
+
 2.1.3
 .....
 

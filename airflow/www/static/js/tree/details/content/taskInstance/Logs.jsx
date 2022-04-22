@@ -71,7 +71,7 @@ const Logs = ({
     }?dag_id=${encodeURIComponent(dagId)
     }&task_id=${encodeURIComponent(taskId)
     }&execution_date=${encodeURIComponent(executionDate)
-    }&metadata=null&format=file${index > 0 && `&try_number=${index}`}`;
+    }&format=file${index > 0 && `&try_number=${index}`}`;
 
     return (
       <LinkButton

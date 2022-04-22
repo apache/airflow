@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
@@ -72,7 +73,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,

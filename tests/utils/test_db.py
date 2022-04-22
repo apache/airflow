@@ -21,6 +21,7 @@ import io
 import re
 from contextlib import redirect_stdout
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -33,7 +34,7 @@ from sqlalchemy import MetaData
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import check_migrations, create_default_connections, downgrade, upgradedb
+from airflow.utils.db import check_migrations, create_default_connections, downgrade, resetdb, upgradedb
 
 
 class TestDb:
@@ -136,6 +137,17 @@ class TestDb:
                 upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
         mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
 
+    @mock.patch('airflow.utils.db._offline_migration')
+    @mock.patch('airflow.utils.db._get_current_revision')
+    def test_offline_upgrade_no_versions(self, mock_gcr, mock_om):
+        """Offline upgrade should work with no version / revision options."""
+        with mock.patch('airflow.utils.db.settings.engine.dialect') as dialect:
+            dialect.name = "postgresql"  # offline migration not supported with postgres
+            mock_gcr.return_value = '90d1635d7b86'
+            upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+            actual = mock_om.call_args[0][2]
+            assert re.match(r'90d1635d7b86:[a-z0-9]+', actual) is not None
+
     def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
         with mock.patch('airflow.utils.db.settings.engine.dialect'):
             with pytest.raises(ValueError, match='Check that e1a11ece99cc is a valid revision'):
@@ -176,3 +188,29 @@ class TestDb:
         downgrade(to_revision='abc')
         actual = mock_om.call_args[1]['revision']
         assert actual == 'abc'
+
+    @pytest.mark.parametrize('skip_init', [False, True])
+    @mock.patch('airflow.utils.db.create_global_lock', new=MagicMock)
+    @mock.patch('airflow.utils.db.drop_airflow_models')
+    @mock.patch('airflow.utils.db.drop_flask_models')
+    @mock.patch('airflow.utils.db.drop_airflow_moved_tables')
+    @mock.patch('airflow.utils.db.initdb')
+    @mock.patch('airflow.settings.engine.connect')
+    def test_resetdb(
+        self,
+        mock_connect,
+        mock_init,
+        mock_drop_moved,
+        mock_drop_flask,
+        mock_drop_airflow,
+        skip_init,
+    ):
+        session_mock = MagicMock()
+        resetdb(session_mock, skip_init=skip_init)
+        mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
+        mock_drop_flask.assert_called_once_with(mock_connect.return_value)
+        mock_drop_moved.assert_called_once_with(session_mock)
+        if skip_init:
+            mock_init.assert_not_called()
+        else:
+            mock_init.assert_called_once_with(session=session_mock)

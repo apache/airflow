@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   VStack,
   Divider,
   StackDivider,
+  Text,
 } from '@chakra-ui/react';
 
 import RunAction from './taskActions/Run';
@@ -34,7 +35,11 @@ import Logs from './Logs';
 import TaskNav from './Nav';
 import Details from './Details';
 
-import { useTreeData } from '../../../api';
+import { useTreeData, useTasks } from '../../../api';
+import MappedInstances from './MappedInstances';
+import { getMetaValue } from '../../../../utils';
+
+const dagId = getMetaValue('dag_id');
 
 const getTask = ({ taskId, runId, task }) => {
   if (task.id === taskId) return task;
@@ -50,56 +55,93 @@ const getTask = ({ taskId, runId, task }) => {
 };
 
 const TaskInstance = ({ taskId, runId }) => {
-  const { data: { groups = {} } } = useTreeData();
-  const task = getTask({ taskId, runId, task: groups });
-  if (!task) return null;
+  const [selectedRows, setSelectedRows] = useState([]);
+  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const group = getTask({ taskId, runId, task: groups });
+  const run = dagRuns.find((r) => r.runId === runId);
+  const { executionDate } = run;
+  const { data: { tasks } } = useTasks(dagId);
+  if (!group) return null;
+  const task = tasks.find((t) => t.taskId === taskId);
+  const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
 
-  const isGroup = !!task.children;
+  const isGroup = !!group.children;
+  const { isMapped, extraLinks } = group;
 
-  const instance = task.instances.find((ti) => ti.runId === runId);
+  const instance = group.instances.find((ti) => ti.runId === runId);
 
-  const {
-    dagId,
-    executionDate,
-    tryNumber,
-  } = instance;
+  let taskActionsTitle = 'Task Actions';
+  if (isMapped) {
+    taskActionsTitle += ` for ${selectedRows.length || 'all'} mapped task${selectedRows.length !== 1 ? 's' : ''}`;
+  }
 
   return (
-    <Box fontSize="12px" py="4px">
+    <Box py="4px">
       {!isGroup && (
-        <TaskNav instance={instance} isMapped={task.isMapped} />
+        <TaskNav
+          taskId={taskId}
+          isMapped={isMapped}
+          executionDate={executionDate}
+          operator={operator}
+        />
       )}
       {!isGroup && (
-        <>
-          <VStack justifyContent="center" divider={<StackDivider my={3} />} my={3}>
-            <RunAction runId={runId} taskId={task.id} dagId={dagId} />
+        <Box my={3}>
+          <Text as="strong">{taskActionsTitle}</Text>
+          <Divider my={2} />
+          <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+            <RunAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+              mapIndexes={selectedRows}
+            />
             <ClearAction
               runId={runId}
-              taskId={task.id}
+              taskId={taskId}
               dagId={dagId}
               executionDate={executionDate}
+              mapIndexes={selectedRows}
             />
-            <MarkFailedAction runId={runId} taskId={task.id} dagId={dagId} />
-            <MarkSuccessAction runId={runId} taskId={task.id} dagId={dagId} />
+            <MarkFailedAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+              mapIndexes={selectedRows}
+            />
+            <MarkSuccessAction
+              runId={runId}
+              taskId={taskId}
+              dagId={dagId}
+              mapIndexes={selectedRows}
+            />
           </VStack>
           <Divider my={2} />
-        </>
+        </Box>
       )}
-      {!task.isMapped && (
+      {!isMapped && (
         <Logs
           dagId={dagId}
           taskId={taskId}
           executionDate={executionDate}
-          tryNumber={tryNumber}
+          tryNumber={instance.tryNumber}
         />
       )}
-      <Details instance={instance} task={task} />
+      <Details instance={instance} group={group} operator={operator} />
       <ExtraLinks
         taskId={taskId}
         dagId={dagId}
         executionDate={executionDate}
-        extraLinks={task.extraLinks}
+        extraLinks={extraLinks}
       />
+      {isMapped && (
+        <MappedInstances
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          selectRows={setSelectedRows}
+        />
+      )}
     </Box>
   );
 };

@@ -29,15 +29,17 @@ import {
 import { useTreeData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
+import { useSelection } from '../context/selection';
 
 const DurationTick = ({ children, ...rest }) => (
-  <Text fontSize={10} color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
+  <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );
 
-const DagRuns = ({ tableWidth }) => {
+const DagRuns = () => {
   const { data: { dagRuns = [] } } = useTreeData();
+  const { selected, onSelect } = useSelection();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {
     const duration = getDuration(dagRun.startDate, dagRun.endDate);
@@ -54,7 +56,7 @@ const DagRuns = ({ tableWidth }) => {
 
   return (
     <Tr
-      borderBottomWidth={2}
+      borderBottomWidth={3}
       borderBottomColor="gray.200"
       position="relative"
     >
@@ -66,7 +68,7 @@ const DagRuns = ({ tableWidth }) => {
         backgroundColor="white"
         zIndex={2}
         borderBottom={0}
-        width={`${tableWidth - (runs.length * 16)}px`}
+        width="100%"
       >
         {!!runs.length && (
         <>
@@ -87,8 +89,6 @@ const DagRuns = ({ tableWidth }) => {
         <Box position="absolute" bottom="100px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="50px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
         <Box position="absolute" bottom="4px" borderBottomWidth={1} zIndex={0} opacity={0.7} width={tickWidth} />
-        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="120px" zIndex={2}>Runs</Text>
-        <Text transform="rotate(-90deg)" position="absolute" left="-23px" top="175px" zIndex={2}>Tasks</Text>
       </Td>
       <Td p={0} align="right" verticalAlign="bottom" borderBottom={0} width={`${runs.length * 16}px`}>
         <Flex justifyContent="flex-end">
@@ -99,6 +99,8 @@ const DagRuns = ({ tableWidth }) => {
               max={max}
               index={i}
               totalRuns={runs.length}
+              isSelected={run.runId === selected.runId}
+              onSelect={onSelect}
             />
           ))}
         </Flex>
