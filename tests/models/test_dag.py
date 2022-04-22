@@ -58,7 +58,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -2308,6 +2308,77 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1, -1)}
+
+
+def test_set_task_instance_state_mapped(dag_maker, session):
+    """Test that when setting an individual mapped TI that the other TIs are not affected"""
+    task_id = 't1'
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def make_arg_lists():
+            return [[1], [2], [{'a': 'b'}]]
+
+        def consumer(value):
+            print(value)
+
+        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
+            op_args=make_arg_lists()
+        )
+
+        mapped >> BaseOperator(task_id='downstream')
+
+    dr1 = dag_maker.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        state=DagRunState.FAILED,
+    )
+    expand_mapped_task(mapped, dr1.run_id, "make_arg_lists", length=2, session=session)
+
+    # set_state(future=True) only applies to scheduled runs
+    dr2 = dag_maker.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        state=DagRunState.FAILED,
+        execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+    )
+    expand_mapped_task(mapped, dr2.run_id, "make_arg_lists", length=2, session=session)
+
+    session.query(TI).filter_by(dag_id=dag.dag_id).update({'state': TaskInstanceState.FAILED})
+
+    ti_query = (
+        session.query(TI.task_id, TI.map_index, TI.run_id, TI.state)
+        .filter(TI.dag_id == dag.dag_id, TI.task_id.in_([task_id, 'downstream']))
+        .order_by(TI.run_id, TI.task_id, TI.map_index)
+    )
+
+    # Check pre-conditions
+    assert ti_query.all() == [
+        ('downstream', -1, dr1.run_id, TaskInstanceState.FAILED),
+        (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),
+        (task_id, 1, dr1.run_id, TaskInstanceState.FAILED),
+        ('downstream', -1, dr2.run_id, TaskInstanceState.FAILED),
+        (task_id, 0, dr2.run_id, TaskInstanceState.FAILED),
+        (task_id, 1, dr2.run_id, TaskInstanceState.FAILED),
+    ]
+
+    dag.set_task_instance_state(
+        task_id=task_id,
+        map_indexes=[1],
+        future=True,
+        run_id=dr1.run_id,
+        state=TaskInstanceState.SUCCESS,
+        session=session,
+    )
+    assert dr1 in session, "Check session is passed down all the way"
+
+    assert ti_query.all() == [
+        ('downstream', -1, dr1.run_id, None),
+        (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),
+        (task_id, 1, dr1.run_id, TaskInstanceState.SUCCESS),
+        ('downstream', -1, dr2.run_id, None),
+        (task_id, 0, dr2.run_id, TaskInstanceState.FAILED),
+        (task_id, 1, dr2.run_id, TaskInstanceState.SUCCESS),
+    ]
 
 
 @pytest.mark.parametrize(
