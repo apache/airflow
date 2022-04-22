@@ -194,7 +194,8 @@ with DAG(
         delete_tagging,
         s3_create_object,
         [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
-        [s3_copy_object, s3_sensor_keys_unchanged],
+        s3_copy_object,
+        s3_sensor_keys_unchanged,
         s3_delete_objects,
         delete_bucket,
     )
