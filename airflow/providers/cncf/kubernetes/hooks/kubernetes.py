@@ -163,10 +163,11 @@ class KubernetesHook(BaseHook):
     def _deprecation_warning_core_param(deprecation_warnings):
         settings_list_str = ''.join([f"\n\t{k}={v!r}" for k, v in deprecation_warnings])
         warnings.warn(
-            f"Using core Airflow settings from section [kubernetes] with the following keys: "
-            f"{settings_list_str}"
-            "In a future release, KubernetesPodOperator will no longer consider core "
-            "airflow settings; define an Airflow connection instead."
+            f"\nApplying core Airflow settings from section [kubernetes] with the following keys:"
+            f"{settings_list_str}\n"
+            "In a future release, KubernetesPodOperator will no longer consider core\n"
+            "airflow settings; define an Airflow connection instead.",
+            DeprecationWarning,
         )
 
     def get_conn(self) -> Any:
