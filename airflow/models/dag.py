@@ -1964,7 +1964,13 @@ class DAG(LoggingMixin):
             tasks, in addition to matched tasks.
         :param include_upstream: Include all upstream tasks of matched tasks,
             in addition to matched tasks.
+        :param include_direct_upstream: Include all tasks directly upstream of matched
+            and downstream (if include_downstream = True) tasks. Can not be use when
+            include_upstream = True - would be a noop with overhead.
         """
+
+        assert not (include_upstream and include_direct_upstream)
+
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
@@ -1984,15 +1990,18 @@ class DAG(LoggingMixin):
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
                 also_include.extend(t.get_flat_relatives(upstream=True))
-            elif include_direct_upstream:
+
+        direct_upstream: List[Operator] = []
+        if include_direct_upstream:
+            for t in matched_tasks + also_include:
                 upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
-                also_include.extend(upstream)
+                direct_upstream.extend(upstream)
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
         dag.task_dict = {
             t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
-            for t in matched_tasks + also_include
+            for t in matched_tasks + also_include + direct_upstream
         }
 
         def filter_task_group(group, parent_group):
