@@ -35,6 +35,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Collection,
     ContextManager,
     Dict,
     Generator,
@@ -63,6 +64,7 @@ from sqlalchemy import (
     PickleType,
     String,
     and_,
+    false,
     func,
     inspect,
     or_,
@@ -76,6 +78,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
@@ -2537,7 +2540,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     @classmethod
-    def filter_for_task_id_map_index_lists(cls, vals):
+    def ti_selector_condition(cls, vals: Collection[Union[str, Tuple[str, int]]]) -> ColumnOperators:
         """
         Build an SQLAlchemy filter for a list where each element can contain
         whether a task_id, or a tuple of (task_id,map_index)
@@ -2546,18 +2549,20 @@ class TaskInstance(Base, LoggingMixin):
         """
         # Compute a filter for TI.task_id and TI.map_index based on input values
         # For each item, it will either be a task_id, or (task_id, map_index)
-        assert len(vals)
-        task_id_only = list(filter(lambda v: isinstance(v, str), vals))
-        with_map_index = list(filter(lambda v: not isinstance(v, str), vals))
-        filters = []
+        task_id_only = [v for v in vals if isinstance(v, str)]
+        with_map_index = [v for v in vals if not isinstance(v, str)]
 
+        filters: List[ColumnOperators] = []
         if task_id_only:
             filters.append(cls.task_id.in_(task_id_only))
         if with_map_index:
-            filters.append(
-                tuple_in_condition((cls.task_id, cls.map_index), with_map_index),
-            )
-        return or_(*filters) if len(filters) > 1 else filters[0]
+            filters.append(tuple_in_condition((cls.task_id, cls.map_index), with_map_index))
+
+        if not filters:
+            return false()
+        if len(filters) == 1:
+            return filters[0]
+        return or_(*filters)
 
 
 # State of the task instance.

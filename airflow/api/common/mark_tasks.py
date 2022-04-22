@@ -188,7 +188,7 @@ def get_all_dag_task_query(
     qry_dag = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
-        TaskInstance.filter_for_task_id_map_index_lists(task_ids),
+        TaskInstance.ti_selector_condition(task_ids),
     )
 
     qry_dag = qry_dag.filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(

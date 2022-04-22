@@ -143,16 +143,10 @@ class TestMarkTasks:
         TI = models.TaskInstance
         DR = models.DagRun
 
-        tis = (
-            session.query(TI)
-            .join(TI.dag_run)
-            .options(eagerload(TI.dag_run))
-            .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
-            .all()
-        )
-
+        tis = session.query(TI).filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates)).all()
         assert len(tis) > 0
 
+        unexpected_tis = []
         for ti in tis:
             assert ti.operator == dag.get_task(ti.task_id).task_type
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
@@ -173,7 +167,8 @@ class TestMarkTasks:
                         assert ti.state == old_ti.state
                         break
                 else:
-                    assert False, "New TI appeared!"
+                    unexpected_tis.append(ti)
+        assert not unexpected_tis
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
