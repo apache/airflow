@@ -49,7 +49,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     state = TaskInstanceStateField()
     _try_number = auto_field(data_key="try_number")
     max_tries = auto_field()
-    hostname = auto_field()
+    hostnames = auto_field()
     unixname = auto_field()
     pool = auto_field()
     pool_slots = auto_field()
