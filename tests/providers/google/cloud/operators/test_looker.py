@@ -165,5 +165,7 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         )
 
         # check AirflowException is raised
-        with pytest.raises(AirflowException, match=f'No `materialization_id` was returned for model: {MODEL}, view: {VIEW}.'):
+        with pytest.raises(
+            AirflowException, match=f'No `materialization_id` was returned for model: {MODEL}, view: {VIEW}.'
+        ):
             task.execute(context=self.mock_context)
