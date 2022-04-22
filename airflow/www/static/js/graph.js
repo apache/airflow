@@ -500,7 +500,7 @@ function groupTooltip(node, tis) {
     }
   });
 
-  const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
+  const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second', true));
   const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
 
   let tt = `
