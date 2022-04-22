@@ -73,7 +73,7 @@ def test_prefill_form_null_extra():
 )
 def test_prefill_form_backcompat(extras, expected):
     """
-    When populating custom fields in connection form we should first check for the non-prefixed
+    When populating custom fields in the connection form we should first check for the non-prefixed
     value (since prefixes in extra are deprecated) and then fallback to the prefixed value.
 
     Either way, the field is known internally to the model view as the prefixed value.
@@ -83,7 +83,7 @@ def test_prefill_form_backcompat(extras, expected):
     cmv = ConnectionModelView()
     cmv.extra_fields = ['extra__test__my_param']
 
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
     cmv.extra_field_name_mapping['extra__test__my_param'] = 'my_param'
 
     cmv.prefill_form(form=mock_form, pk=1)
@@ -113,7 +113,7 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
 
     cmv = ConnectionModelView()
 
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
     cmv.extra_field_name_mapping['extra__test__custom_field'] = field_name
     cmv.extra_fields = ["extra__test__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
@@ -170,7 +170,7 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     cmv = ConnectionModelView()
     cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
 
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
     cmv.extra_field_name_mapping['extra__test3__custom_field'] = field_name
     cmv.process_form(form=mock_form, is_created=True)
 
@@ -200,7 +200,7 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
     cmv = ConnectionModelView()
     cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
 
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
     cmv.extra_field_name_mapping['extra__test4__custom_field'] = field_name
 
     cmv.process_form(form=mock_form, is_created=True)
