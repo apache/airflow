@@ -1431,6 +1431,9 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
+        # Initialize final state counters at zero
+        for state in State.task_states:
+            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}', count=0)
         try:
             if not mark_success:
                 self.task = self.task.prepare_for_execution()

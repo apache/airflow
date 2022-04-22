@@ -18,17 +18,17 @@
  */
 
 import axios from 'axios';
-import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const runUrl = getMetaValue('run_url');
 
 export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['runTask', dagId, runId, taskId],
@@ -58,21 +58,12 @@ export default function useRunTask(dagId, runId, taskId) {
       }),
     ),
     {
-      onSuccess: (data) => {
-        const { message, status } = data.length ? data[0] : data;
-        if (message && status === 'error') {
-          toast({
-            description: message,
-            isClosable: true,
-            status,
-          });
-        }
-        if (!status || status !== 'error') {
-          queryClient.invalidateQueries('treeData');
-          queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
-          startRefresh();
-        }
+      onSuccess: () => {
+        queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

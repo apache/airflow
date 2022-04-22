@@ -20,12 +20,14 @@
 import axios from 'axios';
 import { useMutation } from 'react-query';
 import { getMetaValue } from '../../utils';
+import useErrorToast from '../useErrorToast';
 
 const confirmUrl = getMetaValue('confirm_url');
 
 export default function useConfirmMarkTask({
   dagId, runId, taskId, state,
 }) {
+  const errorToast = useErrorToast();
   return useMutation(
     ['confirmStateChange', dagId, runId, taskId, state],
     ({
@@ -47,6 +49,9 @@ export default function useConfirmMarkTask({
       });
 
       return axios.get(confirmUrl, { params });
+    },
+    {
+      onError: (error) => errorToast({ error }),
     },
   );
 }
