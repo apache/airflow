@@ -143,7 +143,12 @@ class TestMarkTasks:
         TI = models.TaskInstance
         DR = models.DagRun
 
-        tis = session.query(TI).filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates)).all()
+        tis = (
+            session.query(TI)
+            .join(TI.dag_run)
+            .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
+            .all()
+        )
         assert len(tis) > 0
 
         unexpected_tis = []
