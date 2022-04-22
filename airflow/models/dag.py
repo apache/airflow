@@ -1653,7 +1653,6 @@ class DAG(LoggingMixin):
         task.dag = self
 
         tasks_to_set_state: List[Union[Operator, Tuple[Operator, int]]]
-        task_ids_to_exclude_from_clear = {task_id}
         if map_indexes is None:
             tasks_to_set_state = [task]
         else:
@@ -1703,7 +1702,7 @@ class DAG(LoggingMixin):
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids=task_ids_to_exclude_from_clear,
+            exclude_task_ids={task_id},
         )
 
         return altered
