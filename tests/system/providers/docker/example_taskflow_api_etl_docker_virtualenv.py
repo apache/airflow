@@ -19,15 +19,17 @@
 
 # [START tutorial]
 # [START import_module]
+import os
 from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow import models
+from airflow.decorators import task
 
 # [END import_module]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = 'docker_taskflow'
 
 
-# [START instantiate_dag]
-@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
 def tutorial_taskflow_api_etl_docker_virtualenv():
     """
     ### TaskFlow API Tutorial Documentation
@@ -37,7 +39,6 @@ def tutorial_taskflow_api_etl_docker_virtualenv():
     located
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
-    # [END instantiate_dag]
 
     # [START extract_virtualenv]
     @task.virtualenv(
@@ -98,14 +99,26 @@ def tutorial_taskflow_api_etl_docker_virtualenv():
     # [END main_flow]
 
 
-# The try/except here is because Airflow versions less than 2.2.0 doesn't support
-# @task.docker decorator and we use this dag in CI test. Thus, in order not to
-# break the CI test, we added this try/except here.
-try:
-    # [START dag_invocation]
-    tutorial_etl_dag = tutorial_taskflow_api_etl_docker_virtualenv()
-    # [END dag_invocation]
-except AttributeError:
-    pass
+with models.DAG(
+    DAG_ID,
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example", "docker"],
+) as dag:
+    # The try/except here is because Airflow versions less than 2.2.0 doesn't support
+    # @task.docker decorator and we use this dag in CI test. Thus, in order not to
+    # break the CI test, we added this try/except here.
+    try:
+        # [START dag_invocation]
+        tutorial_etl_dag = tutorial_taskflow_api_etl_docker_virtualenv()
+        # [END dag_invocation]
+    except AttributeError:
+        pass
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
 
 # [END tutorial]
