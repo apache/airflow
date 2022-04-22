@@ -380,43 +380,43 @@ def test_get_task_stats_from_query():
     [
         (
             '/rendered-templates?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             '/log?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             '/redirect_to_external_log?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             '/task?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/graph?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/graph?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/duration?base_date=invalid',
-            "Invalid base_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/tries?base_date=invalid',
-            "Invalid base_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/landing-times?base_date=invalid',
-            "Invalid base_date",
+            "Invalid datetime: 'invalid'",
         ),
         (
             'dags/example_bash_operator/gantt?execution_date=invalid',
-            "Invalid execution_date",
+            "Invalid datetime: 'invalid'",
         ),
     ],
 )
@@ -425,4 +425,4 @@ def test_invalid_dates(app, admin_client, url, content):
     resp = admin_client.get(url, follow_redirects=True)
 
     assert resp.status_code == 400
-    assert resp.get_data().decode() == content
+    assert content in resp.get_data().decode()
