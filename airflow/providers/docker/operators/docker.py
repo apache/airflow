@@ -333,7 +333,7 @@ class DockerOperator(BaseOperator):
             return None
         finally:
             if self.auto_remove:
-                self.cli.remove_container(self.container['Id'])
+                self.cli.remove_container(self.container['Id'], force=True)
 
     def _attempt_to_retrieve_result(self):
         """
