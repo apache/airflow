@@ -35,6 +35,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Collection,
     ContextManager,
     Dict,
     Generator,
@@ -63,6 +64,7 @@ from sqlalchemy import (
     PickleType,
     String,
     and_,
+    false,
     func,
     inspect,
     or_,
@@ -76,6 +78,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
@@ -201,8 +204,9 @@ def clear_task_instances(
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
-    task_id_by_key: Dict[str, Dict[str, Dict[int, Set[str]]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(set))
+    # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
+    task_id_by_key: Dict[str, Dict[str, Dict[int, Dict[int, Set[str]]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     for ti in tis:
         if ti.state == TaskInstanceState.RUNNING:
@@ -228,14 +232,14 @@ def clear_task_instances(
             ti.external_executor_id = None
             session.merge(ti)
 
-        task_id_by_key[ti.dag_id][ti.run_id][ti.try_number].add(ti.task_id)
+        task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
         # Clear all reschedules related to the ti to clear
 
         # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, run_id and try_number. Use a nested dict of dag_id,
-        # run_id, try_number and task_id to construct the where clause in a
+        # of dag_id, run_id, try_number, and map_index. Use a nested dict of dag_id,
+        # run_id, try_number, map_index, and task_id to construct the where clause in a
         # hierarchical manner. This speeds up the delete statement by more than 40x for
         # large number of tis (50k+).
         conditions = or_(
@@ -245,11 +249,17 @@ def clear_task_instances(
                     and_(
                         TR.run_id == run_id,
                         or_(
-                            and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                            for try_number, task_ids in task_tries.items()
+                            and_(
+                                TR.map_index == map_index,
+                                or_(
+                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
+                                    for try_number, task_ids in task_tries.items()
+                                ),
+                            )
+                            for map_index, task_tries in map_indexes.items()
                         ),
                     )
-                    for run_id, task_tries in run_ids.items()
+                    for run_id, map_indexes in run_ids.items()
                 ),
             )
             for dag_id, run_ids in task_id_by_key.items()
@@ -2531,6 +2541,31 @@ class TaskInstance(Base, LoggingMixin):
             (TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index),
             (ti.key.primary for ti in tis),
         )
+
+    @classmethod
+    def ti_selector_condition(cls, vals: Collection[Union[str, Tuple[str, int]]]) -> ColumnOperators:
+        """
+        Build an SQLAlchemy filter for a list where each element can contain
+        whether a task_id, or a tuple of (task_id,map_index)
+
+        :meta private:
+        """
+        # Compute a filter for TI.task_id and TI.map_index based on input values
+        # For each item, it will either be a task_id, or (task_id, map_index)
+        task_id_only = [v for v in vals if isinstance(v, str)]
+        with_map_index = [v for v in vals if not isinstance(v, str)]
+
+        filters: List[ColumnOperators] = []
+        if task_id_only:
+            filters.append(cls.task_id.in_(task_id_only))
+        if with_map_index:
+            filters.append(tuple_in_condition((cls.task_id, cls.map_index), with_map_index))
+
+        if not filters:
+            return false()
+        if len(filters) == 1:
+            return filters[0]
+        return or_(*filters)
 
 
 # State of the task instance.

@@ -30,7 +30,6 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagrun import TISchedulingDecision
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
@@ -1067,13 +1066,7 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
     # ti1 finished execution. ti2 goes directly to finished state because it's
     # expanded against a zero-length XCom.
-    assert decision == TISchedulingDecision(
-        tis=[ti1, ti2],
-        schedulable_tis=[],
-        changed_tis=False,
-        unfinished_tis=[],
-        finished_tis=[ti1, ti2],
-    )
+    assert decision.finished_tis == [ti1, ti2]
 
     indices = (
         session.query(TI.map_index, TI.state)

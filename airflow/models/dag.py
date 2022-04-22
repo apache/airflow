@@ -1359,7 +1359,7 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         start_date: Optional[datetime],
         end_date: Optional[datetime],
         run_id: Optional[str],
@@ -1367,7 +1367,7 @@ class DAG(LoggingMixin):
         include_subdags: bool,
         include_parentdag: bool,
         include_dependent_dags: bool,
-        exclude_task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        exclude_task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         session: Session,
         dag_bag: Optional["DagBag"] = ...,
     ) -> Iterable[TaskInstance]:
@@ -1377,7 +1377,7 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         as_pk_tuple: Literal[True],
         start_date: Optional[datetime],
         end_date: Optional[datetime],
@@ -1386,7 +1386,7 @@ class DAG(LoggingMixin):
         include_subdags: bool,
         include_parentdag: bool,
         include_dependent_dags: bool,
-        exclude_task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        exclude_task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         session: Session,
         dag_bag: Optional["DagBag"] = ...,
         recursion_depth: int = ...,
@@ -1398,7 +1398,7 @@ class DAG(LoggingMixin):
     def _get_task_instances(
         self,
         *,
-        task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         as_pk_tuple: Literal[True, None] = None,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
@@ -1407,7 +1407,7 @@ class DAG(LoggingMixin):
         include_subdags: bool,
         include_parentdag: bool,
         include_dependent_dags: bool,
-        exclude_task_ids: Union[Collection[str], Collection[Tuple[str, int]], None],
+        exclude_task_ids: Optional[Collection[Union[str, Tuple[str, int]]]],
         session: Session,
         dag_bag: Optional["DagBag"] = None,
         recursion_depth: int = 0,
@@ -1439,19 +1439,16 @@ class DAG(LoggingMixin):
                     (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
                 )
             tis = tis.filter(or_(*conditions))
-        else:
+        elif self.partial:
             tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+        else:
+            tis = tis.filter(TaskInstance.dag_id == self.dag_id)
         if run_id:
             tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
             tis = tis.filter(DagRun.execution_date >= start_date)
-
-        if task_ids is None:
-            pass  # Disable filter if not set.
-        elif isinstance(next(iter(task_ids), None), str):
-            tis = tis.filter(TI.task_id.in_(task_ids))
-        else:
-            tis = tis.filter(tuple_in_condition((TI.task_id, TI.map_index), task_ids))
+        if task_ids is not None:
+            tis = tis.filter(TaskInstance.ti_selector_condition(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
@@ -1663,8 +1660,8 @@ class DAG(LoggingMixin):
         task = self.get_task(task_id)
         task.dag = self
 
-        tasks_to_set_state: Union[List[Operator], List[Tuple[Operator, int]]]
-        task_ids_to_exclude_from_clear: Union[Set[str], Set[Tuple[str, int]]]
+        tasks_to_set_state: List[Union[Operator, Tuple[Operator, int]]]
+        task_ids_to_exclude_from_clear: Set[Union[str, Tuple[str, int]]]
         if map_indexes is None:
             tasks_to_set_state = [task]
             task_ids_to_exclude_from_clear = {task_id}

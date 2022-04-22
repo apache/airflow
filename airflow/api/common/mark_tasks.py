@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import or_
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import lazyload
 from sqlalchemy.orm.session import Session as SASession
 
 from airflow.models.dag import DAG
@@ -32,7 +32,6 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -79,7 +78,7 @@ def _create_dagruns(
 @provide_session
 def set_state(
     *,
-    tasks: Union[Collection[Operator], Collection[Tuple[Operator, int]]],
+    tasks: Collection[Union[Operator, Tuple[Operator, int]]],
     run_id: Optional[str] = None,
     execution_date: Optional[datetime] = None,
     upstream: bool = False,
@@ -98,9 +97,9 @@ def set_state(
     on the schedule (but it will as for subdag dag runs if needed).
 
     :param tasks: the iterable of tasks or (task, map_index) tuples from which to work.
-        task.task.dag needs to be set
+        ``task.dag`` needs to be set
     :param run_id: the run_id of the dagrun to start looking from
-    :param execution_date: the execution date from which to start looking(deprecated)
+    :param execution_date: the execution date from which to start looking (deprecated)
     :param upstream: Mark all parents (upstream tasks)
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
     :param future: Mark all future tasks on the interval of the dag up until
@@ -134,13 +133,7 @@ def set_state(
 
     dag_run_ids = get_run_ids(dag, run_id, future, past)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
-    task_ids = [task_id for task_id, _ in task_id_map_index_list]
-    # check if task_id_map_index_list contains map_index of None
-    # if it contains None, there was no map_index supplied for the task
-    for _, index in task_id_map_index_list:
-        if index is None:
-            task_id_map_index_list = [task_id for task_id, _ in task_id_map_index_list]
-            break
+    task_ids = [task_id if isinstance(task_id, str) else task_id[0] for task_id in task_id_map_index_list]
 
     confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
@@ -151,7 +144,7 @@ def set_state(
 
     # now look for the task instances that are affected
 
-    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, confirmed_dates)
+    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
         tis_altered = qry_dag.with_for_update().all()
@@ -159,7 +152,8 @@ def set_state(
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
-            task_instance.set_state(state)
+            task_instance.set_state(state, session=session)
+        session.flush()
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
@@ -187,26 +181,18 @@ def get_all_dag_task_query(
     dag: DAG,
     session: SASession,
     state: TaskInstanceState,
-    task_ids: Union[List[str], List[Tuple[str, int]]],
-    confirmed_dates: Iterable[datetime],
+    task_ids: List[Union[str, Tuple[str, int]]],
+    run_ids: Iterable[str],
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
-    is_string_list = isinstance(task_ids[0], str)
-    qry_dag = (
-        session.query(TaskInstance)
-        .join(TaskInstance.dag_run)
-        .filter(
-            TaskInstance.dag_id == dag.dag_id,
-            DagRun.execution_date.in_(confirmed_dates),
-        )
+    qry_dag = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id.in_(run_ids),
+        TaskInstance.ti_selector_condition(task_ids),
     )
 
-    if is_string_list:
-        qry_dag = qry_dag.filter(TaskInstance.task_id.in_(task_ids))
-    else:
-        qry_dag = qry_dag.filter(tuple_in_condition((TaskInstance.task_id, TaskInstance.map_index), task_ids))
     qry_dag = qry_dag.filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
-        contains_eager(TaskInstance.dag_run)
+        lazyload(TaskInstance.dag_run)
     )
     return qry_dag
 
@@ -287,15 +273,16 @@ def find_task_relatives(tasks, downstream, upstream):
     for item in tasks:
         if isinstance(item, tuple):
             task, map_index = item
+            yield task.task_id, map_index
         else:
-            task, map_index = item, None
-        yield task.task_id, map_index
+            task = item
+            yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
-                yield relative.task_id, map_index
+                yield relative.task_id
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
-                yield relative.task_id, map_index
+                yield relative.task_id
 
 
 @provide_session
