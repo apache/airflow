@@ -30,6 +30,8 @@ from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTran
 TRANSFER_CONFIG_ID = "config_id"
 RUN_ID = "run_id"
 PROJECT_ID = "project_id"
+LOCATION = "europe"
+GCP_CONN_ID = "google_cloud_default"
 
 
 class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
@@ -48,6 +50,8 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
 
         with pytest.raises(AirflowException, match="Transfer"):
             op.poke({})
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, location=None)
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
@@ -68,10 +72,15 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
             task_id="id",
             project_id=PROJECT_ID,
             expected_statuses={"SUCCEEDED"},
+            location=LOCATION,
         )
         result = op.poke({})
 
         assert result is True
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, location=LOCATION
+        )
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
