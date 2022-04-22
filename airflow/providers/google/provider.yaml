@@ -906,6 +906,9 @@ extra-links:
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableClusterLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableTablesLink
   - airflow.providers.google.common.links.storage.StorageLink
 
 additional-extras:
