@@ -32,6 +32,7 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+from airflow.models import TaskTry
 
 
 class FileTaskHandler(logging.Handler):
@@ -141,6 +142,18 @@ class FileTaskHandler(logging.Handler):
 
         log = ""
 
+        task_try = session.query(TaskTry).filter(
+                TaskTry.dag_id == ti.dag_id,
+                TaskTry.run_id == ti.run_id,
+                TaskTry.task_id == ti.task_id,
+                TaskTry.try_number == try_number
+        ).first()
+
+        if task_try is not None:
+            try_hostname = task_try.hostname
+        else:
+            try_hostname = ti.hostname
+
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -155,7 +168,7 @@ class FileTaskHandler(logging.Handler):
 
                 kube_client = get_kube_client()
 
-                if len(ti.hostname) >= 63:
+                if len(try_hostname) >= 63:
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
@@ -163,16 +176,16 @@ class FileTaskHandler(logging.Handler):
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
-                        if pod.metadata.name.startswith(ti.hostname)
+                        if pod.metadata.name.startswith(try_hostname)
                     ]
                     if len(matches) == 1:
-                        if len(matches[0]) > len(ti.hostname):
-                            ti.hostname = matches[0]
+                        if len(matches[0]) > len(try_hostname):
+                            try_hostname = matches[0]
 
-                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {try_hostname} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
+                    name=try_hostname,
                     namespace=conf.get('kubernetes', 'namespace'),
                     container='base',
                     follow=False,
@@ -184,11 +197,11 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:
-                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+                log += f'*** Unable to fetch logs from worker pod {try_hostname} ***\n{str(f)}\n\n'
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
+            url = os.path.join("http://{try_hostname}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"

@@ -1350,6 +1350,8 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info(hr_line_break)
         self._try_number += 1
 
+        session.add(TaskTry(self.dag_id, self.task_id, self.run_id, self._try_number, self.hostname))
+
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
