@@ -159,9 +159,9 @@ class TestMarkTasks:
                     if (ti.task_id, ti.map_index) in map_task_pairs:
                         assert ti.state == state
                 else:
-                    assert ti.state == state
+                    assert ti.state == state, ti
                 if ti.state in State.finished:
-                    assert ti.end_date is not None
+                    assert ti.end_date is not None, ti
             else:
                 for old_ti in old_tis:
                     if (
@@ -413,6 +413,7 @@ class TestMarkTasks:
     @pytest.mark.backend("sqlite", "postgres")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
+        snapshot = TestMarkTasks.snapshot_state(self.dag2, self.execution_dates)
         task = self.dag2.get_task("section-1")
         relatives = task.get_flat_relatives(upstream=False)
         task_ids = [t.task_id for t in relatives]
@@ -431,10 +432,7 @@ class TestMarkTasks:
         )
         assert len(altered) == 14
 
-        # cannot use snapshot here as that will require drilling down the
-        # sub dag tree essentially recreating the same code as in the
-        # tested logic.
-        self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, [])
+        self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, snapshot)
 
     def test_mark_mapped_task_instance_state(self, session):
         # set mapped task instance to success
