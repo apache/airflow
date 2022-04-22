@@ -1,0 +1,1 @@
+Fixed a bug where task run duration would not be displayed properly when duration is less than 1 second
