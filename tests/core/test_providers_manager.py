@@ -156,8 +156,8 @@ class TestProviderManager:
     )
     def test_connection_form__add_widgets_prefix_backcompat(self, scenario):
         """
-        When field name prefixed, the field name should be used as is.
-        When not prefixed, we should add the prefix defived using the conn type.
+        When the field name is prefixed, it should be used as is.
+        When not prefixed, we should add the prefix defined using the conn type.
         When there's a collision, the one that appears first in the list will be used.
         """
 
