@@ -39,6 +39,7 @@ from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.tasktry import TaskTry
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
@@ -70,6 +71,7 @@ __all__ = [
     "TaskFail",
     "TaskInstance",
     "TaskReschedule",
+    "TaskTry",
     "Trigger",
     "Variable",
     "XCom",
