@@ -405,7 +405,6 @@ class AirflowConfigParser(ConfigParser):
     def _update_env_var(self, section, name, new_value):
         env_var = self._env_var_name(section, name)
         # Set it as an env var so that any subprocesses keep the same override!
-        print(f"new value: {new_value}")
         os.environ[env_var] = new_value
 
     @staticmethod
