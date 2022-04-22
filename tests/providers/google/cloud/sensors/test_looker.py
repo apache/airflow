@@ -115,5 +115,5 @@ class TestLookerCheckPdtBuildSensor(unittest.TestCase):
             materialization_id="",
         )
 
-        with pytest.raises(AirflowException, match="Invalid `materialization_id`"):
+        with pytest.raises(AirflowException, match="^Invalid `materialization_id`$"):
             sensor.poke(context={})
