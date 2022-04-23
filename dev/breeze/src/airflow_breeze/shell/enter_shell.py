@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Command to enter container shell for Breeze."""
+import subprocess
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 
 from airflow_breeze import global_constants
 from airflow_breeze.build_image.ci.build_ci_image import build_ci_image, get_ci_image_build_params
@@ -66,7 +67,7 @@ def synchronize_cached_params(parameters_passed_by_the_user: Dict[str, str]) -> 
     return updated_params
 
 
-def enter_shell(**kwargs):
+def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -94,10 +95,12 @@ def enter_shell(**kwargs):
     if read_from_cache_file('suppress_cheatsheet') is None:
         console.print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**updated_kwargs))
-    run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
+    return run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
 
 
-def run_shell_with_build_image_checks(verbose: bool, dry_run: bool, shell_params: ShellParams):
+def run_shell_with_build_image_checks(
+    verbose: bool, dry_run: bool, shell_params: ShellParams
+) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Executes a shell command built from params passed, checking if build is not needed.
     * checks if there are enough resources to run shell
@@ -135,4 +138,4 @@ def run_shell_with_build_image_checks(verbose: bool, dry_run: bool, shell_params
     env_variables = construct_env_variables_docker_compose_command(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-    run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True)
+    return run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True)

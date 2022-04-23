@@ -70,6 +70,7 @@ Those are the most common arguments that you use when you want to build a custom
 List of default extras in the production Dockerfile:
 
 .. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+
 * amazon
 * async
 * celery
@@ -96,6 +97,7 @@ List of default extras in the production Dockerfile:
 * ssh
 * statsd
 * virtualenv
+
 .. END OF EXTRAS LIST UPDATED BY PRE COMMIT
 
 Image optimization options

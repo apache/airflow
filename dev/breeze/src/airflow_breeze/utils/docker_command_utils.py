@@ -23,7 +23,7 @@ from typing import Dict, List, Tuple, Union
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.host_info_utils import get_host_os
+from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.registry import login_to_docker_registry
 
@@ -40,7 +40,6 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
     MOUNT_ALL,
-    MOUNT_NONE,
     MOUNT_SELECTED,
     MSSQL_HOST_PORT,
     MSSQL_VERSION,
@@ -53,7 +52,7 @@ from airflow_breeze.global_constants import (
     WEBSERVER_HOST_PORT,
 )
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import commit_sha, get_return_code, prepare_build_command, run_command
+from airflow_breeze.utils.run_utils import commit_sha, prepare_build_command, run_command
 
 NECESSARY_HOST_VOLUMES = [
     "/.bash_aliases:/root/.bash_aliases:cached",
@@ -110,22 +109,31 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     return extra_docker_flags
 
 
-def check_docker_resources(verbose: bool, airflow_image_name: str):
+def check_docker_resources(
+    verbose: bool, airflow_image_name: str
+) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
     :param verbose: print commands when running
     :param airflow_image_name: name of the airflow image to use.
     """
-    extra_docker_flags = get_extra_docker_flags(MOUNT_NONE)
-    cmd = []
-    cmd.extend(["docker", "run", "-t"])
-    cmd.extend(extra_docker_flags)
-    cmd.extend(["--entrypoint", "/bin/bash", airflow_image_name])
-    cmd.extend(["-c", "python /opt/airflow/scripts/in_container/run_resource_check.py"])
-    run_command(cmd, verbose=verbose, text=True)
+    return run_command(
+        cmd=[
+            "docker",
+            "run",
+            "-t",
+            "--entrypoint",
+            "/bin/bash",
+            airflow_image_name,
+            "-c",
+            "python /opt/airflow/scripts/in_container/run_resource_check.py",
+        ],
+        verbose=verbose,
+        text=True,
+    )
 
 
-def check_docker_permission(verbose) -> bool:
+def check_docker_permission_denied(verbose) -> bool:
     """
     Checks if we have permission to write to docker socket. By default, on Linux you need to add your user
     to docker group and some new users do not realize that. We help those users if we have
@@ -136,18 +144,17 @@ def check_docker_permission(verbose) -> bool:
     """
     permission_denied = False
     docker_permission_command = ["docker", "info"]
-    try:
-        _ = run_command(
-            docker_permission_command,
-            verbose=verbose,
-            no_output_dump_on_exception=True,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as ex:
+    command_result = run_command(
+        docker_permission_command,
+        verbose=verbose,
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if command_result.returncode != 0:
         permission_denied = True
-        if ex.stdout and 'Got permission denied while trying to connect' in ex.stdout:
+        if command_result.stdout and 'Got permission denied while trying to connect' in command_result.stdout:
             console.print('ERROR: You have `permission denied` error when trying to communicate with docker.')
             console.print(
                 'Most likely you need to add your user to `docker` group: \
@@ -171,11 +178,11 @@ def check_docker_is_running(verbose: bool) -> bool:
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
+        check=False,
     )
-    if not response:
+    if response.returncode != 0:
         return False
     return True
 
@@ -189,32 +196,36 @@ def check_docker_version(verbose: bool):
 
     :param verbose: print commands when running
     """
-    permission_denied = check_docker_permission(verbose)
+    permission_denied = check_docker_permission_denied(verbose)
     if not permission_denied:
         docker_version_command = ['docker', 'version', '--format', '{{.Client.Version}}']
         docker_version = ''
-        docker_version_output = run_command(
+        docker_version_result = run_command(
             docker_version_command,
             verbose=verbose,
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
+            check=False,
         )
-        if docker_version_output and docker_version_output.returncode == 0:
-            docker_version = docker_version_output.stdout.strip()
+        if docker_version_result.returncode == 0:
+            docker_version = docker_version_result.stdout.strip()
         if docker_version == '':
             console.print(
-                f'Your version of docker is unknown. If the scripts fail, please make sure to \
-                    install docker at least: {MIN_DOCKER_VERSION} version.'
+                f"""
+[yellow]Your version of docker is unknown. If the scripts fail, please make sure to[/]
+[yellow]install docker at least: {MIN_DOCKER_VERSION} version.[/]
+"""
             )
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
-                console.print(f'Good version of Docker: {docker_version}.')
+                console.print(f'[green]Good version of Docker: {docker_version}.[/]')
             else:
                 console.print(
-                    f'Your version of docker is too old:{docker_version}. Please upgrade to \
-                    at least {MIN_DOCKER_VERSION}'
+                    f"""
+[yellow]Your version of docker is too old:{docker_version}. Please upgrade to at least {MIN_DOCKER_VERSION}[/]
+"""
                 )
 
 
@@ -228,34 +239,39 @@ def check_docker_compose_version(verbose: bool):
     """
     version_pattern = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     docker_compose_version_command = ["docker-compose", "--version"]
-    docker_compose_version_output = run_command(
+    docker_compose_version_result = run_command(
         docker_compose_version_command,
         verbose=verbose,
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
     )
-    if docker_compose_version_output and docker_compose_version_output.returncode == 0:
-        docker_compose_version = docker_compose_version_output.stdout
+    if docker_compose_version_result.returncode == 0:
+        docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
             version = '.'.join(version_extracted.groups())
             good_version = compare_version(version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                console.print(f'Good version of docker-compose: {version}')
+                console.print(f'[green]Good version of docker-compose: {version}[/]')
             else:
                 console.print(
-                    f'You have too old version of docker-compose: {version}! \
-                At least 1.29 is needed! Please upgrade!'
+                    f"""
+[yellow]You have too old version of docker-compose: {version}! At least 1.29 is needed! Please upgrade!
+"""
                 )
                 console.print(
-                    'See https://docs.docker.com/compose/install/ for instructions. \
-                Make sure docker-compose you install is first on the PATH variable of yours.'
+                    """
+See https://docs.docker.com/compose/install/ for instructions.
+Make sure docker-compose you install is first on the PATH variable of yours.
+"""
                 )
     else:
         console.print(
-            'Unknown docker-compose version. At least 1.29 is needed! \
-        If Breeze fails upgrade to latest available docker-compose version'
+            """
+[yellow]Unknown docker-compose version. At least 1.29 is needed![/]
+[yellow]If Breeze fails upgrade to latest available docker-compose version.[/]
+"""
         )
 
 
@@ -361,23 +377,20 @@ def tag_and_push_image(
         f"{image_params.airflow_image_name_with_tag}.[/]"
     )
     cmd = construct_docker_tag_command(image_params)
-    process = run_command(
+    command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
     )
-    if process and process.returncode == 0:
+    if command_result.returncode == 0:
         return_code, info = login_to_docker_registry(image_params, dry_run=dry_run)
         if return_code != 0:
             return return_code, f"Tag and pushing the image {image_params.python}: {info}"
         cmd = construct_docker_push_command(image_params)
-        process = run_command(
+        command_result = run_command(
             cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
         )
-        if process and process.returncode == 0:
+        if command_result.returncode == 0:
             return 0, f"Tag and pushing the image {image_params.python}"
-    return (
-        get_return_code(process=process, dry_run=dry_run),
-        f"Tag and pushing the image {image_params.python}",
-    )
+    return command_result.returncode, f"Tag and pushing the image {image_params.python}"
 
 
 def construct_empty_docker_build_command(
@@ -427,6 +440,8 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'GENERATE_CONSTRAINTS_MODE', "source-providers")
     set_value_to_default_if_not_set(env, 'GITHUB_REGISTRY_PULL_IMAGE_TAG', "latest")
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
+    set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
+    set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
     set_value_to_default_if_not_set(env, 'INIT_SCRIPT_FILE', "init.sh")
     set_value_to_default_if_not_set(env, 'INSTALL_PROVIDERS_FROM_SOURCES', "true")
     set_value_to_default_if_not_set(env, 'INSTALL_FROM_DOCKER_CONTEXT_FILES', "false")
@@ -506,7 +521,9 @@ SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES = {
 }
 
 
-def construct_env_variables_docker_compose_command(shell_params: ShellParams) -> Dict[str, str]:
+def construct_env_variables_docker_compose_command(
+    params: Union[ShellParams, BuildCiParams]
+) -> Dict[str, str]:
     """
     Constructs environment variables needed by the docker-compose command, based on Shell parameters
     passed to it.
@@ -517,13 +534,13 @@ def construct_env_variables_docker_compose_command(shell_params: ShellParams) ->
       if the env variable that we run with does not have it.
     * Updates all other environment variables that docker-compose expects with default values if missing
 
-    :param shell_params: shell parameters passed
+    :param params: shell parameters passed
     :return: dictionary of env variables to set
     """
     env_variables: Dict[str, str] = os.environ.copy()
     for variable in MAP_ENV_VARIABLES_TO_PARAMS_FIELDS:
         param_name = MAP_ENV_VARIABLES_TO_PARAMS_FIELDS[variable]
-        param_value = getattr(shell_params, param_name)
+        param_value = getattr(params, param_name, None)
         env_variables[variable] = str(param_value) if param_value is not None else ""
     # Set constant defaults if not defined
     for variable in VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS:

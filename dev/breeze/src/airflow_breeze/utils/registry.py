@@ -21,7 +21,7 @@ from typing import Tuple, Union
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import get_return_code, run_command
+from airflow_breeze.utils.run_utils import run_command
 
 
 def login_to_docker_registry(
@@ -44,7 +44,7 @@ def login_to_docker_registry(
             )
         elif len(image_params.github_token) > 0:
             run_command(['docker', 'logout', 'ghcr.io'], verbose=True, text=False, check=False)
-            process = run_command(
+            command_result = run_command(
                 [
                     'docker',
                     'login',
@@ -58,7 +58,7 @@ def login_to_docker_registry(
                 input=image_params.github_token,
                 check=False,
             )
-            return get_return_code(process=process, dry_run=dry_run), "Docker login"
+            return command_result.returncode, "Docker login"
         else:
             console.print('\n[bright_blue]Skip Login to GitHub Container Registry as token is missing')
     return 0, "Docker login skipped"

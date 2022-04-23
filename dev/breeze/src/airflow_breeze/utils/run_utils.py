@@ -25,7 +25,7 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional
+from typing import List, Mapping, Optional, Union
 
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -42,7 +42,7 @@ def run_command(
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
     **kwargs,
-) -> Optional[subprocess.CompletedProcess]:
+) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
     be used in this command even if not explicitly specified).
@@ -75,7 +75,7 @@ def run_command(
         # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
         console.print(f"\n[bright_blue]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
-            return None
+            return subprocess.CompletedProcess(cmd, returncode=0)
     try:
         cmd_env = os.environ.copy()
         if env:
@@ -91,9 +91,9 @@ def run_command(
                 console.print("[red]========================= STDERR start ============================[/]")
                 console.print(ex.stderr)
                 console.print("[red]========================= STDERR end ==============================[/]")
-        if not check:
+        if check:
             raise
-    return None
+        return ex
 
 
 def check_pre_commit_installed(verbose: bool) -> bool:
@@ -111,11 +111,11 @@ def check_pre_commit_installed(verbose: bool) -> bool:
     pre_commit_name = "pre-commit"
     is_installed = False
     if shutil.which(pre_commit_name) is not None:
-        process = run_command(
-            [pre_commit_name, "--version"], verbose=verbose, check=True, capture_output=True, text=True
+        command_result = run_command(
+            [pre_commit_name, "--version"], verbose=verbose, capture_output=True, text=True
         )
-        if process and process.stdout:
-            pre_commit_version = process.stdout.split(" ")[-1].strip()
+        if command_result.stdout:
+            pre_commit_version = command_result.stdout.split(" ")[-1].strip()
             if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
                 console.print(
                     f"\n[green]Package {pre_commit_name} is installed. "
@@ -228,8 +228,8 @@ def is_repo_rebased(repo: str, branch: str):
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
-    process = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
-    output = process.stdout.strip().splitlines() if process is not None else "missing"
+    command_result = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
+    output = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
     if latest_sha in output:
         rebased = True
     return rebased
@@ -243,7 +243,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     """
     is_buildx_available = False
     check_buildx = ['docker', 'buildx', 'version']
-    docker_buildx_version_process = run_command(
+    docker_buildx_version_result = run_command(
         check_buildx,
         verbose=verbose,
         no_output_dump_on_exception=True,
@@ -251,9 +251,9 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
         text=True,
     )
     if (
-        docker_buildx_version_process
-        and docker_buildx_version_process.returncode == 0
-        and docker_buildx_version_process.stdout != ''
+        docker_buildx_version_result
+        and docker_buildx_version_result.returncode == 0
+        and docker_buildx_version_result.stdout != ''
     ):
         is_buildx_available = True
     return is_buildx_available
@@ -278,8 +278,8 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
         if prepare_buildx_cache:
             build_command_param.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
             cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-            process = run_command(cmd, verbose=True, text=True)
-            if process and process.returncode != 0:
+            buildx_command_result = run_command(cmd, verbose=True, text=True)
+            if buildx_command_result and buildx_command_result.returncode != 0:
                 next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
                 run_command(next_cmd, verbose=True, text=True, check=False)
         else:
@@ -300,22 +300,16 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
 @lru_cache(maxsize=None)
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
-    return run_command(
-        ['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False
-    ).stdout.strip()
+    command_result = run_command(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False)
+    if command_result.stdout:
+        return command_result.stdout.strip()
+    else:
+        return "COMMIT_SHA_NOT_FOUND"
 
 
-def filter_out_none(**kwargs) -> Dict[str, str]:
+def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
     for key in list(kwargs):
         if kwargs[key] is None:
             kwargs.pop(key)
     return kwargs
-
-
-def get_return_code(process: Optional[subprocess.CompletedProcess], dry_run: bool):
-    if process:
-        return process.returncode
-    if dry_run:
-        return 0
-    return 1

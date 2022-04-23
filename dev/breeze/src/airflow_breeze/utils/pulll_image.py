@@ -24,7 +24,7 @@ from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.run_tests import verify_an_image
-from airflow_breeze.utils.run_utils import get_return_code, run_command
+from airflow_breeze.utils.run_utils import run_command
 
 
 def run_pull_in_parallel(
@@ -96,14 +96,14 @@ def run_pull_image(
     )
     while True:
         command_to_run = ["docker", "pull", image_params.airflow_image_name_with_tag]
-        process = run_command(
+        command_result = run_command(
             command_to_run,
             verbose=verbose,
             dry_run=dry_run,
             check=False,
         )
-        if dry_run or process and process.returncode == 0:
-            process = run_command(
+        if command_result.returncode == 0:
+            command_result = run_command(
                 ["docker", "inspect", image_params.airflow_image_name_with_tag, "-f", "{{.Size}}"],
                 capture_output=True,
                 verbose=verbose,
@@ -112,19 +112,19 @@ def run_pull_image(
                 check=False,
             )
             if not dry_run:
-                if process and process.returncode == 0:
-                    image_size = int(process.stdout.strip())
+                if command_result.returncode == 0:
+                    image_size = int(command_result.stdout.strip())
                     if image_size == 0:
                         console.print("\n[red]The image size was 0 - image creation failed.[/]\n")
                         return 1, f"Image Python {image_params.python}"
                 else:
                     console.print("\n[red]There was an error pulling the size of the image. Failing.[/]\n")
                     return (
-                        get_return_code(process=process, dry_run=dry_run),
+                        command_result.returncode,
                         f"Image Python {image_params.python}",
                     )
             if tag_as_latest:
-                process = run_command(
+                command_result = run_command(
                     [
                         "docker",
                         "tag",
@@ -136,7 +136,7 @@ def run_pull_image(
                     dry_run=dry_run,
                     check=False,
                 )
-            return get_return_code(process=process, dry_run=dry_run), f"Image Python {image_params.python}"
+            return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if verbose or dry_run:
                 console.print(f"\n[bright_blue]Waiting for {poll_time} seconds.[/]\n")
@@ -144,7 +144,7 @@ def run_pull_image(
             continue
         else:
             console.print(f"\n[red]There was an error pulling the image {image_params.python}. Failing.[/]\n")
-            return get_return_code(process=process, dry_run=dry_run), f"Image Python {image_params.python}"
+            return command_result.returncode, f"Image Python {image_params.python}"
 
 
 def run_pull_and_verify_image(

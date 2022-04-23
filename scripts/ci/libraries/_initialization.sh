@@ -342,9 +342,6 @@ function initialization::initialize_host_variables() {
     HOST_OS="$(uname -s)"
     export HOST_OS
 
-    # Home directory of the host user
-    export HOST_HOME="${HOME}"
-
     # In case of MacOS we need to use gstat - gnu version of the stats
     export STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
@@ -699,7 +696,6 @@ Host variables:
     HOST_USER_ID=${HOST_USER_ID}
     HOST_GROUP_ID=${HOST_GROUP_ID}
     HOST_OS=${HOST_OS}
-    HOST_HOME=${HOST_HOME}
 
 Git variables:
 
@@ -822,7 +818,6 @@ function initialization::make_constants_read_only() {
 
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
-    readonly HOST_HOME
     readonly HOST_OS
 
     readonly KUBERNETES_MODE
