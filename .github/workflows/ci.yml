@@ -609,7 +609,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - name: "Static checks"
-        run: ./scripts/ci/static_checks/run_static_checks.sh
+        run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: false
           SKIP: "identity"
@@ -625,7 +625,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,mypy,flake8,identity"
+      SKIP: "build,run-mypy,run-flake8,lint-javascript,update-migration-references,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
@@ -666,7 +666,9 @@ pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-v
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: basic checks only"
-        run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
+        run: >
+          breeze static-checks --all-files --show-diff-on-failure --color always
+          --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: false
   docs:

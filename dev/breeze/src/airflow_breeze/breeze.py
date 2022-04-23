@@ -631,7 +631,7 @@ option_mount_sources = click.option(
 )
 
 option_force_build = click.option(
-    '-f', '--force-build', help="Force image build no matter if it is " "determined as needed.", is_flag=True
+    '-f', '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
 )
 
 option_db_reset = click.option(
@@ -1800,7 +1800,19 @@ def build_docs(
 @click.option(
     '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
 )
-@click.option('-c', '--last-commit', help="Run checks for all files in last commit.", is_flag=True)
+@click.option(
+    '-c',
+    '--last-commit',
+    help="Run checks for all files in last commit. Mutually exclusive with --commit-ref.",
+    is_flag=True,
+)
+@click.option(
+    '-r',
+    '--commit-ref',
+    help="Run checks for this commit reference only "
+    "(can be any git commit-ish reference). "
+    "Mutually exclusive with --last-commit.",
+)
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -1812,12 +1824,16 @@ def static_checks(
     all_files: bool,
     show_diff_on_failure: bool,
     last_commit: bool,
+    commit_ref: str,
     type: Tuple[str],
     files: bool,
     precommit_args: Tuple,
 ):
     if check_pre_commit_installed(verbose=verbose):
         command_to_execute = ['pre-commit', 'run']
+        if last_commit and commit_ref:
+            console.print("\n[red]You cannot specify both --last-commit and --commit-ref[/]\n")
+            sys.exit(1)
         for single_check in type:
             command_to_execute.append(single_check)
         if all_files:
@@ -1826,6 +1842,8 @@ def static_checks(
             command_to_execute.append("--show-diff-on-failure")
         if last_commit:
             command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
+        if commit_ref:
+            command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
         if files:
             command_to_execute.append("--files")
         if verbose or dry_run:
