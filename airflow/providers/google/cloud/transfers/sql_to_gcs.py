@@ -74,6 +74,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param upload_metadata: whether to upload the row count metadata as blob metadata
     """
 
     template_fields: Sequence[str] = (
@@ -107,6 +108,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        upload_metadata: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -134,6 +136,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.upload_metadata = upload_metadata
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
@@ -157,6 +160,10 @@ class BaseSQLToGCSOperator(BaseOperator):
         # Close all temp file handles.
         for tmp_file in files_to_upload:
             tmp_file['file_handle'].close()
+            tmp_file.pop('file_handle')
+
+        # Return list of uploaded files with row counts
+        return files_to_upload
 
     def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
@@ -183,6 +190,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_mime_type = 'application/json'
         files_to_upload = [
             {
+                'bucket': self.bucket,
                 'file_name': self.filename.format(file_no),
                 'file_handle': tmp_file_handle,
                 'file_mime_type': file_mime_type,
@@ -196,10 +204,16 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_schema = self._convert_parquet_schema(cursor)
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
+        file_row_count = 0
+        total_row_count = 0
+
         for row in cursor:
             # Convert datetime objects to utc seconds, and decimals to floats.
             # Convert binary type object to string encoded with base64.
             row = self.convert_types(schema, col_type_dict, row)
+
+            file_row_count += 1
+            total_row_count += 1
 
             if self.export_format == 'csv':
                 if self.null_marker is not None:
@@ -225,9 +239,14 @@ class BaseSQLToGCSOperator(BaseOperator):
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
 
+                # Write file row count to previous file
+                files_to_upload[-1]['file_row_count'] = file_row_count
+                file_row_count = 0
+
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 files_to_upload.append(
                     {
+                        'bucket': self.bucket,
                         'file_name': self.filename.format(file_no),
                         'file_handle': tmp_file_handle,
                         'file_mime_type': file_mime_type,
@@ -238,6 +257,14 @@ class BaseSQLToGCSOperator(BaseOperator):
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                 if self.export_format == 'parquet':
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+
+            # Add file row count to all files to upload
+            files_to_upload[-1]['file_row_count'] = file_row_count
+
+            # Add the total row count to all files to upload
+            for file in files_to_upload:
+                file['total_row_count'] = total_row_count
+
         return files_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
@@ -349,10 +376,18 @@ class BaseSQLToGCSOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         for tmp_file in files_to_upload:
+            metadata = None
+            if self.upload_metadata:
+                metadata = {
+                    'row_count': tmp_file.get('file_row_count'), 
+                    'total_row_count': tmp_file.get('total_row_count')
+                } 
+
             hook.upload(
                 self.bucket,
                 tmp_file.get('file_name'),
                 tmp_file.get('file_handle').name,
                 mime_type=tmp_file.get('file_mime_type'),
                 gzip=self.gzip if tmp_file.get('file_name') != self.schema_filename else False,
+                metadata=metadata,
             )
