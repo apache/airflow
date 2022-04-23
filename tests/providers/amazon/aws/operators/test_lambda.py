@@ -21,6 +21,7 @@ import json
 import unittest
 import zipfile
 
+import pytest
 from moto import mock_iam, mock_lambda, mock_sts
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -96,6 +97,7 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
         )
         return resp
 
+    @pytest.mark.execution_timeout(120)
     def test_invoke_lambda(self):
         self.create_lambda_function('test')
         test_event_input = {"TestInput": "Testdata"}
