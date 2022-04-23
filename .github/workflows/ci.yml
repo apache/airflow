@@ -322,7 +322,7 @@ jobs:
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: Build & Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze build-image --push-image
@@ -334,7 +334,7 @@ jobs:
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
-        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
 
   build-prod-images:
     permissions:
@@ -385,7 +385,7 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: >
           Pull CI image for PROD build:
@@ -548,7 +548,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
         run: breeze pull-image --run-in-parallel --verify-image --wait-for-image
@@ -578,7 +578,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -609,7 +609,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - name: "Static checks"
-        run: ./scripts/ci/static_checks/run_static_checks.sh
+        run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: false
           SKIP: "identity"
@@ -625,7 +625,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,mypy,flake8,identity"
+      SKIP: "build,run-mypy,run-flake8,lint-javascript,update-migration-references,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
@@ -666,7 +666,9 @@ pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-v
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: basic checks only"
-        run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
+        run: >
+          breeze static-checks --all-files --show-diff-on-failure --color always
+          --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: false
   docs:
@@ -691,7 +693,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -744,7 +746,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -794,7 +796,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -848,7 +850,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -913,7 +915,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -980,7 +982,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1047,7 +1049,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1110,7 +1112,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1181,7 +1183,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           echo "ISSUE_ID=10128" >> $GITHUB_ENV
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1275,7 +1277,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
@@ -1313,7 +1315,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --tag-as-latest
         env:
@@ -1360,7 +1362,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --run-in-parallel --tag-as-latest
         env:
@@ -1420,7 +1422,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --run-in-parallel --tag-as-latest
         env:
@@ -1489,7 +1491,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --run-in-parallel --tag-as-latest
         env:
@@ -1556,7 +1558,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Build & Push CI image ${{ matrix.python-version }}:latest"

@@ -33,6 +33,7 @@ from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
 from airflow_breeze.utils.constraints import run_generate_constraints, run_generate_constraints_in_parallel
+from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.run_tests import run_docker_compose_tests, verify_an_image
@@ -383,6 +384,18 @@ try:
         "breeze prepare-provider-documentation": [
             {"name": "Provider documentation preparation flags", "options": ["--skip-package-verification"]}
         ],
+        "breeze find-newer-dependencies": [
+            {
+                "name": "Find newer dependencies flags",
+                "options": [
+                    "--python",
+                    "--timezone",
+                    "--constraints-branch",
+                    "--updated-on-or-after",
+                    "--max-age",
+                ],
+            }
+        ],
         "breeze generate-constraints": [
             {
                 "name": "Generate constraints flags",
@@ -447,6 +460,13 @@ try:
                     "build-prod-image",
                     "pull-prod-image",
                     "verify-prod-image",
+                ],
+            },
+            {
+                "name": "CI utils",
+                "commands": [
+                    "free-space",
+                    "find-newer-dependencies",
                 ],
             },
             {
@@ -631,7 +651,7 @@ option_mount_sources = click.option(
 )
 
 option_force_build = click.option(
-    '-f', '--force-build', help="Force image build no matter if it is " "determined as needed.", is_flag=True
+    '-f', '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
 )
 
 option_db_reset = click.option(
@@ -1800,7 +1820,19 @@ def build_docs(
 @click.option(
     '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
 )
-@click.option('-c', '--last-commit', help="Run checks for all files in last commit.", is_flag=True)
+@click.option(
+    '-c',
+    '--last-commit',
+    help="Run checks for all files in last commit. Mutually exclusive with --commit-ref.",
+    is_flag=True,
+)
+@click.option(
+    '-r',
+    '--commit-ref',
+    help="Run checks for this commit reference only "
+    "(can be any git commit-ish reference). "
+    "Mutually exclusive with --last-commit.",
+)
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -1812,12 +1844,16 @@ def static_checks(
     all_files: bool,
     show_diff_on_failure: bool,
     last_commit: bool,
+    commit_ref: str,
     type: Tuple[str],
     files: bool,
     precommit_args: Tuple,
 ):
     if check_pre_commit_installed(verbose=verbose):
         command_to_execute = ['pre-commit', 'run']
+        if last_commit and commit_ref:
+            console.print("\n[red]You cannot specify both --last-commit and --commit-ref[/]\n")
+            sys.exit(1)
         for single_check in type:
             command_to_execute.append(single_check)
         if all_files:
@@ -1826,6 +1862,8 @@ def static_checks(
             command_to_execute.append("--show-diff-on-failure")
         if last_commit:
             command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
+        if commit_ref:
+            command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
         if files:
             command_to_execute.append("--files")
         if verbose or dry_run:
@@ -2160,6 +2198,65 @@ def generate_constraints(
         if return_code != 0:
             console.print(f"[red]There was an error when generating constraints: {info}[/]")
             sys.exit(return_code)
+
+
+@main.command(name="free-space", help="Free space for jobs run in CI.")
+@option_verbose
+@option_dry_run
+def free_space(verbose, dry_run):
+    run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
+    run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+    run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
+    run_command(
+        ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
+    )
+    run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
+    run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
+
+
+option_timezone = click.option(
+    "--timezone",
+    default="UTC",
+    type=str,
+    help="Timezone to use during the check",
+)
+
+option_updated_on_or_after = click.option(
+    "--updated-on-or-after",
+    type=str,
+    help="Date when the release was updated after",
+)
+
+option_max_age = click.option(
+    "--max-age",
+    type=int,
+    default=3,
+    help="Max age of the last release (used if no updated-on-or-after if specified)",
+)
+
+option_branch = click.option(
+    "--constraints-branch",
+    default='constraints-main',
+    help="Constraint branch to use to find newer dependencies",
+)
+
+
+@main.command(name="find-newer-dependencies", help="Finds which newer dependencies ")
+@option_timezone
+@option_branch
+@option_python
+@option_updated_on_or_after
+@option_max_age
+def breeze_find_newer_dependencies(
+    constraints_branch: str, python: str, timezone: str, updated_on_or_after: str, max_age: int
+):
+    return find_newer_dependencies(
+        constraints_branch=constraints_branch,
+        python=python,
+        timezone=timezone,
+        updated_on_or_after=updated_on_or_after,
+        max_age=max_age,
+    )
 
 
 @main.command(

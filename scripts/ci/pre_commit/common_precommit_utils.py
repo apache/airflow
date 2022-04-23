@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from pathlib import Path
+from typing import List
+
+
+def insert_documentation(file_path: Path, content: List[str], header: str, footer: str):
+    text = file_path.read_text().splitlines(keepends=True)
+    replacing = False
+    result: List[str] = []
+    for line in text:
+        if line.startswith(header):
+            replacing = True
+            result.append(line)
+            result.extend(content)
+        if line.startswith(footer):
+            replacing = False
+        if not replacing:
+            result.append(line)
+    file_path.write_text("".join(result))

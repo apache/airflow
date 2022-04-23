@@ -450,52 +450,64 @@ Airflow developers tasks
 
 Regular development tasks:
 
+Those are commands mostly used by contributors:
+
+* Execute arbitrary command in the test environment with ``breeze shell`` command
 * Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Cleanup breeze with ``breeze cleanup`` command
-* Run static checks with autocomplete support ``breeze static-check`` command
+* Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``./breeze-legacy tests`` command
+* Join running interactive shell with ``./breeze-legacy exec`` command
+* Stop running interactive environment with ``breeze stop`` command
+* Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
+
+Tests:
+
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
+
+Kubernetes tests:
+
+* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
+* Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
+* Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
 
 CI Image tasks:
+
+The image building is usually run for users automatically when needed,
+but sometimes Breeze users might want to manually build, pull or verify the CI images.
 
 * Build CI docker image with ``breeze build-image`` command
 * Pull CI images in parallel ``breeze pull-image`` command
 * Verify CI image ``breeze verify-image`` command
 
 PROD Image tasks:
+
+Users can also build Production images when they are developing them. However when you want to
+use the PROD image, the regular docker build commands are recommended. See
+`building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
+
 * Build PROD image with ``breeze build-prod-image`` command
 * Pull PROD image in parallel ``breeze pull-prod-image`` command
 * Verify CI image ``breeze verify-prod-image`` command
 
-Additional management tasks:
+CI tools
+--------
 
-* Join running interactive shell with ``./breeze-legacy exec`` command
-* Stop running interactive environment with ``breeze stop`` command
-* Execute arbitrary command in the test environment with ``breeze shell`` command
-* Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
+Those are tools mostly used by our Continuous Integration.
 
-Docker compose tests:
+* Freeing space needed to run CI tests with ``breeze free-space`` command
+* Finding the updated dependencies since the last successful build when we have conflict with
+  ``breeze find-newer-dependencies`` command
 
-* Run docker-compose tests with ``breeze docker-compose-tests`` command.
-
-Kubernetes tests related:
-
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
-* Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
-* Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
-
-Airflow can also be used for managing Production images - this is a development-only feature,
-regular users of Airflow should use ``docker build`` commands to manage the images as described
-in the user documentation about `building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
-
-Maintainer tasks
-----------------
+Release tasks
+-------------
 
 Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
-do not need):
+do not need or have no access to run). Those are usually connected with releasing Airflow:
 
 * Prepare cache for CI: ``breeze build-image --prepare-build-cache`` and
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
@@ -503,6 +515,7 @@ do not need):
 * Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
 * Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
   ``breeze prepare-provider-packages`` (when releasing provider packages)
+
 
 Details of Breeze usage
 =======================
@@ -891,14 +904,22 @@ You can also pass specific pre-commit flags for example ``--all-files`` :
 
 The above will run mypy check for all files.
 
-There is also a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
+There is a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
 
 .. code-block:: bash
 
      breeze static-checks -t mypy --last-commit
 
-The above will run mypy check for all files.
+The above will run mypy check for all files in the last commit.
 
+There is another convenience ``--commit-ref`` flag that you can use to run static check on specific commit:
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+
+The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
+Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
 If you ever need to get a list of the files that will be checked (for troubleshooting) use these commands:
 
@@ -1142,6 +1163,34 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
+Freeing the space on CI
+=======================
+
+When our CI runs a job, it needs all memory and disk it can have. We have a Breeze command that frees
+the memory and disk space used.
+
+Those are all available flags of ``free-space`` command:
+
+.. image:: ./images/breeze/output-free-space.svg
+  :width: 100%
+  :alt: Breeze free-space
+
+
+Tracking backtracking issues for CI builds
+==========================================
+
+When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
+lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
+Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
+diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
+which new dependency might have caused the backtracking. The whole process is described in
+`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
+
+Those are all available flags of ``find-newer-dependencies`` command:
+
+.. image:: ./images/breeze/output-find-newer-dependencies.svg
+  :width: 100%
+  :alt: Breeze find-newer-dependencies
 
 Internal details of Breeze
 ==========================

@@ -1,4 +1,4 @@
-<svg width="1720.0" height="1726" viewBox="0 0 1720.0 1726"
+<svg width="1720.0" height="1814" viewBox="0 0 1720.0 1814"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -170,6 +170,10 @@
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5">                   </span><span class="r1"> </span><span class="r1">sequentially.                                                                                  </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> pull-prod-image   </span><span class="r1"> </span><span class="r1">Pull and optionally verify Production images - possibly in parallel for all Python versions.   </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> verify-prod-image </span><span class="r1"> </span><span class="r1">Verify Production image.                                                                       </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
+<div><span class="r4">╭─ CI utils ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> free-space              </span><span class="r1"> </span><span class="r1">Free space for jobs run in CI.</span><span class="r1"> </span><span class="r1">                                                           </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> find-newer-dependencies </span><span class="r1"> </span><span class="r1">Finds which newer dependencies</span><span class="r1"> </span><span class="r1">                                                           </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Release management ─────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-provider-documentation </span><span class="r1"> </span><span class="r1">Prepare CHANGELOG, README and COMMITS information for providers.            </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
