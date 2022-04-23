@@ -23,7 +23,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, List, Optional, Tuple
+from typing import IO, Any, List, Optional, Tuple
 
 import rich
 
@@ -490,12 +490,9 @@ except ImportError:
 
 from click import Context, IntRange
 
-from airflow_breeze.build_image.ci.build_ci_image import build_ci_image, get_ci_image_build_params
+from airflow_breeze.build_image.ci.build_ci_image import build_ci_image
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
-from airflow_breeze.build_image.prod.build_prod_image import (
-    build_production_image,
-    get_prod_image_build_params,
-)
+from airflow_breeze.build_image.prod.build_prod_image import build_production_image
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
@@ -521,9 +518,10 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.shell.enter_shell import enter_shell
 from airflow_breeze.utils.cache import (
     check_if_cache_exists,
+    check_if_values_allowed,
     delete_cache,
+    read_and_validate_value_from_cache,
     read_from_cache_file,
-    synchronize_parameters_with_cache,
     touch_cache_file,
     write_to_cache_file,
 )
@@ -560,6 +558,8 @@ class BetterChoice(click.Choice):
     that when the long list of choices does not wrap on words.
     """
 
+    name = "BetterChoice"
+
     def get_metavar(self, param) -> str:
         choices_str = " | ".join(self.choices)
         # Use curly braces to indicate a required argument.
@@ -572,6 +572,68 @@ class BetterChoice(click.Choice):
 
         # Use square braces to indicate an option or optional argument.
         return f"[{choices_str}]"
+
+
+@dataclass
+class CacheableDefault:
+    value: Any
+
+    def __repr__(self):
+        return self.value
+
+
+class CacheableChoice(click.Choice):
+    """
+    This class implements caching of values from the last use.
+    """
+
+    def convert(self, value, param, ctx):
+        param_name = param.envvar if param.envvar else param.name.upper()
+        if isinstance(value, CacheableDefault):
+            is_cached, new_value = read_and_validate_value_from_cache(param_name, value.value)
+            if not is_cached:
+                console.print(
+                    f"\n[bright_blue]Default value of {param.name} " f"parameter {new_value} used.[/]\n"
+                )
+        else:
+            allowed, allowed_values = check_if_values_allowed(param_name, value)
+            if allowed:
+                new_value = value
+                write_to_cache_file(param_name, new_value, check_allowed_values=False)
+            else:
+                new_value = allowed_values[0]
+                console.print(
+                    f"\n[yellow]The value {value} is not allowed for parameter {param.name}. "
+                    f"Setting default value to {new_value}"
+                )
+                write_to_cache_file(param_name, new_value, check_allowed_values=False)
+        return super().convert(new_value, param, ctx)
+
+    def get_metavar(self, param) -> str:
+        param_name = param.envvar if param.envvar else param.name.upper()
+        current_value = (
+            read_from_cache_file(param_name) if not output_file_for_recording else param.default.value
+        )
+        if not current_value:
+            current_choices = self.choices
+        else:
+            current_choices = [
+                f">{choice}<" if choice == current_value else choice for choice in self.choices
+            ]
+        choices_str = " | ".join(current_choices)
+        # Use curly braces to indicate a required argument.
+        if param.required and param.param_type_name == "argument":
+            return f"{{{choices_str}}}"
+
+        if param.param_type_name == "argument" and param.nargs == -1:
+            # avoid double [[ for multiple args
+            return f"{choices_str}"
+
+        # Use square braces to indicate an option or optional argument.
+        return f"[{choices_str}]"
+
+    def __init__(self, choices, case_sensitive: bool = True) -> None:
+        super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
 option_verbose = click.option(
@@ -597,16 +659,21 @@ option_answer = click.option(
 option_python = click.option(
     '-p',
     '--python',
-    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
-    help='Python major/minor version used in Airflow image for PROD/CI images.',
+    type=CacheableChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    default=CacheableDefault(value=ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]),
+    show_default=True,
+    help='Python major/minor version used in Airflow image for images.',
     envvar='PYTHON_MAJOR_MINOR_VERSION',
 )
 
 option_backend = click.option(
     '-b',
     '--backend',
+    type=CacheableChoice(ALLOWED_BACKENDS),
+    default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
+    show_default=True,
     help="Database backend to use.",
-    type=BetterChoice(ALLOWED_BACKENDS),
+    envvar='BACKEND',
 )
 
 option_integration = click.option(
@@ -617,15 +684,30 @@ option_integration = click.option(
 )
 
 option_postgres_version = click.option(
-    '-P', '--postgres-version', help="Version of Postgres.", type=BetterChoice(ALLOWED_POSTGRES_VERSIONS)
+    '-P',
+    '--postgres-version',
+    type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
+    default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    show_default=True,
+    help="Version of Postgres used.",
 )
 
 option_mysql_version = click.option(
-    '-M', '--mysql-version', help="Version of MySQL.", type=BetterChoice(ALLOWED_MYSQL_VERSIONS)
+    '-M',
+    '--mysql-version',
+    help="Version of MySQL used.",
+    type=CacheableChoice(ALLOWED_MYSQL_VERSIONS),
+    default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
+    show_default=True,
 )
 
 option_mssql_version = click.option(
-    '-S', '--mssql-version', help="Version of MsSQL.", type=BetterChoice(ALLOWED_MSSQL_VERSIONS)
+    '-S',
+    '--mssql-version',
+    help="Version of MsSQL used.",
+    type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
+    default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
+    show_default=True,
 )
 
 option_executor = click.option(
@@ -967,7 +1049,7 @@ argument_packages = click.argument(
 
 @option_verbose
 @main.command()
-def version(verbose: bool):
+def version(verbose: bool, python: str):
     """Print information about version of apache-airflow-breeze."""
     console.print(ASCIIART, style=ASCIIART_STYLE)
     console.print(f"\n[bright_blue]Breeze version: {VERSION}[/]")
@@ -1176,13 +1258,12 @@ def build_image(
         with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
             python_version_list = get_python_version_list(python_versions)
             for python in python_version_list:
-                params = get_ci_image_build_params(parameters_passed)
+                params = BuildCiParams(**parameters_passed)
                 params.python = python
                 params.answer = answer
                 run_build(ci_image_params=params)
     else:
-        params = get_ci_image_build_params(parameters_passed)
-        synchronize_parameters_with_cache(params, parameters_passed)
+        params = BuildCiParams(**parameters_passed)
         run_build(ci_image_params=params)
 
 
@@ -1254,7 +1335,6 @@ def pull_image(
         )
     else:
         image_params = BuildCiParams(image_tag=image_tag, python=python, github_repository=github_repository)
-        synchronize_parameters_with_cache(image_params, {"python": python})
         return_code, info = run_pull_image(
             image_params=image_params,
             dry_run=dry_run,
@@ -1293,9 +1373,7 @@ def verify_image(
 ):
     """Verify CI image."""
     if image_name is None:
-        build_params = get_ci_image_build_params(
-            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
-        )
+        build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
     console.print(f"[bright_blue]Verifying CI image: {image_name}[/]")
     return_code, info = verify_an_image(
@@ -1400,13 +1478,12 @@ def build_prod_image(
         with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
             python_version_list = get_python_version_list(python_versions)
             for python in python_version_list:
-                params = get_prod_image_build_params(parameters_passed)
+                params = BuildProdParams(**parameters_passed)
                 params.python = python
                 params.answer = answer
                 run_build(prod_image_params=params)
     else:
-        params = get_prod_image_build_params(parameters_passed)
-        synchronize_parameters_with_cache(params, parameters_passed)
+        params = BuildProdParams(**parameters_passed)
         run_build(prod_image_params=params)
 
 
@@ -1459,7 +1536,6 @@ def pull_prod_image(
         image_params = BuildProdParams(
             image_tag=image_tag, python=python, github_repository=github_repository
         )
-        synchronize_parameters_with_cache(image_params, {"python": python})
         return_code, info = run_pull_image(
             image_params=image_params,
             dry_run=dry_run,
@@ -1498,8 +1574,8 @@ def verify_prod_image(
 ):
     """Verify Production image."""
     if image_name is None:
-        build_params = get_prod_image_build_params(
-            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
+        build_params = BuildProdParams(
+            python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
     console.print(f"[bright_blue]Verifying PROD image: {image_name}[/]")
@@ -1538,8 +1614,8 @@ def docker_compose_tests(
 ):
     """Run docker-compose tests."""
     if image_name is None:
-        build_params = get_prod_image_build_params(
-            {"python": python, "image_tag": image_tag, "github_repository": github_repository}
+        build_params = BuildProdParams(
+            python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
     console.print(f"[bright_blue]Running docker-compose with PROD image: {image_name}[/]")
@@ -1689,16 +1765,26 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
 @main.command(name='config')
 @option_python
 @option_backend
+@option_postgres_version
+@option_mysql_version
+@option_mssql_version
 @click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
 @click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
-def change_config(python, backend, cheatsheet, asciiart):
+def change_config(
+    python: str,
+    backend: str,
+    postgres_version: str,
+    mysql_version: str,
+    mssql_version: str,
+    cheatsheet: bool,
+    asciiart: bool,
+):
     """
     Show/update configuration (Python, Backend, Cheatsheet, ASCIIART).
     """
     asciiart_file = "suppress_asciiart"
     cheatsheet_file = "suppress_cheatsheet"
-    python_file = 'PYTHON_MAJOR_MINOR_VERSION'
-    backend_file = 'BACKEND'
+
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
@@ -1713,12 +1799,6 @@ def change_config(python, backend, cheatsheet, asciiart):
         elif cheatsheet is not None:
             touch_cache_file(cheatsheet_file)
             console.print('[bright_blue]Disable Cheatsheet[/]')
-    if python is not None:
-        write_to_cache_file(python_file, python)
-        console.print(f'[bright_blue]Python default value set to: {python}[/]')
-    if backend is not None:
-        write_to_cache_file(backend_file, backend)
-        console.print(f'[bright_blue]Backend default value set to: {backend}[/]')
 
     def get_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
@@ -1726,8 +1806,13 @@ def change_config(python, backend, cheatsheet, asciiart):
     console.print()
     console.print("[bright_blue]Current configuration:[/]")
     console.print()
-    console.print(f"[bright_blue]* Python: {read_from_cache_file(python_file)}[/]")
-    console.print(f"[bright_blue]* Backend: {read_from_cache_file(backend_file)}[/]")
+    console.print(f"[bright_blue]* Python: {python}[/]")
+    console.print(f"[bright_blue]* Backend: {backend}[/]")
+    console.print()
+    console.print(f"[bright_blue]* Postgres version: {postgres_version}[/]")
+    console.print(f"[bright_blue]* MySQL version: {mysql_version}[/]")
+    console.print(f"[bright_blue]* MsSQL version: {mssql_version}[/]")
+    console.print()
     console.print(f"[bright_blue]* ASCIIART: {get_status(asciiart_file)}[/]")
     console.print(f"[bright_blue]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
     console.print()
@@ -2162,7 +2247,6 @@ def generate_constraints(
             shell_params = ShellParams(
                 image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
             )
-            synchronize_parameters_with_cache(shell_params, {"python": python})
             console.print("\n[yellow]Use this command to build the image:[/]\n")
             console.print(
                 f"     breeze build-image --python'{shell_params.python}' "
@@ -2191,7 +2275,6 @@ def generate_constraints(
             shell_params = ShellParams(
                 image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
             )
-            synchronize_parameters_with_cache(shell_params, {"python": python})
             return_code, info = run_generate_constraints(
                 shell_params=shell_params,
                 dry_run=dry_run,

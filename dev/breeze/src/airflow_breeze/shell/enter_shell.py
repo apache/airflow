@@ -21,10 +21,11 @@ from pathlib import Path
 from typing import Dict, Union
 
 from airflow_breeze import global_constants
-from airflow_breeze.build_image.ci.build_ci_image import build_ci_image, get_ci_image_build_params
+from airflow_breeze.build_image.ci.build_ci_image import build_ci_image
+from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.cache import (
-    check_cached_value_is_allowed,
+    read_and_validate_value_from_cache,
     read_from_cache_file,
     write_to_cache_file,
 )
@@ -62,7 +63,7 @@ def synchronize_cached_params(parameters_passed_by_the_user: Dict[str, str]) -> 
                 write_to_cache_file(param_name, user_param_value)
             else:
                 param_value = getattr(global_constants, SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES[param])
-                _, user_param_value = check_cached_value_is_allowed(param_name, param_value)
+                _, user_param_value = read_and_validate_value_from_cache(param_name, param_value)
             updated_params[param] = user_param_value
     return updated_params
 
@@ -119,9 +120,7 @@ def run_shell_with_build_image_checks(
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python}"
     )
-    ci_image_params = get_ci_image_build_params(
-        {"python": shell_params.python, "upgrade_to_newer_dependencies": "false"}
-    )
+    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies="false")
     if build_ci_image_check_cache.exists():
         console.print(f'[bright_blue]{shell_params.the_image_type} image already built locally.[/]')
     else:

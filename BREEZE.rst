@@ -363,19 +363,20 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.7 tests with MySQL as backend and in the Docker environment as
-follows:
+For example, you can choose to run Python 3.7 tests with MySQL as backend and with mysql version 8
+as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql
+    breeze --python 3.7 --backend mysql --mysql-version 8
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
 default settings.
 
-The defaults when you run the Breeze environment are Python 3.7 version and SQLite database.
+You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
+in the help of the commands.
 
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command but it is very similar to current ``breeze`` command):

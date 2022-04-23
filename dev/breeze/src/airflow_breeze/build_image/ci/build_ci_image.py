@@ -17,14 +17,14 @@
 
 import multiprocessing as mp
 import sys
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from airflow_breeze.build_image.ci.build_ci_params import (
     OPTIONAL_CI_IMAGE_ARGS,
     REQUIRED_CI_IMAGE_ARGS,
     BuildCiParams,
 )
-from airflow_breeze.utils.cache import synchronize_parameters_with_cache, touch_cache_file
+from airflow_breeze.utils.cache import touch_cache_file
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console
@@ -187,21 +187,6 @@ def build_ci_image(
         if ci_image_params.push_image:
             return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
         return build_result.returncode, f"Image build: {ci_image_params.python}"
-
-
-def get_ci_image_build_params(parameters_passed: Dict) -> BuildCiParams:
-    """
-    Converts parameters received as dict into BuildCiParams. In case cacheable
-    parameters are missing, it reads the last used value for that parameter
-    from the cache and if it is not found, it uses default value for that parameter.
-
-    This method updates cached based on parameters passed via Dict.
-
-    :param parameters_passed: parameters to use when constructing BuildCiParams
-    """
-    ci_image_params = BuildCiParams(**parameters_passed)
-    synchronize_parameters_with_cache(ci_image_params, parameters_passed)
-    return ci_image_params
 
 
 def build_ci_image_in_parallel(

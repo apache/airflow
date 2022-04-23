@@ -17,10 +17,9 @@
 """Command to build PROD image."""
 import contextlib
 import sys
-from typing import Dict, Tuple
+from typing import Tuple
 
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
-from airflow_breeze.utils.cache import synchronize_parameters_with_cache
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.docker_command_utils import (
@@ -118,21 +117,6 @@ def check_docker_context_files(install_from_docker_context_files: bool):
                     - please restart the command with --cleanup-docker-context-files switch'
             )
             sys.exit(1)
-
-
-def get_prod_image_build_params(parameters_passed: Dict) -> BuildProdParams:
-    """
-    Converts parameters received as dict into BuildProdParams. In case cacheable
-    parameters are missing, it reads the last used value for that parameter
-    from the cache and if it is not found, it uses default value for that parameter.
-
-    This method updates cached based on parameters passed via Dict.
-
-    :param parameters_passed: parameters to use when constructing BuildCiParams
-    """
-    prod_image_params = BuildProdParams(**parameters_passed)
-    synchronize_parameters_with_cache(prod_image_params, parameters_passed)
-    return prod_image_params
 
 
 def build_production_image(
