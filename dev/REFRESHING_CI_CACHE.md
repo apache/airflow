@@ -142,6 +142,6 @@ export CI="true"
 breeze build-image --python-version 3.7 \
     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 
-breeze build-prod-image --python-version 3.7 \
+breeze build-prod-image --python-version 3.7 --cleanup-docker-context-files \
     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 ```
