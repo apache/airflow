@@ -28,7 +28,7 @@ import multiprocessing
 import time
 from datetime import timedelta
 from queue import Empty, Queue
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Sequence
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
@@ -684,7 +684,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state, None
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
         scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
         pod_ids = {ti.key: ti for ti in tis if ti.queued_by_job_id}

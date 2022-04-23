@@ -17,7 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 import sys
 from collections import OrderedDict
-from typing import Any, Counter, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Counter, Dict, List, Optional, Set, Tuple, Union, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -298,7 +298,7 @@ class BaseExecutor(LoggingMixin):
         """This method is called when the daemon receives a SIGTERM"""
         raise NotImplementedError()
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -306,7 +306,7 @@ class BaseExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: Sequence[airflow.models.TaskInstance]
         """
         # By default, assume Executors cannot adopt tasks, so just say we failed to adopt anything.
         # Subclasses can do better!

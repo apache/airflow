@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, Sequence
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
@@ -153,7 +153,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -161,7 +161,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: Sequence[airflow.models.TaskInstance]
         """
         celery_tis = []
         kubernetes_tis = []
