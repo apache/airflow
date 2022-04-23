@@ -1896,15 +1896,13 @@ class DAG(LoggingMixin):
         # then there are no altered objects and hence we don't need to clear them.
         if state == TaskInstanceState.FAILED and (downstream or not altered):
             return altered
-        else:
-            only_failed = True
 
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
             include_subdags=True,
             include_parentdag=True,
-            only_failed=only_failed,
+            only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
             exclude_task_ids={task_id},
