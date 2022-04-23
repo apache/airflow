@@ -23,29 +23,17 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
+from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')
+USER_AGENT_STRING = f'airflow-{__version__}'
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """
-    Interact with Databricks SQL.
-
-    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
-    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
-        If not specified, it should be either specified in the Databricks connection's extra parameters,
-        or ``sql_endpoint_name`` must be specified.
-    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
-        be provided as described above.
-    :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
-        If not specified, it could be specified in the Databricks connection's extra parameters.
-    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
-    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
-    :param schema: An optional initial schema to use. Requires DBR version 9.0+
-    """
+    """Hook to interact with Databricks SQL."""
 
     hook_name = 'Databricks SQL'
 
@@ -55,10 +43,29 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         http_path: Optional[str] = None,
         sql_endpoint_name: Optional[str] = None,
         session_configuration: Optional[Dict[str, str]] = None,
-        metadata: Optional[List[Tuple[str, str]]] = None,
+        http_headers: Optional[List[Tuple[str, str]]] = None,
         catalog: Optional[str] = None,
         schema: Optional[str] = None,
+        **kwargs,
     ) -> None:
+        """
+        Initializes DatabricksSqlHook
+
+        :param databricks_conn_id: Reference to the
+            :ref:`Databricks connection <howto/connection:databricks>`.
+        :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
+            If not specified, it should be either specified in the Databricks connection's extra parameters,
+            or ``sql_endpoint_name`` must be specified.
+        :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path``
+            must be provided as described above.
+        :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
+            If not specified, it could be specified in the Databricks connection's extra parameters.
+        :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers
+            on every request
+        :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
+        :param schema: An optional initial schema to use. Requires DBR version 9.0+
+        :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
+        """
         super().__init__(databricks_conn_id)
         self._sql_conn = None
         self._token: Optional[str] = None
@@ -66,9 +73,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self._sql_endpoint_name = sql_endpoint_name
         self.supports_autocommit = True
         self.session_config = session_configuration
-        self.metadata = metadata
+        self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.additional_params = kwargs
 
     def _get_extra_config(self) -> Dict[str, Optional[Any]]:
         extra_params = copy(self.databricks_conn.extra_dejson)
@@ -122,8 +130,13 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.host,
                 self._http_path,
                 self._token,
+                schema=self.schema,
+                catalog=self.catalog,
                 session_configuration=self.session_config,
+                http_headers=self.http_headers,
+                _user_agent_entry=USER_AGENT_STRING,
                 **self._get_extra_config(),
+                **self.additional_params,
             )
         return self._sql_conn
 

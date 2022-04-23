@@ -53,16 +53,18 @@ class DatabricksSqlOperator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
-    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
-    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
-    :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters
+    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request.
+         (templated)
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
     :param output_path: optional string specifying the file to which write selected data. (templated)
     :param output_format: format of output data if ``output_path` is specified.
         Possible values are ``csv``, ``json``, ``jsonl``. Default is ``csv``.
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = ('sql', '_output_path', 'schema', 'metadata')
+    template_fields: Sequence[str] = ('sql', '_output_path', 'schema', 'catalog', 'http_headers')
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'sql': 'sql'}
 
@@ -75,13 +77,14 @@ class DatabricksSqlOperator(BaseOperator):
         sql_endpoint_name: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         session_configuration=None,
-        metadata: Optional[List[Tuple[str, str]]] = None,
+        http_headers: Optional[List[Tuple[str, str]]] = None,
         catalog: Optional[str] = None,
         schema: Optional[str] = None,
         do_xcom_push: bool = False,
         output_path: Optional[str] = None,
         output_format: str = 'csv',
         csv_params: Optional[Dict[str, Any]] = None,
+        client_parameters: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSqlOperator``."""
@@ -96,9 +99,10 @@ class DatabricksSqlOperator(BaseOperator):
         self.parameters = parameters
         self.do_xcom_push = do_xcom_push
         self.session_config = session_configuration
-        self.metadata = metadata
+        self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.client_parameters = client_parameters or {}
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -106,9 +110,10 @@ class DatabricksSqlOperator(BaseOperator):
             http_path=self._http_path,
             session_configuration=self.session_config,
             sql_endpoint_name=self._sql_endpoint_name,
-            metadata=self.metadata,
+            http_headers=self.http_headers,
             catalog=self.catalog,
             schema=self.schema,
+            **self.client_parameters,
         )
 
     def _format_output(self, schema, results):
@@ -179,12 +184,16 @@ class DatabricksCopyIntoOperator(BaseOperator):
         If not specified, ``http_path`` must be provided as described above.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
-    :param metadata: An optional list of (k, v) pairs that will be set as Http headers on every request
+    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters
     :param files: optional list of files to import. Can't be specified together with ``pattern``. (templated)
     :param pattern: optional regex string to match file names to import.
         Can't be specified together with ``files``.
     :param expression_list: optional string that will be used in the ``SELECT`` expression.
-    :param credential: optional credential configuration for authentication against a specified location.
+    :param credential: optional credential configuration for authentication against a source location.
+    :param storage_credential: optional Unity Catalog storage credential for destination.
     :param encryption: optional encryption configuration for a specified location.
     :param format_options: optional dictionary with options specific for a given file format.
     :param force_copy: optional bool to control forcing of data import
@@ -210,11 +219,15 @@ class DatabricksCopyIntoOperator(BaseOperator):
         http_path: Optional[str] = None,
         sql_endpoint_name: Optional[str] = None,
         session_configuration=None,
-        metadata: Optional[List[Tuple[str, str]]] = None,
+        http_headers: Optional[List[Tuple[str, str]]] = None,
+        client_parameters: Optional[Dict[str, Any]] = None,
+        catalog: Optional[str] = None,
+        schema: Optional[str] = None,
         files: Optional[List[str]] = None,
         pattern: Optional[str] = None,
         expression_list: Optional[str] = None,
         credential: Optional[Dict[str, str]] = None,
+        storage_credential: Optional[str] = None,
         encryption: Optional[Dict[str, str]] = None,
         format_options: Optional[Dict[str, str]] = None,
         force_copy: Optional[bool] = None,
@@ -240,14 +253,18 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._sql_endpoint_name = sql_endpoint_name
         self.session_config = session_configuration
         self._table_name = table_name
+        self._catalog = catalog
+        self._schema = schema
         self._file_location = file_location
         self._expression_list = expression_list
         self._credential = credential
+        self._storage_credential = storage_credential
         self._encryption = encryption
         self._format_options = format_options
         self._copy_options = copy_options or {}
         self._validate = validate
-        self.metadata = metadata
+        self._http_headers = http_headers
+        self._client_parameters = client_parameters or {}
         if force_copy is not None:
             self._copy_options["force"] = 'true' if force_copy else 'false'
 
@@ -257,7 +274,10 @@ class DatabricksCopyIntoOperator(BaseOperator):
             http_path=self._http_path,
             session_configuration=self.session_config,
             sql_endpoint_name=self._sql_endpoint_name,
-            metadata=self.metadata,
+            http_headers=self._http_headers,
+            catalog=self._catalog,
+            schema=self._schema,
+            **self._client_parameters,
         )
 
     @staticmethod
@@ -298,6 +318,9 @@ class DatabricksCopyIntoOperator(BaseOperator):
             files_or_pattern = f"FILES = {escaper.escape_item(self._files)}\n"
         format_options = self._generate_options("FORMAT_OPTIONS", escaper, self._format_options) + "\n"
         copy_options = self._generate_options("COPY_OPTIONS", escaper, self._copy_options) + "\n"
+        storage_cred = ""
+        if self._storage_credential:
+            storage_cred = f" WITH (CREDENTIAL {self._storage_credential})"
         validation = ""
         if self._validate is not None:
             if isinstance(self._validate, bool):
@@ -310,9 +333,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
                     )
                 validation = f"VALIDATE {self._validate} ROWS\n"
             else:
-                raise AirflowException("Incorrect data type for validate parameter: " + type(self._validate))
+                raise AirflowException(
+                    "Incorrect data type for validate parameter: " + str(type(self._validate))
+                )
         # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
-        sql = f"""COPY INTO {self._table_name}
+        sql = f"""COPY INTO {self._table_name}{storage_cred}
 FROM {location}
 FILEFORMAT = {self._file_format}
 {validation}{files_or_pattern}{format_options}{copy_options}

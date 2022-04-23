@@ -264,7 +264,7 @@ dask = [
 ]
 databricks = [
     'requests>=2.26.0, <3',
-    'databricks-sql-connector>=1.0.2, <2.0.0',
+    'databricks-sql-connector>=2.0.0, <3.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',

@@ -51,8 +51,10 @@ Operator executes given SQL queries against configured endpoint.  There are 3 wa
      - Optional parameters that will be used to substitute variable(s) in SQL query.
    * - session_configuration: dict[str,str]
      - optional dict specifying Spark configuration parameters that will be set for the session.
-   * - metadata: list[tuple[str, str]]
-     - Optional list of (k, v) pairs that will be set as Http headers on every request
+   * - http_headers: list[tuple[str, str]]
+     - Optional list of (k, v) pairs that will be set as HTTP headers on every request
+   * - client_parameters: dict[str,str]
+     - optional additional parameters internal to Databricks SQL Connector parameters
    * - catalog: str
      - Optional initial catalog to use. Requires DBR version 9.0+
    * - schema: str
@@ -63,7 +65,7 @@ Operator executes given SQL queries against configured endpoint.  There are 3 wa
      - Name of the format which will be used to write results.  Supported values are (case-insensitive): ``JSON`` (array of JSON objects), ``JSONL`` (each row as JSON object on a separate line), ``CSV`` (default).
    * - csv_params: dict[str, any]
      - Optional dictionary with parameters to customize Python CSV writer.
-   * - do_xcom_push: boolean
+   * - do_xcom_push: bool
      - whether we should push query results (last query if multiple queries are provided) to xcom. Default: false
 
 Examples
