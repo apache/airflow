@@ -30,7 +30,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.registry import login_to_docker_registry
-from airflow_breeze.utils.run_utils import fix_group_permissions, get_return_code, run_command
+from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
 
 REQUIRED_PROD_IMAGE_ARGS = [
     "python_base_image",
@@ -187,12 +187,13 @@ def build_production_image(
         if prod_image_params.empty_image:
             console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=prod_image_params)
-            process = run_command(
+            build_command_result = run_command(
                 cmd,
                 input="FROM scratch\n",
                 verbose=verbose,
                 dry_run=dry_run,
                 cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
                 text=True,
             )
         else:
@@ -203,8 +204,10 @@ def build_production_image(
                 optional_args=OPTIONAL_PROD_IMAGE_ARGS,
                 production_image=True,
             )
-            process = run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
-        if process and process.returncode == 0:
+            build_command_result = run_command(
+                cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
+            )
+        if build_command_result.returncode == 0:
             if prod_image_params.push_image:
                 return tag_and_push_image(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
-        return get_return_code(process=process, dry_run=dry_run), f"Image build: {prod_image_params.python}"
+        return build_command_result.returncode, f"Image build: {prod_image_params.python}"

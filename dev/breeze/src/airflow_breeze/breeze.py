@@ -1760,6 +1760,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
+    env = construct_env_variables_docker_compose_command(params)
     cmd = [
         "docker",
         "run",
@@ -1767,13 +1768,16 @@ def build_docs(
         *extra_docker_flags,
         "-e",
         "GITHUB_ACTIONS=",
+        "-e",
+        "SKIP_ENVIRONMENT_INITIALIZATION=true",
         "--pull",
         "never",
         ci_image_name,
         "/opt/airflow/scripts/in_container/run_docs_build.sh",
         *doc_builder.args_doc_builder,
     ]
-    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True)
+    process = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
+    sys.exit(process.returncode)
 
 
 @main.command(
@@ -1830,7 +1834,7 @@ def static_checks(
             command_to_execute.extend(precommit_args)
         env = os.environ.copy()
         env['GITHUB_REPOSITORY'] = github_repository
-        run_command(
+        static_checks_result = run_command(
             command_to_execute,
             verbose=verbose,
             dry_run=dry_run,
@@ -1839,6 +1843,8 @@ def static_checks(
             text=True,
             env=env,
         )
+        if static_checks_result.returncode != 0:
+            console.print("[red]There were errors during pre-commit check. They should be fixed[/n]")
 
 
 @main.command(name="stop", help="Stop running breeze environment.")
@@ -2186,10 +2192,10 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             '--format',
             '{{.Repository}}:{{.Tag}}',
         ]
-        process = run_command(
+        command_result = run_command(
             docker_images_command_to_execute, verbose=verbose, text=True, capture_output=True
         )
-        images = process.stdout.splitlines() if process and process.stdout else []
+        images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
         if images:
             console.print("[light_blue]Removing images:[/]")
             for image in images:

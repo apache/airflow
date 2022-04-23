@@ -25,7 +25,6 @@ services:
       - ADDITIONAL_PATH=~/.local/bin
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - KUBECONFIG=/files/.kube/config
-      - HOST_HOME=${HOME}
       # We need all those env variables here because docker-compose-v2 does not really work well
       # With env files and there are many problems with it:
       - AIRFLOW_CI_IMAGE=${AIRFLOW_CI_IMAGE}

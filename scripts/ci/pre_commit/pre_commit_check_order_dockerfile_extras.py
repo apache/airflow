@@ -69,17 +69,27 @@ def _check_list_sorted(the_list: List[str], message: str) -> bool:
 
 
 def get_replaced_content(
-    content: List[str], extras_list: List[str], start_line: str, end_line: str, prefix: str, suffix: str
+    content: List[str],
+    extras_list: List[str],
+    start_line: str,
+    end_line: str,
+    prefix: str,
+    suffix: str,
+    add_empty_lines: bool,
 ) -> List[str]:
     result = []
     is_copying = True
     for line in content:
         if line.startswith(start_line):
             result.append(f"{line}")
+            if add_empty_lines:
+                result.append("\n")
             is_copying = False
             for extra in extras_list:
                 result.append(f'{prefix}{extra}{suffix}\n')
         elif line.startswith(end_line):
+            if add_empty_lines:
+                result.append("\n")
             result.append(f"{line}")
             is_copying = True
         elif is_copying:
@@ -96,12 +106,24 @@ def check_dockerfile():
             if _check_list_sorted(extras_list, "Dockerfile's AIRFLOW_EXTRAS"):
                 builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(keepends=True)
                 result = get_replaced_content(
-                    builds_args_content, extras_list, START_RST_LINE, END_RST_LINE, "* ", ""
+                    builds_args_content,
+                    extras_list,
+                    START_RST_LINE,
+                    END_RST_LINE,
+                    "* ",
+                    "",
+                    add_empty_lines=True,
                 )
                 BUILD_ARGS_REF_PATH.write_text("".join(result))
                 global_constants_path = GLOBAL_CONSTANTS_PATH.read_text().splitlines(keepends=True)
                 result = get_replaced_content(
-                    global_constants_path, extras_list, START_PYTHON_LINE, END_PYTHON_LINE, '    "', '",'
+                    global_constants_path,
+                    extras_list,
+                    START_PYTHON_LINE,
+                    END_PYTHON_LINE,
+                    '    "',
+                    '",',
+                    add_empty_lines=False,
                 )
                 GLOBAL_CONSTANTS_PATH.write_text("".join(result))
                 return

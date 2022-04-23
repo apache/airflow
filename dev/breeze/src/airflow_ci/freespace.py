@@ -52,7 +52,7 @@ def main(verbose, dry_run):
         ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
     )
     run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
-    run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run)
+    run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
 
 
 if __name__ == '__main__':

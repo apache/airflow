@@ -42,7 +42,6 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DI
 from airflow_breeze.utils.registry import login_to_docker_registry
 from airflow_breeze.utils.run_utils import (
     fix_group_permissions,
-    get_return_code,
     instruct_build_image,
     is_repo_rebased,
     run_command,
@@ -158,7 +157,7 @@ def build_ci_image(
         if ci_image_params.empty_image:
             console.print(f"\n[blue]Building empty CI Image for Python {ci_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=ci_image_params)
-            run_command(
+            build_result = run_command(
                 cmd,
                 input="FROM scratch\n",
                 verbose=verbose,
@@ -168,11 +167,11 @@ def build_ci_image(
             )
         else:
             console.print(f"\n[blue]Building CI Image for Python {ci_image_params.python}\n")
-            process = run_command(
+            build_result = run_command(
                 cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
             )
         if not dry_run:
-            if process and process.returncode == 0:
+            if build_result.returncode == 0:
                 ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
                 ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
                 touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
@@ -180,14 +179,14 @@ def build_ci_image(
             else:
                 console.print("[red]Error when building image![/]")
                 return (
-                    get_return_code(process=process, dry_run=dry_run),
+                    build_result.returncode,
                     f"Image build: {ci_image_params.python}",
                 )
         else:
             console.print("[blue]Not updating build cache because we are in `dry_run` mode.[/]")
         if ci_image_params.push_image:
             return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
-        return get_return_code(process=process, dry_run=dry_run), f"Image build: {ci_image_params.python}"
+        return build_result.returncode, f"Image build: {ci_image_params.python}"
 
 
 def get_ci_image_build_params(parameters_passed: Dict) -> BuildCiParams:

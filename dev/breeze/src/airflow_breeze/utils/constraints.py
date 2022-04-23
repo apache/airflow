@@ -25,7 +25,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.parallel import check_async_run_results
-from airflow_breeze.utils.run_utils import get_return_code, run_command
+from airflow_breeze.utils.run_utils import run_command
 
 
 def run_generate_constraints(
@@ -47,9 +47,9 @@ def run_generate_constraints(
         shell_params.airflow_image_name_with_tag,
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
-    process = run_command(cmd_to_run, verbose=verbose, dry_run=dry_run, env=env_variables)
+    generate_constraints_result = run_command(cmd_to_run, verbose=verbose, dry_run=dry_run, env=env_variables)
     return (
-        get_return_code(process=process, dry_run=dry_run),
+        generate_constraints_result.returncode,
         f"Generate constraints Python {shell_params.python}:{generate_constraints_mode}",
     )
 

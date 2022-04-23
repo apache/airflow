@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_user_id, get_stat_bin
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, SCRIPTS_CI_DIR
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -80,15 +79,7 @@ class ShellParams:
         cmd = ['docker', 'run', '--entrypoint', '/bin/bash', f'{self.airflow_image_name}']
         cmd.extend(['-c', 'echo "${AIRFLOW_VERSION}"'])
         output = run_command(cmd, capture_output=True, text=True)
-        return output.stdout.strip()
-
-    @property
-    def host_user_id(self):
-        return get_host_user_id()
-
-    @property
-    def host_group_id(self):
-        return get_host_group_id()
+        return output.stdout.strip() if output.stdout else "UNKNOWN_VERSION"
 
     @property
     def airflow_base_image_name(self) -> str:
@@ -214,7 +205,3 @@ class ShellParams:
         if len(self.extra_args) > 0:
             cmd = str(self.extra_args[0])
         return cmd
-
-    @property
-    def get_stat_bin(self):
-        return get_stat_bin()
