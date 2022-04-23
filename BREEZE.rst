@@ -455,10 +455,20 @@ Regular development tasks:
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
-* Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 * Run static checks with autocomplete support ``breeze static-check`` command
 * Run test specified with ``./breeze-legacy tests`` command
+
+CI Image tasks:
+
+* Build CI docker image with ``breeze build-image`` command
+* Pull CI images in parallel ``breeze pull-image`` command
+* Verify CI image ``breeze verify-image`` command
+
+PROD Image tasks:
+* Build PROD image with ``breeze build-prod-image`` command
+* Pull PROD image in parallel ``breeze pull-prod-image`` command
+* Verify CI image ``breeze verify-prod-image`` command
 
 Additional management tasks:
 
@@ -466,6 +476,10 @@ Additional management tasks:
 * Stop running interactive environment with ``breeze stop`` command
 * Execute arbitrary command in the test environment with ``breeze shell`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
+
+Docker compose tests:
+
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
 
 Kubernetes tests related:
 
@@ -485,10 +499,10 @@ do not need):
 
 * Prepare cache for CI: ``breeze build-image --prepare-build-cache`` and
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
-* Generate constraints with ``./breeze-legacy generate-constraints`` (needed when conflicting changes are merged)
-* Prepare airflow packages: ``./breeze-legacy prepare-airflow-packages`` (when releasing Airflow)
-* Prepare provider documentation ``./breeze-legacy prepare-provider-documentation`` and prepare provider packages
-  ``./breeze-legacy prepare-provider-packages`` (when releasing provider packages)
+* Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
+* Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
+* Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
+  ``breeze prepare-provider-packages`` (when releasing provider packages)
 
 Details of Breeze usage
 =======================
@@ -626,7 +640,7 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Building CI images
+Managing CI images
 ------------------
 
 With Breeze you can build images that are used by Airflow CI and production ones.
@@ -667,6 +681,24 @@ Those are all available flags of ``build-image`` command:
   :width: 100%
   :alt: Breeze build-image
 
+You can also pull the CI images locally in parallel with optional verification.
+
+Those are all available flags of ``pull-image`` command:
+
+.. image:: ./images/breeze/output-pull-image.svg
+  :width: 100%
+  :alt: Breeze pull-image
+
+Finally, you can verify CI image by running tests - either with the pulled/built images or
+with an arbitrary image.
+
+Those are all available flags of ``verify-image`` command:
+
+.. image:: ./images/breeze/output-verify-image.svg
+  :width: 100%
+  :alt: Breeze verify-image
+
+
 Preparing packages
 ------------------
 
@@ -678,12 +710,31 @@ You can read more about testing provider packages in
 
 There are several commands that you can run in Breeze to manage and build packages:
 
-* preparing Provider Readme files
+* preparing Provider documentation files
 * preparing Airflow packages
 * preparing Provider packages
 
-Preparing provider readme files is part of the release procedure by the release managers
-and it is described in detail in `dev <dev/README.md>`_ .
+Preparing provider documentation files is part of the release procedure by the release managers
+and it is described in detail in `dev <dev/README_RELEASE_PROVIDER_PACKAGES.md>`_ .
+
+The below example perform documentation preparation for provider packages.
+
+.. code-block:: bash
+
+     breeze prepare-provider-documentation
+
+By default, the documentation preparation runs package verification to check if all packages are
+importable, but you can add ``--skip-package-verification`` to skip it.
+
+.. code-block:: bash
+
+     breeze prepare-provider-documentation --skip-package-verification
+
+You can also add ``--answer yes`` to perform non-interactive build.
+
+.. image:: ./images/breeze/output-prepare-provider-documentation.svg
+  :width: 100%
+  :alt: Breeze prepare-provider-documentation
 
 The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
 before running, so you should run it before generating airflow package below as it will be removed.
@@ -692,7 +743,7 @@ The below example builds provider packages in the wheel format.
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-provider-packages
+     breeze prepare-provider-packages
 
 If you run this command without packages, you will prepare all packages, you can however specify
 providers that you would like to build. By default ``both`` types of packages are prepared (
@@ -700,20 +751,23 @@ providers that you would like to build. By default ``both`` types of packages ar
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-provider-packages google amazon
+     breeze prepare-provider-packages google amazon
 
 You can see all providers available by running this command:
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-provider-packages -- --help
+     breeze prepare-provider-packages --help
 
+.. image:: ./images/breeze/output-prepare-provider-packages.svg
+  :width: 100%
+  :alt: Breeze prepare-provider-packages
 
-You can also prepare airflow packages using breeze:
+You can prepare airflow packages using breeze:
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-airflow-packages
+     breeze prepare-airflow-package
 
 This prepares airflow .whl package in the dist folder.
 
@@ -722,10 +776,13 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-airflow-packages --package-format=wheel
+     breeze prepare-airflow-package --package-format=wheel
 
+.. image:: ./images/breeze/output-prepare-airflow-package.svg
+  :width: 100%
+  :alt: Breeze prepare-airflow-package
 
-Building Production images
+Managing Production images
 --------------------------
 
 The **Production image** is also maintained in GitHub Container Registry for Caching
@@ -793,6 +850,25 @@ command but it is very similar to current ``breeze`` command):
              alt="Airflow Breeze - Building Production images">
       </a>
     </div>
+
+You can also pull PROD images in parallel with optional verification.
+
+Those are all available flags of ``pull-prod-image`` command:
+
+.. image:: ./images/breeze/output-pull-prod-image.svg
+  :width: 100%
+  :alt: Breeze pull-prod-image
+
+Finally, you can verify PROD image by running tests - either with the pulled/built images or
+with an arbitrary image.
+
+Those are all available flags of ``verify-prod-image`` command:
+
+.. image:: ./images/breeze/output-verify-prod-image.svg
+  :width: 100%
+  :alt: Breeze verify-prod-image
+
+
 
 Running static checks
 ---------------------
@@ -913,13 +989,19 @@ files are stored in separated orphan branches: ``constraints-main``, ``constrain
 Those are constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
 
-You can use ``./breeze-legacy generate-constraints`` command to manually generate constraints for
-a single python version and single constraint mode like this:
+
+You can use ``breeze generate-constraints`` command to manually generate constraints for
+all or selected python version and single constraint mode like this:
+
+.. warning::
+
+   In order to generate constraints, you need to build all images with ``--upgrade-to-newer-dependencies``
+   flag - for all python versions.
+
 
 .. code-block:: bash
 
-     ./breeze-legacy generate-constraints --generate-constraints-mode pypi-providers
-
+     breeze generate-constraints --generate-constraints-mode pypi-providers
 
 Constraints are generated separately for each python version and there are separate constraints modes:
 
@@ -936,6 +1018,12 @@ Constraints are generated separately for each python version and there are separ
 * "constraints-no-providers" - those are constraints generated from only Apache Airflow, without any
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those. Use ``no-providers`` mode for that.
+
+Those are all available flags of ``generate-constraints`` command:
+
+.. image:: ./images/breeze/output-generate-constraints.svg
+  :width: 100%
+  :alt: Breeze generate-constraints
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
@@ -993,6 +1081,17 @@ but it is not available in the ``breeze`` command):
              alt="Airflow Breeze - Initialize virtualenv">
       </a>
     </div>
+
+Running docker-compose tests
+----------------------------
+
+You can use Breeze to run docker-compose tests. Those tests are run using Production image
+and they are running test with the Quick-start docker compose we have.
+
+.. image:: ./images/breeze/output-docker-compose-tests.svg
+  :width: 100%
+  :alt: Breeze generate-constraints
+
 
 Running Kubernetes tests
 ------------------------
@@ -1119,12 +1218,12 @@ when rebuilding or removing an image and in few other cases - actions that take 
 or could be potentially destructive. You can force answer to the questions by providing an
 ``--answer`` flag in the commands that support it.
 
-For automation scripts, you can export the ``FORCE_ANSWER_TO_QUESTIONS`` variable (and set it to
+For automation scripts, you can export the ``ANSWER`` variable (and set it to
 ``y``, ``n``, ``q``, ``yes``, ``no``, ``quit`` - in all case combinations).
 
 .. code-block::
 
-  export FORCE_ANSWER_TO_QUESTIONS="yes"
+  export ANSWER="yes"
 
 Fixing File/Directory Ownership
 -------------------------------

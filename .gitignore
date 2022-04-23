@@ -194,7 +194,8 @@ log.txt*
 /airflow/providers/__init__.py
 
 # Docker context files
-/docker-context-files
+/docker-context-files/*
+!/docker-context-files/.README.md
 # Local .terraform directories
 **/.terraform/*
 

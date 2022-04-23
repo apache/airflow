@@ -26,16 +26,16 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 # FORCE_PULL_IMAGES = False
 # CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
 FORCE_BUILD_IMAGES = False
-FORCE_ANSWER_TO_QUESTION = ""
+ANSWER = ""
 SKIP_CHECK_REMOTE_IMAGE = False
 # PUSH_PYTHON_BASE_IMAGE = False
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = '3.7'
-DEFAULT_BACKEND = 'sqlite'
 
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
+DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALLOWED_INTEGRATIONS = [
     'cassandra',
     'kerberos',
@@ -79,9 +79,9 @@ ALLOWED_TEST_TYPES = [
     'Helm',
     'Quarantined',
 ]
-ALLOWED_PACKAGE_FORMATS = ['both', 'sdist', 'wheel']
+ALLOWED_PACKAGE_FORMATS = ['wheel', 'sdist', 'both']
 ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
-ALLOWED_DEBIAN_VERSIONS = ['buster', 'bullseye']
+ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
 ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
 ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
 
@@ -119,11 +119,16 @@ EXCLUDE_DOCS_PACKAGE_FOLDER = [
 ]
 
 
-def get_available_packages() -> List[str]:
+def get_available_packages(short_version=False) -> List[str]:
     docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
     package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
     package_list.sort()
+    if short_version:
+        prefix_len = len("apache-airflow-providers-")
+        package_list = [
+            package[prefix_len:].replace("-", ".") for package in package_list if len(package) > prefix_len
+        ]
     return package_list
 
 
@@ -228,17 +233,11 @@ DEFAULT_HELM_VERSIONS = CURRENT_HELM_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
-SKIP_TWINE_CHECK = ""
 USE_AIRFLOW_VERSION = ""
 GITHUB_ACTIONS = ""
 
 ISSUE_ID = ""
 NUM_RUNS = ""
-
-# Initialize package variables
-PACKAGE_FORMAT = "wheel"
-VERSION_SUFFIX_FOR_SVN = ""
-VERSION_SUFFIX_FOR_PYPI = ""
 
 MIN_DOCKER_VERSION = "20.10.0"
 MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
@@ -247,3 +246,34 @@ AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
 AIRFLOW_SOURCES_WWW_FROM = "./airflow/www"
 AIRFLOW_SOURCES_WWW_TO = "/opt/airflow/airflow/www"
+
+DEFAULT_EXTRAS = [
+    # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "amazon",
+    "async",
+    "celery",
+    "cncf.kubernetes",
+    "dask",
+    "docker",
+    "elasticsearch",
+    "ftp",
+    "google",
+    "google_auth",
+    "grpc",
+    "hashicorp",
+    "http",
+    "ldap",
+    "microsoft.azure",
+    "mysql",
+    "odbc",
+    "pandas",
+    "postgres",
+    "redis",
+    "sendgrid",
+    "sftp",
+    "slack",
+    "ssh",
+    "statsd",
+    "virtualenv",
+    # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]

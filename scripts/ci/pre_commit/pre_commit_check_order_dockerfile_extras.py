@@ -20,21 +20,26 @@
 Test for an order of dependencies in setup.py
 """
 import difflib
-import os
 import sys
 import textwrap
+from pathlib import Path
 from typing import List
 
 from rich import print
 
 errors = []
 
-MY_DIR_PATH = os.path.dirname(__file__)
-SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir))
-BUILD_ARGS_REF_PATH = os.path.join(SOURCE_DIR_PATH, "docs", "docker-stack", "build-arg-ref.rst")
+MY_DIR_PATH = Path(__file__).parent.absolute()
 
-START_LINE = ".. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
-END_LINE = ".. END OF EXTRAS LIST UPDATED BY PRE COMMIT"
+SOURCE_DIR_PATH = MY_DIR_PATH.parents[2].absolute()
+BUILD_ARGS_REF_PATH = SOURCE_DIR_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
+GLOBAL_CONSTANTS_PATH = SOURCE_DIR_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+
+START_RST_LINE = ".. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
+END_RST_LINE = ".. END OF EXTRAS LIST UPDATED BY PRE COMMIT"
+
+START_PYTHON_LINE = "    # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
+END_PYTHON_LINE = "    # END OF EXTRAS LIST UPDATED BY PRE COMMIT"
 
 
 class ConsoleDiff(difflib.Differ):
@@ -63,32 +68,42 @@ def _check_list_sorted(the_list: List[str], message: str) -> bool:
     return False
 
 
+def get_replaced_content(
+    content: List[str], extras_list: List[str], start_line: str, end_line: str, prefix: str, suffix: str
+) -> List[str]:
+    result = []
+    is_copying = True
+    for line in content:
+        if line.startswith(start_line):
+            result.append(f"{line}")
+            is_copying = False
+            for extra in extras_list:
+                result.append(f'{prefix}{extra}{suffix}\n')
+        elif line.startswith(end_line):
+            result.append(f"{line}")
+            is_copying = True
+        elif is_copying:
+            result.append(line)
+    return result
+
+
 def check_dockerfile():
-    with open(os.path.join(SOURCE_DIR_PATH, "Dockerfile")) as dockerfile:
-        file_contents = dockerfile.read()
+    lines = (SOURCE_DIR_PATH / "Dockerfile").read_text().splitlines()
     extras_list = None
-    for line in file_contents.splitlines():
+    for line in lines:
         if line.startswith("ARG AIRFLOW_EXTRAS="):
             extras_list = line.split("=")[1].replace('"', '').split(",")
             if _check_list_sorted(extras_list, "Dockerfile's AIRFLOW_EXTRAS"):
-                with open(BUILD_ARGS_REF_PATH) as build_args_file:
-                    content = build_args_file.read().splitlines(keepends=False)
-                result = []
-                is_copying = True
-                for line in content:
-                    if line.startswith(START_LINE):
-                        result.append(f"{line}\n")
-                        is_copying = False
-                        for extra in extras_list:
-                            result.append(f'* {extra}')
-                    elif line.startswith(END_LINE):
-                        result.append(f"\n{line}")
-                        is_copying = True
-                    elif is_copying:
-                        result.append(line)
-                with open(BUILD_ARGS_REF_PATH, "w") as build_args_file:
-                    build_args_file.write("\n".join(result))
-                    build_args_file.write("\n")
+                builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(keepends=True)
+                result = get_replaced_content(
+                    builds_args_content, extras_list, START_RST_LINE, END_RST_LINE, "* ", ""
+                )
+                BUILD_ARGS_REF_PATH.write_text("".join(result))
+                global_constants_path = GLOBAL_CONSTANTS_PATH.read_text().splitlines(keepends=True)
+                result = get_replaced_content(
+                    global_constants_path, extras_list, START_PYTHON_LINE, END_PYTHON_LINE, '    "', '",'
+                )
+                GLOBAL_CONSTANTS_PATH.write_text("".join(result))
                 return
     if not extras_list:
         errors.append("Something is wrong. Dockerfile does not contain AIRFLOW_EXTRAS")

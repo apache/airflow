@@ -34,8 +34,6 @@
   - [Debugging preparing release-notes](#debugging-preparing-release-notes)
   - [Debugging preparing setup files](#debugging-preparing-setup-files)
   - [Debugging preparing the packages](#debugging-preparing-the-packages)
-- [Testing provider packages](#testing-provider-packages)
-  - [Regular packages](#regular-packages)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -97,7 +95,7 @@ The `index.rst` stored in the `docs\apache-airflow-providers-<PROVIDER>` folder 
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze-legacy prepare-provider-documentation <PACKAGE_ID> ...
+breeze prepare-provider-documentation <PACKAGE_ID> ...
 ```
 
 * <PACKAGE_ID> is usually directory in the `airflow/providers` folder (for example `google` but in several
@@ -118,7 +116,7 @@ You should manually update generated changelog and classify the commits updated 
 You can repeat this several times, the changes generated will automatically include new commits that
 appeared since last run.
 
-You can also run it in non-interactive mode adding `--non-interactive` flag.
+You can also run it in non-interactive mode adding `--answer yes` flag.
 
 ## Preparing provider packages
 
@@ -133,7 +131,7 @@ the folders (for example Apache Hive's PACKAGE_ID is `apache.hive` ). You can se
 providers by running:
 
 ```bash
-./breeze prepare-provider-packages -- --help
+breeze prepare-provider-packages --help
 ```
 
 The examples below show how you can build selected packages, but you can also build all packages by
@@ -142,35 +140,22 @@ omitting the package ids altogether.
 By default, you build `both` packages, but you can use `--package-format wheel` to generate
 only wheel package, or `--package-format sdist` to only generate sdist package.
 
-* To build the release candidate packages for SVN Apache upload run the following command:
-
-```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
-```
-
-for example:
-
-```bash
-./breeze prepare-provider-packages --version-suffix-for-svn=rc1 http ...
-```
-
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+breeze prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
+breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
 ```
-
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] [PACKAGE_ID] ...
+breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] [PACKAGE_ID] ...
 ```
 
 Where PACKAGE_FORMAT might be one of : `wheel`, `sdist`, `both` (`wheel` is the default format)
@@ -178,7 +163,7 @@ Where PACKAGE_FORMAT might be one of : `wheel`, `sdist`, `both` (`wheel` is the 
 for example:
 
 ```bash
-./breeze prepare-provider-packages http ...
+breeze prepare-provider-packages http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with
@@ -369,69 +354,3 @@ specifying ``--version-suffix`` (for example ``--version-suffix dev``).
 
 By default, you prepare ``both`` packages, but you can add ``--package-format`` argument and specify
 ``wheel``, ``sdist`` to build only one of them.
-
-
-# Testing provider packages
-
-The provider packages importing and tests execute within the "CI" environment of Airflow -the
-same image that is used by Breeze. They however require special mounts (no
-sources of Airflow mounted to it) and possibility to install all extras and packages in order to test
-if all classes can be imported. It is rather simple but requires some semi-automated process:
-
-
-## Regular packages
-
-1. Prepare regular packages
-
-```shell script
-./breeze prepare-provider-packages
-```
-
-This prepares all provider packages in the "dist" folder
-
-2. Prepare airflow package from sources
-
-```shell script
-./breeze prepare-airflow-packages
-```
-
-This prepares airflow package in the "dist" folder
-
-2. Enter the container:
-
-```shell script
-export USE_AIRFLOW_VERSION="wheel"
-export USE_PACKAGES_FROM_DIST="true"
-
-./dev/provider_packages/enter_breeze_provider_package_tests.sh
-```
-
-(the rest of it is in the container)
-
-3. \[IN CONTAINER\] Install apache-beam.
-
-```shell script
-pip install apache-beam[gcp]
-```
-
-4. \[IN CONTAINER\] Install the provider packages from /dist
-
-```shell script
-pip install --no-deps /dist/apache_airflow_providers_*.whl
-```
-
-Note! No-deps is because we are installing the version installed from wheel package.
-
-5.  \[IN CONTAINER\] Check the installation folder for providers:
-
-```shell script
-python3 <<EOF 2>/dev/null
-import airflow.providers;
-path=airflow.providers.__path__
-for p in path._path:
-    print(p)
-EOF
-```
-
-6.  \[IN CONTAINER\] Check if all the providers can be imported
-python3 /opt/airflow/dev/import_all_classes.py --path <PATH_REPORTED_IN_THE_PREVIOUS_STEP>

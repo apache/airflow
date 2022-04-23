@@ -24,6 +24,9 @@
 - [Automated cache refreshing in CI](#automated-cache-refreshing-in-ci)
 - [Manually generating constraint files](#manually-generating-constraint-files)
 - [Manually refreshing the images](#manually-refreshing-the-images)
+  - [Setting up cache refreshing with emulation](#setting-up-cache-refreshing-with-emulation)
+  - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
+  - [When to rebuild the image](#when-to-rebuild-the-image)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -48,15 +51,10 @@ manual refresh might be needed.
 # Manually generating constraint files
 
 ```bash
-export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.7 3.8 3.9 3.10"
-for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
-do
-  breeze build-image --upgrade-to-newer-dependencies --python ${python_version}
-done
-
-GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
-GENERATE_CONSTRAINTS_MODE="source-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
-GENERATE_CONSTRAINTS_MODE="no-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
+breeze build-image --build-multiple-images --upgrade-to-newer-dependencies
+breeze generate-constraints --generate-constraints-mode pypi-providers --run-in-parallel
+breeze generate-constraints --generate-constraints-mode source-providers --run-in-parallel
+breeze generate-constraints --generate-constraints-mode no-providers --run-in-parallel
 
 AIRFLOW_SOURCES=$(pwd)
 ```
@@ -79,8 +77,10 @@ git push
 
 Note that in order to refresh images you have to not only have `buildx` command installed for docker,
 but you should also make sure that you have the buildkit builder configured and set. Since we also build
-multi-platform images (for both AMD and ARM), you need to have support for qemu installed with appropriate
-flags.
+multi-platform images (for both AMD and ARM), you need to have support for qemu or hardware ARM/AMD builders
+configured.
+
+## Setting up cache refreshing with emulation
 
 According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
 this can be achieved via:
@@ -91,18 +91,57 @@ docker run --privileged --rm tonistiigi/binfmt --install all
 
 More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
 
-The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for particular
-python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with python version
-as parameter:
+However, emulation is very slow - more than 10x slower than hardware-backed builds.
+
+## Setting up cache refreshing with hardware ARM/AMD support
+
+If you plan to build  a number of images, probably better solution is to set up a hardware remote builder
+for your ARM or AMD builds (depending which platform you build images on - the "other" platform should be
+remote.
+
+This  can be achieved by settings build as described in
+[this guideline](https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/) and
+adding it to docker buildx `airflow_cache` builder.
+
+This usually can be done with those two commands:
 
 ```bash
-./dev/refresh_images.sh 3.10
+docker buildx create --name airflow_cache   # your local builder
+docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
 ```
 
-If you have fast network and powerful computer, you can refresh the images in parallel running the
-[refresh_images.sh](refresh_images.sh) with all python versions. You might do it with `tmux` manually
-or with gnu parallel:
+When everything is fine you should see both local and remote builder configured and reporting status:
 
 ```bash
-parallel -j 4 --linebuffer --tagstring '{}' ./dev/refresh_images.sh ::: 3.7 3.8 3.9 3.10
+docker buildx ls
+
+  airflow_cache          docker-container
+       airflow_cache0    unix:///var/run/docker.sock
+       airflow_cache1    tcp://127.0.0.1:2375
+```
+
+## When to rebuild the image
+
+The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for all
+python version sis a simple as running the [refresh_images.sh](refresh_images.sh) script which will
+sequentially rebuild all the images. Usually building several images in parallel on one machine does not
+speed up the build significantly, that's why the images are build sequentially.
+
+```bash
+./dev/refresh_images.sh
+```
+
+You can also individually refresh the images by running commands like this:
+
+```bash
+rm -rf docker-context-files/*.whl
+rm -rf docker-context-files/*.tgz
+export ANSWER="yes"
+export CI="true"
+
+breeze build-image --python-version 3.7 \
+    --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
+
+breeze build-prod-image --python-version 3.7 \
+    --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 ```

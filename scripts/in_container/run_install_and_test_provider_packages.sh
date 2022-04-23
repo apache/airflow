@@ -44,7 +44,7 @@ function verify_parameters(){
     group_end
 }
 
-function install_airflow_as_specified() {
+function install_airflow_no_extras() {
     group_start "Install Airflow as specified"
     if [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
@@ -53,21 +53,21 @@ function install_airflow_as_specified() {
         uninstall_airflow_and_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
-        echo "Install airflow from wheel including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from wheel (no extras)"
         echo
         uninstall_airflow_and_providers
-        install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
+        install_airflow_from_wheel ""
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
-        echo "Install airflow from sdist including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from sdist (no extras)"
         echo
         uninstall_airflow_and_providers
-        install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
+        install_airflow_from_sdist ""
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI without extras"
+        echo "Install airflow from PyPI"
         echo
         install_released_airflow_version "${USE_AIRFLOW_VERSION}"
         uninstall_providers
@@ -275,12 +275,14 @@ EOF
     fi
 }
 
+AIRFLOW_EXTRAS="all"
+export AIRFLOW_EXTRAS
 
 setup_provider_packages
 verify_parameters
-install_airflow_as_specified
+install_airflow_no_extras
 
-if [[ ${SKIP_TWINE_CHECK=""} != "true" &&  ${SKIP_TWINE_CHECK=""} != "True" ]]; then
+if [[ ${USE_AIRFLOW_VERSION} != "2.1.0" ]]; then
     # Airflow 2.1.0 installs importlib_metadata version that does not work well with twine
     # So we should skip twine check in this case
     twine_check_provider_packages

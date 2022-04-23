@@ -29,6 +29,8 @@ services:
       # We need all those env variables here because docker-compose-v2 does not really work well
       # With env files and there are many problems with it:
       - AIRFLOW_CI_IMAGE=${AIRFLOW_CI_IMAGE}
+      - AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
+      - ANSWER=${ANSWER}
       - BACKEND=${BACKEND}
       - BREEZE=${BREEZE}
       - CI=${CI}
@@ -71,14 +73,13 @@ services:
       - RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS}
       - START_AIRFLOW=${START_AIRFLOW}
       - SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION}
-      - SKIP_TWINE_CHECK=${SKIP_TWINE_CHECK}
+      - SKIP_PACKAGE_VERIFICATION=${SKIP_PACKAGE_VERIFICATION}
       - SKIP_SSH_SETUP=${SKIP_SSH_SETUP}
       - TEST_TYPE=${TEST_TYPE}
       - UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
       - VERBOSE=${VERBOSE}
       - VERBOSE_COMMANDS=${VERBOSE_COMMANDS}
       - VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-      - VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
       - WHEEL_VERSION=${WHEEL_VERSION}
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.

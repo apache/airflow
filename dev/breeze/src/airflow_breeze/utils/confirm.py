@@ -56,12 +56,13 @@ def user_confirm(
     allowed_answers = "y/n/q" if quit_allowed else "y/n"
     while True:
         try:
-            force = forced_answer or os.environ.get('FORCE_ANSWER_TO_QUESTIONS')
+            force = forced_answer or os.environ.get('ANSWER')
             if force:
                 user_status = force
             else:
                 user_status = inputimeout(
-                    prompt=f'\n{message} \nPress {allowed_answers} in {timeout} seconds: ',
+                    prompt=f'\n{message} \nPress {allowed_answers}'
+                    + (f" in {timeout} seconds: " if timeout is not None else ": "),
                     timeout=timeout,
                 )
             if user_status.upper() in ['Y', 'YES']:

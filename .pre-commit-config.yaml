@@ -360,9 +360,9 @@ repos:
         additional_dependencies: ['rich']
       - id: update-supported-versions
         name: Updates supported versions in documentation
-        entry: ./scripts/ci/pre_commit/supported_versions.py
+        entry: ./scripts/ci/pre_commit/pre_commit_supported_versions.py
         language: python
-        files: ^scripts/ci/pre_commit/supported_versions\.py$|^README\.md$|^docs/apache-airflow/supported-versions\.rst$
+        files: ^scripts/ci/pre_commit/pre_commit_supported_versions\.py$|^README\.md$|^docs/apache-airflow/supported-versions\.rst$
         pass_filenames: false
         additional_dependencies: ['tabulate']
       - id: check-revision-heads-map
@@ -721,20 +721,6 @@ repos:
         pass_filenames: false
         files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
         require_serial: true
-      - id: ui-lint
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/static_checks/ui_lint.sh
-        pass_filenames: false
-      - id: www-lint
-        name: ESLint against current UI JavaScript files
-        language: node
-        'types_or': [javascript]
-        files: ^airflow/www/static/js/
-        entry: ./scripts/ci/static_checks/www_lint.sh
-        pass_filenames: false
       - id: changelog-duplicates
         name: Check changelogs for duplicate entries
         language: python
@@ -751,41 +737,63 @@ repos:
         # The below pre-commits are those requiring CI image to be built
       - id: mypy
         name: Run mypy for dev
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
+        additional_dependencies: ['rich']
       - id: mypy
         name: Run mypy for core
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
         exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
         require_serial: true
+        additional_dependencies: ['rich']
       - id: mypy
         name: Run mypy for providers
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$
         require_serial: true
+        additional_dependencies: ['rich']
       - id: mypy
         name: Run mypy for /docs/ folder
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
+        additional_dependencies: ['rich']
       - id: flake8
         name: Run flake8
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_flake8.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich']
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: python
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
+        pass_filenames: false
+        additional_dependencies: ['rich']
+      - id: www-lint
+        name: ESLint against current UI JavaScript files
+        language: python
+        'types_or': [javascript]
+        files: ^airflow/www/static/js/
+        entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
+        pass_filenames: false
+        additional_dependencies: ['rich']
       - id: migration-reference
         name: Update migration ref doc
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        additional_dependencies: ['rich']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

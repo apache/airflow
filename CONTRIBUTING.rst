@@ -645,7 +645,6 @@ all dependencies needed in the CI environment.
 This is the full list of those extras:
 
   .. START EXTRAS HERE
-
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
@@ -658,7 +657,6 @@ neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
 postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
 sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
 virtualenv, webhdfs, winrm, yandex, zendesk
-
   .. END EXTRAS HERE
 
 Provider packages

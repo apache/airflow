@@ -15,20 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import sys
-from os.path import dirname
+from pathlib import Path
 from textwrap import wrap
 from typing import List
 
-AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
 
-sys.path.insert(0, AIRFLOW_SOURCES_DIR)
+sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))
 # flake8: noqa: F401
 
 from setup import EXTRAS_REQUIREMENTS  # isort:skip
 
-sys.path.append(AIRFLOW_SOURCES_DIR)
+sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
 RST_HEADER = '  .. START EXTRAS HERE'
 RST_FOOTER = '  .. END EXTRAS HERE'
@@ -36,31 +35,40 @@ RST_FOOTER = '  .. END EXTRAS HERE'
 INSTALL_HEADER = '# START EXTRAS HERE'
 INSTALL_FOOTER = '# END EXTRAS HERE'
 
+CONSTANTS_HEADER = '# START EXTRAS HERE'
+CONSTANTS_FOOTER = '# END EXTRAS HERE'
 
-def insert_documentation(file_path: str, content: List[str], header: str, footer: str):
-    with open(file_path) as documentation_file:
-        replacing = False
-        result: List[str] = []
-        text = documentation_file.readlines()
-        for line in text:
-            if line.startswith(header):
-                replacing = True
-                result.append(line)
-                result.append("\n")
-                result += content
-                result.append("\n")
-            if line.startswith(footer):
-                replacing = False
-            if not replacing:
-                result.append(line)
-    with open(file_path, "w") as documentation_file:
-        documentation_file.write("".join(result))
+DEFAULT_EXTRAS = (
+    "amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,"
+    "google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,"
+    "postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+)
+
+
+def insert_documentation(file_path: Path, content: List[str], header: str, footer: str):
+    text = file_path.read_text().splitlines(keepends=True)
+    replacing = False
+    result: List[str] = []
+    for line in text:
+        if line.startswith(header):
+            replacing = True
+            result.append(line)
+            result.extend(content)
+        if line.startswith(footer):
+            replacing = False
+        if not replacing:
+            result.append(line)
+    file_path.write_text("".join(result))
 
 
 if __name__ == '__main__':
-    install_file_path = os.path.join(AIRFLOW_SOURCES_DIR, 'INSTALL')
-    contributing_file_path = os.path.join(AIRFLOW_SOURCES_DIR, 'CONTRIBUTING.rst')
-    extras = wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)
-    extras = [line + "\n" for line in extras]
-    insert_documentation(install_file_path, extras, INSTALL_HEADER, INSTALL_FOOTER)
-    insert_documentation(contributing_file_path, extras, RST_HEADER, RST_FOOTER)
+    install_file_path = AIRFLOW_SOURCES_DIR / 'INSTALL'
+    contributing_file_path = AIRFLOW_SOURCES_DIR / 'CONTRIBUTING.rst'
+    global_constants_file_path = (
+        AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+    )
+    extras_list = wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)
+    extras_list = [line + "\n" for line in extras_list]
+    extras_code = [f"    {extra}\n" for extra in EXTRAS_REQUIREMENTS.keys()]
+    insert_documentation(install_file_path, extras_list, INSTALL_HEADER, INSTALL_FOOTER)
+    insert_documentation(contributing_file_path, extras_list, RST_HEADER, RST_FOOTER)

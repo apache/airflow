@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
+
+# content of conftest.py
+def pytest_configure(config):
+    import sys
+
+    sys._called_from_test = True
 
 
-DOCKER_IMAGE="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-export DOCKER_IMAGE
+def pytest_unconfigure(config):
+    import sys  # This was missing from the manual
 
-build_images::prepare_prod_build
-push_pull_remove_images::wait_for_image "${DOCKER_IMAGE}"
-
-python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_docker_compose_quick_start.py"
+    del sys._called_from_test

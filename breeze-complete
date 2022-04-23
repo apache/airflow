@@ -23,10 +23,8 @@
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
 _breeze_allowed_python_major_minor_versions="3.7 3.8 3.9 3.10"
-_breeze_allowed_debian_versions="bullseye buster"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
-_breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.23.4 v1.22.7 v1.21.10 v1.20.15"
 _breeze_allowed_helm_versions="v3.6.3"
@@ -37,16 +35,11 @@ _breeze_allowed_postgres_versions="10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor LocalKubernetesExecutor"
 _breeze_allowed_test_types="All Always Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
-_breeze_allowed_package_formats="both sdist wheel"
-_breeze_allowed_installation_methods=". apache-airflow"
-_breeze_allowed_platforms="linux/amd64 linux/arm64 linux/amd64,linux/arm64"
 
 # shellcheck disable=SC2034
 {
     # Default values for the commands & flags used
-    _breeze_default_debian_version=$(echo "${_breeze_allowed_debian_versions}" | awk '{print $1}')
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
-    _breeze_default_generate_providers_mode=$(echo "${_breeze_allowed_generate_constraints_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
     _breeze_default_helm_version=$(echo "${_breeze_allowed_helm_versions}" | awk '{print $1}')
@@ -56,21 +49,13 @@ _breeze_allowed_platforms="linux/amd64 linux/arm64 linux/amd64,linux/arm64"
     _breeze_default_mysql_version=$(echo "${_breeze_allowed_mysql_versions}" | awk '{print $1}')
     _breeze_default_mssql_version=$(echo "${_breeze_allowed_mssql_versions}" | awk '{print $1}')
     _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
-    _breeze_default_package_format=$(echo "${_breeze_allowed_package_formats}" | awk '{print $1}')
-    _breeze_default_platform=$(echo "${_breeze_allowed_platforms}" | awk '{print $1}')
 }
 
-_breeze_allowed_install_airflow_versions=$(cat <<-EOF
-2.0.2
-2.0.1
-2.0.0
+_breeze_allowed_USE_AIRFLOW_VERSION=$(cat <<-EOF
+2.2.5
+2.1.4
 wheel
 sdist
-EOF
-)
-
-_breeze_allowed_USE_AIRFLOW_VERSION=$(cat <<-EOF
-${_breeze_allowed_install_airflow_versions}
 none
 EOF
 )
@@ -176,7 +161,7 @@ _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 
 _breeze_short_options="
-h p: d: b: i:
+h p: b: i:
 K: V:
 l a: t: d:
 v y n q f
@@ -187,38 +172,20 @@ S: N:
 "
 
 _breeze_long_options="
-help python: debian-version: backend: integration: platform:
+help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
-skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
+skip-mounting-local-sources mount-all-local-sources db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
-force-build-images force-pull-images check-if-base-python-image-updated production-image extras: force-clean-images skip-rebuild-check
-build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
-github-repository: github-image-id: generate-constraints-mode:
+github-repository: github-image-id:
 postgres-version: mysql-version: mssql-version:
-version-suffix-for-pypi: version-suffix-for-svn:
-additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
-disable-mysql-client-installation disable-mssql-client-installation constraints-location: disable-pip-cache install-from-docker-context-files
-additional-extras: additional-python-deps: disable-pypi-when-building
-dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
-runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
-use-airflow-version:
-cleanup-docker-context-files prepare-buildx-cache
-test-type: preserve-volumes dry-run-docker
-executor:
+use-airflow-version: test-type: preserve-volumes dry-run-docker executor:
 "
 
 _breeze_commands="
 shell
-build-docs
-build-image
-prepare-build-cache
-cleanup-image
 exec
-generate-constraints
 initialize-local-virtualenv
-prepare-airflow-packages
 setup-autocomplete
 start-airflow
 stop
@@ -229,8 +196,6 @@ toggle-suppress-asciiart"
 _breeze_extra_arg_commands="
 docker-compose
 kind-cluster
-prepare-provider-documentation
-prepare-provider-packages
 static-check
 tests
 "
@@ -266,9 +231,6 @@ function breeze_complete::get_known_values_breeze() {
     -p | --python)
         _breeze_known_values=${_breeze_allowed_python_major_minor_versions}
         ;;
-    -d | --debian-version)
-        _breeze_known_values=${_breeze_allowed_debian_versions}
-        ;;
     -b | --backend)
         _breeze_known_values=${_breeze_allowed_backends}
         ;;
@@ -289,9 +251,6 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     static-check)
         _breeze_known_values=${_breeze_allowed_static_checks}
-        ;;
-    -a | --install-airflow-version)
-        _breeze_known_values=${_breeze_allowed_install_airflow_versions}
         ;;
     --use-airflow-version)
         _breeze_known_values=${_breeze_allowed_USE_AIRFLOW_VERSION}
@@ -330,15 +289,6 @@ function breeze_complete::get_known_values_breeze() {
     --executor)
       _breeze_known_values="${_breeze_allowed_executors}"
       ;;
-    --package-format)
-        _breeze_known_values="${_breeze_allowed_package_formats}"
-        ;;
-    --installation-method)
-        _breeze_known_values="${_breeze_allowed_installation_methods}"
-        ;;
-    --generate-constraints-mode)
-        _breeze_known_values="${_breeze_allowed_generate_constraints_modes}"
-        ;;
     *)
         _breeze_known_values=""
         ;;

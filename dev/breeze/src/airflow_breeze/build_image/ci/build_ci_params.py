@@ -39,7 +39,7 @@ class BuildCiParams:
     build_id: int = 0
     docker_cache: str = "pulled"
     airflow_extras: str = "devel_ci"
-    install_providers_from_sources: bool = False
+    install_providers_from_sources: bool = True
     additional_airflow_extras: str = ""
     additional_python_deps: str = ""
     github_repository: str = "apache/airflow"
@@ -53,7 +53,7 @@ class BuildCiParams:
     github_username: str = ""
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
-    image_tag: str = ""
+    image_tag: Optional[str] = None
     github_token: str = ""
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
@@ -68,7 +68,13 @@ class BuildCiParams:
     prepare_buildx_cache: bool = False
     push_image: bool = False
     empty_image: bool = False
+    force_build: bool = False
     skip_rebuild_check: bool = False
+    answer: Optional[str] = None
+
+    @property
+    def the_image_type(self) -> str:
+        return 'CI'
 
     @property
     def airflow_base_image_name(self):
@@ -85,7 +91,7 @@ class BuildCiParams:
     def airflow_image_name_with_tag(self):
         """Construct CI image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}'
-        return image if not self.image_tag else image + f":{self.image_tag}"
+        return image if self.image_tag is None else image + f":{self.image_tag}"
 
     @property
     def airflow_image_repository(self):
@@ -144,3 +150,33 @@ class BuildCiParams:
 
     def print_info(self):
         console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
+
+
+REQUIRED_CI_IMAGE_ARGS = [
+    "python_base_image",
+    "airflow_version",
+    "airflow_branch",
+    "airflow_extras",
+    "airflow_pre_cached_pip_packages",
+    "additional_airflow_extras",
+    "additional_python_deps",
+    "additional_dev_apt_command",
+    "additional_dev_apt_deps",
+    "additional_dev_apt_env",
+    "additional_runtime_apt_command",
+    "additional_runtime_apt_deps",
+    "additional_runtime_apt_env",
+    "upgrade_to_newer_dependencies",
+    "constraints_github_repository",
+    "airflow_constraints_reference",
+    "airflow_constraints",
+    "airflow_image_repository",
+    "airflow_image_date_created",
+    "build_id",
+]
+OPTIONAL_CI_IMAGE_ARGS = [
+    "dev_apt_command",
+    "dev_apt_deps",
+    "runtime_apt_command",
+    "runtime_apt_deps",
+]
