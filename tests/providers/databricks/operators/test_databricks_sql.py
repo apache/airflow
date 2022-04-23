@@ -57,7 +57,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_path=None,
             session_configuration=None,
             sql_endpoint_name=None,
-            metadata=None,
+            http_headers=None,
             catalog=None,
             schema=None,
         )
@@ -88,7 +88,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_path=None,
             session_configuration=None,
             sql_endpoint_name=None,
-            metadata=None,
+            http_headers=None,
             catalog=None,
             schema=None,
         )
@@ -151,6 +151,25 @@ COPY_OPTIONS ('force' = 'true')
         assert (
             op._create_sql_query()
             == f"""COPY INTO test
+FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_target_credential(self):
+        expression = "col1, col2"
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            expression_list=expression,
+            storage_credential='abc',
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test WITH (CREDENTIAL abc)
 FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
 FILEFORMAT = CSV
 """.strip()

@@ -49,25 +49,29 @@ Operator loads data from a specified location into a table using a configured en
      - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection, or the ``sql_endpoint_name`` parameter must be set.
    * - session_configuration: dict[str,str]
      - optional dict specifying Spark configuration parameters that will be set for the session.
-   * - metadata: list[tuple[str, str]]
-     - Optional list of (k, v) pairs that will be set as Http headers on every request
-   * - files: Optional[List[str]]
+   * - http_headers: list[tuple[str, str]]
+     - Optional list of (k, v) pairs that will be set as HTTP headers on every request
+   * - client_parameters: dict[str,str]
+     - optional additional parameters internal to Databricks SQL Connector parameters
+   * - files: list[str]]
      - optional list of files to import. Can't be specified together with ``pattern``.
-   * - pattern: Optional[str]
+   * - pattern: str
      - optional regex string to match file names to import. Can't be specified together with ``files``.
-   * - expression_list: Optional[str]
+   * - expression_list: str
      - optional string that will be used in the ``SELECT`` expression.
-   * - credential: Optional[Dict[str, str]]
+   * - credential: dict[str, str]
      - optional credential configuration for authentication against a specified location
-   * - encryption: Optional[Dict[str, str]]
+   * - encryption: dict[str, str]
      - optional encryption configuration for a specified location
-   * - format_options: Optional[Dict[str, str]]
+   * - storage_credential: str
+     - optional Unity Catalog storage credential name for the target table
+   * - format_options: dict[str, str]
      - optional dictionary with options specific for a given file format.
-   * - force_copy: Optional[bool]
-     - optional bool to control forcing of data import (could be also specified in ``copy_options``).
-   * - copy_options: Optional[Dict[str, str]]
+   * - force_copy: bool
+     - optional boolean parameter to control forcing of data import (could be also specified in ``copy_options``).
+   * - copy_options: dict[str, str]
      - optional dictionary of copy options. Right now only ``force`` option is supported.
-   * - validate: Optional[Union[bool, int]]
+   * - validate: union[bool, int]]
      - optional validation configuration. ``True`` forces validation of all rows, positive number - only N first rows. (requires Preview channel)
 
 Examples
