@@ -1,4 +1,4 @@
-<svg width="1720.0" height="1506" viewBox="0 0 1720.0 1506"
+<svg width="1720.0" height="1528" viewBox="0 0 1720.0 1528"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -121,8 +121,9 @@
 <div><span class="r1"> </span><span class="r1">Build CI image. Include building multiple images for all python versions (sequentially).                              </span><span class="r1"> </span></div>
 <div><span class="r1">                                                                                                                        </span></div>
 <div><span class="r4">╭─ Basic usage ────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">                         </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for PROD/CI images.         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                                       </span><span class="r7">(3.7 | 3.8 | 3.9 | 3.10)                                            </span><span class="r1">         </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">                         </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for images.                 </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                       </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)                                  </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: 3.7]                                              </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--upgrade-to-newer-dependencies</span><span class="r1">  </span><span class="r6">-u</span><span class="r1">  </span><span class="r1">When other than &quot;false&quot;, upgrade all PIP packages to latest.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1">          </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: false]                                            </span><span class="r1"> </span><span class="r1">                </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debian-version</span><span class="r1">                 </span><span class="r6">-d</span><span class="r1">  </span><span class="r1">Debian version used for the image.</span><span class="r1"> </span><span class="r7">(bullseye | buster)</span><span class="r1"> </span><span class="r4">[default: bullseye]</span><span class="r1">   </span><span class="r1">  </span><span class="r4">│</span></div>

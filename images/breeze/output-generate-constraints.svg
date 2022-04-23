@@ -1,4 +1,4 @@
-<svg width="1720.0" height="934" viewBox="0 0 1720.0 934"
+<svg width="1720.0" height="956" viewBox="0 0 1720.0 956"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -122,8 +122,9 @@
 <div><span class="r1">                                                                                                                        </span></div>
 <div><span class="r4">╭─ Generate constraints flags ─────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--image-tag</span><span class="r1">                  </span><span class="r6">-t</span><span class="r1">  </span><span class="r1">Tag added to the default naming conventions of Airflow CI/PROD images.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1">    </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">                     </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for PROD/CI images.             </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                                   </span><span class="r7">(3.7 | 3.8 | 3.9 | 3.10)                                            </span><span class="r1">             </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">                     </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for images.                     </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                   </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)                                  </span><span class="r1">                     </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                   </span><span class="r4">[default: 3.7]                                              </span><span class="r1">                     </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--generate-constraints-mode</span><span class="r1">  </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Mode of generating constraints</span><span class="r1"> </span><span class="r7">(source-providers | pypi-providers | no-providers)</span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">                                   </span><span class="r4">[default: source-providers]   </span><span class="r1"> </span><span class="r1">                                                  </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
