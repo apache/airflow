@@ -115,11 +115,10 @@ def run_shell_with_build_image_checks(
     :param dry_run: do not execute "write" commands - just print what would happen
     :param shell_params: parameters of the execution
     """
-    check_docker_resources(verbose, shell_params.airflow_image_name)
+    check_docker_resources(verbose, shell_params.airflow_image_name, dry_run=dry_run)
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python}"
     )
-
     ci_image_params = get_ci_image_build_params(
         {"python": shell_params.python, "upgrade_to_newer_dependencies": "false"}
     )

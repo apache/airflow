@@ -1,4 +1,4 @@
-<svg width="1720.0" height="1726" viewBox="0 0 1720.0 1726"
+<svg width="1720.0" height="1814" viewBox="0 0 1720.0 1814"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -158,6 +158,9 @@
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> self-upgrade       </span><span class="r1"> </span><span class="r1">Self upgrade Breeze.                                                                      </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> setup-autocomplete </span><span class="r1"> </span><span class="r1">Enables autocompletion of breeze commands.                                                </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> config             </span><span class="r1"> </span><span class="r1">Show/update configuration (Python, Backend, Cheatsheet, ASCIIART).                        </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> resource-check     </span><span class="r1"> </span><span class="r1">Check if available docker resources are enough.                                           </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> free-space         </span><span class="r1"> </span><span class="r1">Free space for jobs run in CI.                                                            </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> fix-ownership      </span><span class="r1"> </span><span class="r1">Fix ownership of source files to be same as host user.                                    </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> version            </span><span class="r1"> </span><span class="r1">Print information about version of apache-airflow-breeze.                                 </span><span class="r1"> </span><span class="r1">    </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ CI Image tools ─────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
@@ -176,6 +179,7 @@
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-provider-packages      </span><span class="r1"> </span><span class="r1">Prepare sdist/whl packages of Airflow Providers.                            </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-airflow-package        </span><span class="r1"> </span><span class="r1">Prepare sdist/whl package of Airflow.                                       </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> generate-constraints           </span><span class="r1"> </span><span class="r1">Generates pinned constraint files with all extras from setup.py in parallel.</span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> find-newer-dependencies        </span><span class="r1"> </span><span class="r1">Finds which dependencies are being upgraded.                                </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
                     </div>

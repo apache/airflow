@@ -322,7 +322,7 @@ jobs:
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: Build & Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze build-image --push-image
@@ -334,7 +334,10 @@ jobs:
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
-        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'
 
   build-prod-images:
     permissions:
@@ -385,7 +388,7 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: >
           Pull CI image for PROD build:
@@ -423,6 +426,9 @@ jobs:
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'
 
   run-new-breeze-tests:
     timeout-minutes: 10
@@ -548,13 +554,16 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
         run: breeze pull-image --run-in-parallel --verify-image --wait-for-image
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   static-checks:
     timeout-minutes: 30
@@ -578,7 +587,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -614,6 +623,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           VERBOSE: false
           SKIP: "identity"
           COLUMNS: 250
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -671,6 +683,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: false
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
+
   docs:
     timeout-minutes: 45
     name: "Build docs"
@@ -693,7 +709,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -722,6 +738,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   prepare-test-provider-packages-wheel:
     timeout-minutes: 40
@@ -746,7 +765,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -772,6 +791,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
@@ -796,7 +818,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -820,6 +842,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           USE_AIRFLOW_VERSION: "sdist"
           PACKAGE_FORMAT: "sdist"
           AIRFLOW_EXTRAS: "all"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-helm:
     timeout-minutes: 80
@@ -850,7 +875,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
@@ -881,6 +906,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-helm
           path: "./files/coverage*.xml"
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-postgres:
     timeout-minutes: 130
@@ -915,7 +943,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -949,6 +977,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/coverage*.xml"
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-mysql:
     timeout-minutes: 130
@@ -982,7 +1013,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1016,6 +1047,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage*.xml"
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-mssql:
     timeout-minutes: 130
@@ -1049,7 +1083,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1081,6 +1115,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
           path: "./files/coverage*.xml"
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-sqlite:
     timeout-minutes: 130
@@ -1112,7 +1149,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1144,6 +1181,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage*.xml
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-quarantined:
     timeout-minutes: 60
@@ -1183,7 +1223,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           echo "ISSUE_ID=10128" >> $GITHUB_ENV
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
@@ -1220,6 +1260,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage*.xml"
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   upload-coverage:
     timeout-minutes: 15
@@ -1253,6 +1296,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: ./.github/actions/codecov-action
         with:
           directory: "./coverage-files"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   wait-for-prod-images:
     timeout-minutes: 120
@@ -1277,7 +1323,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: "Cache virtualenv environment"
         uses: actions/cache@v2
         with:
@@ -1292,6 +1338,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
@@ -1315,13 +1364,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Test docker-compose quick start"
         run: breeze docker-compose-tests
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-kubernetes:
     timeout-minutes: 70
@@ -1362,7 +1414,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --run-in-parallel --tag-as-latest
         env:
@@ -1387,6 +1439,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   tests-helm-executor-upgrade:
     timeout-minutes: 100
@@ -1422,7 +1477,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-prod-image --run-in-parallel --tag-as-latest
         env:
@@ -1458,6 +1513,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: kind-logs-KubernetesExecutor
           path: /tmp/kind_logs_*
           retention-days: 7
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   constraints:
     permissions:
@@ -1491,7 +1549,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --run-in-parallel --tag-as-latest
         env:
@@ -1504,7 +1562,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze generate-constraints --run-in-parallel --generate-constraints-mode no-providers
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
-          ANSWER: "yes"
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -1526,6 +1583,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
           directory: "repo"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
   # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
@@ -1561,7 +1621,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
@@ -1610,4 +1670,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always()
+      - name: "Fix ownership"
+        run: breeze fix-ownership
         if: always()
