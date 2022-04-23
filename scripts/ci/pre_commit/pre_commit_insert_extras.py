@@ -18,13 +18,14 @@
 import sys
 from pathlib import Path
 from textwrap import wrap
-from typing import List
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))
+sys.path.insert(0, str(Path(__file__).parent.absolute()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
 # flake8: noqa: F401
 
+from common_precommit_utils import insert_documentation  # isort: skip
 from setup import EXTRAS_REQUIREMENTS  # isort:skip
 
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
@@ -43,22 +44,6 @@ DEFAULT_EXTRAS = (
     "google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,"
     "postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 )
-
-
-def insert_documentation(file_path: Path, content: List[str], header: str, footer: str):
-    text = file_path.read_text().splitlines(keepends=True)
-    replacing = False
-    result: List[str] = []
-    for line in text:
-        if line.startswith(header):
-            replacing = True
-            result.append(line)
-            result.extend(content)
-        if line.startswith(footer):
-            replacing = False
-        if not replacing:
-            result.append(line)
-    file_path.write_text("".join(result))
 
 
 if __name__ == '__main__':

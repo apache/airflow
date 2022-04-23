@@ -51,10 +51,6 @@ export INTEGRATIONS
 declare -a REMAINING_ARGS
 export REMAINING_ARGS
 
-# This is where static check options are defined
-declare -a EXTRA_STATIC_CHECK_OPTIONS
-export EXTRA_STATIC_CHECK_OPTIONS
-
 #######################################################################################################
 # Sets up all the default variables for Breeze. They are needed by all other functions
 # All those variables are exported. They are not set to read-only because those
@@ -1097,32 +1093,6 @@ function breeze::parse_arguments() {
             command_to_run="perform_setup_autocomplete"
             shift
             ;;
-        static-check)
-            last_subcommand="${1}"
-            command_to_run="perform_static_checks"
-            if [[ "$#" -lt 2 ]]; then
-                if [[ ${run_help} != "true" ]]; then
-                    echo "You should specify static check that you would like to run or 'all' to run all checks."
-                    echo
-                    echo "One of :"
-                    echo
-                    echo "${_breeze_allowed_static_checks:=}"
-                    echo
-                    echo "For example:"
-                    echo
-                    echo "${CMDNAME} static-check mypy"
-                    echo
-                    exit 1
-                else
-                    shift
-                fi
-            else
-                export PYTHON_MAJOR_MINOR_VERSION=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}
-                static_check="${2:-}"
-                EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
-                shift 2
-            fi
-            ;;
         start-airflow)
             last_subcommand="${1}"
             export START_AIRFLOW="true"
@@ -1265,10 +1235,6 @@ function breeze::prepare_formatted_versions() {
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_BACKENDS
 
-    FORMATTED_STATIC_CHECKS=$(echo "${_breeze_allowed_static_checks=""}" | tr '\n' ' ' |
-        fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
-    readonly FORMATTED_STATIC_CHECKS
-
     FORMATTED_INTEGRATIONS=$(echo "${_breeze_allowed_integrations=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INTEGRATIONS
@@ -1370,8 +1336,6 @@ function breeze::prepare_usage() {
     readonly USAGE_STOP
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
     readonly USAGE_RESTART
-    export USAGE_STATIC_CHECK="Performs selected static check for changed files"
-    readonly USAGE_STATIC_CHECK
     export USAGE_TOGGLE_SUPPRESS_CHEATSHEET="Toggles on/off cheatsheet"
     readonly USAGE_TOGGLE_SUPPRESS_CHEATSHEET
     export USAGE_TOGGLE_SUPPRESS_ASCIIART="Toggles on/off asciiart"
@@ -1516,35 +1480,6 @@ Flags:
 $(breeze::flag_stop_airflow)
 "
     readonly DETAILED_USAGE_RESTART
-    export DETAILED_USAGE_STATIC_CHECK="
-${CMDNAME} static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
-
-      Run selected static checks for currently changed files. You should specify static check that
-      you would like to run or 'all' to run all checks. One of:
-
-${FORMATTED_STATIC_CHECKS}
-
-      You can pass extra arguments including options to the pre-commit framework as
-      <EXTRA_ARGS> passed after --. For example:
-
-      '${CMDNAME} static-check mypy' or
-      '${CMDNAME} static-check mypy -- --files tests/core.py'
-      '${CMDNAME} static-check mypy -- --all-files'
-
-      To check all files that differ between you current branch and main run:
-
-      '${CMDNAME} static-check all -- --from-ref \$(git merge-base main HEAD) --to-ref HEAD'
-
-      To check all files that are in the HEAD commit run:
-
-      '${CMDNAME} static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
-
-
-      You can see all the options by adding --help EXTRA_ARG:
-
-      '${CMDNAME} static-check mypy -- --help'
-"
-    readonly DETAILED_USAGE_STATIC_CHECK
     export DETAILED_USAGE_TESTS="
 ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
 
@@ -2397,60 +2332,6 @@ function breeze::print_setup_instructions() {
 
 #######################################################################################################
 #
-# Checks that pre-commit is installed and upgrades it if needed
-# this is used in case static check command is used.
-#
-#######################################################################################################
-function breeze::make_sure_precommit_is_installed() {
-    echo
-    echo "Making sure pre-commit is installed"
-    echo
-    local pip_binary
-    if command -v pip3 >/dev/null; then
-        pip_binary=pip3
-    elif command -v pip >/dev/null; then
-        pip_binary=pip
-    else
-        echo
-        echo  "${COLOR_RED}ERROR: You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-    "${pip_binary}" install --upgrade pre-commit >/dev/null 2>&1
-    # Add ~/.local/bin to the path in case pip is run outside of virtualenv
-    export PATH="${PATH}":~/.local/bin
-}
-
-#######################################################################################################
-#
-# Runs chosen static checks
-#
-# Uses variables:
-#   static_check
-#
-#######################################################################################################
-function breeze::run_static_checks() {
-    if [[ ${static_check} == "all" ]]; then
-        echo
-        echo "Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-        echo
-        pre-commit run "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-    else
-        if [[ ${static_check} == *"mypy"* || ${static_check} == *"flake8"* ]]; then
-            echo
-            echo "Running build pre-commit before running the requested static check"
-            echo
-            pre-commit run "build"
-        fi
-        echo
-        echo "Running: pre-commit run" "${static_check}" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-        echo
-        pre-commit run "${static_check}" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-    fi
-}
-
-#######################################################################################################
-#
 # Runs Build before a command if needed - the right build command will be determined and used
 # depending on which command you are trying ton
 #
@@ -2469,7 +2350,7 @@ function breeze::run_build_command() {
         ;;
     enter_breeze)
         ;;
-    build_docs | perform_static_checks )
+    build_docs )
         ;;
     perform_initialize_local_virtualenv | perform_setup_autocomplete | \
         toggle_suppress_cheatsheet | toggle_suppress_asciiart )
@@ -2610,11 +2491,6 @@ function breeze::run_breeze_command() {
         set +u
         ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
-        ;;
-    perform_static_checks)
-        docker_engine_resources::check_all_resources
-        breeze::make_sure_precommit_is_installed
-        breeze::run_static_checks "${@}"
         ;;
     perform_initialize_local_virtualenv)
         breeze::initialize_virtualenv

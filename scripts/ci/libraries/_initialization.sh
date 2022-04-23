@@ -891,8 +891,6 @@ function initialization::make_constants_read_only() {
 
     readonly FORWARD_CREDENTIALS
 
-    readonly EXTRA_STATIC_CHECK_OPTIONS
-
     readonly PYTHON_BASE_IMAGE
     readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
