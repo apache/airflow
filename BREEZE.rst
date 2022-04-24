@@ -193,6 +193,9 @@ periodically. For details see
 On WSL2 you might want to increase your Virtual Hard Disk by following:
 `Expanding the size of your WSL 2 Virtual Hard Disk <https://docs.microsoft.com/en-us/windows/wsl/compare-versions#expanding-the-size-of-your-wsl-2-virtual-hard-disk>`_
 
+There is a command ``breeze resource-check`` that you can run to check available resources. See below
+for details.
+
 Cleaning the environment
 ------------------------
 
@@ -445,57 +448,71 @@ Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testi
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-Airflow developers tasks
-------------------------
+Development tasks
+-----------------
 
-Regular development tasks:
+Those are commands mostly used by contributors:
 
-* Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
+* Execute arbitrary command in the test environment with ``breeze shell`` command
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
-* Cleanup breeze with ``breeze cleanup`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``./breeze-legacy tests`` command
-
-CI Image tasks:
-
-* Build CI docker image with ``breeze build-image`` command
-* Pull CI images in parallel ``breeze pull-image`` command
-* Verify CI image ``breeze verify-image`` command
-
-PROD Image tasks:
-* Build PROD image with ``breeze build-prod-image`` command
-* Pull PROD image in parallel ``breeze pull-prod-image`` command
-* Verify CI image ``breeze verify-prod-image`` command
-
-Additional management tasks:
-
 * Join running interactive shell with ``./breeze-legacy exec`` command
 * Stop running interactive environment with ``breeze stop`` command
-* Execute arbitrary command in the test environment with ``breeze shell`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
 
-Docker compose tests:
+Tests
+-----
 
 * Run docker-compose tests with ``breeze docker-compose-tests`` command.
 
-Kubernetes tests related:
+Kubernetes tests
+----------------
 
 * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
 * Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
 * Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
 
-Airflow can also be used for managing Production images - this is a development-only feature,
-regular users of Airflow should use ``docker build`` commands to manage the images as described
-in the user documentation about `building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
+CI Image tasks
+--------------
 
-Maintainer tasks
+The image building is usually run for users automatically when needed,
+but sometimes Breeze users might want to manually build, pull or verify the CI images.
+
+* Build CI docker image with ``breeze build-image`` command
+* Pull CI images in parallel ``breeze pull-image`` command
+* Verify CI image ``breeze verify-image`` command
+
+PROD Image tasks
 ----------------
 
+Users can also build Production images when they are developing them. However when you want to
+use the PROD image, the regular docker build commands are recommended. See
+`building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
+
+* Build PROD image with ``breeze build-prod-image`` command
+* Pull PROD image in parallel ``breeze pull-prod-image`` command
+* Verify CI image ``breeze verify-prod-image`` command
+
+Configuration and maintenance
+-----------------------------
+
+* Cleanup breeze with ``breeze cleanup`` command
+* Self-upgrade breeze with ``breeze self-upgrade`` command
+* Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
+* Checking available resources for docker with ``breeze resource-check`` command
+* Freeing space needed to run CI tests with ``breeze free-space`` command
+* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
+* Print Breeze version with ``breeze fix-ownership`` command
+
+Release tasks
+-------------
+
 Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
-do not need):
+do not need or have no access to run). Those are usually connected with releasing Airflow:
 
 * Prepare cache for CI: ``breeze build-image --prepare-build-cache`` and
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
@@ -503,6 +520,9 @@ do not need):
 * Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
 * Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
   ``breeze prepare-provider-packages`` (when releasing provider packages)
+* Finding the updated dependencies since the last successful build when we have conflict with
+  ``breeze find-newer-dependencies`` command
+
 
 Details of Breeze usage
 =======================
@@ -1150,6 +1170,49 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
+Resource check
+==============
+
+Breeze requires certain resources to be available - disk, memory, CPU. When you enter Breeze's shell,
+the resources are checked and information if there is enough resources is displayed. However you can
+manually run resource check any time by ``breeze resource-check`` command.
+
+Those are all available flags of ``resource-check`` command:
+
+.. image:: ./images/breeze/output-resource-check.svg
+  :width: 100%
+  :alt: Breeze resource-check
+
+
+Freeing the space
+=================
+
+When our CI runs a job, it needs all memory and disk it can have. We have a Breeze command that frees
+the memory and disk space used. You can also use it clear space locally but it performs a few operations
+that might be a bit invasive - such are removing swap file and complete pruning of docker disk space used.
+
+Those are all available flags of ``free-space`` command:
+
+.. image:: ./images/breeze/output-free-space.svg
+  :width: 100%
+  :alt: Breeze free-space
+
+
+Tracking backtracking issues for CI builds
+==========================================
+
+When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
+lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
+Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
+diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
+which new dependency might have caused the backtracking. The whole process is described in
+`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
+
+Those are all available flags of ``find-newer-dependencies`` command:
+
+.. image:: ./images/breeze/output-find-newer-dependencies.svg
+  :width: 100%
+  :alt: Breeze find-newer-dependencies
 
 Internal details of Breeze
 ==========================
@@ -1240,11 +1303,18 @@ On Linux, there is a problem with propagating ownership of created files (a know
 files and directories created in the container are not owned by the host user (but by the root user in our
 case). This may prevent you from switching branches, for example, if files owned by the root user are
 created within your sources. In case you are on a Linux host and have some files in your sources created
-by the root user, you can fix the ownership of those files by running this script:
+by the root user, you can fix the ownership of those files by running :
 
 .. code-block::
 
-  ./scripts/ci/tools/fix_ownership.sh
+  breeze fix-ownership
+
+Those are all available flags of ``fix-ownership`` command:
+
+.. image:: ./images/breeze/output-fix-ownership.svg
+  :width: 100%
+  :alt: Breeze fix-ownership
+
 
 Mounting Local Sources to Breeze
 --------------------------------

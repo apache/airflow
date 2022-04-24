@@ -110,11 +110,12 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
 
 
 def check_docker_resources(
-    verbose: bool, airflow_image_name: str
+    verbose: bool, airflow_image_name: str, dry_run: bool
 ) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
     :param verbose: print commands when running
+    :param dry_run: whether to run it in dry run mode
     :param airflow_image_name: name of the airflow image to use.
     """
     return run_command(
@@ -124,11 +125,14 @@ def check_docker_resources(
             "-t",
             "--entrypoint",
             "/bin/bash",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=true",
             airflow_image_name,
             "-c",
             "python /opt/airflow/scripts/in_container/run_resource_check.py",
         ],
         verbose=verbose,
+        dry_run=dry_run,
         text=True,
     )
 

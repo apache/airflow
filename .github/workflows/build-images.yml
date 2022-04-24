@@ -223,7 +223,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: Build & Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze build-image --push-image
         env:
@@ -237,7 +237,10 @@ jobs:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
-        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   build-prod-images:
     permissions:
@@ -310,7 +313,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
+        run: breeze free-space
       - name: >
           Pull CI image for PROD build:
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -347,3 +350,6 @@ jobs:
         run: breeze build-prod-image --cleanup-docker-context-files --push-image --empty-image
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()

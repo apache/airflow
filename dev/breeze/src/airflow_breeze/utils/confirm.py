@@ -59,6 +59,7 @@ def user_confirm(
             force = forced_answer or os.environ.get('ANSWER')
             if force:
                 user_status = force
+                print(f"Forced answer for '{message}': {force}")
             else:
                 user_status = inputimeout(
                     prompt=f'\n{message} \nPress {allowed_answers}'
