@@ -29,50 +29,14 @@ command.
 Using the Operator
 ------------------
 
-Operator loads data from a specified location into a table using a configured endpoint.
+Operator loads data from a specified location into a table using a configured endpoint.  The only required parameters are:
 
-.. list-table::
-   :widths: 15 25
-   :header-rows: 1
+* ``table_name`` - string with the table name
+* ``file_location`` - string with the URI of data to load
+* ``file_format`` - string specifying the file format of data to load. Supported formats are ``CSV``, ``JSON``, ``AVRO``, ``ORC``, ``PARQUET``, ``TEXT``, ``BINARYFILE``.
+* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
 
-   * - Parameter
-     - Input
-   * - table_name: str
-     - Required name of the table.
-   * - file_location: str
-     - Required location of files to import.
-   * - file_format: str
-     - Required file format. Supported formats are ``CSV``, ``JSON``, ``AVRO``, ``ORC``, ``PARQUET``, ``TEXT``, ``BINARYFILE``.
-   * - sql_endpoint_name: str
-     - Optional name of Databricks SQL endpoint to use. If not specified, ``http_path`` should be provided.
-   * - http_path: str
-     - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection, or the ``sql_endpoint_name`` parameter must be set.
-   * - session_configuration: dict[str,str]
-     - optional dict specifying Spark configuration parameters that will be set for the session.
-   * - http_headers: list[tuple[str, str]]
-     - Optional list of (k, v) pairs that will be set as HTTP headers on every request
-   * - client_parameters: dict[str,str]
-     - optional additional parameters internal to Databricks SQL Connector parameters
-   * - files: list[str]]
-     - optional list of files to import. Can't be specified together with ``pattern``.
-   * - pattern: str
-     - optional regex string to match file names to import. Can't be specified together with ``files``.
-   * - expression_list: str
-     - optional string that will be used in the ``SELECT`` expression.
-   * - credential: dict[str, str]
-     - optional credential configuration for authentication against a specified location
-   * - encryption: dict[str, str]
-     - optional encryption configuration for a specified location
-   * - storage_credential: str
-     - optional Unity Catalog storage credential name for the target table
-   * - format_options: dict[str, str]
-     - optional dictionary with options specific for a given file format.
-   * - force_copy: bool
-     - optional boolean parameter to control forcing of data import (could be also specified in ``copy_options``).
-   * - copy_options: dict[str, str]
-     - optional dictionary of copy options. Right now only ``force`` option is supported.
-   * - validate: union[bool, int]]
-     - optional validation configuration. ``True`` forces validation of all rows, positive number - only N first rows. (requires Preview channel)
+Other parameters are optional and could be found in the class documentation.
 
 Examples
 --------

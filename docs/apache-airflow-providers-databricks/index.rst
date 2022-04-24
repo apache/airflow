@@ -81,7 +81,6 @@ PIP package                   Version required
 ============================  ===================
 ``apache-airflow``            ``>=2.1.0``
 ``databricks-sql-connector``  ``>=2.0.0, <3.0.0``
->>>>>>> DatabricksSqlOperator - switch to databricks-sql-connector 2.x
 ``requests``                  ``>=2.26.0, <3``
 ============================  ===================
 

@@ -33,7 +33,24 @@ USER_AGENT_STRING = f'airflow-{__version__}'
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """Hook to interact with Databricks SQL."""
+    """
+    Hook to interact with Databricks SQL.
+
+    :param databricks_conn_id: Reference to the
+        :ref:`Databricks connection <howto/connection:databricks>`.
+    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
+        If not specified, it should be either specified in the Databricks connection's extra parameters,
+        or ``sql_endpoint_name`` must be specified.
+    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path``
+        must be provided as described above.
+    :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
+        If not specified, it could be specified in the Databricks connection's extra parameters.
+    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers
+        on every request
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
+    """
 
     hook_name = 'Databricks SQL'
 
@@ -48,24 +65,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         schema: Optional[str] = None,
         **kwargs,
     ) -> None:
-        """
-        Initializes DatabricksSqlHook
-
-        :param databricks_conn_id: Reference to the
-            :ref:`Databricks connection <howto/connection:databricks>`.
-        :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
-            If not specified, it should be either specified in the Databricks connection's extra parameters,
-            or ``sql_endpoint_name`` must be specified.
-        :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path``
-            must be provided as described above.
-        :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
-            If not specified, it could be specified in the Databricks connection's extra parameters.
-        :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers
-            on every request
-        :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
-        :param schema: An optional initial schema to use. Requires DBR version 9.0+
-        :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
-        """
         super().__init__(databricks_conn_id)
         self._sql_conn = None
         self._token: Optional[str] = None
