@@ -506,7 +506,7 @@ Configuration and maintenance
 * Checking available resources for docker with ``breeze resource-check`` command
 * Freeing space needed to run CI tests with ``breeze free-space`` command
 * Fixing ownership of files in your repository with ``breeze fix-ownership`` command
-* Print Breeze version with ``breeze fix-ownership`` command
+* Print Breeze version with ``breeze version`` command
 
 Release tasks
 -------------
