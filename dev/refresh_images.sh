@@ -25,5 +25,5 @@ export CI="true"
 breeze build-image --build-multiple-images \
      --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 
-breeze build-prod-image --build-multiple-images \
+breeze build-prod-image --build-multiple-images --cleanup-docker-context-files \
      --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose

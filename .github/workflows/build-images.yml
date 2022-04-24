@@ -344,6 +344,6 @@ jobs:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: Push empty PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: breeze build-prod-image --push-image --empty-image
+        run: breeze build-prod-image --cleanup-docker-context-files --push-image --empty-image
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
