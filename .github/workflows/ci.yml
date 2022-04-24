@@ -597,14 +597,6 @@ jobs:
         run: "echo \"::set-output name=host-python-version::$(python -c
  'import platform; print(platform.python_version())')\""
         id: host-python-version
-      - name: "Cache pre-commit local-installation"
-        uses: actions/cache@v2
-        with:
-          path: ~/.local
-          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('setup.py', 'setup.cfg') }}"
-          restore-keys: "\
-pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
       - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
@@ -662,14 +654,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: "echo \"::set-output name=host-python-version::$(python -c
  'import platform; print(platform.python_version())')\""
         id: host-python-version
-      - name: "Cache pre-commit local-installation"
-        uses: actions/cache@v2
-        with:
-          path: ~/.local
-          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('setup.py', 'setup.cfg') }}"
-          restore-keys: "\
-pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
       - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
@@ -1296,9 +1280,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: ./.github/actions/codecov-action
         with:
           directory: "./coverage-files"
-      - name: "Fix ownership"
-        run: breeze fix-ownership
-        if: always()
 
   wait-for-prod-images:
     timeout-minutes: 120
