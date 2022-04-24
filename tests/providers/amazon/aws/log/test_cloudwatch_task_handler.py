@@ -75,7 +75,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             ':', '_'
         )
 
-        moto.core.moto_api_backend.reset()
+        moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn = boto3.client('logs', region_name=self.region_name)
 
     def tearDown(self):
