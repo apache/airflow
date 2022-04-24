@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-21T17:19:14Z
+# This constraints file was automatically generated on 2022-04-24T16:15:54Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -29,7 +29,7 @@ Markdown==3.3.6
 MarkupSafe==2.0.1
 PyJWT==1.7.1
 PyYAML==6.0
-Pygments==2.11.2
+Pygments==2.12.0
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.2
 SQLAlchemy==1.4.9
@@ -79,7 +79,7 @@ filelock==3.6.0
 flower==1.0.0
 fsspec==2022.3.0
 gevent==21.12.0
-google-auth==2.6.5
+google-auth==2.6.6
 graphviz==0.20
 greenlet==1.1.2
 gssapi==1.7.3
