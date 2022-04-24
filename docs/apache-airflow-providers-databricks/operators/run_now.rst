@@ -33,35 +33,15 @@ to call the ``api/2.1/jobs/run-now`` endpoint and pass it directly to our ``Data
 Another way to accomplish the same thing is to use the named parameters of the ``DatabricksRunNowOperator`` directly.
 Note that there is exactly one named parameter for each top level parameter in the ``jobs/run-now`` endpoint.
 
-.. list-table::
-   :widths: 15 25
-   :header-rows: 1
+The only required parameters are either:
 
-   * - Parameter
-     - Input
-   * - job_id: str
-     - ID of the existing Databricks jobs (required if ``job_name`` isn't provided).
-   * - job_name: str
-     - Name of the existing Databricks job (required if ``job_id`` isn't provided). It will throw exception if job isn't found, of if there are multiple jobs with the same name.
-   * - jar_params: list[str]
-     - A list of parameters for jobs with JAR tasks, e.g. ``"jar_params": ["john doe", "35"]``. The parameters will be passed to JAR file as command line parameters. If specified upon run-now, it would overwrite the parameters specified in job setting. The json representation of this field (i.e. ``{"jar_params":["john doe","35"]}``) cannot exceed 10,000 bytes. This field will be templated.
-   * - notebook_params: dict[str,str]
-     - A dict from keys to values for jobs with notebook task, e.g.``"notebook_params": {"name": "john doe", "age":  "35"}```. The map is passed to the notebook and will be accessible through the ``dbutils.widgets.get function``. See `Widgets <https://docs.databricks.com/notebooks/widgets.html>`_ for more information. If not specified upon run-now, the triggered run will use the job’s base parameters. ``notebook_params`` cannot be specified in conjunction with ``jar_params``. The json representation of this field (i.e. ``{"notebook_params":{"name":"john doe","age":"35"}}``) cannot exceed 10,000 bytes. This field will be templated.
-   * - python_params: list[str]
-     - A list of parameters for jobs with python tasks, e.g. ``"python_params": ["john doe", "35"]``. The parameters will be passed to python file as command line parameters. If specified upon run-now, it would overwrite the parameters specified in job setting. The json representation of this field (i.e. ``{"python_params":["john doe","35"]}``) cannot exceed 10,000 bytes. This field will be templated.
-   * - spark_submit_params: list[str]
-     - A list of parameters for jobs with spark submit task,  e.g. ``"spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"]``. The parameters will be passed to spark-submit script as command line parameters. If specified upon run-now, it would overwrite the parameters specified in job setting. The json representation of this field cannot exceed 10,000 bytes. This field will be templated.
-   * - timeout_seconds: int
-     - The timeout for this run. By default a value of 0 is used  which means to have no timeout. This field will be templated.
-   * - databricks_conn_id: string
-     - the name of the Airflow connection to use
-   * - polling_period_seconds: integer
-     - controls the rate which we poll for the result of this run
-   * - databricks_retry_limit: integer
-     - amount of times retry if the Databricks backend is unreachable
-   * - databricks_retry_delay: decimal
-     - number of seconds to wait between retries
-   * - databricks_retry_args: dict
-     - An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-   * - do_xcom_push: boolean
-     - whether we should push run_id and run_page_url to xcom
+* ``job_id`` - to specify ID of the existing Databricks job
+* ``job_name`` - Name of the existing Databricks job. It will throw exception if job isn't found, of if there are multiple jobs with the same name.
+
+All other parameters are optional and described in documentation for ``DatabricksRunNowOperator``.  For example, you can pass additional parameters to a job using one of the following parameters, depending on the type of tasks in the job:
+
+* ``notebook_params``
+* ``python_params``
+* ``python_named_parameters``
+* ``jar_params``
+* ``spark_submit_params``
