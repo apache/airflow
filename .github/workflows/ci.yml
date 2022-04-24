@@ -1499,9 +1499,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Generate constraints"
         run: |
-          breeze generate-constraints --generate-constraints-mode source-providers --answer yes
-          breeze generate-constraints --generate-constraints-mode pypi-providers --answer yes
-          breeze generate-constraints --generate-constraints-mode no-providers --answer yes
+          breeze generate-constraints --run-in-parallel --generate-constraints-mode source-providers
+          breeze generate-constraints --run-in-parallel --generate-constraints-mode pypi-providers
+          breeze generate-constraints --run-in-parallel --generate-constraints-mode no-providers
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
+          ANSWER: "yes"
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
