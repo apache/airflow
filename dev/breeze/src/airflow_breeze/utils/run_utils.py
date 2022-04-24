@@ -18,7 +18,6 @@
 import contextlib
 import os
 import shlex
-import shutil
 import stat
 import subprocess
 import sys
@@ -96,7 +95,7 @@ def run_command(
         return ex
 
 
-def check_pre_commit_installed(verbose: bool) -> bool:
+def assert_pre_commit_installed(verbose: bool):
     """
     Check if pre-commit is installed in the right version.
     :param verbose: print commands when running
@@ -108,36 +107,39 @@ def check_pre_commit_installed(verbose: bool) -> bool:
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
-    pre_commit_name = "pre-commit"
-    is_installed = False
-    if shutil.which(pre_commit_name) is not None:
-        command_result = run_command(
-            [pre_commit_name, "--version"], verbose=verbose, capture_output=True, text=True
-        )
+    python_executable = sys.executable
+    console.print(f"[bright_blue]Checking pre-commit installed for {python_executable}[/]")
+    command_result = run_command(
+        [python_executable, "-m", "pre_commit", "--version"],
+        verbose=verbose,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if command_result.returncode == 0:
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
             if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
                 console.print(
-                    f"\n[green]Package {pre_commit_name} is installed. "
+                    f"\n[green]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
                 )
-                is_installed = True
             else:
                 console.print(
-                    f"\n[red]Package name {pre_commit_name} version is wrong. It should be"
+                    f"\n[red]Package name pre_commit version is wrong. It should be"
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
+                sys.exit(1)
         else:
             console.print(
                 "\n[bright_yellow]Could not determine version of pre-commit. "
                 "You might need to update it![/]\n"
             )
-            is_installed = True
     else:
-        console.print(f"\n[red]Error: Package name {pre_commit_name} is not installed.[/]")
-    if not is_installed:
-        console.print("\nPlease install using https://pre-commit.com/#install to continue\n")
-    return is_installed
+        console.print("\n[red]Error checking for pre-commit-installation:[/]\n")
+        console.print(command_result.stderr)
+        console.print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        sys.exit(1)
 
 
 def get_filesystem_type(filepath):

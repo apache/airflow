@@ -545,7 +545,7 @@ from airflow_breeze.utils.path_utils import (
     get_used_sources_setup_metadata_hash,
     in_autocomplete,
 )
-from airflow_breeze.utils.run_utils import check_pre_commit_installed, filter_out_none, run_command
+from airflow_breeze.utils.run_utils import assert_pre_commit_installed, filter_out_none, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 find_airflow_sources_root_to_operate_on()
@@ -1851,40 +1851,41 @@ def static_checks(
     files: bool,
     precommit_args: Tuple,
 ):
-    if check_pre_commit_installed(verbose=verbose):
-        command_to_execute = ['pre-commit', 'run']
-        if last_commit and commit_ref:
-            console.print("\n[red]You cannot specify both --last-commit and --commit-ref[/]\n")
-            sys.exit(1)
-        for single_check in type:
-            command_to_execute.append(single_check)
-        if all_files:
-            command_to_execute.append("--all-files")
-        if show_diff_on_failure:
-            command_to_execute.append("--show-diff-on-failure")
-        if last_commit:
-            command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
-        if commit_ref:
-            command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
-        if files:
-            command_to_execute.append("--files")
-        if verbose or dry_run:
-            command_to_execute.append("--verbose")
-        if precommit_args:
-            command_to_execute.extend(precommit_args)
-        env = os.environ.copy()
-        env['GITHUB_REPOSITORY'] = github_repository
-        static_checks_result = run_command(
-            command_to_execute,
-            verbose=verbose,
-            dry_run=dry_run,
-            check=False,
-            no_output_dump_on_exception=True,
-            text=True,
-            env=env,
-        )
-        if static_checks_result.returncode != 0:
-            console.print("[red]There were errors during pre-commit check. They should be fixed[/n]")
+    assert_pre_commit_installed(verbose=verbose)
+    command_to_execute = [sys.executable, "-m", "pre_commit", 'run']
+    if last_commit and commit_ref:
+        console.print("\n[red]You cannot specify both --last-commit and --commit-ref[/]\n")
+        sys.exit(1)
+    for single_check in type:
+        command_to_execute.append(single_check)
+    if all_files:
+        command_to_execute.append("--all-files")
+    if show_diff_on_failure:
+        command_to_execute.append("--show-diff-on-failure")
+    if last_commit:
+        command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
+    if commit_ref:
+        command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
+    if files:
+        command_to_execute.append("--files")
+    if verbose or dry_run:
+        command_to_execute.append("--verbose")
+    if precommit_args:
+        command_to_execute.extend(precommit_args)
+    env = os.environ.copy()
+    env['GITHUB_REPOSITORY'] = github_repository
+    static_checks_result = run_command(
+        command_to_execute,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )
+    if static_checks_result.returncode != 0:
+        console.print("[red]There were errors during pre-commit check. They should be fixed[/]")
+    sys.exit(static_checks_result.returncode)
 
 
 @main.command(name="stop", help="Stop running breeze environment.")
