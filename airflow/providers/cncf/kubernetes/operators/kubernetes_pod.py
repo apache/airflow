@@ -404,14 +404,14 @@ class KubernetesPodOperator(BaseOperator):
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        if not self.is_delete_operator_pod:
+            with _suppress(Exception):
+                self.patch_already_checked(pod)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            if not self.is_delete_operator_pod:
-                with _suppress(Exception):
-                    self.patch_already_checked(pod)
             with _suppress(Exception):
                 self.process_pod_deletion(pod)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
@@ -442,7 +442,7 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
 
         validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
+        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""

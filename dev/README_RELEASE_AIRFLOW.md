@@ -49,7 +49,7 @@
   - [Close the milestone](#close-the-milestone)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
-  - [Update `main` with latest release details](#update-main-with-latest-release-details)
+  - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
@@ -203,9 +203,18 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
 - Replace the version in `README.md` and verify that installation instructions work fine.
-- Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
-For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
-- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
+- Build the release notes:
+
+  Preview with:
+
+    ```shell script
+    towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    ```
+
+  Then remove the `--draft` flag to have towncrier build the release notes for real.
+
+  If no significant changes where added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
@@ -239,7 +248,7 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    ./breeze-legacy prepare-airflow-packages --package-format both
+    breeze prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -414,7 +423,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    ./breeze-legacy prepare-airflow-packages --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -547,7 +556,7 @@ Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
+Release Notes: https://github.com/apache/airflow/blob/${VERSION}/RELEASE_NOTES.rst
 
 Changes since PREVIOUS_VERSION_OR_RC:
 *Bugs*:
@@ -999,8 +1008,8 @@ https://pypi.org/project/apache-airflow/${VERSION}/
 The documentation is available at:
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
-Find the CHANGELOG here for more details:
-https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
+Find the release notes here for more details:
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/release_notes.html
 
 Container images are published at:
 https://hub.docker.com/r/apache/airflow/tags/?page=1&name=${VERSION}
@@ -1024,7 +1033,7 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 
 ## Create release on GitHub
 
-Create a new release on GitHub with the changelog and assets from the release svn.
+Create a new release on GitHub with the release notes and assets from the release svn.
 
 ## Close the milestone
 
@@ -1042,7 +1051,7 @@ We’ve just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
-🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
 🐳 Docker Image: “docker pull apache/airflow:$VERSION"
 🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
 
@@ -1060,19 +1069,19 @@ We’ve just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
-🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
 🐳 Docker Image: "docker pull apache/airflow:$VERSION"
 
 Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Update `main` with latest release details
+## Update `main` with the latest release details
 
 This includes:
 
-- Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
-- Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
+- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
 

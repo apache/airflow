@@ -88,5 +88,5 @@ Then build a new image.
 
   docker build . \
     --pull \
-    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.2" \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.2.5" \
     --tag my-airflow-image:0.0.1

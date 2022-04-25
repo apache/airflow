@@ -20,8 +20,6 @@ import time
 from io import StringIO
 from typing import Any, Dict, Optional
 
-import paramiko
-
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
@@ -33,6 +31,11 @@ from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+# Paramiko should be imported after airflow.providers.ssh. Then the import will fail with
+# cannot import "airflow.providers.ssh" and will be correctly discovered as optional feature
+# TODO:(potiuk) We should add test harness detecting such cases shortly
+import paramiko  # isort:skip
 
 
 class _GCloudAuthorizedSSHClient(paramiko.SSHClient):

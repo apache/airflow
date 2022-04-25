@@ -23,7 +23,7 @@ from subprocess import check_call, check_output
 
 from rich.console import Console
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3]
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 
 SCREENSHOT_WIDTH = "120"

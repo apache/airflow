@@ -49,6 +49,7 @@ from airflow.models.dag import dag as dag_decorator
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
@@ -64,6 +65,7 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
@@ -1397,6 +1399,77 @@ class TestDag(unittest.TestCase):
             session=session,
         )
 
+        dagruns = (
+            session.query(
+                DagRun,
+            )
+            .filter(
+                DagRun.dag_id == dag_id,
+            )
+            .all()
+        )
+
+        assert len(dagruns) == 1
+        dagrun = dagruns[0]  # type: DagRun
+        assert dagrun.state == dag_run_state
+
+    @parameterized.expand(
+        [
+            (State.QUEUED,),
+            (State.RUNNING,),
+        ]
+    )
+    def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
+        dag_id = 'test_clear_set_dagrun_state'
+        self._clean_up(dag_id)
+        task_id = 't1'
+
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+
+        @dag.task
+        def make_arg_lists():
+            return [[1], [2], [{'a': 'b'}]]
+
+        def consumer(value):
+            print(value)
+
+        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
+            op_args=make_arg_lists()
+        )
+
+        session = settings.Session()
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+            session=session,
+        )
+        expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
+
+        upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
+        ti = dagrun_1.get_task_instance(task_id, map_index=0, session=session)
+        ti2 = dagrun_1.get_task_instance(task_id, map_index=1, session=session)
+        upstream_ti.state = State.SUCCESS
+        ti.state = State.SUCCESS
+        ti2.state = State.SUCCESS
+        session.flush()
+
+        dag.clear(
+            task_ids=[(task_id, 0), ("make_arg_lists")],
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            dag_run_state=dag_run_state,
+            include_subdags=False,
+            include_parentdag=False,
+            session=session,
+        )
+        session.refresh(upstream_ti)
+        session.refresh(ti)
+        session.refresh(ti2)
+        assert upstream_ti.state is None  # cleared
+        assert ti.state is None  # cleared
+        assert ti2.state == State.SUCCESS  # not cleared
         dagruns = (
             session.query(
                 DagRun,

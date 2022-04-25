@@ -37,7 +37,7 @@ const DurationTick = ({ children, ...rest }) => (
   </Text>
 );
 
-const DagRuns = ({ tableWidth }) => {
+const DagRuns = () => {
   const { data: { dagRuns = [] } } = useTreeData();
   const { selected, onSelect } = useSelection();
   const durations = [];
@@ -68,7 +68,7 @@ const DagRuns = ({ tableWidth }) => {
         backgroundColor="white"
         zIndex={2}
         borderBottom={0}
-        width={`${tableWidth - (runs.length * 16)}px`}
+        width="100%"
       >
         {!!runs.length && (
         <>

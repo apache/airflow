@@ -23,6 +23,7 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -33,6 +34,7 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -79,12 +81,12 @@ with models.DAG(
         },
     )
     # [START howto_sensor_bigquery_table]
-    check_table_exists = BigQueryTableExistenceSensor(
+    check_table_exists: BaseOperator = BigQueryTableExistenceSensor(
         task_id="check_table_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME, table_id=TABLE_NAME
     )
     # [END howto_sensor_bigquery_table]
 
-    execute_insert_query = BigQueryInsertJobOperator(
+    execute_insert_query: BaseOperator = BigQueryInsertJobOperator(
         task_id="execute_insert_query",
         configuration={
             "query": {
@@ -95,7 +97,7 @@ with models.DAG(
     )
 
     # [START howto_sensor_bigquery_table_partition]
-    check_table_partition_exists = BigQueryTablePartitionExistenceSensor(
+    check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
         task_id="check_table_partition_exists",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,

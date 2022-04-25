@@ -20,7 +20,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -41,13 +41,13 @@ class BuildProdParams:
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    docker_cache: str
+    docker_cache: str = "pulled"
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_docker_context_files: bool = False
+    install_from_docker_context_files: bool = False
     disable_airflow_repo_cache: bool = False
-    install_providers_from_sources: bool = True
+    install_providers_from_sources: bool = False
     cleanup_docker_context_files: bool = False
     prepare_buildx_cache: bool = False
     push_image: bool = False
@@ -75,7 +75,8 @@ class BuildProdParams:
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     additional_python_deps: str = ""
-    image_tag: str = ""
+    image_tag: Optional[str] = None
+    extras: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
     login_to_github_registry: str = "false"
@@ -85,6 +86,7 @@ class BuildProdParams:
     airflow_constraints_location: str = ""
     installation_method: str = "."
     debian_version: str = "bullseye"
+    answer: Optional[str] = None
 
     @property
     def airflow_branch(self) -> str:
@@ -103,8 +105,7 @@ class BuildProdParams:
 
     @property
     def the_image_type(self) -> str:
-        the_image_type = 'PROD'
-        return the_image_type
+        return 'PROD'
 
     @property
     def args_for_remote_install(self) -> List:
@@ -205,19 +206,19 @@ class BuildProdParams:
         return extra_build_flags
 
     @property
-    def docker_cache_prod_directive(self) -> List[str]:
-        docker_cache_prod_directive = []
+    def docker_cache_directive(self) -> List[str]:
+        docker_cache_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_image_name}")
+            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
-            docker_cache_prod_directive.append("--no-cache")
+            docker_cache_directive.append("--no-cache")
         else:
-            docker_cache_prod_directive = []
+            docker_cache_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_prod_directive
+            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
+        return docker_cache_directive
 
     @property
     def python_base_image(self):
@@ -277,13 +278,6 @@ class BuildProdParams:
         return install_postgres
 
     @property
-    def install_from_docker_context_files(self) -> str:
-        install_from_docker_context_files = 'false'
-        if self.install_docker_context_files:
-            install_from_docker_context_files = 'true'
-        return install_from_docker_context_files
-
-    @property
     def airflow_extras(self):
         return get_airflow_extras()
 
@@ -295,4 +289,4 @@ class BuildProdParams:
     def airflow_image_name_with_tag(self):
         """Construct PROD image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
-        return image if not self.image_tag else image + f":{self.image_tag}"
+        return image if self.image_tag is None else image + f":{self.image_tag}"

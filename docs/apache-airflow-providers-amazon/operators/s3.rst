@@ -28,6 +28,7 @@ Airflow to Amazon Simple Storage Service (S3) integration provides several opera
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateObjectOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator`
  - :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
@@ -163,6 +164,20 @@ multiple files can match one key. The list of matched S3 object attributes conta
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
+
+.. _howto/operator:S3CreateObjectOperator:
+
+Create an Amazon S3 object
+--------------------------
+
+To create a new (or replace) Amazon S3 object you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3CreateObjectOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_create_object]
+    :end-before: [END howto_operator_s3_create_object]
 
 .. _howto/operator:S3CopyObjectOperator:
 

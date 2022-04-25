@@ -21,12 +21,14 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const queuedUrl = getMetaValue('dagrun_queued_url');
 
 export default function useQueueRun(dagId, runId) {
   const queryClient = useQueryClient();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['dagRunQueue', dagId, runId],
@@ -49,6 +51,7 @@ export default function useQueueRun(dagId, runId) {
         queryClient.invalidateQueries('treeData');
         startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

@@ -20,5 +20,5 @@ set -euxo pipefail
 cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
 python -m pip install pipx
-python -m pipx install --editable ./dev/breeze/
+python -m pipx install --editable ./dev/breeze/ --force
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"

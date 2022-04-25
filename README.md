@@ -268,7 +268,7 @@ packages:
 
 Apache Airflow version life cycle:
 
-<!-- This table is automatically updated by pre-commit scripts/ci/pre-commit/supported_versions.py -->
+<!-- This table is automatically updated by pre-commit scripts/ci/pre_commit/pre_commit_supported_versions.py -->
 <!-- Beginning of auto-generated table -->
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |

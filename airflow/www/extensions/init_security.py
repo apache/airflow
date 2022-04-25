@@ -51,7 +51,7 @@ def init_api_experimental_auth(app):
         pass
 
     app.api_auth = []
-    for backend in auth_backends.split():
+    for backend in auth_backends.split(','):
         try:
             auth = import_module(backend.strip())
             auth.init_app(app)
