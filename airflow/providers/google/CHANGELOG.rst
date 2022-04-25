@@ -34,6 +34,10 @@ Breaking changes
    For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
    and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
 
+* ``GoogleDisplayVideo360CreateReportOperator``: remove ``params``. Please use ``parameters``
+
+* ``FacebookAdsReportToGcsOperator``: remove ``params``. Please use ``parameters``
+
 * ``GoogleDriveToGCSOperator``: Remove ``destination_bucket`` and ``destination_object``. Please use ``bucket_name`` and ``object_name``.
 
 * ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``.
