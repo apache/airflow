@@ -72,7 +72,7 @@ OPTIONAL_PROD_IMAGE_ARGS = [
 
 def clean_docker_context_files(verbose: bool, dry_run: bool):
     """
-    Cleans up docker context files folder - leaving only README.md there.
+    Cleans up docker context files folder - leaving only .README.md there.
     """
     if verbose or dry_run:
         console.print("[bright_blue]Cleaning docker-context-files[/]")
@@ -81,7 +81,7 @@ def clean_docker_context_files(verbose: bool, dry_run: bool):
     with contextlib.suppress(FileNotFoundError):
         context_files_to_delete = DOCKER_CONTEXT_DIR.glob('**/*')
         for file_to_delete in context_files_to_delete:
-            if file_to_delete.name != 'README.md':
+            if file_to_delete.name != '.README.md':
                 file_to_delete.unlink()
 
 
@@ -96,7 +96,7 @@ def check_docker_context_files(install_from_docker_context_files: bool):
     """
     context_file = DOCKER_CONTEXT_DIR.glob('**/*')
     number_of_context_files = len(
-        [context for context in context_file if context.is_file() and context.name != 'README.md']
+        [context for context in context_file if context.is_file() and context.name != '.README.md']
     )
     if number_of_context_files == 0:
         if install_from_docker_context_files:
