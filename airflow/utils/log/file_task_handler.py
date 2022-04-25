@@ -146,6 +146,7 @@ class FileTaskHandler(logging.Handler):
                 TaskTry.dag_id == ti.dag_id,
                 TaskTry.run_id == ti.run_id,
                 TaskTry.task_id == ti.task_id,
+                TaskTry.map_index == ti.map_index,
                 TaskTry.try_number == try_number
         ).first()
 

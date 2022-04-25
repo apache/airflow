@@ -16,19 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Table to store information about mapped task instances (AIP-42)."""
-
-import collections.abc
-import enum
-from typing import TYPE_CHECKING, Any, Collection, List, Optional
+"""Table to store information about individual task tries."""
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.utils.sqlalchemy import ExtendedJSON
-
-if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
 
 
 class TaskTry(Base):
@@ -42,17 +34,19 @@ class TaskTry(Base):
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    map_index = Column(Integer, primary_key=True)
     try_number = Column(Integer, primary_key=True)
 
     hostname = Column(String(1000), nullable=False)
 
     __table_args__ = (
         ForeignKeyConstraint(
-            [dag_id, task_id, run_id],
+            [dag_id, task_id, run_id, map_index],
             [
                 "task_instance.dag_id",
                 "task_instance.task_id",
                 "task_instance.run_id",
+                "task_instance.map_index",
             ],
             name="task_try_task_instance_fkey",
             ondelete="CASCADE",
