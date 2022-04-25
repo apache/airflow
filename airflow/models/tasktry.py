@@ -69,16 +69,3 @@ class TaskTry(Base):
         ),
     )
 
-    def __init__(
-        self,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        try_number: int,
-        hostname: str,
-    ) -> None:
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.run_id = run_id
-        self.try_number = try_number
-        self.hostname = hostname
