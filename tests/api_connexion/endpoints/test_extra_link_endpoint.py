@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import datetime
 import os
 from urllib.parse import quote_plus
 
@@ -28,7 +30,6 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 from airflow.security import permissions
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
@@ -60,7 +61,7 @@ def configured_app(minimal_app_for_api):
 class TestGetExtraLinks:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, session) -> None:
-        self.default_time = datetime(2020, 1, 1)
+        self.default_time = datetime.datetime(2020, 1, 1)
 
         clear_db_runs()
         clear_db_xcom()
@@ -115,7 +116,7 @@ class TestGetExtraLinks:
                 'Task with ID = "INVALID" not found',
                 id="missing_task",
             ),
-        ]
+        ],
     )
     def test_should_respond_404(self, url, expected_title, expected_detail):
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})

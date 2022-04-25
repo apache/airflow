@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 
 import pytest
 
-import datetime
-import pendulum
 from airflow import models
 from airflow.api.common.delete_dag import delete_dag
 from airflow.exceptions import AirflowException, DagNotFound
@@ -74,7 +73,7 @@ class TestDeleteDAGSuccessfulDelete:
 
         task = EmptyOperator(
             task_id='dummy',
-            dag=models.DAG(dag_id=self.key, default_args={'start_date': pendulum.datetime(2022, 1, 1)}),
+            dag=models.DAG(dag_id=self.key, default_args={'start_date': datetime.datetime(2022, 1, 1)}),
             owner='airflow',
         )
 
