@@ -24,7 +24,7 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 class TestDockerDecorator:
     def test_basic_docker_operator(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image="python:3.9-slim")
         def f():
             import random
 
@@ -39,7 +39,7 @@ class TestDockerDecorator:
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image="python:3.9-slim")
         def f(num_results):
             import random
 
@@ -57,7 +57,7 @@ class TestDockerDecorator:
 
     def test_basic_docker_operator_multiple_output(self, dag_maker):
         @task.docker(
-            image="quay.io/bitnami/python:3.9",
+            image="python:3.9-slim",
             multiple_outputs=True,
         )
         def return_dict(number: int):
@@ -76,7 +76,7 @@ class TestDockerDecorator:
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_no_return(self, dag_maker):
-        @task.docker(image="quay.io/bitnami/python:3.9")
+        @task.docker(image="python:3.9-slim")
         def f():
             pass
 
@@ -92,7 +92,7 @@ class TestDockerDecorator:
         """Test calling decorated function 21 times in a DAG"""
 
         @task.docker(
-            image="quay.io/bitnami/python:3.9",
+            image="python:3.9-slim",
             network_mode="bridge",
             api_version="auto",
         )

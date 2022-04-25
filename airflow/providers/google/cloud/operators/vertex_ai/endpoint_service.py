@@ -55,6 +55,8 @@ class CreateEndpointOperator(BaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param endpoint: Required. The Endpoint to create.
+    :param endpoint_id: The ID of Endpoint. This value should be 1-10 characters, and valid characters
+        are /[0-9]/. If not provided, Vertex AI will generate a value for this ID.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -81,6 +83,7 @@ class CreateEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint: Union[Endpoint, Dict],
+        endpoint_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -93,6 +96,7 @@ class CreateEndpointOperator(BaseOperator):
         self.region = region
         self.project_id = project_id
         self.endpoint = endpoint
+        self.endpoint_id = endpoint_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -112,6 +116,7 @@ class CreateEndpointOperator(BaseOperator):
             project_id=self.project_id,
             region=self.region,
             endpoint=self.endpoint,
+            endpoint_id=self.endpoint_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

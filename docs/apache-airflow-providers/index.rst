@@ -280,6 +280,9 @@ You need to do the following to turn an existing Python package into a provider 
   the required provider metadata
 * Create the function that you refer to in the first step as part of your package: this functions returns a
   dictionary that contains all meta-data about your provider package
+* If you want Airflow to link to documentation of your Provider in the providers page, make sure
+  to add "project-url/documentation" `metadata <https://peps.python.org/pep-0621/#example>`_ to your package.
+  This will also add link to your documentation in PyPI.
 * note that the dictionary should be compliant with ``airflow/provider_info.schema.json`` JSON-schema
   specification. The community-managed providers have more fields there that are used to build
   documentation, but the requirement for runtime information only contains several fields which are defined

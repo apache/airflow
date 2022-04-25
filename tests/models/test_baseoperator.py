@@ -43,6 +43,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
+from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 
@@ -903,12 +904,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
 
-    session.add(
-        TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
-    )
-    session.flush()
-
-    mapped.expand_mapped_task(dr.run_id, session=session)
+    expand_mapped_task(mapped, dr.run_id, task1.task_id, length=0, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)

@@ -94,6 +94,8 @@ CHEATSHEET = f"""
           * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
+          * MSSQL:     jdbc:sqlserver://127.0.0.1:{MSSQL_HOST_PORT};databaseName=airflow;user=sa;password=
+                       Airflow123
           * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
 
     [bright_blue]* How can I add my stuff in Breeze:[/]

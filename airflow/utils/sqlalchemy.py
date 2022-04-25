@@ -19,15 +19,18 @@
 import datetime
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, Tuple
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import event, nullsfirst
+from sqlalchemy import and_, event, false, nullsfirst, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql import ColumnElement
+from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
 
+from airflow import settings
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
@@ -319,3 +322,23 @@ def is_lock_not_available_error(error: OperationalError):
     if db_err_code in ('55P03', 1205, 3572):
         return True
     return False
+
+
+def tuple_in_condition(
+    columns: Tuple[ColumnElement, ...],
+    collection: Iterable[Any],
+) -> ColumnOperators:
+    """Generates a tuple-in-collection operator to use in ``.filter()``.
+
+    For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
+    clause. This however does not work with MSSQL, where we need to expand to
+    ``(c1 = v1a AND c2 = v2a ...) OR (c1 = v1b AND c2 = v2b ...) ...`` manually.
+
+    :meta private:
+    """
+    if settings.engine.dialect.name != "mssql":
+        return tuple_(*columns).in_(collection)
+    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in collection]
+    if not clauses:
+        return false()
+    return or_(*clauses)

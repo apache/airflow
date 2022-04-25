@@ -17,10 +17,10 @@
 """Command to build PROD image."""
 import contextlib
 import sys
-from typing import Dict
+from typing import Tuple
 
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
-from airflow_breeze.utils.cache import synchronize_parameters_with_cache
+from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.docker_command_utils import (
     construct_docker_build_command,
@@ -29,7 +29,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.registry import login_to_docker_registry
-from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
+from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
 
 REQUIRED_PROD_IMAGE_ARGS = [
     "python_base_image",
@@ -41,6 +41,7 @@ REQUIRED_PROD_IMAGE_ARGS = [
     "airflow_extras",
     "airflow_pre_cached_pip_packages",
     "docker_context_files",
+    "extras",
     "additional_airflow_extras",
     "additional_python_deps",
     "additional_dev_apt_command",
@@ -69,14 +70,18 @@ OPTIONAL_PROD_IMAGE_ARGS = [
 ]
 
 
-def clean_docker_context_files():
+def clean_docker_context_files(verbose: bool, dry_run: bool):
     """
-    Cleans up docker context files folder - leaving only README.md there.
+    Cleans up docker context files folder - leaving only .README.md there.
     """
+    if verbose or dry_run:
+        console.print("[bright_blue]Cleaning docker-context-files[/]")
+    if dry_run:
+        return
     with contextlib.suppress(FileNotFoundError):
         context_files_to_delete = DOCKER_CONTEXT_DIR.glob('**/*')
         for file_to_delete in context_files_to_delete:
-            if file_to_delete.name != 'README.md':
+            if file_to_delete.name != '.README.md':
                 file_to_delete.unlink()
 
 
@@ -91,7 +96,7 @@ def check_docker_context_files(install_from_docker_context_files: bool):
     """
     context_file = DOCKER_CONTEXT_DIR.glob('**/*')
     number_of_context_files = len(
-        [context for context in context_file if context.is_file() and context.name != 'README.md']
+        [context for context in context_file if context.is_file() and context.name != '.README.md']
     )
     if number_of_context_files == 0:
         if install_from_docker_context_files:
@@ -114,22 +119,9 @@ def check_docker_context_files(install_from_docker_context_files: bool):
             sys.exit(1)
 
 
-def get_prod_image_build_params(parameters_passed: Dict[str, str]) -> BuildProdParams:
-    """
-    Converts parameters received as dict into BuildProdParams. In case cacheable
-    parameters are missing, it reads the last used value for that parameter
-    from the cache and if it is not found, it uses default value for that parameter.
-
-    This method updates cached based on parameters passed via Dict.
-
-    :param parameters_passed: parameters to use when constructing BuildCiParams
-    """
-    prod_image_params = BuildProdParams(**parameters_passed)
-    synchronize_parameters_with_cache(prod_image_params, parameters_passed)
-    return prod_image_params
-
-
-def build_production_image(verbose: bool, dry_run: bool, **kwargs):
+def build_production_image(
+    verbose: bool, dry_run: bool, with_ci_group: bool, prod_image_params: BuildProdParams
+) -> Tuple[int, str]:
     """
     Builds PROD image:
 
@@ -147,40 +139,59 @@ def build_production_image(verbose: bool, dry_run: bool, **kwargs):
 
     :param verbose: print commands when running
     :param dry_run: do not execute "write" commands - just print what would happen
-    :param kwargs: arguments passed from the command
+    :param with_ci_group: whether to wrap the build in CI logging group
+    :param prod_image_params: PROD image parameters
     """
     fix_group_permissions()
-    parameters_passed = filter_out_none(**kwargs)
-    prod_image_params = get_prod_image_build_params(parameters_passed)
-    prod_image_params.print_info()
-    if prod_image_params.cleanup_docker_context_files:
-        clean_docker_context_files()
-    check_docker_context_files(prod_image_params.install_docker_context_files)
-    if prod_image_params.prepare_buildx_cache:
-        login_to_docker_registry(prod_image_params)
-    run_command(
-        ["docker", "rmi", "--no-prune", "--force", prod_image_params.airflow_image_name],
-        verbose=verbose,
-        dry_run=dry_run,
-        cwd=AIRFLOW_SOURCES_ROOT,
-        text=True,
-        check=False,
-    )
-    console.print(f"\n[blue]Building PROD Image for Python {prod_image_params.python}\n")
-    if prod_image_params.empty_image:
-        console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
-        cmd = construct_empty_docker_build_command(image_params=prod_image_params)
+    if verbose or dry_run:
+        console.print(
+            f"\n[bright_blue]Building PROD image of airflow from {AIRFLOW_SOURCES_ROOT} "
+            f"python version: {prod_image_params.python}[/]\n"
+        )
+    with ci_group(
+        f"Build Production image for Python {prod_image_params.python} "
+        f"with tag: {prod_image_params.image_tag}",
+        enabled=with_ci_group,
+    ):
+        prod_image_params.print_info()
+        if prod_image_params.cleanup_docker_context_files:
+            clean_docker_context_files(verbose=verbose, dry_run=dry_run)
+        check_docker_context_files(prod_image_params.install_from_docker_context_files)
+        if prod_image_params.prepare_buildx_cache:
+            login_to_docker_registry(prod_image_params, dry_run=dry_run)
         run_command(
-            cmd, input="FROM scratch\n", verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True
-        )
-    else:
-        cmd = construct_docker_build_command(
-            image_params=prod_image_params,
+            ["docker", "rmi", "--no-prune", "--force", prod_image_params.airflow_image_name],
             verbose=verbose,
-            required_args=REQUIRED_PROD_IMAGE_ARGS,
-            optional_args=OPTIONAL_PROD_IMAGE_ARGS,
-            production_image=True,
+            dry_run=dry_run,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            text=True,
+            check=False,
         )
-        run_command(cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True)
-    if prod_image_params.push_image:
-        tag_and_push_image(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
+        console.print(f"\n[blue]Building PROD Image for Python {prod_image_params.python}\n")
+        if prod_image_params.empty_image:
+            console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
+            cmd = construct_empty_docker_build_command(image_params=prod_image_params)
+            build_command_result = run_command(
+                cmd,
+                input="FROM scratch\n",
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+            )
+        else:
+            cmd = construct_docker_build_command(
+                image_params=prod_image_params,
+                verbose=verbose,
+                required_args=REQUIRED_PROD_IMAGE_ARGS,
+                optional_args=OPTIONAL_PROD_IMAGE_ARGS,
+                production_image=True,
+            )
+            build_command_result = run_command(
+                cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
+            )
+        if build_command_result.returncode == 0:
+            if prod_image_params.push_image:
+                return tag_and_push_image(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
+        return build_command_result.returncode, f"Image build: {prod_image_params.python}"

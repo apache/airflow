@@ -18,10 +18,6 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed_with_group
 testing::get_docker_compose_local
 testing::setup_docker_compose_backend "offline-sql-test"
 # We test from 2.0.0 upwards

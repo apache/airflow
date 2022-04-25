@@ -17,7 +17,7 @@
 """Breeze shell paameters."""
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_user_id, get_stat_bin
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, SCRIPTS_CI_DIR
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -43,7 +42,7 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    verbose: bool
+    verbose: bool = False
     extra_args: Tuple = ()
     force_build: bool = False
     integration: Tuple[str, ...] = ()
@@ -57,18 +56,17 @@ class ShellParams:
     load_default_connections: bool = False
     use_airflow_version: str = ""
     install_airflow_version: str = ""
-    tag: str = "latest"
+    image_tag: str = "latest"
     github_repository: str = "apache/airflow"
     mount_sources: str = MOUNT_SELECTED
     forward_credentials: str = "false"
     airflow_branch: str = AIRFLOW_BRANCH
     start_airflow: str = "false"
-    skip_twine_check: str = ""
+    skip_package_verification: bool = False
     github_actions: str = ""
     issue_id: str = ""
     num_runs: str = ""
-    version_suffix_for_pypi: str = ""
-    version_suffix_for_svn: str = ""
+    answer: Optional[str] = None
     db_reset: bool = False
     ci: bool = False
 
@@ -81,15 +79,7 @@ class ShellParams:
         cmd = ['docker', 'run', '--entrypoint', '/bin/bash', f'{self.airflow_image_name}']
         cmd.extend(['-c', 'echo "${AIRFLOW_VERSION}"'])
         output = run_command(cmd, capture_output=True, text=True)
-        return output.stdout.strip()
-
-    @property
-    def host_user_id(self):
-        return get_host_user_id()
-
-    @property
-    def host_group_id(self):
-        return get_host_group_id()
+        return output.stdout.strip() if output.stdout else "UNKNOWN_VERSION"
 
     @property
     def airflow_base_image_name(self) -> str:
@@ -105,7 +95,7 @@ class ShellParams:
     @property
     def airflow_image_name_with_tag(self) -> str:
         image = self.airflow_image_name
-        return image if not self.tag else image + f":{self.tag}"
+        return image if not self.image_tag else image + f":{self.image_tag}"
 
     @property
     def airflow_image_kubernetes(self) -> str:
@@ -215,7 +205,3 @@ class ShellParams:
         if len(self.extra_args) > 0:
             cmd = str(self.extra_args[0])
         return cmd
-
-    @property
-    def get_stat_bin(self):
-        return get_stat_bin()

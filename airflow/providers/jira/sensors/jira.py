@@ -19,7 +19,8 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from jira.resources import Issue, Resource
 
-from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
+from airflow.providers.jira.hooks.jira import JiraHook
+from airflow.providers.jira.operators.jira import JIRAError
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -52,16 +53,14 @@ class JiraSensor(BaseSensorOperator):
             self.result_processor = result_processor
         self.method_name = method_name
         self.method_params = method_params
-        self.jira_operator = JiraOperator(
-            task_id=self.task_id,
-            jira_conn_id=self.jira_conn_id,
-            jira_method=self.method_name,
-            jira_method_args=self.method_params,
-            result_processor=self.result_processor,
-        )
 
     def poke(self, context: 'Context') -> Any:
-        return self.jira_operator.execute(context=context)
+        hook = JiraHook(jira_conn_id=self.jira_conn_id)
+        resource = hook.get_conn()
+        jira_result = getattr(resource, self.method_name)(**self.method_params)
+        if self.result_processor is None:
+            return jira_result
+        return self.result_processor(context, jira_result)
 
 
 class JiraTicketSensor(JiraSensor):
@@ -100,8 +99,8 @@ class JiraTicketSensor(JiraSensor):
     def poke(self, context: 'Context') -> Any:
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
-        self.jira_operator.method_name = "issue"
-        self.jira_operator.jira_method_args = {'id': self.ticket_id, 'fields': self.field}
+        self.method_name = "issue"
+        self.method_params = {'id': self.ticket_id, 'fields': self.field}
         return JiraSensor.poke(self, context=context)
 
     def issue_field_checker(self, issue: Issue) -> Optional[bool]:

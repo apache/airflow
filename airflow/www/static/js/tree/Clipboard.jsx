@@ -18,6 +18,7 @@ export const ClipboardButton = forwardRef(
       iconOnly = false,
       label = 'copy',
       title = 'Copy',
+      colorScheme = 'blue',
       'aria-label': ariaLabel = 'Copy',
       ...rest
     },
@@ -31,6 +32,7 @@ export const ClipboardButton = forwardRef(
       variant,
       title,
       ref,
+      colorScheme,
       ...rest,
     };
 
@@ -58,6 +60,6 @@ export const ClipboardButton = forwardRef(
 export const ClipboardText = ({ value }) => (
   <>
     {value}
-    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="lg" ml={1} />
+    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="xl" ml={1} />
   </>
 );

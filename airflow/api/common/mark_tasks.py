@@ -18,10 +18,10 @@
 """Marks tasks APIs."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Iterator, List, NamedTuple, Optional, Tuple
+from typing import TYPE_CHECKING, Collection, Iterable, Iterator, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import or_
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import lazyload
 from sqlalchemy.orm.session import Session as SASession
 
 from airflow.models.dag import DAG
@@ -78,7 +78,7 @@ def _create_dagruns(
 @provide_session
 def set_state(
     *,
-    tasks: Iterable[Operator],
+    tasks: Collection[Union[Operator, Tuple[Operator, int]]],
     run_id: Optional[str] = None,
     execution_date: Optional[datetime] = None,
     upstream: bool = False,
@@ -96,9 +96,10 @@ def set_state(
     tasks that did not exist. It will not create dag runs that are missing
     on the schedule (but it will as for subdag dag runs if needed).
 
-    :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
+    :param tasks: the iterable of tasks or (task, map_index) tuples from which to work.
+        ``task.dag`` needs to be set
     :param run_id: the run_id of the dagrun to start looking from
-    :param execution_date: the execution date from which to start looking(deprecated)
+    :param execution_date: the execution date from which to start looking (deprecated)
     :param upstream: Mark all parents (upstream tasks)
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
     :param future: Mark all future tasks on the interval of the dag up until
@@ -118,7 +119,7 @@ def set_state(
     if execution_date and not timezone.is_localized(execution_date):
         raise ValueError(f"Received non-localized date {execution_date}")
 
-    task_dags = {task.dag for task in tasks}
+    task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
     if len(task_dags) > 1:
         raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
     dag = next(iter(task_dags))
@@ -126,15 +127,15 @@ def set_state(
         raise ValueError("Received tasks with no DAG")
 
     if execution_date:
-        run_id = dag.get_dagrun(execution_date=execution_date).run_id
+        run_id = dag.get_dagrun(execution_date=execution_date, session=session).run_id
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
-    dag_run_ids = get_run_ids(dag, run_id, future, past)
+    dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
+    task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
+    task_ids = [task_id if isinstance(task_id, str) else task_id[0] for task_id in task_id_map_index_list]
 
-    task_ids = list(find_task_relatives(tasks, downstream, upstream))
-
-    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids))
+    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
 
     sub_dag_run_ids = list(
@@ -143,7 +144,7 @@ def set_state(
 
     # now look for the task instances that are affected
 
-    qry_dag = get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates)
+    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
         tis_altered = qry_dag.with_for_update().all()
@@ -151,7 +152,8 @@ def set_state(
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
-            task_instance.set_state(state)
+            task_instance.set_state(state, session=session)
+        session.flush()
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
@@ -179,20 +181,18 @@ def get_all_dag_task_query(
     dag: DAG,
     session: SASession,
     state: TaskInstanceState,
-    task_ids: List[str],
-    confirmed_dates: Iterable[datetime],
+    task_ids: List[Union[str, Tuple[str, int]]],
+    run_ids: Iterable[str],
 ):
     """Get all tasks of the main dag that will be affected by a state change"""
-    qry_dag = (
-        session.query(TaskInstance)
-        .join(TaskInstance.dag_run)
-        .filter(
-            TaskInstance.dag_id == dag.dag_id,
-            DagRun.execution_date.in_(confirmed_dates),
-            TaskInstance.task_id.in_(task_ids),
-        )
-        .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
-        .options(contains_eager(TaskInstance.dag_run))
+    qry_dag = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id.in_(run_ids),
+        TaskInstance.ti_selector_condition(task_ids),
+    )
+
+    qry_dag = qry_dag.filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
+        lazyload(TaskInstance.dag_run)
     )
     return qry_dag
 
@@ -261,17 +261,22 @@ def verify_dagruns(
             session.merge(dag_run)
 
 
-def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str]) -> Iterator[_DagRunInfo]:
-    for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids):
+def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str], session: SASession) -> Iterator[_DagRunInfo]:
+    for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids, session=session):
         dag_run.dag = dag
-        dag_run.verify_integrity()
+        dag_run.verify_integrity(session=session)
         yield _DagRunInfo(dag_run.logical_date, dag.get_run_data_interval(dag_run))
 
 
 def find_task_relatives(tasks, downstream, upstream):
     """Yield task ids and optionally ancestor and descendant ids."""
-    for task in tasks:
-        yield task.task_id
+    for item in tasks:
+        if isinstance(item, tuple):
+            task, map_index = item
+            yield task.task_id, map_index
+        else:
+            task = item
+            yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
                 yield relative.task_id
@@ -313,8 +318,8 @@ def get_execution_dates(
 @provide_session
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
     """Returns run_ids of DAG execution"""
-    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True)
-    current_dagrun = dag.get_dagrun(run_id=run_id)
+    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
+    current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = (
         session.query(DagRun)
         .filter(DagRun.dag_id == dag.dag_id)
@@ -331,7 +336,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     if not dag.timetable.can_run:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
+        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
         run_ids = sorted({d.run_id for d in dag_runs})
     elif not dag.timetable.periodic:
         run_ids = [run_id]
@@ -339,7 +344,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
         dates = [
             info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
-        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates)]
+        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates, session=session)]
     return run_ids
 
 
