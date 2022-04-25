@@ -3314,10 +3314,6 @@ class Airflow(AirflowBaseView):
         wwwutils.check_import_errors(dag.fileloc, session)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-
-        if "error" in dt_nr_dr_data:
-            return Response(dt_nr_dr_data["error"], mimetype="text/plain", status=400)
-
         dttm = dt_nr_dr_data['dttm']
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
