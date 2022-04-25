@@ -99,7 +99,7 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -1945,7 +1945,7 @@ class Airflow(AirflowBaseView):
                 dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
             )
-        except ValueError as ve:
+        except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
             form = DateTimeForm(data={'execution_date': execution_date})
             return self.render_template(
