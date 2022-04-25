@@ -3820,6 +3820,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
+        ConnectionModelView.extra_field_name_mapping[key] = value.field_name
         ConnectionModelView.add_columns.append(key)
         ConnectionModelView.edit_columns.append(key)
         ConnectionModelView.extra_fields.append(key)
@@ -3909,6 +3910,8 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ('conn_id', 'asc')
 
+    extra_field_name_mapping: Dict[str, str] = {}
+
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
         [
@@ -3994,7 +3997,6 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
 
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
@@ -4002,11 +4004,11 @@ class ConnectionModelView(AirflowModelView):
         # so we start with those values, and override them with anything in the custom fields.
         extra = {}
 
-        extra_field = form.data.get("extra")
+        extra_json = form.data.get("extra")
 
-        if extra_field:
+        if extra_json:
             try:
-                extra.update(json.loads(extra_field))
+                extra.update(json.loads(extra_json))
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -4015,18 +4017,19 @@ class ConnectionModelView(AirflowModelView):
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_field}",
+                        f"{extra_json}",
                     ),
                     category="error",
                 )
+        del extra_json
 
-        custom_fields = {
-            key: form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
-        }
+        for key in self.extra_fields:
+            if key in form.data and key.startswith("extra__"):
+                value = form.data[key]
 
-        extra.update(custom_fields)
+                if value:
+                    field_name = self.extra_field_name_mapping[key]
+                    extra[field_name] = value
 
         if extra.keys():
             form.extra.data = json.dumps(extra)
@@ -4046,10 +4049,16 @@ class ConnectionModelView(AirflowModelView):
             logging.warning('extra field for %s is not a dictionary', form.data.get('conn_id', '<unknown>'))
             return
 
-        for field in self.extra_fields:
-            value = extra_dictionary.get(field, '')
+        for field_key in self.extra_fields:
+            field_name = self.extra_field_name_mapping[field_key]
+            value = extra_dictionary.get(field_name, '')
+
+            if not value:
+                # check if connection `extra` json is using old prefixed field name style
+                value = extra_dictionary.get(field_key, '')
+
             if value:
-                field = getattr(form, field)
+                field = getattr(form, field_key)
                 field.data = value
 
 
