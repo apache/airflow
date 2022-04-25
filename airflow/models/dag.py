@@ -2002,7 +2002,7 @@ class DAG(LoggingMixin):
 
         direct_upstreams: List[Operator] = []
         if include_direct_upstream:
-            for t in matched_tasks + also_include:
+            for t in itertools.chain(matched_tasks, also_include):
                 upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
                 direct_upstreams.extend(upstream)
 
