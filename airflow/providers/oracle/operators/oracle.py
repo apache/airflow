@@ -65,8 +65,7 @@ class OracleOperator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        if self.sql:
-            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
 
 
 class OracleStoredProcedureOperator(BaseOperator):
