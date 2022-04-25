@@ -194,6 +194,10 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     one or more models, created using the CreateModel API, to deploy and
     the resources that you want Amazon SageMaker to provision.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerEndpointConfigOperator`
+
     :param config: The configuration necessary to create an endpoint config.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_endpoint_config`
@@ -225,6 +229,10 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     the compute resources up and down as needed to handle your request traffic.
 
     Requires an Endpoint Config.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerEndpointOperator`
 
     :param config:
         The configuration necessary to create an endpoint.

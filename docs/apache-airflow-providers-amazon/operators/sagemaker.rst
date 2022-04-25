@@ -118,6 +118,34 @@ To create an Amazon Sagemaker transform job you can use
     :start-after: [START howto_operator_sagemaker_transform]
     :end-before: [END howto_operator_sagemaker_transform]
 
+.. _howto/operator:SageMakerEndpointConfigOperator:
+
+Create an Amazon SageMaker Endpoint Config Job
+""""""""""""""""""""""""""""""""""""""""""""""
+
+To create an Amazon Sagemaker endpoint config job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_endpoint_config]
+    :end-before: [END howto_operator_sagemaker_endpoint_config]
+
+.. _howto/operator:SageMakerEndpointOperator:
+
+Create an Amazon SageMaker Endpoint Job
+"""""""""""""""""""""""""""""""""""""""
+
+To create an Amazon Sagemaker endpoint you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_endpoint]
+    :end-before: [END howto_operator_sagemaker_endpoint]
+
 
 Amazon SageMaker Sensors
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -163,6 +191,20 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTun
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_tuning_sensor]
     :end-before: [END howto_operator_sagemaker_tuning_sensor]
+
+.. _howto/sensor:SageMakerEndpointSensor:
+
+Amazon SageMaker Endpoint Sensor
+""""""""""""""""""""""""""""""""
+
+To check the state of an Amazon Sagemaker hyperparameter tuning job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_endpoint_sensor]
+    :end-before: [END howto_operator_sagemaker_endpoint_sensor]
 
 Reference
 ^^^^^^^^^

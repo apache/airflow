@@ -88,6 +88,10 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     Polls the endpoint state until it reaches a terminal state.  Raises an
     AirflowException with the failure reason if a failed state is reached.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerEndpointSensor`
+
     :param endpoint_name: Name of the endpoint instance to watch.
     """
 
