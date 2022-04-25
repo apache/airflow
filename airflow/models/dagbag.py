@@ -503,31 +503,42 @@ class DagBag(LoggingMixin):
         stats = []
 
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
-        dag_folder = correct_maybe_zipped(str(dag_folder))
-        for filepath in list_py_file_paths(
+        dag_folders = [
             dag_folder,
-            safe_mode=safe_mode,
-            include_examples=include_examples,
-            include_smart_sensor=include_smart_sensor,
-        ):
-            try:
-                file_parse_start_dttm = timezone.utcnow()
-                found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
-
-                file_parse_end_dttm = timezone.utcnow()
-                stats.append(
-                    FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ''),
-                        duration=file_parse_end_dttm - file_parse_start_dttm,
-                        dag_num=len(found_dags),
-                        task_num=sum(len(dag.tasks) for dag in found_dags),
-                        dags=str([dag.dag_id for dag in found_dags]),
+            "/Users/james/Work/astronomer-airflow/config/dags_3",
+            "/Users/james/Work/astronomer-airflow/config/dags_2",
+        ]
+        for _dag_folder in dag_folders:
+            self.log.error(f"DAG FOLDER {_dag_folder}\n")
+            _dag_folder = correct_maybe_zipped(str(_dag_folder))
+            for filepath in list_py_file_paths(
+                _dag_folder,
+                safe_mode=safe_mode,
+                include_examples=include_examples,
+                include_smart_sensor=include_smart_sensor,
+            ):
+                self.log.error(f"FILE PATH {filepath}\n")
+                try:
+                    file_parse_start_dttm = timezone.utcnow()
+                    found_dags = self.process_file(
+                        filepath, only_if_updated=only_if_updated, safe_mode=safe_mode
                     )
-                )
-            except Exception as e:
-                self.log.exception(e)
+
+                    file_parse_end_dttm = timezone.utcnow()
+                    stats.append(
+                        FileLoadStat(
+                            file=filepath.replace(settings.DAGS_FOLDER, ''),
+                            duration=file_parse_end_dttm - file_parse_start_dttm,
+                            dag_num=len(found_dags),
+                            task_num=sum(len(dag.tasks) for dag in found_dags),
+                            dags=str([dag.dag_id for dag in found_dags]),
+                        )
+                    )
+                except Exception as e:
+                    self.log.exception(e)
 
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
+        self.log.error(f"DAGBAG STATS {self.dagbag_stats}")
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""

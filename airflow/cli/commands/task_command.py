@@ -228,6 +228,8 @@ def _capture_task_logs(ti):
 
 @cli_utils.action_logging
 def task_run(args, dag=None):
+    print(f"TASK_RUN args {args}")
+    print(f"TASK_RUN dag {dag}")
     """Run a single task instance.
 
     Note that there must be at least one DagRun for this to start,
