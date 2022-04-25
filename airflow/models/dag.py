@@ -1965,11 +1965,8 @@ class DAG(LoggingMixin):
         :param include_upstream: Include all upstream tasks of matched tasks,
             in addition to matched tasks.
         :param include_direct_upstream: Include all tasks directly upstream of matched
-            and downstream (if include_downstream = True) tasks. Can not be use when
-            include_upstream = True - would be a noop with overhead.
+            and downstream (if include_downstream = True) tasks
         """
-
-        assert not (include_upstream and include_direct_upstream)
 
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
