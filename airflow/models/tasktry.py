@@ -31,16 +31,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class TaskMapVariant(enum.Enum):
-    """Task map variant.
-    Possible values are **dict** (for a key-value mapping) and **list** (for an
-    ordered value sequence).
-    """
-
-    DICT = "dict"
-    LIST = "list"
-
-
 class TaskTry(Base):
     """Model to track individual TaskInstance tries.
     This is currently only used for storing appropriate hostnames.
