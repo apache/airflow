@@ -34,13 +34,12 @@ const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');
 
-const emptyData = {
-  dagRuns: [],
-  groups: {},
-};
-const initialData = formatData(treeData, emptyData);
-
 const useTreeData = () => {
+  const emptyData = {
+    dagRuns: [],
+    groups: {},
+  };
+  const initialData = formatData(treeData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
   return useQuery('treeData', async () => {
