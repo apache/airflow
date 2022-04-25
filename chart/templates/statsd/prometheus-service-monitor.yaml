@@ -1,0 +1,20 @@
+{{- if and .Values.statsd.enabled .Values.statsd.enableServiceMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-servicemonitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      tier: airflow
+      component: statsd
+      release: "{{ .Release.Name }}"
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+  - port: statsd-scrape
+{{- end }}

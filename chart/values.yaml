@@ -1123,6 +1123,7 @@ flower:
 # StatsD settings
 statsd:
   enabled: true
+  enableServiceMonitor: false
 
   # Create ServiceAccount
   serviceAccount:

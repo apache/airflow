@@ -3180,6 +3180,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "enableServiceMonitor": {
+                    "description": "Enable PrometheusOperator ServiceMonitor",
+                    "type": "boolean",
+                    "default": false
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
                     "type": "array",
