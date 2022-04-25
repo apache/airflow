@@ -37,7 +37,7 @@ from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -811,15 +811,15 @@ class TestLocalTaskJob:
         ],
     )
     @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
-    def test_mini_scheduler_works_with_skipped_and_failed(self, exception, trigger_rule, caplog, dag_maker):
+    def test_mini_scheduler_works_with_skipped_and_failed(
+        self, exception, trigger_rule, caplog, session, dag_maker
+    ):
         """
         In these cases D is running, at no decision can be made about C.
         """
 
         def raise_():
             raise exception
-
-        session = settings.Session()
 
         with dag_maker(catchup=False) as dag:
             task_a = PythonOperator(task_id='A', python_callable=raise_)
@@ -856,8 +856,6 @@ class TestLocalTaskJob:
         assert failed_deps[0].dep_name == "Trigger Rule"
         assert not failed_deps[0].passed
 
-        session.rollback()
-
     @pytest.mark.parametrize(
         "trigger_rule",
         [
@@ -868,12 +866,10 @@ class TestLocalTaskJob:
         ],
     )
     @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
-    def test_mini_scheduler_works_with_branch_python_operator(self, trigger_rule, caplog, dag_maker):
+    def test_mini_scheduler_works_with_branch_python_operator(self, trigger_rule, caplog, session, dag_maker):
         """
         In these cases D is running, at no decision can be made about C.
         """
-        session = settings.Session()
-
         with dag_maker(catchup=False) as dag:
             task_a = BranchPythonOperator(task_id='A', python_callable=lambda: [])
             task_b = PythonOperator(task_id='B', python_callable=lambda: True)
@@ -912,8 +908,6 @@ class TestLocalTaskJob:
         assert len(failed_deps) == 1
         assert failed_deps[0].dep_name == "Trigger Rule"
         assert not failed_deps[0].passed
-
-        session.rollback()
 
     @patch('airflow.utils.process_utils.subprocess.check_call')
     def test_task_sigkill_works_with_retries(self, _check_call, caplog, dag_maker):
