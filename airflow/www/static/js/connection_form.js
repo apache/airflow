@@ -263,7 +263,11 @@ $(document).ready(() => {
           });
         // Check if field is a custom form field.
         } else if (this.name.startsWith('extra__')) {
+          // prior to Airflow 2.3 custom fields were stored in the extra dict with prefix
+          // post-2.3 we allow to use with no prefix
+          // here we don't know which we are configured to use, so we populate both
           extrasObj[this.name] = this.value;
+          extrasObj[this.name.replace(/extra__.+?__/, '')] = this.value;
         } else {
           outObj[this.name] = this.value;
         }
