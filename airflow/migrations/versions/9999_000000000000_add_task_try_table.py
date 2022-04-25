@@ -20,7 +20,7 @@
 
 Revision ID: 1b38cef5b76e
 Revises: 52d714495f0
-Create Date: 2015-10-27 08:31:48.475140
+Create Date: 2022-XX-XX XX:XX:XX.XXXXXX
 
 """
 
@@ -34,7 +34,7 @@ revision = '0000000000000'
 down_revision = '0000000000000'
 branch_labels = None
 depends_on = None
-airflow_version = '9.9.9'
+airflow_version = '2.4.0'
 
 
 def upgrade():
@@ -43,9 +43,10 @@ def upgrade():
         sa.Column('dag_id', StringID(), nullable=False),
         sa.Column('run_id', StringID(), nullable=False),
         sa.Column('task_id', StringID(), nullable=False),
+        sa.Column('map_index', sa.Integer(), nullable=False),
         sa.Column('try_number', sa.Integer(), nullable=False),
         sa.Column('hostname', sa.String(length=1000), nullable=True),
-        sa.PrimaryKeyConstraint('dag_id', 'task_id', 'run_id', 'try_number'),
+        sa.PrimaryKeyConstraint('dag_id', 'task_id', 'run_id', 'map_index', 'try_number'),
     )
 
 
