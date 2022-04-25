@@ -220,7 +220,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.encoding = encoding
 
         self.max_id_key = max_id_key
-        self.gcp_conn_id = gcp_conn_id or bigquery_conn_id or google_cloud_storage_conn_id
+        self.gcp_conn_id = bigquery_conn_id or google_cloud_storage_conn_id or gcp_conn_id
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
