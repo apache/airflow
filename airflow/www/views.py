@@ -242,11 +242,11 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v: str):
+def _safe_parse_datetime(v):
     """Parse datetime and return error message for invalid dates"""
     try:
         return timezone.parse(v)
-    except ParserError:
+    except (TypeError, ParserError):
         abort(400, f"Invalid datetime: {v!r}")
 
 
@@ -2079,12 +2079,7 @@ class Airflow(AirflowBaseView):
             map_indexes = request.form.getlist('map_index', type=int)
 
         execution_date = request.form.get('execution_date')
-
-        try:
-            execution_date = timezone.parse(execution_date)
-        except (TypeError, ParserError):
-            return Response("Invalid execution_date", mimetype="text/plain", status=400)
-
+        execution_date = _safe_parse_datetime(execution_date)
         confirmed = request.form.get('confirmed') == "true"
         upstream = request.form.get('upstream') == "true"
         downstream = request.form.get('downstream') == "true"
@@ -2615,7 +2610,7 @@ class Airflow(AirflowBaseView):
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
         try:
-            base_date = timezone.parse(request.args["base_date"])
+            base_date = _safe_parse_datetime(request.args["base_date"])
         except (KeyError, ValueError):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
@@ -3491,10 +3486,7 @@ class Airflow(AirflowBaseView):
 
         dttm = request.args.get('execution_date')
         if dttm:
-            try:
-                dttm = timezone.parse(dttm)
-            except ParserError:
-                return "Error: Invalid execution_date"
+            dttm = _safe_parse_datetime(dttm)
         else:
             response = jsonify({'error': f"Invalid execution_date {dttm}"})
             response.status_code = 400
