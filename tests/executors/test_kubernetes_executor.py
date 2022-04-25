@@ -30,6 +30,7 @@ from urllib3 import HTTPResponse
 
 from airflow import AirflowException
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -741,6 +742,62 @@ class TestKubernetesExecutor:
         assert ti.state == State.QUEUED
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+        )
+
+    def test_clear_not_launched_queued_tasks_mapped_task(self, dag_maker, session):
+        """One mapped task has a launched pod - other does not."""
+
+        def list_namespaced_pod(*args, **kwargs):
+            if 'map_index=0' in kwargs['label_selector']:
+                return k8s.V1PodList(items=["something"])
+            else:
+                return k8s.V1PodList(items=[])
+
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
+
+        with dag_maker(dag_id='test_clear'):
+            op = BashOperator.partial(task_id="bash").expand(bash_command=["echo 0", "echo 1"])
+
+        dag_run = dag_maker.create_dagrun()
+        ti0 = dag_run.get_task_instance(op.task_id, session, map_index=0)
+        ti0.state = State.QUEUED
+        ti0.queued_by_job_id = 1
+
+        ti1 = dag_run.get_task_instance(op.task_id, session, map_index=1)
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 1
+
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        assert ti0.state == State.QUEUED
+        assert ti1.state == State.SCHEDULED
+
+        assert mock_kube_client.list_namespaced_pod.call_count == 3
+        execution_date_label = pod_generator.datetime_to_label_safe_datestring(dag_run.execution_date)
+        mock_kube_client.list_namespaced_pod.assert_has_calls(
+            [
+                mock.call(
+                    "default",
+                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=0,run_id=test",
+                ),
+                mock.call(
+                    "default",
+                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,run_id=test",
+                ),
+                mock.call(
+                    "default",
+                    label_selector=f"dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,"
+                    f"execution_date={execution_date_label}",
+                ),
+            ],
+            any_order=True,
         )
 
 

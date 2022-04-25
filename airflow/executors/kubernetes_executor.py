@@ -505,6 +505,7 @@ class KubernetesExecutor(BaseExecutor):
                 TaskInstance.dag_id == ti.dag_id,
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
+                TaskInstance.map_index == ti.map_index,
             ).update({TaskInstance.state: State.SCHEDULED})
 
     def start(self) -> None:
