@@ -1,0 +1,13 @@
+The webserver.X_FRAME_ENABLED configuration works according to description now.
+
+In Airflow 2.0.0 - 2.2.4 the webserver.X_FRAME_ENABLED parameter worked the opposite of its description,
+setting the value to "true" caused "X-Frame-Options" header to "DENY" (not allowing Airflow to be used
+in an IFrame). When you set it to "false", the header was not added, so Airflow could be embedded in an
+IFrame. By default Airflow could not be embedded in an IFrame.
+
+In Airflow 2.2.5 there was a bug introduced that made it impossible to disable Airflow to
+work in IFrame. No matter what the configuration was set, it was possible to embed Airflow in an IFrame.
+
+Airflow 2.3.0 restores the original meaning to the parameter. If you set it to "true" (default) Airflow
+can be embedded in an IFrame (no header is added), but when you set it to "false" the header is added
+and Airflow cannot be embedded in an IFrame.
