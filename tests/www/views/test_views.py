@@ -418,6 +418,10 @@ def test_get_task_stats_from_query():
             'dags/example_bash_operator/gantt?execution_date=invalid',
             "Invalid datetime: 'invalid'",
         ),
+        (
+            'extra_links?execution_date=invalid',
+            "Invalid datetime: 'invalid'",
+        ),
     ],
 )
 def test_invalid_dates(app, admin_client, url, content):

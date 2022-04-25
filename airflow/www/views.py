@@ -3427,7 +3427,7 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
         link_name = request.args.get('link_name')
-        dttm = timezone.parse(execution_date)
+        dttm = _safe_parse_datetime(execution_date)
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
