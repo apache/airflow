@@ -669,15 +669,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze free-space
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - run: ./scripts/ci/install_breeze.sh
+      - name: "Free space"
+        run: breeze free-space
       - name: "Get Python version"
         run: "echo \"::set-output name=host-python-version::$(python -c
  'import platform; print(platform.python_version())')\""
