@@ -18,7 +18,6 @@
 """This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
-import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
