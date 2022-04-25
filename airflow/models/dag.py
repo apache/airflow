@@ -18,6 +18,7 @@
 
 import copy
 import functools
+import itertools
 import logging
 import os
 import pathlib
@@ -1999,11 +2000,11 @@ class DAG(LoggingMixin):
             if include_upstream:
                 also_include.extend(t.get_flat_relatives(upstream=True))
 
-        direct_upstream: List[Operator] = []
+        direct_upstreams: List[Operator] = []
         if include_direct_upstream:
             for t in matched_tasks + also_include:
                 upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
-                direct_upstream.extend(upstream)
+                direct_upstreams.extend(upstream)
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -2012,7 +2013,10 @@ class DAG(LoggingMixin):
             memo.setdefault(id(t.task_group), None)
             return copy.deepcopy(t, memo)
 
-        dag.task_dict = {t.task_id: _deepcopy_task(t) for t in matched_tasks + also_include}
+        dag.task_dict = {
+            t.task_id: _deepcopy_task(t)
+            for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
+        }
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
