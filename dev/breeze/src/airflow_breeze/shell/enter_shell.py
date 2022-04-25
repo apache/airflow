@@ -18,7 +18,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from airflow_breeze import global_constants
 from airflow_breeze.build_image.ci.build_ci_image import build_ci_image
@@ -137,3 +137,43 @@ def run_shell_with_build_image_checks(
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
     return run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True)
+
+
+def stop_exec_on_error(returncode: int):
+    get_console().print('\n[error]ERROR in finding the airflow docker-compose process id[/]\n')
+    sys.exit(returncode)
+
+
+def find_airflow_container(verbose, dry_run) -> Optional[str]:
+    exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
+    check_docker_resources(verbose, exec_shell_params.airflow_image_name, dry_run)
+    exec_shell_params.print_badge_info()
+    env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
+    cmd = ['docker-compose', 'ps', '--all', '--filter', 'status=running', 'airflow']
+    docker_compose_ps_command = run_command(
+        cmd,
+        verbose=verbose,
+        dry_run=dry_run,
+        text=True,
+        capture_output=True,
+        env=env_variables,
+        # print output if run in verbose mode to better diagnose problems.
+        no_output_dump_on_exception=not verbose,
+    )
+    if dry_run:
+        return "CONTAINER_ID"
+    if docker_compose_ps_command.returncode != 0:
+        stop_exec_on_error(docker_compose_ps_command.returncode)
+        return None
+
+    output = docker_compose_ps_command.stdout
+    container_info = output.strip().split('\n')
+    if container_info:
+        container_running = container_info[-1].split(' ')[0]
+        if container_running.startswith('-'):
+            # On docker-compose v1 we get '--------' as output here
+            stop_exec_on_error(docker_compose_ps_command.returncode)
+        return container_running
+    else:
+        stop_exec_on_error(1)
+        return None
