@@ -56,6 +56,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
     :param job_id: The ID of a dbt Cloud job.
     :param account_id: Optional. The ID of a dbt Cloud account.
+    :param tenant: Optional. The subdomain / tenancy of a dbt Cloud account.
     :param trigger_reason: Optional. Description of the reason to trigger the job.
     :param steps_override: Optional. List of dbt commands to execute when triggering the job instead of those
         configured in dbt Cloud.
@@ -76,6 +77,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         "dbt_cloud_conn_id",
         "job_id",
         "account_id",
+        "tenant",
         "trigger_reason",
         "steps_override",
         "schema_override",
@@ -90,6 +92,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         job_id: int,
         account_id: Optional[int] = None,
+        tenant: Optional[str] = 'cloud',
         trigger_reason: Optional[str] = None,
         steps_override: Optional[List[str]] = None,
         schema_override: Optional[str] = None,
@@ -102,6 +105,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.account_id = account_id
+        self.tenant = tenant
         self.job_id = job_id
         self.trigger_reason = trigger_reason
         self.steps_override = steps_override
@@ -119,7 +123,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
 
-        self.hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        self.hook = DbtCloudHook(self.dbt_cloud_conn_id, self.tenant)
         trigger_job_response = self.hook.trigger_job_run(
             account_id=self.account_id,
             job_id=self.job_id,
