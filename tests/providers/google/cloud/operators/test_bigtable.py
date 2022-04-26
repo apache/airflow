@@ -163,8 +163,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=None,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 
@@ -196,8 +194,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=None,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 
@@ -230,8 +226,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=REPLICATE_CLUSTERS,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 

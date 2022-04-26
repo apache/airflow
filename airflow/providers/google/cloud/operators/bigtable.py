@@ -65,9 +65,6 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :param replica_clusters: (optional) A list of replica clusters for the new
         instance. Each cluster dictionary contains an id and a zone.
         Example: [{"id": "replica-1", "zone": "us-west1-a"}]
-    :param replica_cluster_id: (deprecated) The ID for replica cluster for the new
-        instance.
-    :param replica_cluster_zone: (deprecated)  The zone for replica cluster.
     :param instance_type: (optional) The type of the instance.
     :param instance_display_name: (optional) Human-readable name of the instance. Defaults
         to ``instance_id``.
@@ -105,8 +102,6 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         main_cluster_zone: str,
         project_id: Optional[str] = None,
         replica_clusters: Optional[List[Dict[str, str]]] = None,
-        replica_cluster_id: Optional[str] = None,
-        replica_cluster_zone: Optional[str] = None,
         instance_display_name: Optional[str] = None,
         instance_type: Optional[enums.Instance.Type] = None,
         instance_labels: Optional[Dict] = None,
@@ -122,8 +117,6 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.main_cluster_id = main_cluster_id
         self.main_cluster_zone = main_cluster_zone
         self.replica_clusters = replica_clusters
-        self.replica_cluster_id = replica_cluster_id
-        self.replica_cluster_zone = replica_cluster_zone
         self.instance_display_name = instance_display_name
         self.instance_type = instance_type
         self.instance_labels = instance_labels
@@ -156,8 +149,6 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                 main_cluster_id=self.main_cluster_id,
                 main_cluster_zone=self.main_cluster_zone,
                 replica_clusters=self.replica_clusters,
-                replica_cluster_id=self.replica_cluster_id,
-                replica_cluster_zone=self.replica_cluster_zone,
                 instance_display_name=self.instance_display_name,
                 instance_type=self.instance_type,
                 instance_labels=self.instance_labels,
