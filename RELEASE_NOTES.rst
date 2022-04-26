@@ -338,7 +338,6 @@ Improvements
 - Use DB where possible for quicker ``airflow dag`` subcommands (#21793)
 - REST API: add rendered fields in task instance. (#21741)
 - Change the default auth backend to session (#21640)
-- Refactor ``TriggerRule`` & ``WeightRule`` classes to inherit from Enum (#21264)
 - Don't check if ``py`` DAG files are zipped during parsing (#21538)
 - Switch XCom implementation to use ``run_id`` (#20975)
 - Action log on Browse Views (#21569)
