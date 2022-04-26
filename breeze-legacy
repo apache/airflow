@@ -1430,7 +1430,6 @@ ${FORMATTED_KIND_OPERATIONS}
 
 Flags:
 $(breeze::flag_airflow_variants)
-$(breeze::flag_build_docker_images)
 "
     readonly DETAILED_USAGE_KIND_CLUSTER
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
