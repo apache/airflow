@@ -24,32 +24,43 @@ import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const clearRunUrl = getMetaValue('dagrun_clear_url');
+const runUrl = getMetaValue('run_url');
 
-export default function useClearRun(dagId, runId) {
+export default function useRunTask(dagId, runId, taskId) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunClear', dagId, runId],
-    ({ confirmed = false }) => {
-      const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        confirmed,
-        dag_id: dagId,
-        dag_run_id: runId,
-      }).toString();
+    ['runTask', dagId, runId, taskId],
+    async ({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+      mapIndexes,
+    }) => Promise.all(
+      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
+        const params = new URLSearchParams({
+          csrf_token: csrfToken,
+          dag_id: dagId,
+          dag_run_id: runId,
+          task_id: taskId,
+          ignore_all_deps: ignoreAllDeps,
+          ignore_task_deps: ignoreTaskDeps,
+          ignore_ti_state: ignoreTaskState,
+          map_index: mi,
+        }).toString();
 
-      return axios.post(clearRunUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
+        return axios.post(runUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+      }),
+    ),
     {
       onSuccess: () => {
-        // Invalidating the query will force a new API request
-        queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

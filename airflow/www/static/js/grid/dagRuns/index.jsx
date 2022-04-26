@@ -26,7 +26,7 @@ import {
   Flex,
 } from '@chakra-ui/react';
 
-import { useTreeData } from '../api';
+import { useGridData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
 import useSelection from '../utils/useSelection';
@@ -38,7 +38,7 @@ const DurationTick = ({ children, ...rest }) => (
 );
 
 const DagRuns = () => {
-  const { data: { dagRuns } } = useTreeData();
+  const { data: { dagRuns } } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {

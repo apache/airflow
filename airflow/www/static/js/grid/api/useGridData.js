@@ -17,19 +17,19 @@
  * under the License.
  */
 
-/* global treeData, autoRefreshInterval */
+/* global gridData, autoRefreshInterval */
 
 import { useQuery } from 'react-query';
 import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { formatData, areActiveRuns } from '../utils/treeData';
+import { formatData, areActiveRuns } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
-const treeDataUrl = getMetaValue('tree_data_url') || '';
+const gridDataUrl = getMetaValue('grid_data_url') || '';
 const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');
@@ -39,11 +39,11 @@ const emptyData = {
   groups: {},
 };
 
-const useTreeData = () => {
-  const initialData = formatData(treeData, emptyData);
+const useGridData = () => {
+  const initialData = formatData(gridData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
-  return useQuery('treeData', async () => {
+  return useQuery('gridData', async () => {
     try {
       const params = new URLSearchParams({
         dag_id: dagId,
@@ -52,7 +52,7 @@ const useTreeData = () => {
       if (urlRoot) params.append('root', urlRoot);
       if (baseDate) params.append('base_date', baseDate);
 
-      const newData = await axios.get(treeDataUrl, { params });
+      const newData = await axios.get(gridDataUrl, { params });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(newData.dagRuns)) stopRefresh();
       return newData;
@@ -72,4 +72,4 @@ const useTreeData = () => {
   });
 };
 
-export default useTreeData;
+export default useGridData;

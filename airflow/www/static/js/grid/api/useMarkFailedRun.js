@@ -24,43 +24,31 @@ import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const runUrl = getMetaValue('run_url');
+const markFailedUrl = getMetaValue('dagrun_failed_url');
 
-export default function useRunTask(dagId, runId, taskId) {
+export default function useMarkFailedRun(dagId, runId) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['runTask', dagId, runId, taskId],
-    async ({
-      ignoreAllDeps,
-      ignoreTaskState,
-      ignoreTaskDeps,
-      mapIndexes,
-    }) => Promise.all(
-      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
-        const params = new URLSearchParams({
-          csrf_token: csrfToken,
-          dag_id: dagId,
-          dag_run_id: runId,
-          task_id: taskId,
-          ignore_all_deps: ignoreAllDeps,
-          ignore_task_deps: ignoreTaskDeps,
-          ignore_ti_state: ignoreTaskState,
-          map_index: mi,
-        }).toString();
+    ['dagRunFailed', dagId, runId],
+    ({ confirmed = false }) => {
+      const params = new URLSearchParams({
+        csrf_token: csrfToken,
+        confirmed,
+        dag_id: dagId,
+        dag_run_id: runId,
+      }).toString();
 
-        return axios.post(runUrl, params, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        });
-      }),
-    ),
+      return axios.post(markFailedUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('treeData');
-        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        queryClient.invalidateQueries('gridData');
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

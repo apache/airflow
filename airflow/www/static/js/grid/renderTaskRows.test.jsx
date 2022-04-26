@@ -25,7 +25,7 @@ import { render, fireEvent } from '@testing-library/react';
 import renderTaskRows from './renderTaskRows';
 import { TableWrapper } from './utils/testUtils';
 
-const mockTreeData = {
+const mockGridData = {
   groups: {
     id: null,
     label: null,
@@ -90,9 +90,9 @@ const mockTreeData = {
 
 describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
-    global.treeData = mockTreeData;
-    const dagRunIds = mockTreeData.dagRuns.map((dr) => dr.runId);
-    const task = mockTreeData.groups;
+    global.gridData = mockGridData;
+    const dagRunIds = mockGridData.dagRuns.map((dr) => dr.runId);
+    const task = mockGridData.groups;
 
     const { getByTestId, getByText, getAllByTestId } = render(
       <>{renderTaskRows({ task, dagRunIds })}</>,
@@ -113,7 +113,7 @@ describe('Test renderTaskRows', () => {
   });
 
   test('Still renders names if there are no instances', () => {
-    global.treeData = {
+    global.gridData = {
       groups: {
         id: null,
         label: null,
@@ -137,7 +137,7 @@ describe('Test renderTaskRows', () => {
       },
       dagRuns: [],
     };
-    const task = mockTreeData.groups;
+    const task = mockGridData.groups;
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: [] })}</>,

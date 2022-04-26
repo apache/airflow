@@ -31,7 +31,7 @@ import { MdPlayArrow } from 'react-icons/md';
 import { getMetaValue } from '../../utils';
 import useSelection from '../utils/useSelection';
 import Time from '../Time';
-import { useTasks, useTreeData } from '../api';
+import { useTasks, useGridData } from '../api';
 
 const dagId = getMetaValue('dag_id');
 
@@ -43,7 +43,7 @@ const LabelValue = ({ label, value }) => (
 );
 
 const Header = () => {
-  const { data: { dagRuns } } = useTreeData();
+  const { data: { dagRuns } } = useGridData();
   const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
   const { data: { tasks } } = useTasks();
   const dagRun = dagRuns.find((r) => r.runId === runId);
