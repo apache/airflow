@@ -24,6 +24,7 @@
 Airflow 2.3.0 (2022-04-29)
 --------------------------
 For production docker image related changes, see the `Docker Image Changelog <https://airflow.apache.org/docs/docker-stack/changelog.html>`_.
+
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
