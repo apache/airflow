@@ -482,7 +482,7 @@ requests==2.27.1
 responses==0.20.0
 rfc3986==1.5.0
 rich-click==1.3.0
-rich==12.2.0
+rich==12.3.0
 rsa==4.8
 s3transfer==0.5.2
 sasl==0.3.1

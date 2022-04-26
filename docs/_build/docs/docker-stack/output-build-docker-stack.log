@@ -1,0 +1,588 @@
+[01mRunning Sphinx v4.4.0[39;49;00m
+Initializing Spelling Checker 7.3.2
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/boto3/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/celery/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/docker/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/hdfs/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/jinja2/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/mongodb/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/pandas/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/python/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/requests/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/sqlalchemy/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-airbyte/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-alibaba/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-amazon/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-beam/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-cassandra/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-drill/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-druid/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-hdfs/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-hive/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-kylin/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-livy/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-pig/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-pinot/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-spark/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-apache-sqoop/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-asana/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-celery/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-cloudant/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-cncf-kubernetes/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-databricks/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-datadog/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-dbt-cloud/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-dingding/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-discord/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-docker/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-elasticsearch/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-exasol/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-facebook/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-ftp/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-github/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-google/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-grpc/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-hashicorp/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-http/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-imap/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-influxdb/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-jdbc/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-jenkins/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-jira/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-microsoft-azure/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-microsoft-mssql/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-microsoft-psrp/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-microsoft-winrm/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-mongo/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-mysql/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-neo4j/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-odbc/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-openfaas/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-opsgenie/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-oracle/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-pagerduty/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-papermill/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-plexus/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-postgres/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-presto/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-qubole/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-redis/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-salesforce/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-samba/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-segment/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-sendgrid/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-sftp/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-singularity/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-slack/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-snowflake/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-sqlite/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-ssh/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-tableau/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-telegram/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-trino/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-vertica/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-yandex/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers-zendesk/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/helm-chart/objects.inv...
+loading intersphinx inventory from /opt/airflow/docs/_inventory_cache/apache-airflow-providers/objects.inv...
+Could not found the redirect file: /opt/airflow/docs/docker-stack/redirects.txt
+[01mbuilding [mo]: [39;49;00mtargets for 0 po files that are out of date
+[01mbuilding [html]: [39;49;00mtargets for 6 source files that are out of date
+[01mupdating environment: [39;49;00m[new config] 6 added, 0 changed, 0 removed
+[01mreading sources... [39;49;00m[ 16%] [35mbuild[39;49;00m                                                                                                                                                                                                                    Module "docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf'"))
+
+Module "docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf'"))
+
+Module "docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf'"))
+
+Module "docs.docker-stack.docker-examples.extending.add-providers.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.add-providers.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-providers.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.add-providers.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.add-providers.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-providers.Dockerf'"))
+
+[docs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf] Entry is false for 
+[docs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf] Entry is false for 
+Module "docs.docker-stack.docker-examples.extending.writable-directory.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.writable-directory.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.writable-directory.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.writable-directory.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.writable-directory.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.writable-directory.Dockerf'"))
+
+Module "docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf'"))
+
+[docs.docker-stack.docker-examples.extending.embedding-dags.Dockerf] Entry is false for 
+Module "docs.docker-stack.docker-examples.customizing.own-requirements" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.own-requirements' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.own-requirements'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.own-requirements'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.own-requirements' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.own-requirements'"))
+
+Module "docs.docker-stack.docker-examples.customizing.custom-pip" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.custom-pip' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.custom-pip'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.custom-pip'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.custom-pip' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.custom-pip'"))
+
+Module "docs.docker-stack.docker-examples.restricted.restricted_environments" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.restricted.restricted_environments' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.restricted.restricted_environments'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.restricted.restricted_environments'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.restricted.restricted_environments' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.restricted.restricted_environments'"))
+
+Module "docs.docker-stack.docker-examples.customizing.stable-airflow" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.stable-airflow' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.stable-airflow'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.stable-airflow'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.stable-airflow' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.stable-airflow'"))
+
+Module "docs.docker-stack.docker-examples.customizing.pypi-selected-version" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.pypi-selected-version' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-selected-version'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.pypi-selected-version'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.pypi-selected-version' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-selected-version'"))
+
+Module "docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-extras-and-deps'"))
+
+Module "docs.docker-stack.docker-examples.customizing.add-build-essential-custom" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.add-build-essential-custom' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.add-build-essential-custom'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.add-build-essential-custom'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.add-build-essential-custom' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.add-build-essential-custom'"))
+
+Module "docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps'"))
+
+Module "docs.docker-stack.docker-examples.customizing.github-main" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.github-main' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-main'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.github-main'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.github-main' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-main'"))
+
+Module "docs.docker-stack.docker-examples.customizing.github-v2-2-test" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.github-v2-2-test' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-v2-2-test'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.github-v2-2-test'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.github-v2-2-test' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-v2-2-test'"))
+
+Module "docs.docker-stack.docker-examples.customizing.github-different-repository" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.github-different-repository' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-different-repository'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.github-different-repository'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.github-different-repository' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.github-different-repository'"))
+
+Module "docs.docker-stack.docker-examples.customizing.custom-sources" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-examples.customizing.custom-sources' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.custom-sources'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-examples.customizing.custom-sources'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-examples.customizing.custom-sources' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-examples.customizing.custom-sources'"))
+
+[docs.docker-stack.docker-examples.restricted.restricted_environments] Entry is false for 
+[docs.docker-stack.docker-examples.restricted.restricted_environments] Entry is false for 
+[01mreading sources... [39;49;00m[ 33%] [35mbuild-arg-ref[39;49;00m                                                                                                                                                                                                            [01mreading sources... [39;49;00m[ 50%] [35mchangelog[39;49;00m                                                                                                                                                                                                                [01mreading sources... [39;49;00m[ 66%] [35mentrypoint[39;49;00m                                                                                                                                                                                                               [01mreading sources... [39;49;00m[ 83%] [35mindex[39;49;00m                                                                                                                                                                                                                    [01mreading sources... [39;49;00m[100%] [35mrecipes[39;49;00m                                                                                                                                                                                                                  Module "docs.docker-stack.docker-images-recipes.gcloud.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-images-recipes.gcloud.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.gcloud'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 953, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-images-recipes.gcloud'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-images-recipes.gcloud.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.gcloud'"))
+
+Module "docs.docker-stack.docker-images-recipes.hadoop.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-images-recipes.hadoop.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.hadoop'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 953, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-images-recipes.hadoop'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-images-recipes.hadoop.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.hadoop'"))
+
+Module "docs.docker-stack.docker-images-recipes.go-beam.Dockerf" could not be loaded. Full source will not be available. "error importing 'docs.docker-stack.docker-images-recipes.go-beam.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.go-beam'"))"
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 46, in get_module_source
+    mod = import_module(modname)
+  File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 953, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'docs.docker-stack.docker-images-recipes.go-beam'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/airflow/docs/exts/exampleinclude.py", line 151, in register_source
+    analyzer = ModuleAnalyzer.for_module(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 126, in for_module
+    filename, source = cls.get_module_source(modname)
+  File "/usr/local/lib/python3.7/site-packages/sphinx/pycode/__init__.py", line 48, in get_module_source
+    raise PycodeError('error importing %r' % modname, err) from err
+sphinx.errors.PycodeError: error importing 'docs.docker-stack.docker-images-recipes.go-beam.Dockerf' (exception was: ModuleNotFoundError("No module named 'docs.docker-stack.docker-images-recipes.go-beam'"))
+
+
+[01mlooking for now-outdated files... [39;49;00mnone found
+[01mpickling environment... [39;49;00mdone
+[01mchecking consistency... [39;49;00mdone
+[01mpreparing documents... [39;49;00mdone
+[01mwriting output... [39;49;00m[ 16%] [32mbuild[39;49;00m                                                                                                                                                                                                                     [01mwriting output... [39;49;00m[ 33%] [32mbuild-arg-ref[39;49;00m                                                                                                                                                                                                             [01mwriting output... [39;49;00m[ 50%] [32mchangelog[39;49;00m                                                                                                                                                                                                                 [01mwriting output... [39;49;00m[ 66%] [32mentrypoint[39;49;00m                                                                                                                                                                                                                [01mwriting output... [39;49;00m[ 83%] [32mindex[39;49;00m                                                                                                                                                                                                                     [01mwriting output... [39;49;00m[100%] [32mrecipes[39;49;00m                                                                                                                                                                                                                   
+[01mgenerating indices... [39;49;00mgenindex done
+[01mhighlighting module code... [39;49;00m[  4%] [94mdocs.docker-stack.docker-examples.customizing.add-build-essential-custom[39;49;00m                                                                                                                                        [01mhighlighting module code... [39;49;00m[  9%] [94mdocs.docker-stack.docker-examples.customizing.custom-pip[39;49;00m                                                                                                                                                        [01mhighlighting module code... [39;49;00m[ 14%] [94mdocs.docker-stack.docker-examples.customizing.custom-sources[39;49;00m                                                                                                                                                    [01mhighlighting module code... [39;49;00m[ 19%] [94mdocs.docker-stack.docker-examples.customizing.github-different-repository[39;49;00m                                                                                                                                       [01mhighlighting module code... [39;49;00m[ 23%] [94mdocs.docker-stack.docker-examples.customizing.github-main[39;49;00m                                                                                                                                                       [01mhighlighting module code... [39;49;00m[ 28%] [94mdocs.docker-stack.docker-examples.customizing.github-v2-2-test[39;49;00m                                                                                                                                                  [01mhighlighting module code... [39;49;00m[ 33%] [94mdocs.docker-stack.docker-examples.customizing.own-requirements[39;49;00m                                                                                                                                                  [01mhighlighting module code... [39;49;00m[ 38%] [94mdocs.docker-stack.docker-examples.customizing.pypi-dev-runtime-deps[39;49;00m                                                                                                                                             [01mhighlighting module code... [39;49;00m[ 42%] [94mdocs.docker-stack.docker-examples.customizing.pypi-extras-and-deps[39;49;00m                                                                                                                                              [01mhighlighting module code... [39;49;00m[ 47%] [94mdocs.docker-stack.docker-examples.customizing.pypi-selected-version[39;49;00m                                                                                                                                             [01mhighlighting module code... [39;49;00m[ 52%] [94mdocs.docker-stack.docker-examples.customizing.stable-airflow[39;49;00m                                                                                                                                                    [01mhighlighting module code... [39;49;00m[ 57%] [94mdocs.docker-stack.docker-examples.extending.add-apt-packages.Dockerf[39;49;00m                                                                                                                                            [01mhighlighting module code... [39;49;00m[ 61%] [94mdocs.docker-stack.docker-examples.extending.add-build-essential-extend.Dockerf[39;49;00m                                                                                                                                  [01mhighlighting module code... [39;49;00m[ 66%] [94mdocs.docker-stack.docker-examples.extending.add-providers.Dockerf[39;49;00m                                                                                                                                               [01mhighlighting module code... [39;49;00m[ 71%] [94mdocs.docker-stack.docker-examples.extending.add-pypi-packages.Dockerf[39;49;00m                                                                                                                                           [01mhighlighting module code... [39;49;00m[ 76%] [94mdocs.docker-stack.docker-examples.extending.embedding-dags.Dockerf[39;49;00m                                                                                                                                              [01mhighlighting module code... [39;49;00m[ 80%] [94mdocs.docker-stack.docker-examples.extending.writable-directory.Dockerf[39;49;00m                                                                                                                                          [01mhighlighting module code... [39;49;00m[ 85%] [94mdocs.docker-stack.docker-examples.restricted.restricted_environments[39;49;00m                                                                                                                                            [01mhighlighting module code... [39;49;00m[ 90%] [94mdocs.docker-stack.docker-images-recipes.gcloud.Dockerf[39;49;00m                                                                                                                                                          [01mhighlighting module code... [39;49;00m[ 95%] [94mdocs.docker-stack.docker-images-recipes.go-beam.Dockerf[39;49;00m                                                                                                                                                         [01mhighlighting module code... [39;49;00m[100%] [94mdocs.docker-stack.docker-images-recipes.hadoop.Dockerf[39;49;00m                                                                                                                                                          
+[01mwriting additional pages... [39;49;00msearch done
+[01mcopying images... [39;49;00m[100%] [33mimg/docker-logo.png[39;49;00m                                                                                                                                                                                                       
+[01mcopying static files... [39;49;00mdone
+[01mcopying extra files... [39;49;00mdone
+[01mdumping search index in English (code: en)... [39;49;00mdone
+[01mdumping object inventory... [39;49;00mdone
+[01mbuild succeeded.[39;49;00m
+
+The HTML pages are in ../_build/docs/docker-stack.

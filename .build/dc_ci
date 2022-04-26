@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+docker_compose_version=$(docker-compose --version || true)
+if [[ ${docker_compose_version} =~ .*([0-9]+)\.([0-9]+)\.([0-9]+).* ]]; then
+    major=${BASH_REMATCH[1]}
+    minor=${BASH_REMATCH[2]}
+    patch=${BASH_REMATCH[3]}
+    if [[ ${major} == "1" ]]; then
+        if (( minor < 29 )); then
+            echo
+            echo "[31mYou have too old version of docker-compose: ${major}.${minor}.${patch}! At least 1.29 is needed! Please upgrade![0m"
+            echo "[31mSee https://docs.docker.com/compose/install/ for instructions. Make sure docker-compose you install is first on the PATH variable of yours.[0m"
+            echo
+            exit 1
+        fi
+    fi
+    echo
+    echo "[32mGood version of docker-compose: ${major}.${minor}.${patch}[0m"
+    echo
+else
+    echo
+    echo "[33mUnknown docker-compose version. At least 1.29 is needed! If Breeze fails - upgrade to latest available docker-compose version[0m"
+    echo
+fi
+
+if [[ ${VERBOSE} == "true" ]]; then
+  echo
+  echo "Executing script:"
+  echo
+  echo "[36m/Users/jarek/code/airflow-copy/.build/dc_ci ${@}[0m"
+  echo
+  set -x
+fi
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit
+export HOST_USER_ID=501
+export HOST_GROUP_ID=20
+export COMPOSE_FILE="/Users/jarek/code/airflow-copy/scripts/ci/docker-compose/base.yml:/Users/jarek/code/airflow-copy/scripts/ci/docker-compose/backend-sqlite.yml:/Users/jarek/code/airflow-copy/scripts/ci/docker-compose/files.yml:/Users/jarek/code/airflow-copy/scripts/ci/docker-compose/local.yml:/Users/jarek/code/airflow-copy/scripts/ci/docker-compose/backend-sqlite-port.yml"
+export PYTHON_MAJOR_MINOR_VERSION="3.7"
+export DEBIAN_VERSION="bullseye"
+export BACKEND="sqlite"
+export AIRFLOW_VERSION="2.3.0.dev0"
+export INSTALL_AIRFLOW_VERSION=""
+export PLATFORM="linux/arm64"
+export SSH_PORT="12322"
+export WEBSERVER_HOST_PORT="28080"
+export FLOWER_HOST_PORT="25555"
+export REDIS_HOST_PORT="26379"
+export POSTGRES_HOST_PORT="25433"
+export POSTGRES_VERSION="10"
+export MYSQL_HOST_PORT="23306"
+export MYSQL_VERSION="5.7"
+export MSSQL_HOST_PORT="21433"
+export MSSQL_VERSION="2017-latest"
+export AIRFLOW_SOURCES="/Users/jarek/code/airflow-copy"
+export AIRFLOW_CI_IMAGE="ghcr.io/apache/airflow/main/ci/python3.7"
+export AIRFLOW_CI_IMAGE_WITH_TAG="ghcr.io/apache/airflow/main/ci/python3.7:latest"
+export AIRFLOW_PROD_IMAGE="ghcr.io/apache/airflow/main/prod/python3.7"
+export AIRFLOW_IMAGE_KUBERNETES="ghcr.io/apache/airflow/main/kubernetes/python3.7"
+export SQLITE_URL="sqlite:////root/airflow/airflow.db"
+export USE_AIRFLOW_VERSION=""
+export SKIP_TWINE_CHECK=""
+export USE_PACKAGES_FROM_DIST="false"
+export EXECUTOR="KubernetesExecutor"
+export START_AIRFLOW="false"
+export ENABLED_INTEGRATIONS=""
+export ENABLED_SYSTEMS=""
+export GITHUB_ACTIONS=""
+export ISSUE_ID=""
+export NUM_RUNS=""
+export VERSION_SUFFIX_FOR_SVN=""
+export VERSION_SUFFIX_FOR_PYPI=""
+docker-compose "${@}"

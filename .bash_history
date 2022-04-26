@@ -1,0 +1,3 @@
+pipdeptree  | less
+exit
+exit
