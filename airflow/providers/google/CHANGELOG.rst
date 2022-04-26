@@ -55,11 +55,11 @@ Breaking changes
 * ``DataprocSubmitJobOperator``: Remove ``location``. Please use ``region``.
 
 * ``DataprocHook``: Remove ``location`` parameter. Please use ``region``.
-affected functions are:
-``cancel_job``, ``create_workflow_template``, ``get_batch_client``,
-``get_cluster_client``, ``get_job``, ``get_job_client``, ``get_template_client``,
-``instantiate_inline_workflow_template``, ``instantiate_workflow_template``,
-``submit_job``, ``update_cluster``,``wait_for_job``
+  affected functions are:
+  ``cancel_job``, ``create_workflow_template``, ``get_batch_client``,
+  ``get_cluster_client``, ``get_job``, ``get_job_client``, ``get_template_client``,
+  ``instantiate_inline_workflow_template``, ``instantiate_workflow_template``,
+  ``submit_job``, ``update_cluster``,``wait_for_job``
 
 * ``DataprocHook``: order of parameters in ``wait_for_job`` function has changed.
 
