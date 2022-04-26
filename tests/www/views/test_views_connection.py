@@ -109,6 +109,7 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
         "conn_id": "extras_test",
         "extra": '{"param1": "param1_val"}',
         "extra__test__custom_field": "custom_field_val",
+        "extra__other_conn_type__custom_field": "another_field_val",
     }
 
     cmv = ConnectionModelView()
@@ -164,17 +165,18 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     mock_form.data = {
         "conn_type": "test3",
         "conn_id": "extras_test3",
-        "extra__test3__custom_field": "custom_field_val3",
+        "extra__test3__custom_field": False,
+        "extra__other_conn_type__custom_field": "another_field_val",
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
+    cmv.extra_fields = ["extra__test3__custom_field", "extra__test3__custom_bool_field"]  # Custom fields
 
     # this is set by `lazy_add_provider_discovered_options_to_connection_form`
     cmv.extra_field_name_mapping['extra__test3__custom_field'] = field_name
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {field_name: "custom_field_val3"}
+    assert json.loads(mock_form.extra.data) == {field_name: False}
 
 
 @pytest.mark.parametrize('field_name', ['extra__test4__custom_field', 'custom_field'])

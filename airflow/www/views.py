@@ -3998,6 +3998,7 @@ class ConnectionModelView(AirflowModelView):
     def process_form(self, form, is_created):
         """Process form data."""
         conn_id = form.data["conn_id"]
+        conn_type = form.data["conn_type"]
 
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
         # The extra form field with all extra values (including custom fields) is in the form being processed
@@ -4025,11 +4026,16 @@ class ConnectionModelView(AirflowModelView):
 
         for key in self.extra_fields:
             if key in form.data and key.startswith("extra__"):
-                value = form.data[key]
-
-                if value:
-                    field_name = self.extra_field_name_mapping[key]
-                    extra[field_name] = value
+                # Check to ensure the extra field corresponds to the connection type of the form submission
+                # before adding to extra_field_name_mapping.
+                conn_type_from_extra_field = key.split("__")[1]
+                if conn_type_from_extra_field == conn_type:
+                    value = form.data[key]
+                    # Some extra fields have a default value of False so we need to explicitly check the
+                    # value isn't an empty string.
+                    if value != "":
+                        field_name = self.extra_field_name_mapping[key]
+                        extra[field_name] = value
 
         if extra.keys():
             form.extra.data = json.dumps(extra)
