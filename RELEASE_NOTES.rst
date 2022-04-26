@@ -28,11 +28,11 @@ Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
 Passing ``execution_date`` to ``XCom.set()``, ``XCom.clear()`` , ``XCom.get_one()`` , and ``XCom.get_many()`` is deprecated (#19825)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead.
 
 Task log templates are now read from the metadata database instead of ``airflow.cfg`` (#20165)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   Previously, a task’s log is dynamically rendered from the ``[core] log_filename_template`` and ``[elasticsearch] log_id_template`` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
 
   A new ``log_template`` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field ``log_template_id`` is added to every DAG run to point to the format used by tasks (``NULL`` indicates the first ever entry for compatibility).
@@ -43,7 +43,7 @@ Minimum kubernetes version bumped from ``3.0.0`` to ``21.7.0`` (#20759)
   No change in behavior is expected.  This was necessary in order to take advantage of a `bugfix <https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4>`_ concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some `workaround code <https://github.com/apache/airflow/pull/20759>`_.
 
 XCom now defined by ``run_id`` instead of ``execution_date`` (#20975)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the ``execution_date`` columns on XCom has been removed from the database, and replaced by an `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ field at the ORM level. If you access Airflow’s metadata database directly, you should rewrite the implementation to use the ``run_id`` column instead.
 
@@ -68,7 +68,7 @@ Non-JSON-serializable params deprecated (#21135).
   Note the use of ``set`` and ``datetime`` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time.
 
 You must use ``postgresql://`` instead of ``postgres://`` in ``sql_alchemy_conn`` for SQLAlchemy 1.4.0+ (#21205)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the scheme in the ``sql_alchemy_conn``.
   In the previous versions of SQLAlchemy it was possible to use ``postgres://`` , but using it in
