@@ -129,6 +129,13 @@ class TestDbtCloudHook:
         assert hook.auth_type == TokenAuth
         assert hook.method == "POST"
 
+    def test_init_hook_single_tenant(self):
+        hook = DbtCloudHook(tenant="single.tenant")
+        assert hook.dbt_cloud_conn_id == "dbt_cloud_default"
+        assert hook.base_url == "https://single.tenant.getdbt.com/api/v2/accounts/"
+        assert hook.auth_type == TokenAuth
+        assert hook.method == "POST"
+
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
@@ -598,3 +605,4 @@ class TestDbtCloudHook:
 
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
+
