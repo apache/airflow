@@ -279,6 +279,7 @@ class SubCommand(threading.Thread):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=self.env,
+            preexec_fn=os.setsid,
         )
         for line in self.process.stdout:
             self.parent.output_queue.append((self.name, line))
