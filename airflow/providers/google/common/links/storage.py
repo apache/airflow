@@ -47,7 +47,7 @@ class StorageLink(BaseGoogleLink):
 class FileDetailsLink(BaseGoogleLink):
     """Helper class for constructing GCS file details link"""
 
-    name = "GCS File"
+    name = "GCS File Details"
     key = "file_details"
     format_str = GCS_FILE_DETAILS_LINK
 
