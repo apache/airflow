@@ -56,6 +56,7 @@ from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetMode
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
