@@ -2694,7 +2694,8 @@ class Airflow(AirflowBaseView):
 
         if dag_states and dag_states[-1].data_interval_start and dag_states[-1].data_interval_end:
             last_automated_data_interval = DataInterval(
-                dag_states[-1].data_interval_start, dag_states[-1].data_interval_end
+                timezone.coerce_datetime(dag_states[-1].data_interval_start),
+                timezone.coerce_datetime(dag_states[-1].data_interval_end),
             )
 
             year = last_automated_data_interval.end.year
