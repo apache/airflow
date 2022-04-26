@@ -1312,7 +1312,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_id: str,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Update fields within a schema for a given dataset and table. Note that
         some fields in schemas are immutable and trying to change them will cause
@@ -2270,7 +2270,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.create_empty_table(*args, **kwargs)
 
-    def create_empty_dataset(self, *args, **kwargs) -> None:
+    def create_empty_dataset(self, *args, **kwargs) -> Dict[str, Any]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`
