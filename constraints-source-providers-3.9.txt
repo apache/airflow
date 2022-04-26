@@ -187,7 +187,7 @@ google-cloud-bigquery-storage==2.13.1
 google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.1
 google-cloud-build==3.8.1
-google-cloud-container==1.0.2
+google-cloud-container==2.10.7
 google-cloud-core==2.3.0
 google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==0.2.1
