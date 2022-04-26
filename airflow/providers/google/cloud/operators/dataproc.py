@@ -1512,7 +1512,6 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
 
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param template: The Dataproc workflow template to create. If a dict is provided,
         it must be of the same form as the protobuf message WorkflowTemplate.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
@@ -1530,9 +1529,8 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self,
         *,
         template: Dict,
-        region: Optional[str] = None,
+        region: str,
         project_id: Optional[str] = None,
-        location: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -1540,17 +1538,6 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.region = region
         self.template = template
@@ -1775,7 +1762,6 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.Job`
@@ -1813,9 +1799,8 @@ class DataprocSubmitJobOperator(BaseOperator):
         self,
         *,
         job: Dict,
+        region: str,
         project_id: Optional[str] = None,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
@@ -1827,17 +1812,6 @@ class DataprocSubmitJobOperator(BaseOperator):
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -1894,7 +1868,6 @@ class DataprocUpdateClusterOperator(BaseOperator):
 
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param cluster_name: Required. The cluster name.
     :param cluster: Required. The changes to the cluster.
 
@@ -1946,8 +1919,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
         graceful_decommission_timeout: Union[Dict, Duration],
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
@@ -1957,17 +1929,6 @@ class DataprocUpdateClusterOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region

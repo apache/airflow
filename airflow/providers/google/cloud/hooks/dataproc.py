@@ -200,18 +200,8 @@ class DataprocHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    def get_cluster_client(
-        self, region: Optional[str] = None, location: Optional[str] = None
-    ) -> ClusterControllerClient:
+    def get_cluster_client(self, region: Optional[str] = None) -> ClusterControllerClient:
         """Returns ClusterControllerClient."""
-        if location is not None:
-            warnings.warn(
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = location
         client_options = None
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
@@ -220,18 +210,8 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_template_client(
-        self, region: Optional[str] = None, location: Optional[str] = None
-    ) -> WorkflowTemplateServiceClient:
+    def get_template_client(self, region: Optional[str] = None) -> WorkflowTemplateServiceClient:
         """Returns WorkflowTemplateServiceClient."""
-        if location is not None:
-            warnings.warn(
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = location
         client_options = None
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
@@ -240,18 +220,8 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_job_client(
-        self, region: Optional[str] = None, location: Optional[str] = None
-    ) -> JobControllerClient:
+    def get_job_client(self, region: Optional[str] = None) -> JobControllerClient:
         """Returns JobControllerClient."""
-        if location is not None:
-            warnings.warn(
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = location
         client_options = None
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
@@ -260,18 +230,8 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def get_batch_client(
-        self, region: Optional[str] = None, location: Optional[str] = None
-    ) -> BatchControllerClient:
+    def get_batch_client(self, region: Optional[str] = None) -> BatchControllerClient:
         """Returns BatchControllerClient"""
-        if location is not None:
-            warnings.warn(
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = location
         client_options = None
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
@@ -506,8 +466,7 @@ class DataprocHook(GoogleBaseHook):
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         graceful_decommission_timeout: Optional[Union[Dict, Duration]] = None,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
@@ -519,7 +478,6 @@ class DataprocHook(GoogleBaseHook):
 
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param cluster_name: Required. The cluster name.
         :param cluster: Required. The changes to the cluster.
 
@@ -564,16 +522,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         client = self.get_cluster_client(region=region)
         operation = client.update_cluster(
             request={
@@ -596,8 +545,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         template: Union[Dict, WorkflowTemplate],
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -607,7 +555,6 @@ class DataprocHook(GoogleBaseHook):
 
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param template: The Dataproc workflow template to create. If a dict is provided,
             it must be of the same form as the protobuf message WorkflowTemplate.
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
@@ -617,16 +564,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         metadata = metadata or ()
         client = self.get_template_client(region)
         parent = f'projects/{project_id}/regions/{region}'
@@ -639,8 +577,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         template_name: str,
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
@@ -654,7 +591,6 @@ class DataprocHook(GoogleBaseHook):
         :param template_name: Name of template to instantiate.
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param version: Optional. The version of workflow template to instantiate. If specified,
             the workflow will be instantiated only if the current version of
             the workflow template has the supplied version.
@@ -672,16 +608,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         metadata = metadata or ()
         client = self.get_template_client(region)
         name = f'projects/{project_id}/regions/{region}/workflowTemplates/{template_name}'
@@ -698,8 +625,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         template: Union[Dict, WorkflowTemplate],
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
@@ -712,7 +638,6 @@ class DataprocHook(GoogleBaseHook):
             it must be of the same form as the protobuf message WorkflowTemplate
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param request_id: Optional. A tag that prevents multiple concurrent workflow instances
             with the same tag from running. This mitigates risk of concurrent
             instances started due to retries.
@@ -723,16 +648,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         metadata = metadata or ()
         client = self.get_template_client(region)
         parent = f'projects/{project_id}/regions/{region}'
@@ -749,9 +665,8 @@ class DataprocHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
+        region: str,
         wait_time: int = 10,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
         timeout: Optional[int] = None,
     ) -> None:
         """
@@ -760,21 +675,11 @@ class DataprocHook(GoogleBaseHook):
         :param job_id: Id of the Dataproc job
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param wait_time: Number of seconds between checks
         :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         state = None
         start = time.monotonic()
         while state not in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
@@ -797,8 +702,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -809,7 +713,6 @@ class DataprocHook(GoogleBaseHook):
         :param job_id: Id of the Dataproc job
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -817,16 +720,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         client = self.get_job_client(region=region)
         job = client.get_job(
             request={'project_id': project_id, 'region': region, 'job_id': job_id},
@@ -841,8 +735,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         job: Union[dict, Job],
         project_id: str,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
@@ -855,7 +748,6 @@ class DataprocHook(GoogleBaseHook):
             it must be of the same form as the protobuf message Job
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param request_id: Optional. A tag that prevents multiple concurrent workflow instances
             with the same tag from running. This mitigates risk of concurrent
             instances started due to retries.
@@ -866,16 +758,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
+            raise TypeError("missing 1 required keyword argument: 'region'")
         client = self.get_job_client(region=region)
         return client.submit_job(
             request={'project_id': project_id, 'region': region, 'job': job, 'request_id': request_id},
@@ -911,7 +794,6 @@ class DataprocHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: Optional[str] = None,
-        location: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
@@ -921,7 +803,6 @@ class DataprocHook(GoogleBaseHook):
 
         :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
-        :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
         :param job_id: Required. The job ID.
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -929,16 +810,6 @@ class DataprocHook(GoogleBaseHook):
             ``retry`` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-
         if region is None:
             warnings.warn(
                 "Default region value `global` will be deprecated. Please, provide region value.",
