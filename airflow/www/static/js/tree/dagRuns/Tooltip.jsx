@@ -25,7 +25,7 @@ import Time from '../Time';
 
 const DagRunTooltip = ({
   dagRun: {
-    state, duration, dataIntervalEnd,
+    state, duration, dataIntervalStart, executionDate,
   },
 }) => (
   <Box py="2px">
@@ -37,7 +37,7 @@ const DagRunTooltip = ({
     <Text whiteSpace="nowrap">
       Run:
       {' '}
-      <Time dateTime={dataIntervalEnd} />
+      <Time dateTime={dataIntervalStart || executionDate} />
     </Text>
     <Text>
       Duration:
