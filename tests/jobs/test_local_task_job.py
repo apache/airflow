@@ -756,7 +756,7 @@ class TestLocalTaskJob:
                 scheduler_job.processor_agent.end()
 
     @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
-    def test_mini_scheduler_works_with_wait_for_upstream(self, caplog, dag_maker):
+    def test_mini_scheduler_works_with_wait_for_downstream(self, caplog, dag_maker):
         session = settings.Session()
         with dag_maker(default_args={'wait_for_downstream': True}, catchup=False) as dag:
             task_a = PythonOperator(task_id='A', python_callable=lambda: True)
@@ -787,13 +787,17 @@ class TestLocalTaskJob:
 
         job1 = LocalTaskJob(task_instance=ti2_a, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
+        t = time.time()
         job1.run()
+        d = time.time() - t
 
         ti2_a.refresh_from_db(session)
         ti2_b.refresh_from_db(session)
         assert ti2_a.state == State.SUCCESS
         assert ti2_b.state == State.NONE
-        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+        assert (
+            "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+        ), f"Failed after {d.total_seconds()}: {caplog.text}"
 
         failed_deps = list(ti2_b.get_failed_dep_statuses(session=session))
         assert len(failed_deps) == 1
