@@ -108,8 +108,6 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         self.overwrite_existing = overwrite_existing
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: 'Context') -> dict:
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
@@ -218,8 +216,6 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         self.polling_interval_in_seconds = polling_interval_in_seconds
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: 'Context'):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)

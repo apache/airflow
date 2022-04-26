@@ -69,6 +69,10 @@ Breaking changes
 
 * ``DataprocSubmitJobOperator``: order of parameters has changed.
 
+* ``CloudDatastoreImportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
+* ``CloudDatastoreExportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
 6.8.0
 .....
 
