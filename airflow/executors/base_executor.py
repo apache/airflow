@@ -218,7 +218,8 @@ class BaseExecutor(LoggingMixin):
             else:
                 task_tuples.append((key, command, queue, ti.executor_config))
 
-        self._process_tasks(task_tuples)
+        if task_tuples:
+            self._process_tasks(task_tuples)
 
     def _process_tasks(self, task_tuples: List[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
