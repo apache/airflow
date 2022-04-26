@@ -212,7 +212,6 @@ Features
 - Events Timetable (#22332)
 - Support dag serialization with custom ``ti_deps`` rules (#22698)
 - Support log download in task log view (#22804)
-- Add summary of runs to dag details (#22766)
 - support for continue backfill on failures (#22697)
 - Add ``dag-processor`` cli command (#22305)
 - Add possibility to create users in LDAP mode (#22619)
