@@ -27,23 +27,30 @@ Airflow 2.3.0 (2022-04-29)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-- Passing ``execution_date`` to ``XCom.set()``\ , ``XCom.clear()``\ , ``XCom.get_one()``\ , and ``XCom.get_many()`` is deprecated
+Passing ``execution_date`` to ``XCom.set()``\ , ``XCom.clear()``\ , ``XCom.get_one()``\ , and ``XCom.get_many()`` is deprecated
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead. (#19825)
 
-  Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now also tied to a DagRun. Use the ``run_id`` argument to specify the DagRun instead. (#19825)
-- Task log templates are now read from the metadatabase instead of ``airflow.cfg``
-
+Task log templates are now read from the metadatabase instead of ``airflow.cfg``
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   Previously, a task’s log is dynamically rendered from the ``[core] log_filename_template`` and ``[elasticsearch] log_id_template`` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
 
   A new ``log_template`` table is introduced to solve this problem. This table is synchronised with the aforementioned config values every time Airflow starts, and a new field ``log_template_id`` is added to every DAG run to point to the format used by tasks (\ ``NULL`` indicates the first ever entry for compatibility). (#20165)
-- Minimum kubernetes version bumped from ``3.0.0`` to ``21.7.0``
+
+Minimum kubernetes version bumped from ``3.0.0`` to ``21.7.0``
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   No change in behavior is expected.  This was necessary in order to take advantage of a `bugfix <https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4>`_ concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some `workaround code <https://github.com/apache/airflow/pull/20759>`_. (#20759)
-- XCom now define ``run_id`` instead of ``execution_date``
+
+XCom now define ``run_id`` instead of ``execution_date``
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the ``execution_date`` columns on XCom has been removed from the database, and replaced by an `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ field at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the ``run_id`` column instead.
 
   Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees. (#20975)
-- Non-JSON-serializable params deprecated.
+
+Non-JSON-serializable params deprecated.
+""""""""""""""""""""""""""""""""""""""""
 
   It was previously possible to use dag or task param defaults that were not JSON-serializable.
 
@@ -59,7 +66,9 @@ Significant Changes
      datetime_param("{{ params.a }} | {{ params.b }}")
 
   Note the use of ``set`` and ``datetime`` types, which are not JSON-serializable.  This behavior is problematic because to override these values in a dag run conf, you must use JSON, which could make these params non-overridable.  Another problem is that the support for param validation assumes JSON.  Use of non-JSON-serializable params will be removed in Airflow 3.0 and until then, use of them will produce a warning at parse time. (#21135)
-- You have to use ``postgresql://`` instead of ``postgres://`` in ``sql_alchemy_conn`` for SQLAlchemy 1.4.0+
+
+You have to use ``postgresql://`` instead of ``postgres://`` in ``sql_alchemy_conn`` for SQLAlchemy 1.4.0+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the scheme in the ``sql_alchemy_conn``.
   In the previous versions of SQLAlchemy it was possible to use ``postgres://``\ , but using it in
@@ -75,21 +84,31 @@ Significant Changes
   If you cannot change the scheme of your URL immediately, Airflow continues to work with SQLAlchemy
   1.3 and you can downgrade SQLAlchemy, but we recommend updating the scheme.
   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_. (#21205)
-- ``auth_backends`` replaces ``auth_backend`` configuration setting
+
+``auth_backends`` replaces ``auth_backend`` configuration setting
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by whitespace. Each will be tried in turn until a successful response is returned.
 
   This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given. (#21472)
-- ``airflow.models.base.Operator`` is removed
+
+``airflow.models.base.Operator`` is removed
+"""""""""""""""""""""""""""""""""""""""""""
 
   Previously, there was an empty class ``airflow.models.base.Operator`` for “type hinting”. This class was never really useful for anything (everything it did could be done better with ``airflow.models.baseoperator.BaseOperator``\ ), and has been removed. If you are relying on the class’s existence, use ``BaseOperator`` (for concrete operators), ``airflow.models.abstractoperator.AbstractOperator`` (the base class of both ``BaseOperator`` and the AIP-42 ``MappedOperator``\ ), or ``airflow.models.operator.Operator`` (a union type ``BaseOperator | MappedOperator`` for type annotation). (#21505)
-- Zip files in the DAGs folder can no longer have a ``.py`` extension
+
+Zip files in the DAGs folder can no longer have a ``.py`` extension
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   It was previously possible to have any extension for zip files in the DAGs folder. Now ``.py`` files are going to be loaded as modules without checking whether it is a zip file, as it leads to less IO. If a ``.py`` file in the DAGs folder is a zip compressed file, parsing it will fail with an exception. (#21538)
-- ``auth_backends`` includes session
+
+``auth_backends`` includes session
+""""""""""""""""""""""""""""""""""
 
   To allow the Airflow UI to use the API, the previous default authorization backend ``airflow.api.auth.backend.deny_all`` is changed to ``airflow.api.auth.backend.session``\ , and this is automatically added to the list of API authorization backends if a non-default value is set. (#21640)
-- Default templates for log filenames and elasticsearch log_id changed
+
+Default templates for log filenames and elasticsearch log_id changed
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   In order to support Dynamic Task Mapping the default templates for per-task instance logging has changed. If your config contains the old default values they will be upgraded-in-place.
 
@@ -102,7 +121,9 @@ Significant Changes
   ``[core] log_filename_template`` now uses "hive partition style" of ``dag_id=<id>/run_id=<id>`` by default, which may cause problems on some older FAT filesystems. If this affects you then you will have to change the log template.
 
   If you have customized the templates you should ensure that they contain ``{{ ti.map_index }}`` if you want to use dynamically mapped tasks. (#21734)
-- BaseOperatorLink's ``get_link`` method changed to take a ``ti_key`` keyword argument
+
+BaseOperatorLink's ``get_link`` method changed to take a ``ti_key`` keyword argument
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   In v2.2 we "deprecated" passing an execution date to XCom.get methods, but there was no other option for operator links as they were only passed an execution_date.
 
@@ -111,13 +132,19 @@ Significant Changes
   In order to support that cleanly we have changed the interface for BaseOperatorLink to take an TaskInstanceKey as the ``ti_key`` keyword argument (as execution_date + task is no longer unique for mapped operators).
 
   The existing signature will be detected (by the absence of the ``ti_key`` argument) and continue to work. (#21798)
-- ``ReadyToRescheduleDep`` now only runs when ``reschedule`` is *True*
+
+``ReadyToRescheduleDep`` now only runs when ``reschedule`` is *True*
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   When a ``ReadyToRescheduleDep`` is run, it now checks whether the ``reschedule`` attribute on the operator, and always reports itself as *passed* unless it is set to *True*. If you use this dep class on your custom operator, you will need to add this attribute to the operator class. Built-in operator classes that use this dep class (including sensors and all subclasses) already have this attribute and are not affected. (#21815)
-- The ``deps`` attribute on an operator class should be a class level attribute
+
+The ``deps`` attribute on an operator class should be a class level attribute
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   To support operator-mapping (AIP 42), the ``deps`` attribute on operator class must be a set at the class level. This means that if a custom operator implements this as an instance-level variable, it will not be able to be used for operator-mapping. This does not affect existing code, but we highly recommend you to restructure the operator's dep logic in order to support the new feature. (#21815)
-- Deprecation: ``Connection.extra`` must be JSON-encoded dict
+
+Deprecation: ``Connection.extra`` must be JSON-encoded dict
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   TLDR
   ~~~~
@@ -160,10 +187,14 @@ Significant Changes
      airflow connections export - 2>&1 >/dev/null | grep 'non-JSON'
 
   This will catch any warnings about connections that are storing something other than JSON-encoded Python dict in the ``extra`` field. (#21816)
-- The ``tree`` default view setting has been renamed to ``grid``
+
+The ``tree`` default view setting has been renamed to ``grid``
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   If you set the ``dag_default_view`` config option or the ``default_view`` argument to ``DAG()`` to ``tree`` you will need to update your deployment. The old name will continue to work but will issue warnings. (#22167)
-- Database configuration moved to new section
+
+Database configuration moved to new section
+"""""""""""""""""""""""""""""""""""""""""""
 
   The following configurations have been moved from ``[core]`` to the new ``[database]`` section. However when reading the new option, the old option will be checked to see if it exists. If it does a DeprecationWarning will be issued and the old option will be used instead.
 
@@ -179,12 +210,16 @@ Significant Changes
   * sql_alchemy_connect_args
   * load_default_connections
   * max_db_retries (#22284)
-- Remove requirement that custom connection UI fields be prefixed
+
+Remove requirement that custom connection UI fields be prefixed
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   Hooks can define custom connection fields for their connection type by implementing method ``get_connection_form_widgets``.  These custom fields are presented in the web UI as additional connection attributes, but internally they are stored in the connection ``extra`` dict.  For technical reasons, previously custom field when stored in ``extra`` had to be named with a prefix ``extra__<conn type>__<field name>``.  This had the consequence of making it more cumbersome to define connections outside of the UI, since the prefix is tougher to read and work with. With #22607, we make it so that you can now define custom fields such that they can be read from and stored in ``extra`` without the prefix.
 
   To enable this, update the dict returned by the ``get_connection_form_widgets`` method to remove the prefix from the keys.  Internally, the providers manager will still use a prefix to ensure each custom field is globally unique, but the absence of a prefix in the returned widget dict will signal to the Web UI to read and store custom fields without the prefix.  Note that this is only a change to the Web UI behavior; when updating your hook in this way, you must make sure that when your *hook* reads the ``extra`` field, it will also check for the prefixed value for backward compatibility. (#22607)
-- The webserver.X_FRAME_ENABLED configuration works according to description now.
+
+The webserver.X_FRAME_ENABLED configuration works according to description now.
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
   In Airflow 2.0.0 - 2.2.4 the webserver.X_FRAME_ENABLED parameter worked the opposite of its description,
   setting the value to "true" caused "X-Frame-Options" header to "DENY" (not allowing Airflow to be used
