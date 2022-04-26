@@ -175,20 +175,17 @@ with DAG(
     train_model = SageMakerTrainingOperator(
         task_id='train_model',
         config=TRAINING_CONFIG,
-        do_xcom_push=False,
     )
 
     create_model = SageMakerModelOperator(
         task_id='create_model',
         config=MODEL_CONFIG,
-        do_xcom_push=False,
     )
 
     # [START howto_operator_sagemaker_endpoint_config]
     configure_endpoint = SageMakerEndpointConfigOperator(
         task_id='configure_endpoint',
         config=ENDPOINT_CONFIG_CONFIG,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_endpoint_config]
 

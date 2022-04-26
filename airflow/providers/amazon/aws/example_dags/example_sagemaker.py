@@ -379,7 +379,6 @@ with DAG(
     preprocess_raw_data = SageMakerProcessingOperator(
         task_id='preprocess_raw_data',
         config=SAGEMAKER_PROCESSING_JOB_CONFIG,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_processing]
 
@@ -389,7 +388,6 @@ with DAG(
         config=TRAINING_CONFIG,
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_training]
 
@@ -404,7 +402,6 @@ with DAG(
     create_model = SageMakerModelOperator(
         task_id='create_model',
         config=MODEL_CONFIG,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_model]
 
@@ -414,7 +411,6 @@ with DAG(
         config=TUNING_CONFIG,
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_tuning]
 
@@ -431,7 +427,6 @@ with DAG(
         config=TRANSFORM_CONFIG,
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_transform]
 

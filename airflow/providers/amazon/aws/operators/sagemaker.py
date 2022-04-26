@@ -17,7 +17,7 @@
 
 import json
 import sys
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.utils.json import AirflowJsonEncoder
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -33,6 +34,10 @@ else:
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def serialize(result: Dict) -> str:
+    return json.dumps(result, cls=AirflowJsonEncoder)
 
 
 class SageMakerBaseOperator(BaseOperator):
@@ -184,7 +189,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Sagemaker Processing Job creation failed: {response}')
-        return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}
+        return {'Processing': serialize(self.hook.describe_processing_job(self.config['ProcessingJobName']))}
 
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
@@ -342,8 +347,10 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             raise AirflowException(f'Sagemaker endpoint creation failed: {response}')
         else:
             return {
-                'EndpointConfig': self.hook.describe_endpoint_config(endpoint_info['EndpointConfigName']),
-                'Endpoint': self.hook.describe_endpoint(endpoint_info['EndpointName']),
+                'EndpointConfig': serialize(
+                    self.hook.describe_endpoint_config(endpoint_info['EndpointConfigName'])
+                ),
+                'Endpoint': serialize(self.hook.describe_endpoint(endpoint_info['EndpointName'])),
             }
 
 
@@ -437,8 +444,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             raise AirflowException(f'Sagemaker transform Job creation failed: {response}')
         else:
             return {
-                'Model': self.hook.describe_model(transform_config['ModelName']),
-                'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
+                'Model': serialize(self.hook.describe_model(transform_config['ModelName'])),
+                'Transform': serialize(
+                    self.hook.describe_transform_job(transform_config['TransformJobName'])
+                ),
             }
 
 
@@ -511,7 +520,9 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Sagemaker Tuning Job creation failed: {response}')
         else:
-            return {'Tuning': self.hook.describe_tuning_job(self.config['HyperParameterTuningJobName'])}
+            return {
+                'Tuning': serialize(self.hook.describe_tuning_job(self.config['HyperParameterTuningJobName']))
+            }
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
@@ -547,7 +558,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Sagemaker model creation failed: {response}')
         else:
-            return {'Model': self.hook.describe_model(self.config['ModelName'])}
+            return {'Model': serialize(self.hook.describe_model(self.config['ModelName']))}
 
 
 class SageMakerTrainingOperator(SageMakerBaseOperator):
@@ -630,7 +641,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Sagemaker Training Job creation failed: {response}')
         else:
-            return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}
+            return {'Training': serialize(self.hook.describe_training_job(self.config['TrainingJobName']))}
 
     def _check_if_job_exists(self) -> None:
         training_job_name = self.config['TrainingJobName']
