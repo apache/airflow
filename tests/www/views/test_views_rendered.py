@@ -196,7 +196,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
         ti.refresh_from_task(task_secret)
         assert ti.state == TaskInstanceState.QUEUED
 
-    date = {quote_plus(str(DEFAULT_DATE))}
+    date = quote_plus(str(DEFAULT_DATE))
     url = f'rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}'
 
     resp = admin_client.get(url, follow_redirects=True)
