@@ -97,7 +97,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
         {
             "name": "Building multiple images",
             "options": [
-                "--build_multiple_images",
+                "--build-multiple-images",
                 "--python-versions",
             ],
         },

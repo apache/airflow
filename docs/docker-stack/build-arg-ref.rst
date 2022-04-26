@@ -182,87 +182,76 @@ You can see some examples of those in:
   * :ref:`Using custom installation sources<image-build-custom>`,
   * :ref:`Build images in security restricted environments<image-build-secure-environments>`
 
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| Build argument                           | Default value                            | Description                              |
-+==========================================+==========================================+==========================================+
-| ``AIRFLOW_INSTALLATION_METHOD``          | ``apache-airflow``                       | Installation method of Apache Airflow.   |
-|                                          |                                          | ``apache-airflow`` for installation from |
-|                                          |                                          | PyPI. It can be GitHub repository URL    |
-|                                          |                                          | including branch or tag to install from  |
-|                                          |                                          | that repository or "." to install from   |
-|                                          |                                          | local sources. Installing from sources   |
-|                                          |                                          | requires appropriate values of the       |
-|                                          |                                          | ``AIRFLOW_SOURCES_FROM`` and             |
-|                                          |                                          | ``AIRFLOW_SOURCES_TO`` variables (see    |
-|                                          |                                          | below)                                   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_FROM``                 | ``Dockerfile``                           | Sources of Airflow. Set it to "." when   |
-|                                          |                                          | you install Airflow from local sources   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_TO``                   | ``/Dockerfile``                          | Target for Airflow sources. Set to       |
-|                                          |                                          | "/opt/airflow" when you install Airflow  |
-|                                          |                                          | from local sources.                      |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_FROM``             | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
-|                                          |                                          | asset compilation. Set it to             |
-|                                          |                                          | "./airflow/www" when                     |
-|                                          |                                          | you install Airflow from local sources   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_TO``               | ``/Dockerfile``                          | Target for Airflow files used for        |
-|                                          |                                          | asset compilation. Set it to             |
-|                                          |                                          | "/opt/airflow/airflow/www" when          |
-|                                          |                                          | you install Airflow from local sources.  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION_SPECIFICATION``        |                                          | Optional - might be used for using limit |
-|                                          |                                          | for Airflow version installation - for   |
-|                                          |                                          | example ``<2.0.2`` for automated builds. |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``false``                                | If set to ``true`` and image is built    |
-|                                          |                                          | from sources, all provider packages are  |
-|                                          |                                          | installed from sources rather than from  |
-|                                          |                                          | packages. It has no effect when          |
-|                                          |                                          | installing from PyPI or GitHub repo.     |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
-|                                          |                                          | source of the constraints with the       |
-|                                          |                                          | specified URL or file. Note that the     |
-|                                          |                                          | file has to be in Docker context so      |
-|                                          |                                          | it's best to place such file in          |
-|                                          |                                          | one of the folders included in           |
-|                                          |                                          | ``.dockerignore`` file.                  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DOCKER_CONTEXT_FILES``                 | ``Dockerfile``                           | If set to a folder (for example to       |
-|                                          |                                          | ``docker-context-files`` folder), then   |
-|                                          |                                          | this folder will be copied to the        |
-|                                          |                                          | ``docker-context-files`` inside the      |
-|                                          |                                          | context of docker and you will be able   |
-|                                          |                                          | to install from binary files present     |
-|                                          |                                          | there. By default we set it to           |
-|                                          |                                          | Dockerfile as we know the file is there, |
-|                                          |                                          | otherwise the COPY instruction fails.    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
-|                                          |                                          | all dependencies are installed from      |
-|                                          |                                          | from locally built/downloaded            |
-|                                          |                                          | .whl and .tar.gz files placed in the     |
-|                                          |                                          | ``docker-context-files``. In certain     |
-|                                          |                                          | corporate environments, this is required |
-|                                          |                                          | to install airflow from such pre-vetted  |
-|                                          |                                          | packages rather than from PyPI. For this |
-|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
-|                                          |                                          | Note that packages starting with         |
-|                                          |                                          | ``apache?airflow`` glob are treated      |
-|                                          |                                          | differently than other packages. All     |
-|                                          |                                          | ``apache?airflow`` packages are          |
-|                                          |                                          | installed with dependencies limited by   |
-|                                          |                                          | airflow constraints. All other packages  |
-|                                          |                                          | are installed without dependencies       |
-|                                          |                                          | 'as-is'. If you wish to install airflow  |
-|                                          |                                          | via 'pip download' with all dependencies |
-|                                          |                                          | downloaded, you have to rename the       |
-|                                          |                                          | apache airflow and provider packages to  |
-|                                          |                                          | not start with ``apache?airflow`` glob.  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
++------------------------------------+------------------------------------------+------------------------------------------+
+| Build argument                     | Default value                            | Description                              |
++====================================+==========================================+==========================================+
+| ``AIRFLOW_INSTALLATION_METHOD``    | ``apache-airflow``                       | Installation method of Apache Airflow.   |
+|                                    |                                          | ``apache-airflow`` for installation from |
+|                                    |                                          | PyPI. It can be GitHub repository URL    |
+|                                    |                                          | including branch or tag to install from  |
+|                                    |                                          | that repository or "." to install from   |
+|                                    |                                          | local sources. Installing from sources   |
+|                                    |                                          | requires appropriate values of the       |
+|                                    |                                          | ``AIRFLOW_SOURCES_FROM`` and             |
+|                                    |                                          | ``AIRFLOW_SOURCES_TO`` variables (see    |
+|                                    |                                          | below)                                   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_FROM``           | ``Dockerfile``                           | Sources of Airflow. Set it to "." when   |
+|                                    |                                          | you install Airflow from local sources   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_TO``             | ``/Dockerfile``                          | Target for Airflow sources. Set to       |
+|                                    |                                          | "/opt/airflow" when you install Airflow  |
+|                                    |                                          | from local sources.                      |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_FROM``       | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
+|                                    |                                          | asset compilation. Set it to             |
+|                                    |                                          | "./airflow/www" when                     |
+|                                    |                                          | you install Airflow from local sources   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_TO``         | ``/Dockerfile``                          | Target for Airflow files used for        |
+|                                    |                                          | asset compilation. Set it to             |
+|                                    |                                          | "/opt/airflow/airflow/www" when          |
+|                                    |                                          | you install Airflow from local sources.  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_VERSION_SPECIFICATION``  |                                          | Optional - might be used for using limit |
+|                                    |                                          | for Airflow version installation - for   |
+|                                    |                                          | example ``<2.0.2`` for automated builds. |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PROVIDERS_FROM_SOURCES`` | ``false``                                | If set to ``true`` and image is built    |
+|                                    |                                          | from sources, all provider packages are  |
+|                                    |                                          | installed from sources rather than from  |
+|                                    |                                          | packages. It has no effect when          |
+|                                    |                                          | installing from PyPI or GitHub repo.     |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_LOCATION``   |                                          | If not empty, it will override the       |
+|                                    |                                          | source of the constraints with the       |
+|                                    |                                          | specified URL or file. Note that the     |
+|                                    |                                          | file has to be in Docker context so      |
+|                                    |                                          | it's best to place such file in          |
+|                                    |                                          | one of the folders included in           |
+|                                    |                                          | ``.dockerignore`` file.                  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``DOCKER_CONTEXT_FILES``           | ``Dockerfile``                           | If set to a folder (for example to       |
+|                                    |                                          | ``docker-context-files`` folder), then   |
+|                                    |                                          | this folder will be copied to the        |
+|                                    |                                          | ``docker-context-files`` inside the      |
+|                                    |                                          | context of docker and you will be able   |
+|                                    |                                          | to install from binary files present     |
+|                                    |                                          | there. By default we set it to           |
+|                                    |                                          | Dockerfile as we know the file is there, |
+|                                    |                                          | otherwise the COPY instruction fails.    |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PACKAGES_FROM_CONTEXT``  | ``false``                                | If set to true, Airflow, providers and   |
+|                                    |                                          | all dependencies are installed from      |
+|                                    |                                          | from locally built/downloaded            |
+|                                    |                                          | .whl and .tar.gz files placed in the     |
+|                                    |                                          | ``docker-context-files``.                |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_IS_IN_CONTEXT``          | ``false``                                | If set to true, it means that Airflow    |
+|                                    |                                          | and providers are available in context   |
+|                                    |                                          | and the image will not attempt to        |
+|                                    |                                          | install Airflow from PyPI or sources.    |
++------------------------------------+------------------------------------------+------------------------------------------+
 
 Pre-caching PIP dependencies
 ............................

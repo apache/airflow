@@ -58,8 +58,8 @@ REQUIRED_PROD_IMAGE_ARGS = [
     "build_id",
     "airflow_image_readme_url",
     "install_providers_from_sources",
-    "install_from_pypi",
-    "install_from_docker_context_files",
+    "airflow_is_in_context",
+    "install_packages_from_context",
 ]
 
 OPTIONAL_PROD_IMAGE_ARGS = [
@@ -85,36 +85,36 @@ def clean_docker_context_files(verbose: bool, dry_run: bool):
                 file_to_delete.unlink()
 
 
-def check_docker_context_files(install_from_docker_context_files: bool):
+def check_docker_context_files(install_packages_from_context: bool):
     """
     Sanity check - if we want to install from docker-context-files we expect some packages there but if
     we don't - we don't expect them, and they might invalidate Docker cache.
 
     This method exits with an error if what we see is unexpected for given operation.
 
-    :param install_from_docker_context_files: whether we want to install from docker-context-files
+    :param install_packages_from_context: whether we want to install from docker-context-files
     """
     context_file = DOCKER_CONTEXT_DIR.glob('**/*')
     number_of_context_files = len(
         [context for context in context_file if context.is_file() and context.name != '.README.md']
     )
     if number_of_context_files == 0:
-        if install_from_docker_context_files:
+        if install_packages_from_context:
             console.print('[bright_yellow]\nERROR! You want to install packages from docker-context-files')
             console.print('[bright_yellow]\n but there are no packages to install in this folder.')
             sys.exit(1)
     else:
-        if not install_from_docker_context_files:
+        if not install_packages_from_context:
             console.print(
                 '[bright_yellow]\n ERROR! There are some extra files in docker-context-files except README.md'
             )
-            console.print('[bright_yellow]\nAnd you did not choose --install-from-docker-context-files flag')
+            console.print('[bright_yellow]\nAnd you did not choose --install-packages-from-context flag')
             console.print(
                 '[bright_yellow]\nThis might result in unnecessary cache invalidation and long build times'
             )
             console.print(
                 '[bright_yellow]\nExiting now \
-                    - please restart the command with --cleanup-docker-context-files switch'
+                    - please restart the command with --cleanup-context switch'
             )
             sys.exit(1)
 
@@ -154,9 +154,9 @@ def build_production_image(
         enabled=with_ci_group,
     ):
         prod_image_params.print_info()
-        if prod_image_params.cleanup_docker_context_files:
+        if prod_image_params.cleanup_context:
             clean_docker_context_files(verbose=verbose, dry_run=dry_run)
-        check_docker_context_files(prod_image_params.install_from_docker_context_files)
+        check_docker_context_files(prod_image_params.install_packages_from_context)
         if prod_image_params.prepare_buildx_cache:
             login_to_docker_registry(prod_image_params, dry_run=dry_run)
         run_command(
