@@ -36,5 +36,5 @@ Examples:
 
 """
 
-AIRFLOW_BRANCH = "main"
-DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+AIRFLOW_BRANCH = "v2-3-test"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-3"
