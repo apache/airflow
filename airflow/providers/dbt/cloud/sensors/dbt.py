@@ -56,8 +56,8 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.tenant = tenant
 
     def poke(self, context: "Context") -> bool:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
-        job_run_status = hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id, tenant=self.tenant)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, self.tenant)
+        job_run_status = hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
 
         if job_run_status == DbtCloudJobRunStatus.ERROR.value:
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
