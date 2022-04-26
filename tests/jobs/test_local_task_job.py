@@ -30,20 +30,21 @@ import psutil
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowFailException
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
@@ -797,6 +798,115 @@ class TestLocalTaskJob:
         failed_deps = list(ti2_b.get_failed_dep_statuses(session=session))
         assert len(failed_deps) == 1
         assert failed_deps[0].dep_name == "Previous Dagrun State"
+        assert not failed_deps[0].passed
+
+    @pytest.mark.parametrize(
+        "exception, trigger_rule",
+        [
+            (AirflowFailException(), TriggerRule.ALL_DONE),
+            (AirflowFailException(), TriggerRule.ALL_FAILED),
+            (AirflowSkipException(), TriggerRule.ALL_DONE),
+            (AirflowSkipException(), TriggerRule.ALL_SKIPPED),
+            (AirflowSkipException(), TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS),
+        ],
+    )
+    @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
+    def test_mini_scheduler_works_with_skipped_and_failed(
+        self, exception, trigger_rule, caplog, session, dag_maker
+    ):
+        """
+        In these cases D is running, at no decision can be made about C.
+        """
+
+        def raise_():
+            raise exception
+
+        with dag_maker(catchup=False) as dag:
+            task_a = PythonOperator(task_id='A', python_callable=raise_)
+            task_b = PythonOperator(task_id='B', python_callable=lambda: True)
+            task_c = PythonOperator(task_id='C', python_callable=lambda: True, trigger_rule=trigger_rule)
+            task_d = PythonOperator(task_id='D', python_callable=lambda: True)
+            task_a >> task_b >> task_c
+            task_d >> task_c
+
+        dr = dag.create_dagrun(run_id='test_1', state=State.RUNNING, execution_date=DEFAULT_DATE)
+        ti_a = TaskInstance(task_a, run_id=dr.run_id, state=State.QUEUED)
+        ti_b = TaskInstance(task_b, run_id=dr.run_id, state=State.NONE)
+        ti_c = TaskInstance(task_c, run_id=dr.run_id, state=State.NONE)
+        ti_d = TaskInstance(task_d, run_id=dr.run_id, state=State.RUNNING)
+
+        session.merge(ti_a)
+        session.merge(ti_b)
+        session.merge(ti_c)
+        session.merge(ti_d)
+        session.flush()
+
+        job1 = LocalTaskJob(task_instance=ti_a, ignore_ti_state=True, executor=SequentialExecutor())
+        job1.task_runner = StandardTaskRunner(job1)
+        job1.run()
+
+        ti_b.refresh_from_db(session)
+        ti_c.refresh_from_db(session)
+        assert ti_b.state in (State.SKIPPED, State.UPSTREAM_FAILED)
+        assert ti_c.state == State.NONE
+        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+        failed_deps = list(ti_c.get_failed_dep_statuses(session=session))
+        assert len(failed_deps) == 1
+        assert failed_deps[0].dep_name == "Trigger Rule"
+        assert not failed_deps[0].passed
+
+    @pytest.mark.parametrize(
+        "trigger_rule",
+        [
+            TriggerRule.ONE_SUCCESS,
+            TriggerRule.ALL_SKIPPED,
+            TriggerRule.NONE_FAILED,
+            TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+        ],
+    )
+    @conf_vars({('scheduler', 'schedule_after_task_execution'): 'True'})
+    def test_mini_scheduler_works_with_branch_python_operator(self, trigger_rule, caplog, session, dag_maker):
+        """
+        In these cases D is running, at no decision can be made about C.
+        """
+        with dag_maker(catchup=False) as dag:
+            task_a = BranchPythonOperator(task_id='A', python_callable=lambda: [])
+            task_b = PythonOperator(task_id='B', python_callable=lambda: True)
+            task_c = PythonOperator(
+                task_id='C',
+                python_callable=lambda: True,
+                trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+            )
+            task_d = PythonOperator(task_id='D', python_callable=lambda: True)
+            task_a >> task_b >> task_c
+            task_d >> task_c
+
+        dr = dag.create_dagrun(run_id='test_1', state=State.RUNNING, execution_date=DEFAULT_DATE)
+        ti_a = TaskInstance(task_a, run_id=dr.run_id, state=State.QUEUED)
+        ti_b = TaskInstance(task_b, run_id=dr.run_id, state=State.NONE)
+        ti_c = TaskInstance(task_c, run_id=dr.run_id, state=State.NONE)
+        ti_d = TaskInstance(task_d, run_id=dr.run_id, state=State.RUNNING)
+
+        session.merge(ti_a)
+        session.merge(ti_b)
+        session.merge(ti_c)
+        session.merge(ti_d)
+        session.flush()
+
+        job1 = LocalTaskJob(task_instance=ti_a, ignore_ti_state=True, executor=SequentialExecutor())
+        job1.task_runner = StandardTaskRunner(job1)
+        job1.run()
+
+        ti_b.refresh_from_db(session)
+        ti_c.refresh_from_db(session)
+        assert ti_b.state == State.SKIPPED
+        assert ti_c.state == State.NONE
+        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+        failed_deps = list(ti_c.get_failed_dep_statuses(session=session))
+        assert len(failed_deps) == 1
+        assert failed_deps[0].dep_name == "Trigger Rule"
         assert not failed_deps[0].passed
 
     @patch('airflow.utils.process_utils.subprocess.check_call')
