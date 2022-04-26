@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -38,8 +37,6 @@ class GoogleDriveToGCSOperator(BaseOperator):
         file should be written to
     :param object_name: The Google Cloud Storage object name for the object created by the operator.
         For example: ``path/to/my/file/file.txt``.
-    :param destination_bucket: Same as bucket_name, but for backward compatibly
-    :param destination_object: Same as object_name, but for backward compatibly
     :param folder_id: The folder id of the folder in which the Google Drive file resides
     :param file_name: The name of the file residing in Google Drive
     :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
@@ -69,10 +66,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket_name: Optional[str] = None,
+        bucket_name: str,
         object_name: Optional[str] = None,
-        destination_bucket: Optional[str] = None,  # deprecated
-        destination_object: Optional[str] = None,  # deprecated
         file_name: str,
         folder_id: str,
         drive_id: Optional[str] = None,
@@ -82,23 +77,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if destination_bucket:
-            warnings.warn(
-                "`destination_bucket` is deprecated please use `bucket_name`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        actual_bucket = destination_bucket or bucket_name
-        if actual_bucket is None:
-            raise RuntimeError("One of the destination_bucket or bucket_name must be set")
-        self.bucket_name: str = actual_bucket
-        self.object_name = destination_object or object_name
-        if destination_object:
-            warnings.warn(
-                "`destination_object` is deprecated please use `object_name`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        self.bucket_name = bucket_name
+        self.object_name = object_name
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name

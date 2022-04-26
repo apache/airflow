@@ -29,12 +29,13 @@ if TYPE_CHECKING:
 
 class StepFunctionStartExecutionOperator(BaseOperator):
     """
-    An Operator that begins execution of an Step Function State Machine
+    An Operator that begins execution of an AWS Step Function State Machine.
 
     Additional arguments may be specified and are passed down to the underlying BaseOperator.
 
     .. seealso::
-        :class:`~airflow.models.BaseOperator`
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StepFunctionStartExecutionOperator`
 
     :param state_machine_arn: ARN of the Step Function State Machine
     :param name: The name of the execution.
@@ -79,12 +80,13 @@ class StepFunctionStartExecutionOperator(BaseOperator):
 
 class StepFunctionGetExecutionOutputOperator(BaseOperator):
     """
-    An Operator that begins execution of an Step Function State Machine
+    An Operator that returns the output of an AWS Step Function State Machine execution.
 
     Additional arguments may be specified and are passed down to the underlying BaseOperator.
 
     .. seealso::
-        :class:`~airflow.models.BaseOperator`
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StepFunctionGetExecutionOutputOperator`
 
     :param execution_arn: ARN of the Step Function State Machine Execution
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
