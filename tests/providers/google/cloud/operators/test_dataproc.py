@@ -973,72 +973,12 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        xcom_push_call = call.ti.xcom_push(execution_date=None, key='conf', value=DATAPROC_JOB_CONF_EXPECTED)
-        wait_for_job_call = call.hook().wait_for_job(
-            job_id=TEST_JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT, timeout=None
-        )
-
-        job = {}
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
-
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-
-        with pytest.warns(DeprecationWarning) as warnings:
-            op = DataprocSubmitJobOperator(
-                task_id=TASK_ID,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                job=job,
-                gcp_conn_id=GCP_CONN_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                request_id=REQUEST_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-            op.execute(context=self.mock_context)
-
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
-
-            # Test whether xcom push occurs before polling for job
-            self.assertLess(
-                self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
-                self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
-                msg='Xcom push for Job Link has to be done before polling for job status',
-            )
-
-            mock_hook.return_value.submit_job.assert_called_once_with(
-                project_id=GCP_PROJECT,
-                region=GCP_LOCATION,
-                job=job,
-                request_id=REQUEST_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-            )
-            mock_hook.return_value.wait_for_job.assert_called_once_with(
-                job_id=TEST_JOB_ID, project_id=GCP_PROJECT, region=GCP_LOCATION, timeout=None
-            )
-
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
-            )
-
-            assert warning_message == str(warnings[0].message)
-
-        with pytest.raises(TypeError):
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocSubmitJobOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
-                job=job,
+                job={},
                 gcp_conn_id=GCP_CONN_ID,
                 retry=RETRY,
                 timeout=TIMEOUT,
@@ -1142,70 +1082,15 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
-        mock_hook.return_value.update_cluster.result.return_value = None
-        cluster_decommission_timeout = {"graceful_decommission_timeout": "600s"}
-        update_cluster_args = {
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT,
-            'cluster_name': CLUSTER_NAME,
-            'cluster': CLUSTER,
-            'update_mask': UPDATE_MASK,
-            'graceful_decommission_timeout': cluster_decommission_timeout,
-            'request_id': REQUEST_ID,
-            'retry': RETRY,
-            'timeout': TIMEOUT,
-            'metadata': METADATA,
-        }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
-        ]
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-
-        with pytest.warns(DeprecationWarning) as warnings:
-            op = DataprocUpdateClusterOperator(
-                task_id=TASK_ID,
-                location=GCP_LOCATION,
-                cluster_name=CLUSTER_NAME,
-                cluster=CLUSTER,
-                update_mask=UPDATE_MASK,
-                request_id=REQUEST_ID,
-                graceful_decommission_timeout=cluster_decommission_timeout,
-                project_id=GCP_PROJECT,
-                gcp_conn_id=GCP_CONN_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-            op.execute(context=self.mock_context)
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
-            mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
-            assert warning_message == str(warnings[0].message)
-
-            # Test whether the xcom push happens before updating the cluster
-            self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
-
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf",
-                value=DATAPROC_CLUSTER_CONF_EXPECTED,
-                execution_date=None,
-            )
-
-        with pytest.raises(TypeError):
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocUpdateClusterOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
                 cluster=CLUSTER,
                 update_mask=UPDATE_MASK,
                 request_id=REQUEST_ID,
-                graceful_decommission_timeout=cluster_decommission_timeout,
+                graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
                 project_id=GCP_PROJECT,
                 gcp_conn_id=GCP_CONN_ID,
                 retry=RETRY,
@@ -1719,38 +1604,8 @@ class TestDataprocCreateWorkflowTemplateOperator:
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
-            warning_message = (
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead."
-            )
-            op = DataprocCreateWorkflowTemplateOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                template=WORKFLOW_TEMPLATE,
-            )
-            op.execute(context=MagicMock())
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
-            mock_hook.return_value.create_workflow_template.assert_called_once_with(
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                template=WORKFLOW_TEMPLATE,
-            )
-            assert warning_message == str(warnings[0].message)
-
-        with pytest.raises(TypeError):
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocCreateWorkflowTemplateOperator(
                 task_id=TASK_ID,
                 gcp_conn_id=GCP_CONN_ID,
