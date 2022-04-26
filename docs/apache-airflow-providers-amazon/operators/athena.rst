@@ -16,42 +16,56 @@
     under the License.
 
 
-.. _howto/operator:AthenaOperator:
+Amazon Athena Operators
+=======================
 
-Amazon Athena Operator
-======================
-
-.. contents::
-  :depth: 1
-  :local:
+`Amazon Athena <https://aws.amazon.com/athena/>`__ is an interactive query service
+that makes it easy to analyze data in Amazon Simple Storage Service (S3) using
+standard SQL.  Athena is serverless, so there is no infrastructure to setup or
+manage, and you pay only for the queries you run.  To get started, simply point
+to your data in S3, define the schema, and start querying using standard SQL.
 
 Prerequisite Tasks
-------------------
+^^^^^^^^^^^^^^^^^^
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Using Operator
---------------
-Use the
-:class:`~airflow.providers.amazon.aws.operators.athena.AthenaOperator`
-to run a query in Amazon Athena.  To get started with Amazon Athena please visit
-`aws.amazon.com/athena <https://aws.amazon.com/athena>`_
+
+.. _howto/operator:AthenaOperator:
+
+Athena Operator
+^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.providers.amazon.aws.operators.athena.AthenaOperator`
+to run a query in Amazon Athena.
 
 
-In the following example, we create an Athena table and run a query based upon a CSV file
-created in an S3 bucket and populated with SAMPLE_DATA.  The example waits for the query
-to complete and then drops the created table and deletes the sample CSV file in the S3
-bucket.
+In the following example, we query an existing Athena table and send the results to
+an existing Amazon S3 bucket.  For more examples of how to use this operator, please
+see the `Sample DAG <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_athena.py>`__.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
     :language: python
-    :start-after: [START howto_athena_operator_and_sensor]
-    :end-before: [END howto_athena_operator_and_sensor]
+    :start-after: [START howto_athena_operator]
+    :end-before: [END howto_athena_operator]
 
-More information
-----------------
+.. _howto/operator:AthenaSensor:
 
-For further information, look at the documentation of :meth:`~Athena.Client.start_query_execution` method
-in `boto3`_.
+Athena Sensor
+^^^^^^^^^^^^^
 
-.. _boto3: https://pypi.org/project/boto3/
+Use the :class:`~airflow.providers.amazon.aws.sensors.athena.AthenaSensor`
+to wait for the results of a query in Amazon Athena.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
+    :language: python
+    :start-after: [START howto_athena_sensor]
+    :end-before: [END howto_athena_sensor]
+
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Boto3 Library Documentation for Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html>`__
