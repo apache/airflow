@@ -459,4 +459,8 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         )
         self.log.info('Function called successfully. Execution id %s', result.get('executionId'))
         self.xcom_push(context=context, key='execution_id', value=result.get('executionId'))
+
+        # HTTP function returns a JSON response, making it available in xcom
+        if 'result' in result:
+            self.xcom_push(context=context, key='function_response', value=result.get('result'))
         return result
