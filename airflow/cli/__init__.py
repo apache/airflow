@@ -71,7 +71,7 @@ click_output = click.option(
     default="table",
     help="Output format.",
 )
-click_pid = click.option("--pid", type=click.Path(exists=False), help="PID file location")
+click_pid = click.option("--pid", metavar="PID", type=click.Path(exists=False), help="PID file location")
 click_start_date = click.option(
     "-s",
     "--start-date",
@@ -80,11 +80,13 @@ click_start_date = click.option(
 )
 click_stderr = click.option(
     "--stderr",
+    metavar="STDERR",
     type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Redirect stderr to this file",
 )
 click_stdout = click.option(
     "--stdout",
+    metavar="STDOUT",
     type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Redirect stdout to this file",
 )

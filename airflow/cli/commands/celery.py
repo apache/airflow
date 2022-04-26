@@ -36,36 +36,60 @@ from airflow.utils.serve_logs import serve_logs
 WORKER_PROCESS_NAME = "worker"
 
 
-click_flower_host = click.option(
+click_flower_hostname = click.option(
     "-H",
     "--hostname",
+    metavar="HOSTNAME",
     default=conf.get("celery", "FLOWER_HOST"),
     help="Set the hostname on which to run the server",
 )
 click_flower_port = click.option(
     "-p",
     "--port",
+    metavar="PORT",
     default=conf.get("celery", "FLOWER_PORT"),
     type=int,
     help="The port on which to run the server",
 )
-click_flower_broker_api = click.option("-a", "--broker-api", help="Broker API")
+click_flower_broker_api = click.option(
+    "-a",
+    "--broker-api",
+    metavar="BROKER_API",
+    help="""
+    Broker API URL
+
+    Examples:
+
+    postgresql://user:secret@host1:5432,host2:5433/otherdb?connect_timeout=10&application_name=myapp
+
+    redis://localhost:6379/0
+
+    amqp://myuser:mypassword@localhost:5672/myvhost
+
+    sqs://ABCDEFGHIJKLMNOPQRST:ZYXK7NiynGlTogH8Nj+P9nlE73sq3@
+    """
+)
 click_flower_url_prefix = click.option(
     "-u", "--url-prefix", default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
 )
 click_flower_basic_auth = click.option(
     "-A",
     "--basic-auth",
+    metavar="BASIC_AUTH",
     default=conf.get("celery", "FLOWER_BASIC_AUTH"),
-    help=(
-        "Securing Flower with Basic Authentication. "
-        "Accepts user:password pairs separated by a comma. "
-        "Example: flower_basic_auth = user1:password1,user2:password2"
+    help="""
+    Securing Flower with Basic Authentication.
+    Accepts user:password pairs separated by a comma.
+
+    Example:
+    
+    --basic-auth user1:password1,user2:password2
+    """
     ),
 )
-click_flower_conf = click.option("-c", "--flower-conf", help="Configuration file for flower")
+click_flower_conf = click.option("-c", "--flower-conf", metavar="FLOWER_CONF", help="Configuration file for flower")
 click_worker_autoscale = click.option(
-    "-a", "--autoscale", help="Minimum and Maximum number of worker to autoscale"
+    "-a", "--autoscale", metavar="AUTOSCALE", help="Minimum and Maximum number of worker to autoscale"
 )
 click_worker_skip_serve_logs = click.option(
     "-s",
@@ -77,12 +101,14 @@ click_worker_skip_serve_logs = click.option(
 click_worker_queues = click.option(
     "-q",
     "--queues",
+    metavar="QUEUES",
     default=conf.get("operators", "DEFAULT_QUEUE"),
     help="Comma delimited list of queues to serve",
 )
 click_worker_concurrency = click.option(
     "-c",
     "--concurrency",
+    metavar="CONCURRENCY",
     type=int,
     default=conf.get("celery", "worker_concurrency"),
     help="The number of worker processes",
@@ -90,11 +116,13 @@ click_worker_concurrency = click.option(
 click_worker_hostname = click.option(
     "-H",
     "--celery-hostname",
+    metavar="CELERY_HOSTNAME",
     help="Set the hostname of celery worker if you have multiple workers on a single machine",
 )
 click_worker_umask = click.option(
     "-u",
     "--umask",
+    metavar="UMASK",
     default=conf.get("celery", "worker_umask"),
     help="Set the umask of celery worker in daemon mode",
 )
@@ -113,7 +141,7 @@ def celery():
 
 
 @celery.command()
-@click_flower_host
+@click_flower_hostname
 @click_flower_port
 @click_flower_broker_api
 @click_flower_url_prefix
