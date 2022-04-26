@@ -24,8 +24,11 @@ if TYPE_CHECKING:
 
 
 class RedshiftCreateClusterOperator(BaseOperator):
-    """
-    Creates a new cluster with the specified parameters.
+    """Creates a new cluster with the specified parameters.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftCreateClusterOperator`
 
     :param cluster_identifier:  A unique identifier for the cluster.
     :param node_type: The node type to be provisioned for the cluster.
