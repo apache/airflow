@@ -127,19 +127,22 @@ const DagRun = ({ runId }) => {
         <Time dateTime={endDate} />
       </Text>
       )}
-      <br />
-      <Text as="strong">Data Interval:</Text>
-      <Text>
-        Start:
-        {' '}
-        <Time dateTime={dataIntervalStart} />
-      </Text>
-      <Text>
-        End:
-        {' '}
-        <Time dateTime={dataIntervalEnd} />
-      </Text>
-
+      {dataIntervalStart && dataIntervalEnd && (
+        <>
+          <br />
+          <Text as="strong">Data Interval:</Text>
+          <Text>
+            Start:
+            {' '}
+            <Time dateTime={dataIntervalStart} />
+          </Text>
+          <Text>
+            End:
+            {' '}
+            <Time dateTime={dataIntervalEnd} />
+          </Text>
+        </>
+      )}
     </Box>
   );
 };
