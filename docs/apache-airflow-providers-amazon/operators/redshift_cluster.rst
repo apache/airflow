@@ -36,12 +36,12 @@ Manage Amazon Redshift Clusters
 .. _howto/operator:RedshiftCreateClusterOperator:
 
 Amazon Redshift Cluster Operator
-""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""
 
 To create an Amazon Redshift Cluster with the specified parameters
 :class:`~airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftCreateClusterOperator`.
 
-.. exampleinclude:: /../../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_cluster]

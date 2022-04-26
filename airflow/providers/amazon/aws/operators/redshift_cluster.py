@@ -24,13 +24,17 @@ if TYPE_CHECKING:
 
 
 class RedshiftCreateClusterOperator(BaseOperator):
-    """
-    Creates a new cluster with the specified parameters.
+    """Creates a new cluster with the specified parameters.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftCreateClusterOperator`
 
     :param cluster_identifier:  A unique identifier for the cluster.
     :param node_type: The node type to be provisioned for the cluster.
-        Valid Values: ``ds2.xlarge | ds2.8xlarge | dc1.large | dc1.8xlarge
-            | dc2.large | dc2.8xlarge | ra3.xlplus | ra3.4xlarge | ra3.16xlarge``
+            Valid Values: ``ds2.xlarge``, ``ds2.8xlarge``, ``dc1.large``,
+            ``dc1.8xlarge``, ``dc2.large``, ``dc2.8xlarge``, ``ra3.xlplus``,
+            ``ra3.4xlarge``, and ``ra3.16xlarge``.
     :param master_username: The username associated with the admin user account for
         the cluster that is being created.
     :param master_user_password: The password associated with the admin user account for
