@@ -46,6 +46,18 @@ Breaking changes
 
 * ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``.
 
+* ``PubSubCreateTopicOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubCreateSubscriptionOperator``: Remove ``topic_project``. Please use ``project_id``
+
+* ``PubSubCreateSubscriptionOperator``: Remove ``subscription_project``. Please use ``subscription_project_id``
+
+* ``PubSubDeleteTopicOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubDeleteSubscriptionOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubPublishMessageOperator``: Remove ``project``. Please use ``project_id``
+
 * ``PubSubPullSensor``: Remove ``project``. Please use ``project_id``
 
 * ``PubSubPullSensor``: Remove ``return_immediately``
