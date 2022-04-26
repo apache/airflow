@@ -29,7 +29,7 @@ import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../../StatusBox';
 import { ClipboardText } from '../../../Clipboard';
-import { formatDuration } from '../../../../datetime_utils';
+import { formatDuration, getDuration } from '../../../../datetime_utils';
 import Time from '../../../Time';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
@@ -50,7 +50,6 @@ const DagRun = ({ runId }) => {
     executionDate,
     state,
     runType,
-    duration,
     lastSchedulingDecision,
     dataIntervalStart,
     dataIntervalEnd,
@@ -103,7 +102,7 @@ const DagRun = ({ runId }) => {
       <Text>
         Duration:
         {' '}
-        {formatDuration(duration)}
+        {formatDuration(getDuration(startDate, endDate))}
       </Text>
       {lastSchedulingDecision && (
       <Text>
