@@ -235,7 +235,7 @@ The webserver.X_FRAME_ENABLED configuration works according to description now.
 
 
 New Features
-""""""""""""
+^^^^^^^^^^^^
 
 - Add dynamic task mapping (`AIP-42 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-42>`_)
 - New Grid View replaces Tree View (#18675)
@@ -291,7 +291,7 @@ New Features
 
 
 Improvements
-""""""""""""
+^^^^^^^^^^^^
 
 - Show schedule_interval/timetable description in UI (#16931)
 - Added column duration to DAG runs view (#19482)
@@ -397,7 +397,7 @@ Improvements
 
 
 Bug Fixes
-"""""""""
+^^^^^^^^^
 
 - Use inherited 'trigger_tasks' method (#23016)
 - In DAG dependency detector, use class type instead of class name (#21706)
@@ -489,7 +489,7 @@ Bug Fixes
 
 
 Doc only changes
-""""""""""""""""
+^^^^^^^^^^^^^^^^
 
 - Update doc for DAG file processing (#23209)
 - Replace changelog/updating with release notes and ``towncrier`` now (#22003)
@@ -518,7 +518,7 @@ Doc only changes
 
 
 Misc/Internal
-"""""""""""""
+^^^^^^^^^^^^^
 
 - Bring back deprecated security manager functions (#23243)
 - Replace usage of ``DummyOperator`` with ``EmptyOperator`` (#22974)
