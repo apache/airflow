@@ -26,7 +26,7 @@
 - [Manually refreshing the images](#manually-refreshing-the-images)
   - [Setting up cache refreshing with emulation](#setting-up-cache-refreshing-with-emulation)
   - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
-  - [When to rebuild the image](#when-to-rebuild-the-image)
+  - [How to refresh the image](#how-to-refresh-the-image)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -80,6 +80,8 @@ but you should also make sure that you have the buildkit builder configured and 
 multi-platform images (for both AMD and ARM), you need to have support for qemu or hardware ARM/AMD builders
 configured.
 
+
+
 ## Setting up cache refreshing with emulation
 
 According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
@@ -110,6 +112,9 @@ docker buildx create --name airflow_cache   # your local builder
 docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
 ```
 
+One of the ways to have HOST:PORT is to login to the remote machine via SSH and forward the port to
+the docker engine running on the remote machine.
+
 When everything is fine you should see both local and remote builder configured and reporting status:
 
 ```bash
@@ -120,7 +125,7 @@ docker buildx ls
        airflow_cache1    tcp://127.0.0.1:2375
 ```
 
-## When to rebuild the image
+## How to refresh the image
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for all
 python version sis a simple as running the [refresh_images.sh](refresh_images.sh) script which will
@@ -129,19 +134,4 @@ speed up the build significantly, that's why the images are build sequentially.
 
 ```bash
 ./dev/refresh_images.sh
-```
-
-You can also individually refresh the images by running commands like this:
-
-```bash
-rm -rf docker-context-files/*.whl
-rm -rf docker-context-files/*.tgz
-export ANSWER="yes"
-export CI="true"
-
-breeze build-image --python-version 3.7 \
-    --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
-
-breeze build-prod-image --python-version 3.7 --cleanup-docker-context-files \
-    --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
 ```

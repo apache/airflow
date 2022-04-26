@@ -165,7 +165,7 @@ function initialization::initialize_base_variables() {
     export PRESERVE_VOLUMES="false"
 
     # Cleans up docker context files if specified
-    export CLEANUP_DOCKER_CONTEXT_FILES="false"
+    export CLEANUP_CONTEXT="false"
 
     # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
@@ -458,13 +458,13 @@ function initialization::initialize_image_build_variables() {
     # Determines which providers are used to generate constraints - source, pypi or no providers
     export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
 
-    # whether installation of Airflow should be done via PIP. You can set it to false if you have
-    # all the binary packages (including airflow) in the docker-context-files folder and use
-    # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
-    export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
+    # By default we install latest airflow from PyPI or sources. You can set this parameter to false
+    # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
+    # to skip installing Airflow/Providers from PyPI or sources.
+    export AIRFLOW_IS_IN_CONTEXT="${AIRFLOW_IS_IN_CONTEXT:="false"}"
 
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
-    export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
+    export INSTALL_PACKAGES_FROM_CONTEXT="${INSTALL_PACKAGES_FROM_CONTEXT:="false"}"
 
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
@@ -714,14 +714,14 @@ Common image build variables:
 
     INSTALL_AIRFLOW_VERSION: '${INSTALL_AIRFLOW_VERSION}'
     INSTALL_AIRFLOW_REFERENCE: '${INSTALL_AIRFLOW_REFERENCE}'
-    INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
+    AIRFLOW_IS_IN_CONTEXT: '${AIRFLOW_IS_IN_CONTEXT}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
     AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
     AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'
     INSTALL_PROVIDERS_FROM_SOURCES: '${INSTALL_PROVIDERS_FROM_SOURCES}'
-    INSTALL_FROM_DOCKER_CONTEXT_FILES: '${INSTALL_FROM_DOCKER_CONTEXT_FILES}'
+    INSTALL_PACKAGES_FROM_CONTEXT: '${INSTALL_PACKAGES_FROM_CONTEXT}'
     ADDITIONAL_AIRFLOW_EXTRAS: '${ADDITIONAL_AIRFLOW_EXTRAS}'
     ADDITIONAL_PYTHON_DEPS: '${ADDITIONAL_PYTHON_DEPS}'
     DEV_APT_COMMAND: '${DEV_APT_COMMAND}'
@@ -857,8 +857,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_FROM_PYPI
-    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
+    readonly AIRFLOW_IS_IN_CONTEXT
+    readonly INSTALL_PACKAGES_FROM_CONTEXT
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 

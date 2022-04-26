@@ -28,6 +28,8 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Setting environment with emulation](#setting-environment-with-emulation)
+  - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
@@ -465,14 +467,62 @@ is not supposed to be used by and advertised to the end-users who do not read th
 
 ## Prepare production Docker Image
 
-Production Docker images should be manually prepared and pushed by the release manager.
+Production Docker images should be manually prepared and pushed by the release manager or another committer
+who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
+to have an environment prepared to build multi-platform images. You can achieve it with either emulation
+(very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
+
+## Setting environment with emulation
+
+According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
+this can be achieved via:
+
+```shell
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
+
+However, emulation is very slow - more than 10x slower than hardware-backed builds.
+
+## Setting up cache refreshing with hardware ARM/AMD support
+
+If you plan to build  a number of images, probably better solution is to set up a hardware remote builder
+for your ARM or AMD builds (depending which platform you build images on - the "other" platform should be
+remote.
+
+This  can be achieved by settings build as described in
+[this guideline](https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/) and
+adding it to docker buildx `airflow_cache` builder.
+
+This usually can be done with those two commands:
+
+```bash
+docker buildx create --name airflow_cache   # your local builder
+docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
+```
+
+One of the ways to have HOST:PORT is to login to the remote machine via SSH and forward the port to
+the docker engine running on the remote machine.
+
+When everything is fine you should see both local and remote builder configured and reporting status:
+
+```bash
+docker buildx ls
+
+  airflow_cache          docker-container
+       airflow_cache0    unix:///var/run/docker.sock
+       airflow_cache1    tcp://127.0.0.1:2375
+```
+
 
 ```shell script
 ./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
+also performs image verification after pushing the images.
+
 
 ## Prepare issue for testing status of rc
 
@@ -926,11 +976,14 @@ At this point we release an official package:
 ## Manually prepare production Docker Image
 
 
+Note that this scripts prepares multi-platform image, so you need to fulfill prerequisites as
+described above in the preparation of RC images.
+
 ```shell script
 ./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
-If you release 'official' (non-rc) version you will be asked if you want to
+Note! When you release the 'final' (non-rc) version you will be asked if you want to
 tag the images as latest - if you are releasing the latest stable branch, you
 should answer y and tags will be created and pushed. If you are releasing a
 patch release from an older branch, you should answer n and creating tags will

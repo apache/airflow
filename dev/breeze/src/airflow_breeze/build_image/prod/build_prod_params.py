@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import commit_sha
 
 
 @dataclass
@@ -45,14 +44,14 @@ class BuildProdParams:
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_from_docker_context_files: bool = False
     disable_airflow_repo_cache: bool = False
     install_providers_from_sources: bool = False
-    cleanup_docker_context_files: bool = False
+    cleanup_context: bool = False
     prepare_buildx_cache: bool = False
     push_image: bool = False
     empty_image: bool = False
-    disable_pypi: bool = False
+    airflow_is_in_context: bool = False
+    install_packages_from_context: bool = False
     upgrade_to_newer_dependencies: str = "false"
     airflow_version: str = get_airflow_version()
     python: str = "3.7"
@@ -237,22 +236,15 @@ class BuildProdParams:
 
     @property
     def airflow_image_readme_url(self):
-        return f"https://raw.githubusercontent.com/apache/airflow/{commit_sha()}/docs/docker-stack/README.md"
+        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
     def print_info(self):
         console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
 
     @property
-    def install_from_pypi(self) -> str:
-        install_from_pypi = 'true'
-        if self.disable_pypi:
-            install_from_pypi = 'false'
-        return install_from_pypi
-
-    @property
     def airflow_pre_cached_pip_packages(self) -> str:
         airflow_pre_cached_pip = 'true'
-        if self.disable_pypi or self.disable_airflow_repo_cache:
+        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
             airflow_pre_cached_pip = 'false'
         return airflow_pre_cached_pip
 
