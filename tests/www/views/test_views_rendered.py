@@ -182,7 +182,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_secret(*args, admin_client, create_dag_run, task_secret):
+def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     """Test that the Rendered View masks values retrieved from secret variables."""
     Variable.set("my_secret", "foo")
     Variable.set("spam", "egg")
@@ -196,12 +196,12 @@ def test_rendered_template_secret(*args, admin_client, create_dag_run, task_secr
         ti.refresh_from_task(task_secret)
         assert ti.state == TaskInstanceState.QUEUED
 
-    url = f'rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    date = {quote_plus(str(DEFAULT_DATE))}
+    url = f'rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}'
 
-    with mock.patch('airflow.settings.MASK_SECRETS_IN_LOGS', True):
-        resp = admin_client.get(url, follow_redirects=True)
-        check_content_in_response(
-            'echo</span> *** <span class="o">&amp;&amp;</span> <span class="nb">echo</span> egg', resp
-        )
-        ti.refresh_from_task(task_secret)
-        assert ti.state == TaskInstanceState.QUEUED
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response(
+        'echo</span> *** <span class="o">&amp;&amp;</span> <span class="nb">echo</span> egg', resp
+    )
+    ti.refresh_from_task(task_secret)
+    assert ti.state == TaskInstanceState.QUEUED
