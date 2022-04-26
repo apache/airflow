@@ -39,7 +39,8 @@ Breaking changes
 * ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``.
 
 * ``PubSubPullSensor``: Remove ``project``. Please use ``project_id``
-  ``PubSubPullSensor``: Remove ``return_immediately``
+
+* ``PubSubPullSensor``: Remove ``return_immediately``
 
 6.8.0
 .....
