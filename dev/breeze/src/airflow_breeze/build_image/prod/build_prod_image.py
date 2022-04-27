@@ -16,6 +16,7 @@
 # under the License.
 """Command to build PROD image."""
 import contextlib
+import os
 import sys
 from typing import Tuple
 
@@ -169,6 +170,8 @@ def build_production_image(
         )
         console.print(f"\n[blue]Building PROD Image for Python {prod_image_params.python}\n")
         if prod_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
             console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=prod_image_params)
             build_command_result = run_command(
@@ -179,6 +182,7 @@ def build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
+                env=env,
             )
         else:
             cmd = construct_docker_build_command(
