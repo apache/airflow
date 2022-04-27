@@ -37,8 +37,8 @@ GHCR_IO_PREFIX = "ghcr.io"
 
 
 GHCR_IO_IMAGES = [
-    "{prefix}/{repo}/{branch}/ci/python{python_version}:latest",
-    "{prefix}/{repo}/{branch}/prod/python{python_version}:latest",
+    "{prefix}/{repo}/{branch}/ci/python{python}:latest",
+    "{prefix}/{repo}/{branch}/prod/python{python}:latest",
 ]
 
 
