@@ -453,7 +453,6 @@ Bug Fixes
 - Don't validate that Params are JSON when NOTSET (#22000)
 - Add per-DAG delete permissions (#21938)
 - Fix handling some None parameters in kubernetes 23 libs. (#21905)
-- ``EdgeModifier`` refactoring (#21404)
 - Fix handling of empty (None) tags in ``bulk_write_to_db`` (#21757)
 - Fix DAG date range bug (#20507)
 - Removed ``request.referrer`` from views.py  (#21751)
