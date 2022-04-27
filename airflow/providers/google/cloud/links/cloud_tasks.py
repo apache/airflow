@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Dataflow links."""
+"""This module contains Google Cloud Tasks links."""
 from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
