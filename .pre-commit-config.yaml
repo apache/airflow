@@ -449,6 +449,10 @@ repos:
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
+          ^airflow/airflow/api_connexion/openapi/v1.yaml$|
+          ^airflow/airflow/cli/commands/webserver_command.py$|
+          ^airflow/airflow/ui/yarn.lock$|
+          ^airflow/tests/cli/commands/test_webserver_command.py$|
           ^docs/*.*$|
           ^tests/providers/|
           ^.pre-commit-config\.yaml$|

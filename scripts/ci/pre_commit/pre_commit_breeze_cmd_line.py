@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 import sys
 from pathlib import Path
 from subprocess import check_call, check_output, run
@@ -114,6 +115,22 @@ def verify_all_commands_described_in_docs():
         sys.exit(1)
 
 
+def verify_breeze_installed():
+    cmd = 'breeze'
+    locate = shutil.which(cmd)
+    console = Console(force_terminal=True, color_system="standard", width=180)
+
+    if locate is None:
+        console.print("[red]You don't have Breeze installed")
+        console.print(
+            "[yellow]follow BREEZE.rst to install it \
+        https://github.com/apache/airflow/blob/main/BREEZE.rst"
+        )
+    else:
+        console.print("[green] breeze is installed")
+        print_help_for_all_commands()
+        verify_all_commands_described_in_docs()
+
+
 if __name__ == '__main__':
-    print_help_for_all_commands()
-    verify_all_commands_described_in_docs()
+    verify_breeze_installed()

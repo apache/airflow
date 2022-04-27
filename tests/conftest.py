@@ -82,7 +82,7 @@ def trace_sql(request):
 
     terminal_reporter = request.config.pluginmanager.getplugin("terminalreporter")
     # if no terminal reporter plugin is present, nothing we can do here;
-    # this can happen when this function executes in a slave node
+    # this can happen when this function executes in a worker node
     # when using pytest-xdist, for example
     if terminal_reporter is None:
         yield
