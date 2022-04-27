@@ -234,7 +234,8 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     """
     Enables autocompletion of breeze commands.
     """
-    set_forced_answer(answer)
+    if force:
+        set_forced_answer(answer)
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get('SHELL')
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
@@ -247,7 +248,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     )
     console.print(f"[bright_blue]Activation command script is available here: {autocomplete_path}[/]\n")
     console.print(f"[bright_yellow]We need to add above script to your {detected_shell} profile.[/]\n")
-    given_answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
+    given_answer = user_confirm("Would you like me to do that automatically?", default_answer=Answer.NO, timeout=3)
     if given_answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')

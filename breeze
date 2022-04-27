@@ -64,7 +64,7 @@ function check_breeze_installed() {
             if "${MY_DIR}/scripts/tools/confirm" "Installing breeze?"; then
                 pipx ensurepath --force
                 pipx install -e "${MY_DIR}/dev/breeze/" --force
-                ${BREEZE_BINARY} setup-autocomplete --force --answer yes
+                ${BREEZE_BINARY} setup-autocomplete
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. Then rerun your last command!${COLOR_RESET}"
                 echo
