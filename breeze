@@ -78,4 +78,4 @@ function check_breeze_installed() {
 
 check_breeze_installed
 
-${BREEZE_BINARY} "${@}"
+${BREEZE_BINARY} "$@"
