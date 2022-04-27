@@ -45,9 +45,9 @@ def user_confirm(
 
     :rtype: object
     :param message: message to display to the user (should end with the question mark)
-    :param timeout: time given user to answer
-    :param default_answer: default value returned on timeout. If no default - the question is
-        repeated until user answers.
+    :param timeout: time (in seconds) given user to answer
+    :param default_answer: default value returned on timeout. If no default answer is
+        given the timeout is disabled.
     :param quit_allowed: whether quit answer is allowed
     :return:
     """
@@ -64,7 +64,7 @@ def user_confirm(
                 user_status = inputimeout(
                     prompt=f'\n{message} \nPress {allowed_answers}'
                     + (f" in {timeout} seconds: " if timeout is not None else ": "),
-                    timeout=timeout,
+                    timeout=timeout and default_answer is not None,
                 )
             if user_status.upper() in ['Y', 'YES']:
                 return Answer.YES
@@ -75,9 +75,8 @@ def user_confirm(
             else:
                 print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")
         except TimeoutOccurred:
-            if default_answer is not None:
-                return default_answer
-            print(f"Timeout after {timeout} seconds. Try again.")
+            print(f"Timeout after {timeout} seconds. Quitting.")
+            sys.exit(0)
         except KeyboardInterrupt:
             if quit_allowed:
                 return Answer.QUIT
