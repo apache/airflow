@@ -49,8 +49,12 @@ configure the secret name:
 
   data:
     metadataSecretName: mydatabase
+    resultBackendSecretName: mydatabase
 
 .. _production-guide:pgbouncer:
+
+.. warning::
+  `resultBackendSecretName` expects a url that starts with `db+postgresql://`, while `metadataSecretName` expects `postgresql://` or `postgres://` and wont work with `db+postgresql://`. To solve this, it might be necessary to create multiple secrets.
 
 PgBouncer
 ---------
