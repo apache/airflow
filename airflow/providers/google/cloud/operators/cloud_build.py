@@ -114,8 +114,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
 
     :param build: The build resource to create. If a dict is provided, it must be of
         the same form as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`.
-        Only either build or body should be passed.
-        This parameter has been deprecated. You should pass the build parameter instead.
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :param wait: Optional, wait for operation to finish.
@@ -137,7 +135,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields: Sequence[str] = ("project_id", "build", "body", "gcp_conn_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
 
     def __init__(
         self,
