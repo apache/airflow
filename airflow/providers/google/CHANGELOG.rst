@@ -34,6 +34,49 @@ Breaking changes
    For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
    and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
 
+* ``BigtableCreateInstanceOperator`` Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``.
+
+* ``BigtableHook.create_instance``: Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``.
+
+* ``GoogleDisplayVideo360CreateReportOperator``: remove ``params``. Please use ``parameters``
+
+* ``FacebookAdsReportToGcsOperator``: remove ``params``. Please use ``parameters``
+
+* ``GoogleDriveToGCSOperator``: Remove ``destination_bucket`` and ``destination_object``. Please use ``bucket_name`` and ``object_name``.
+
+* ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``.
+
+* ``PubSubPullSensor``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubPullSensor``: Remove ``return_immediately``
+
+* ``DataprocJobSensor``: Remove ``location``. Please use ``region``.
+
+* ``DataprocCreateWorkflowTemplateOperator``: Remove ``location``. Please use ``region``.
+
+* ``DataprocCreateClusterOperator``: Remove ``location``. Please use ``region``.
+
+* ``DataprocSubmitJobOperator``: Remove ``location``. Please use ``region``.
+
+* ``DataprocHook``: Remove ``location`` parameter. Please use ``region``.
+  affected functions are:
+  ``cancel_job``, ``create_workflow_template``, ``get_batch_client``,
+  ``get_cluster_client``, ``get_job``, ``get_job_client``, ``get_template_client``,
+  ``instantiate_inline_workflow_template``, ``instantiate_workflow_template``,
+  ``submit_job``, ``update_cluster``,``wait_for_job``
+
+* ``DataprocHook``: order of parameters in ``wait_for_job`` function has changed.
+
+* ``DataprocSubmitJobOperator``: order of parameters has changed.
+
+* ``CloudDatastoreImportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
+* ``CloudDatastoreExportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
+* ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``.
+
+* ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``.
+
 6.8.0
 .....
 

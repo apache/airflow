@@ -22,8 +22,29 @@ rm -rf docker-context-files/*.tgz
 export ANSWER="yes"
 export CI="true"
 
-breeze build-image --build-multiple-images \
-     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
+breeze build-image \
+     --build-multiple-images \
+     --push-image \
+     --prepare-buildx-cache \
+     --platform linux/amd64,linux/arm64 \
+     --verbose
 
-breeze build-prod-image --build-multiple-images --cleanup-docker-context-files \
-     --prepare-buildx-cache --platform linux/amd64,linux/arm64 --verbose
+rm -fv ./dist/* ./docker-context-files/*
+
+breeze prepare-provider-packages \
+    --package-list-file ./scripts/ci/installed_providers.txt \
+    --package-format wheel \
+    --version-suffix-for-pypi dev0
+
+breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+
+mv -v ./dist/*.whl ./docker-context-files
+
+breeze build-prod-image \
+     --build-multiple-images \
+     --airflow-is-in-context \
+     --install-packages-from-context \
+     --prepare-buildx-cache \
+     --disable-airflow-repo-cache \
+     --platform linux/amd64,linux/arm64 \
+     --verbose

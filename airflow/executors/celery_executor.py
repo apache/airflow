@@ -29,7 +29,7 @@ import os
 import subprocess
 import time
 import traceback
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
@@ -45,7 +45,7 @@ import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
+from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType, TaskTuple
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -235,7 +235,7 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
-        self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
+        self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
 
     def start(self) -> None:
@@ -250,28 +250,8 @@ class CeleryExecutor(BaseExecutor):
         """
         return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
-    def trigger_tasks(self, open_slots: int) -> None:
-        """
-        Overwrite trigger_tasks function from BaseExecutor
-
-        :param open_slots: Number of open slots
-        :return:
-        """
-        sorted_queue = self.order_queued_tasks_by_priority()
-
-        task_tuples_to_send: List[TaskInstanceInCelery] = []
-
-        for _ in range(min(open_slots, len(self.queued_tasks))):
-            key, (command, _, queue, _) = sorted_queue.pop(0)
-            task_tuple = (key, command, queue, execute_command)
-            task_tuples_to_send.append(task_tuple)
-            if key not in self.task_publish_retries:
-                self.task_publish_retries[key] = 1
-
-        if task_tuples_to_send:
-            self._process_tasks(task_tuples_to_send)
-
-    def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
+    def _process_tasks(self, task_tuples: List[TaskTuple]) -> None:
+        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
         first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
@@ -285,20 +265,19 @@ class CeleryExecutor(BaseExecutor):
             if isinstance(result, ExceptionWithTraceback) and isinstance(
                 result.exception, AirflowTaskTimeout
             ):
-                if key in self.task_publish_retries and (
-                    self.task_publish_retries.get(key) <= self.task_publish_max_retries
-                ):
+                retries = self.task_publish_retries[key]
+                if retries < self.task_publish_max_retries:
                     Stats.incr("celery.task_timeout_error")
                     self.log.info(
                         "[Try %s of %s] Task Timeout Error for Task: (%s).",
-                        self.task_publish_retries[key],
+                        self.task_publish_retries[key] + 1,
                         self.task_publish_max_retries,
                         key,
                     )
-                    self.task_publish_retries[key] += 1
+                    self.task_publish_retries[key] = retries + 1
                     continue
             self.queued_tasks.pop(key)
-            self.task_publish_retries.pop(key)
+            self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
                 self.event_buffer[key] = (State.FAILED, None)
@@ -429,16 +408,6 @@ class CeleryExecutor(BaseExecutor):
             while any(task.state not in celery_states.READY_STATES for task in self.tasks.values()):
                 time.sleep(5)
         self.sync()
-
-    def execute_async(
-        self,
-        key: TaskInstanceKey,
-        command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
-    ):
-        """Do not allow async execution for Celery executor."""
-        raise AirflowException("No Async execution for Celery executor.")
 
     def terminate(self):
         pass
