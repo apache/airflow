@@ -7,6 +7,7 @@
 .gitrepo
 .airflow_db_initialised
 .airflowignore
+.babelrc
 .coverage
 .coveragerc
 .codecov.yml
@@ -42,6 +43,7 @@ venv
 files
 airflow.iml
 .gitmodules
+scripts/ci/installed_providers.txt
 
 # Generated doc files
 .*html
@@ -116,3 +118,6 @@ airflow/www/static/robots.txt
 
 # Generated autocomplete files
 dev/breeze/autocomplete/*
+
+# Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
+newsfragments/*
