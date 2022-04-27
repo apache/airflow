@@ -21,6 +21,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { ChakraProvider, extendTheme } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
@@ -77,9 +78,11 @@ function App() {
             <QueryClientProvider client={queryClient}>
               <TimezoneProvider>
                 <AutoRefreshProvider>
-                  <SelectionProvider>
-                    <Tree />
-                  </SelectionProvider>
+                  <BrowserRouter>
+                    <SelectionProvider>
+                      <Tree />
+                    </SelectionProvider>
+                  </BrowserRouter>
                 </AutoRefreshProvider>
               </TimezoneProvider>
             </QueryClientProvider>

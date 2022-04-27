@@ -17,12 +17,17 @@
  * under the License.
  */
 
-import React, { useContext, useReducer } from 'react';
+import React, {
+  useContext, useReducer, useEffect, useRef,
+} from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const SelectionContext = React.createContext(null);
 
 const SELECT = 'SELECT';
 const DESELECT = 'DESELECT';
+const RUN_ID = 'dag_run_id';
+const TASK_ID = 'task_id';
 
 const selectionReducer = (state, { type, payload }) => {
   switch (type) {
@@ -41,10 +46,34 @@ const selectionReducer = (state, { type, payload }) => {
 
 // Expose the grid selection to any react component instead of passing around lots of props
 export const SelectionProvider = ({ children }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selected, dispatch] = useReducer(selectionReducer, {});
 
-  const clearSelection = () => dispatch({ type: DESELECT });
-  const onSelect = (payload) => dispatch({ type: SELECT, payload });
+  const rendered = useRef(false);
+
+  const clearSelection = () => {
+    setSearchParams();
+    dispatch({ type: DESELECT });
+  };
+
+  const onSelect = (payload) => {
+    const params = new URLSearchParams(searchParams);
+    if (payload.runId) params.set(RUN_ID, payload.runId);
+    if (payload.taskId) params.set(TASK_ID, payload.taskId);
+    setSearchParams(params);
+    dispatch({ type: SELECT, payload });
+  };
+
+  useEffect(() => {
+    if (!rendered.current) {
+      const runId = searchParams.get(RUN_ID);
+      const taskId = searchParams.get(TASK_ID);
+      if (runId) {
+        dispatch({ type: SELECT, payload: { runId, taskId } });
+      }
+      rendered.current = true;
+    }
+  }, [searchParams]);
 
   return (
     <SelectionContext.Provider value={{ selected, clearSelection, onSelect }}>
