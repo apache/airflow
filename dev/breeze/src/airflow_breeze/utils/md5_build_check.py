@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from airflow_breeze.global_constants import FILES_FOR_REBUILD_CHECK
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
@@ -96,15 +96,17 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     build_needed = False
     modified_files, not_modified_files = calculate_md5_checksum_for_files(md5sum_cache_dir, update=False)
     if len(modified_files) > 0:
-        console.print(
-            '[bright_yellow]The following files are modified since last time image was built: [/]\n\n'
+        get_console().print(
+            '[warning]The following files are modified since last time image was built: [/]\n\n'
         )
         for file in modified_files:
-            console.print(f" * [bright_blue]{file}[/]")
-        console.print('\n[bright_yellow]Likely CI image needs rebuild[/]\n')
+            get_console().print(f" * [info]{file}[/]")
+        get_console().print('\n[warning]Likely CI image needs rebuild[/]\n')
         build_needed = True
     else:
-        console.print('Docker image build is not needed for CI build as no important files are changed!')
+        get_console().print(
+            'Docker image build is not needed for CI build as no important files are changed!'
+        )
     return build_needed
 
 

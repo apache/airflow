@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import (
     ask_to_reinstall_breeze,
     warn_dependencies_changed,
@@ -200,9 +200,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     """
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_upgrade_check():
-        console.print(
-            "\n[red]Breeze should only be installed with -e flag[/]\n\n"
-            "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
+        get_console().print(
+            "\n[error]Breeze should only be installed with -e flag[/]\n\n"
+            "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} self-upgrade --force\n"
         )
         sys.exit(1)

@@ -378,6 +378,17 @@ default settings.
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
 
+Another part of configuration is enabling/disabling cheatsheet, asciiart. The cheatsheet and asciiart can
+be disabled - they are "nice looking" and cheatsheet
+contains useful information for first time users but eventually you might want to disable both if you
+find it repetitive and annoying.
+
+With the config setting colour-blind-friendly communication for Breeze messages. By default we communicate
+with the users about information/errors/warnings/successes via colour-coded messages, but we can switch
+it off by passing ``--no-colour`` to config in which case the messages to the user printed by Breeze
+will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
+rather than colours.
+
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command but it is very similar to current ``breeze`` command):
 

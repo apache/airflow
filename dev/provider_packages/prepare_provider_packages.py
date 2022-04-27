@@ -171,7 +171,7 @@ def with_group(title):
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
     if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
-        console.print("[blue]" + "#" * 10 + ' ' + title + ' ' + "#" * 10 + "[/]")
+        console.print("[info]" + "#" * 10 + ' ' + title + ' ' + "#" * 10 + "[/]")
         yield
         return
     console.print(f"::group::{title}")
