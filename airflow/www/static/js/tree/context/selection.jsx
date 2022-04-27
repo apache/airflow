@@ -51,8 +51,11 @@ export const SelectionProvider = ({ children }) => {
 
   const rendered = useRef(false);
 
+  // Clear selection, but keep other search params
   const clearSelection = () => {
-    setSearchParams();
+    searchParams.delete(RUN_ID);
+    searchParams.delete(TASK_ID);
+    setSearchParams(searchParams);
     dispatch({ type: DESELECT });
   };
 
@@ -64,6 +67,7 @@ export const SelectionProvider = ({ children }) => {
     dispatch({ type: SELECT, payload });
   };
 
+  // Check search params and set selection but only on the first render
   useEffect(() => {
     if (!rendered.current) {
       const runId = searchParams.get(RUN_ID);
