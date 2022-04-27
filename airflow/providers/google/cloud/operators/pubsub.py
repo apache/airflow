@@ -22,7 +22,6 @@ This module contains Google PubSub operators.
 
     MessageStoragePolicy
 """
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -102,7 +101,6 @@ class PubSubCreateTopicOperator(BaseOperator):
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -134,19 +132,9 @@ class PubSubCreateTopicOperator(BaseOperator):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-        project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if project:
-            warnings.warn(
-                "The project parameter has been deprecated. You should pass the project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            project_id = project
 
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -299,9 +287,6 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :param topic_project: (Deprecated) the Google Cloud project ID where the topic exists
-    :param subscription_project: (Deprecated) the Google Cloud project ID where the subscription
-        will be created. If empty, ``topic_project`` will be used.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -344,31 +329,9 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-        topic_project: Optional[str] = None,
-        subscription_project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if topic_project:
-            warnings.warn(
-                "The topic_project parameter has been deprecated. You should pass "
-                "the project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            project_id = topic_project
-        if subscription_project:
-            warnings.warn(
-                "The subscription_project parameter has been deprecated. You should pass "
-                "the subscription_project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            subscription_project_id = subscription_project
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
@@ -466,7 +429,6 @@ class PubSubDeleteTopicOperator(BaseOperator):
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -495,20 +457,9 @@ class PubSubDeleteTopicOperator(BaseOperator):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-        project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if project:
-            warnings.warn(
-                "The project parameter has been deprecated. You should pass the project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            project_id = project
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
@@ -582,7 +533,6 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -611,20 +561,9 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-        project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if project:
-            warnings.warn(
-                "The project parameter has been deprecated. You should pass the project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            project_id = project
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.subscription = subscription
@@ -702,7 +641,6 @@ class PubSubPublishMessageOperator(BaseOperator):
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -729,20 +667,9 @@ class PubSubPublishMessageOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        project: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if project:
-            warnings.warn(
-                "The project parameter has been deprecated. You should pass the project_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            project_id = project
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
