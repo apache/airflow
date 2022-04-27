@@ -155,16 +155,17 @@ def reap_process_group(
     return returncodes
 
 
-def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
+def execute_in_subprocess(cmd: List[str], **kwargs) -> None:
     """
     Execute a process and stream output to logger
 
     :param cmd: command and arguments to run
-    :param cwd: Current working directory passed to the Popen constructor
+
+    All other keyword args will be passed directly to subprocess.Popen
     """
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, cwd=cwd
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, **kwargs
     ) as proc:
         log.info("Output:")
         if proc.stdout:
