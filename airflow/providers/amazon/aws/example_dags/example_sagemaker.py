@@ -356,6 +356,17 @@ def build_and_upload_docker_image():
             raise RuntimeError(err)
 
 
+@task(trigger_rule='all_done')
+def cleanup():
+    # Delete S3 Artifacts
+    client = boto3.client('s3')
+    object_keys = [
+        key['Key'] for key in client.list_objects_v2(Bucket=S3_BUCKET, Prefix=PROJECT_NAME)['Contents']
+    ]
+    for key in object_keys:
+        client.delete_objects(Bucket=S3_BUCKET, Delete={'Objects': [{'Key': key}]})
+
+
 with DAG(
     dag_id='example_sagemaker',
     schedule_interval=None,
@@ -451,5 +462,6 @@ with DAG(
         >> await_tune
         >> test_model
         >> await_transform
+        >> cleanup()
         >> delete_model
     )
