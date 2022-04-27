@@ -17,46 +17,19 @@
  * under the License.
  */
 
-import React, {
-  useContext, useReducer, useEffect, useRef,
-} from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-const SelectionContext = React.createContext(null);
-
-const SELECT = 'SELECT';
-const DESELECT = 'DESELECT';
 const RUN_ID = 'dag_run_id';
 const TASK_ID = 'task_id';
 
-const selectionReducer = (state, { type, payload }) => {
-  switch (type) {
-    case SELECT:
-      // Deselect if it is the same selection
-      if (payload.taskId === state.taskId && payload.runId === state.runId) {
-        return {};
-      }
-      return payload;
-    case DESELECT:
-      return {};
-    default:
-      return state;
-  }
-};
-
-// Expose the grid selection to any react component instead of passing around lots of props
-export const SelectionProvider = ({ children }) => {
+const useSelection = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selected, dispatch] = useReducer(selectionReducer, {});
-
-  const rendered = useRef(false);
 
   // Clear selection, but keep other search params
   const clearSelection = () => {
     searchParams.delete(RUN_ID);
     searchParams.delete(TASK_ID);
     setSearchParams(searchParams);
-    dispatch({ type: DESELECT });
   };
 
   const onSelect = (payload) => {
@@ -64,26 +37,13 @@ export const SelectionProvider = ({ children }) => {
     if (payload.runId) params.set(RUN_ID, payload.runId);
     if (payload.taskId) params.set(TASK_ID, payload.taskId);
     setSearchParams(params);
-    dispatch({ type: SELECT, payload });
   };
 
-  // Check search params and set selection but only on the first render
-  useEffect(() => {
-    if (!rendered.current) {
-      const runId = searchParams.get(RUN_ID);
-      const taskId = searchParams.get(TASK_ID);
-      if (runId) {
-        dispatch({ type: SELECT, payload: { runId, taskId } });
-      }
-      rendered.current = true;
-    }
-  }, [searchParams]);
+  const runId = searchParams.get(RUN_ID);
+  const taskId = searchParams.get(TASK_ID);
+  const selected = { runId, taskId };
 
-  return (
-    <SelectionContext.Provider value={{ selected, clearSelection, onSelect }}>
-      {children}
-    </SelectionContext.Provider>
-  );
+  return { selected, clearSelection, onSelect };
 };
 
-export const useSelection = () => useContext(SelectionContext);
+export default useSelection;

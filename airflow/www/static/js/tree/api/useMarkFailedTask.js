@@ -21,7 +21,7 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../useErrorToast';
+import useErrorToast from '../utils/useErrorToast';
 
 const failedUrl = getMetaValue('failed_url');
 const csrfToken = getMetaValue('csrf_token');

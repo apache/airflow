@@ -34,7 +34,7 @@ import StatusBox, { boxSize, boxSizePx } from './StatusBox';
 import TaskName from './TaskName';
 
 import { getMetaValue } from '../utils';
-import { useSelection } from './context/selection';
+import useSelection from './utils/useSelection';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
