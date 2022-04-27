@@ -393,14 +393,14 @@ class TestDagBag:
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
             schedule_interval=None,
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
-            DummyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_1")
         dag_maker.create_dagrun()
         dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
@@ -457,7 +457,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models import DAG
-            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.empty import EmptyOperator
             from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'parent'
@@ -476,18 +476,18 @@ class TestDagBag:
 
                 def subdag_0():
                     subdag_0 = DAG('parent.op_subdag_0', default_args=default_args)
-                    DummyOperator(task_id='subdag_0.task', dag=subdag_0)
+                    EmptyOperator(task_id='subdag_0.task', dag=subdag_0)
                     return subdag_0
 
                 def subdag_1():
                     subdag_1 = DAG('parent.op_subdag_1', default_args=default_args)
-                    DummyOperator(task_id='subdag_1.task', dag=subdag_1)
+                    EmptyOperator(task_id='subdag_1.task', dag=subdag_1)
                     return subdag_1
 
                 op_subdag_0 = SubDagOperator(task_id='op_subdag_0', dag=dag, subdag=subdag_0())
                 op_subdag_1 = SubDagOperator(task_id='op_subdag_1', dag=dag, subdag=subdag_1())
 
-                op_a = DummyOperator(task_id='A')
+                op_a = EmptyOperator(task_id='A')
                 op_a.set_downstream(op_subdag_0)
                 op_a.set_downstream(op_subdag_1)
             return dag
@@ -508,7 +508,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models import DAG
-            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.empty import EmptyOperator
             from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'parent'
@@ -537,22 +537,22 @@ class TestDagBag:
 
                 def subdag_a():
                     subdag_a = DAG('parent.op_subdag_0.opSubdag_A', default_args=default_args)
-                    DummyOperator(task_id='subdag_a.task', dag=subdag_a)
+                    EmptyOperator(task_id='subdag_a.task', dag=subdag_a)
                     return subdag_a
 
                 def subdag_b():
                     subdag_b = DAG('parent.op_subdag_0.opSubdag_B', default_args=default_args)
-                    DummyOperator(task_id='subdag_b.task', dag=subdag_b)
+                    EmptyOperator(task_id='subdag_b.task', dag=subdag_b)
                     return subdag_b
 
                 def subdag_c():
                     subdag_c = DAG('parent.op_subdag_1.opSubdag_C', default_args=default_args)
-                    DummyOperator(task_id='subdag_c.task', dag=subdag_c)
+                    EmptyOperator(task_id='subdag_c.task', dag=subdag_c)
                     return subdag_c
 
                 def subdag_d():
                     subdag_d = DAG('parent.op_subdag_1.opSubdag_D', default_args=default_args)
-                    DummyOperator(task_id='subdag_d.task', dag=subdag_d)
+                    EmptyOperator(task_id='subdag_d.task', dag=subdag_d)
                     return subdag_d
 
                 def subdag_0():
@@ -570,7 +570,7 @@ class TestDagBag:
                 op_subdag_0 = SubDagOperator(task_id='op_subdag_0', dag=dag, subdag=subdag_0())
                 op_subdag_1 = SubDagOperator(task_id='op_subdag_1', dag=dag, subdag=subdag_1())
 
-                op_a = DummyOperator(task_id='A')
+                op_a = EmptyOperator(task_id='A')
                 op_a.set_downstream(op_subdag_0)
                 op_a.set_downstream(op_subdag_1)
 
@@ -601,7 +601,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models import DAG
-            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.empty import EmptyOperator
 
             dag_name = 'cycle_dag'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
@@ -609,7 +609,7 @@ class TestDagBag:
 
             # A -> A
             with dag:
-                op_a = DummyOperator(task_id='A')
+                op_a = EmptyOperator(task_id='A')
                 op_a.set_downstream(op_a)
 
             return dag
@@ -631,7 +631,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models import DAG
-            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.empty import EmptyOperator
             from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'nested_cycle'
@@ -660,24 +660,24 @@ class TestDagBag:
 
                 def subdag_a():
                     subdag_a = DAG('nested_cycle.op_subdag_0.opSubdag_A', default_args=default_args)
-                    DummyOperator(task_id='subdag_a.task', dag=subdag_a)
+                    EmptyOperator(task_id='subdag_a.task', dag=subdag_a)
                     return subdag_a
 
                 def subdag_b():
                     subdag_b = DAG('nested_cycle.op_subdag_0.opSubdag_B', default_args=default_args)
-                    DummyOperator(task_id='subdag_b.task', dag=subdag_b)
+                    EmptyOperator(task_id='subdag_b.task', dag=subdag_b)
                     return subdag_b
 
                 def subdag_c():
                     subdag_c = DAG('nested_cycle.op_subdag_1.opSubdag_C', default_args=default_args)
-                    op_subdag_c_task = DummyOperator(task_id='subdag_c.task', dag=subdag_c)
+                    op_subdag_c_task = EmptyOperator(task_id='subdag_c.task', dag=subdag_c)
                     # introduce a loop in opSubdag_C
                     op_subdag_c_task.set_downstream(op_subdag_c_task)
                     return subdag_c
 
                 def subdag_d():
                     subdag_d = DAG('nested_cycle.op_subdag_1.opSubdag_D', default_args=default_args)
-                    DummyOperator(task_id='subdag_d.task', dag=subdag_d)
+                    EmptyOperator(task_id='subdag_d.task', dag=subdag_d)
                     return subdag_d
 
                 def subdag_0():
@@ -695,7 +695,7 @@ class TestDagBag:
                 op_subdag_0 = SubDagOperator(task_id='op_subdag_0', dag=dag, subdag=subdag_0())
                 op_subdag_1 = SubDagOperator(task_id='op_subdag_1', dag=dag, subdag=subdag_1())
 
-                op_a = DummyOperator(task_id='A')
+                op_a = EmptyOperator(task_id='A')
                 op_a.set_downstream(op_subdag_0)
                 op_a.set_downstream(op_subdag_1)
 

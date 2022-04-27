@@ -41,7 +41,9 @@ from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
@@ -528,14 +530,14 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
         """Detects dependencies caused by tasks"""
-        if task.task_type == "TriggerDagRunOperator":
+        if isinstance(task, TriggerDagRunOperator):
             return DagDependency(
                 source=task.dag_id,
                 target=getattr(task, "trigger_dag_id"),
                 dependency_type="trigger",
                 dependency_id=task.task_id,
             )
-        elif task.task_type == "ExternalTaskSensor":
+        elif isinstance(task, ExternalTaskSensor):
             return DagDependency(
                 source=getattr(task, "external_dag_id"),
                 target=task.dag_id,
@@ -628,8 +630,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
         serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
 
-        # Used to determine if an Operator is inherited from DummyOperator
-        serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
+        # Used to determine if an Operator is inherited from EmptyOperator
+        serialize_op['_is_empty'] = op.inherits_from_empty_operator
 
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
@@ -712,6 +714,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
+            if k == "_is_dummy":
+                k = "_is_empty"
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
@@ -773,8 +778,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if not hasattr(op, field):
                 setattr(op, field, None)
 
-        # Used to determine if an Operator is inherited from DummyOperator
-        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
+        # Used to determine if an Operator is inherited from EmptyOperator
+        setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Operator:
@@ -796,7 +801,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 template_fields_renderers=BaseOperator.template_fields_renderers,
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_dummy=False,
+                is_empty=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
                 dag=None,

@@ -35,8 +35,6 @@ from typing import (
     Union,
 )
 
-from sqlalchemy.orm import Session
-
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -52,6 +50,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
@@ -107,7 +106,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             'dag',  # We show dag_id, don't need to show this too
             'node_id',  # Duplicates task_id
             'task_group',  # Doesn't have a useful repr, no point showing in UI
-            'inherits_from_dummy_operator',  # impl detail
+            'inherits_from_empty_operator',  # impl detail
             # For compatibility with TG, for operators these are just the current task, no point showing
             'roots',
             'leaves',
@@ -128,7 +127,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         raise NotImplementedError()
 
     @property
-    def inherits_from_dummy_operator(self) -> bool:
+    def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
     @property
@@ -181,8 +180,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
                         if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
-                            except Exception as e:
-                                self.log.exception(e)
+                            except Exception:
+                                self.log.exception("Failed to get source %s", item)
         self.prepare_template()
 
     def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
@@ -330,7 +329,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         jinja_env: "jinja2.Environment",
         seen_oids: Set,
         *,
-        session: Session = NEW_SESSION,
+        session: "Session" = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             try:
@@ -342,28 +341,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self._render_template_field(
-                attr_name,
+            rendered_content = self.render_template(
                 value,
                 context,
                 jinja_env,
                 seen_oids,
-                session=session,
             )
             setattr(parent, attr_name, rendered_content)
-
-    def _render_template_field(
-        self,
-        key: str,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-        *,
-        session: Session,
-    ) -> Any:
-        """Override point for MappedOperator to perform further resolution."""
-        return self.render_template(value, context, jinja_env, seen_oids)
 
     def render_template(
         self,

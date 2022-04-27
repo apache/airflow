@@ -21,7 +21,7 @@ from unittest import mock
 
 from airflow_breeze.utils.path_utils import find_airflow_sources_root_to_operate_on
 
-ACTUAL_AIRFLOW_SOURCES = Path(__file__).parent.parent.parent.parent
+ACTUAL_AIRFLOW_SOURCES = Path(__file__).parents[3].absolute()
 ROOT_PATH = Path(Path(__file__).root)
 
 

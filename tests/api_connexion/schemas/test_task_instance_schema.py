@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.models import RenderedTaskInstanceFields as RTIF, SlaMiss, TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -39,7 +39,7 @@ class TestTaskInstanceSchema:
     def set_attrs(self, session, dag_maker):
         self.default_time = datetime(2020, 1, 1)
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
-            self.task = DummyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
+            self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
         self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
         session.flush()
@@ -76,7 +76,7 @@ class TestTaskInstanceSchema:
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "operator": "DummyOperator",
+            "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -118,7 +118,7 @@ class TestTaskInstanceSchema:
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "operator": "DummyOperator",
+            "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,

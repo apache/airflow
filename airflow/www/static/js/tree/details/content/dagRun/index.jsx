@@ -28,7 +28,8 @@ import {
 import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
 import { SimpleStatus } from '../../../StatusBox';
-import { formatDuration } from '../../../../datetime_utils';
+import { ClipboardText } from '../../../Clipboard';
+import { formatDuration, getDuration } from '../../../../datetime_utils';
 import Time from '../../../Time';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
@@ -49,7 +50,6 @@ const DagRun = ({ runId }) => {
     executionDate,
     state,
     runType,
-    duration,
     lastSchedulingDecision,
     dataIntervalStart,
     dataIntervalEnd,
@@ -91,7 +91,7 @@ const DagRun = ({ runId }) => {
       <Text whiteSpace="nowrap">
         Run Id:
         {' '}
-        {runId}
+        <ClipboardText value={runId} />
       </Text>
       <Text>
         Run Type:
@@ -102,7 +102,7 @@ const DagRun = ({ runId }) => {
       <Text>
         Duration:
         {' '}
-        {formatDuration(duration)}
+        {formatDuration(getDuration(startDate, endDate))}
       </Text>
       {lastSchedulingDecision && (
       <Text>
@@ -126,19 +126,22 @@ const DagRun = ({ runId }) => {
         <Time dateTime={endDate} />
       </Text>
       )}
-      <br />
-      <Text as="strong">Data Interval:</Text>
-      <Text>
-        Start:
-        {' '}
-        <Time dateTime={dataIntervalStart} />
-      </Text>
-      <Text>
-        End:
-        {' '}
-        <Time dateTime={dataIntervalEnd} />
-      </Text>
-
+      {dataIntervalStart && dataIntervalEnd && (
+        <>
+          <br />
+          <Text as="strong">Data Interval:</Text>
+          <Text>
+            Start:
+            {' '}
+            <Time dateTime={dataIntervalStart} />
+          </Text>
+          <Text>
+            End:
+            {' '}
+            <Time dateTime={dataIntervalEnd} />
+          </Text>
+        </>
+      )}
     </Box>
   );
 };

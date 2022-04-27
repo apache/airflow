@@ -91,7 +91,7 @@ PIP package                             Version required
 ======================================  ====================
 ``apache-airflow``                      ``>=2.1.0``
 ``PyOpenSSL``
-``google-ads``                          ``>=12.0.0,<14.0.1``
+``google-ads``                          ``>=15.1.1``
 ``google-api-core``                     ``>=1.25.1,<3.0.0``
 ``google-api-python-client``            ``>=1.6.0,<2.0.0``
 ``google-auth-httplib2``                ``>=0.0.1``
@@ -101,7 +101,7 @@ PIP package                             Version required
 ``google-cloud-bigquery-datatransfer``  ``>=3.0.0``
 ``google-cloud-bigtable``               ``>=1.0.0,<2.0.0``
 ``google-cloud-build``                  ``>=3.0.0``
-``google-cloud-container``              ``>=0.1.1,<2.0.0``
+``google-cloud-container``              ``>=2.2.0,<3.0.0``
 ``google-cloud-datacatalog``            ``>=3.0.0``
 ``google-cloud-dataplex``               ``>=0.1.0``
 ``google-cloud-dataproc-metastore``     ``>=1.2.0,<2.0.0``

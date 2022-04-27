@@ -80,8 +80,8 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
             pass
 
 Don't forget that in this case you need to add empty ``__init__.py`` file in the ``my_company_utils`` folder
-and you should add the ``my_company_utils/.*`` line to ``.airflowignore`` file, so that the whole folder is
-ignored by the scheduler when it looks for DAGs.
+and you should add the ``my_company_utils/.*`` line to ``.airflowignore`` file (if using the regexp ignore
+syntax), so that the whole folder is ignored by the scheduler when it looks for DAGs.
 
 
 Dynamic DAGs with external configuration from a structured data file

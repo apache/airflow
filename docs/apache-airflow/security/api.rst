@@ -34,10 +34,10 @@ check the user session:
     In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
     posed security risks for if the Webserver is publicly accessible.
 
-.. versionchanged:: 2.3
+.. versionchanged:: 2.3.0
 
-    In Airflow <2.3 this setting was ``auth_backend`` and allowed only one
-    value. In 2.3 it was changed to support multiple backends that are tried
+    In Airflow <2.3.0 this setting was ``auth_backend`` and allowed only one
+    value. In 2.3.0 it was changed to support multiple backends that are tried
     in turn.
 
 If you want to check which authentication backends are currently set, you can use ``airflow config get-value api auth_backends``

@@ -192,28 +192,15 @@ You need to install the breeze:
 
 * `pipx install -e ./dev/breeze` if you use pipx install.
 
-Then you can run airflow-find-newer-dependencies with optional flags. For example if you know that the build
-was likely broken on a given date and time (in your timezone) and you want to check python 3.8
-(because this is the only failing build) you can run:
+Then you can run ``breeze find-newer-dependencies`` with optional flags.
+For example if you know that the build  was likely broken on a given date and time
+(in your timezone) and you want to check python 3.8 (because this is the only
+failing build) you can run:
 
 ```
-airflow-find-newer-dependencies --updated-on-or-after '2022-02-22 10:30:00' --timezone 'CET' --python 3.8
+breeze find-newer-dependencies --updated-on-or-after '2022-02-22 10:30:00' --timezone 'CET' --python 3.8
 ```
 
-Full list of options:
+The full list of options for `find-newer-dependencies` can be seen here
 
-```
-Usage: airflow-find-newer-dependencies [OPTIONS]
-
-Options:
-  --max-age INTEGER           Max age of the last release (used if no updated-
-                              after if specified)
-
-  --updated-on-or-after TEXT  Date when the release was updated after
-  --python [3.7|3.8|3.9,3.10]      Python version used
-  --constraints-branch TEXT   Constraint branch to use to find newer
-                              dependencies
-
-  --timezone TEXT             Timezone to use during the check
-  --help                      Show this message and exit.
-```
+![breeze find-newer-dependencies](../images/breeze/output-find-newer-dependencies.svg)

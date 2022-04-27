@@ -467,6 +467,14 @@ class BigQueryGetDataOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
+        if not self.selected_fields:
+            schema: Dict[str, list] = hook.get_schema(
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+            )
+            if "fields" in schema:
+                self.selected_fields = ','.join([field["name"] for field in schema["fields"]])
+
         rows = hook.list_rows(
             dataset_id=self.dataset_id,
             table_id=self.table_id,

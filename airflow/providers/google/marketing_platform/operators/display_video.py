@@ -21,7 +21,6 @@ import json
 import shutil
 import tempfile
 import urllib.request
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
@@ -322,9 +321,6 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         `https://developers.google.com/bid-manager/v1/queries/runquery`
 
     :param report_id: Report ID to run.
-    :param params: Parameters for running a report as described here:
-        https://developers.google.com/bid-manager/v1/queries/runquery. Please note that this
-        keyword is deprecated, please use `parameters` keyword to pass the parameters.
     :param parameters: Parameters for running a report as described here:
         https://developers.google.com/bid-manager/v1/queries/runquery
     :param api_version: The version of the api that will be requested for example 'v3'.
@@ -352,7 +348,6 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self,
         *,
         report_id: str,
-        params: Optional[Dict[str, Any]] = None,
         parameters: Optional[Dict[str, Any]] = None,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -368,17 +363,6 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self.parameters = parameters
         self.impersonation_chain = impersonation_chain
 
-        if params is None and parameters is None:
-            raise AirflowException("Argument ['parameters'] is required")
-        if params and parameters is None:
-            # TODO: Remove in provider version 6.0
-            warnings.warn(
-                "Please use 'parameters' instead of 'params'",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            self.parameters = params
-
     def execute(self, context: 'Context') -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
@@ -387,7 +371,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Running report %s with the following params:\n %s",
+            "Running report %s with the following parameters:\n %s",
             self.report_id,
             self.parameters,
         )

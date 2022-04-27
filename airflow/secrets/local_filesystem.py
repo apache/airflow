@@ -109,7 +109,6 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
         secrets = yaml.safe_load(content)
-
     except yaml.MarkedYAMLError as e:
         err_line_no = e.problem_mark.line if e.problem_mark else -1
         return {}, [FileSyntaxError(line_no=err_line_no, message=str(e))]
@@ -145,6 +144,7 @@ FILE_PARSERS = {
     "env": _parse_env_file,
     "json": _parse_json_file,
     "yaml": _parse_yaml_file,
+    "yml": _parse_yaml_file,
 }
 
 
@@ -166,7 +166,8 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
 
     if ext not in FILE_PARSERS:
         raise AirflowException(
-            "Unsupported file format. The file must have the extension .env or .json or .yaml"
+            "Unsupported file format. The file must have one of the following extensions: "
+            ".env .json .yaml .yml"
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)

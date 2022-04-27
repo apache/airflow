@@ -22,7 +22,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -68,8 +68,8 @@ class TestPool:
             dag_id='test_open_slots',
             start_date=DEFAULT_DATE,
         ):
-            op1 = DummyOperator(task_id='dummy1', pool='test_pool')
-            op2 = DummyOperator(task_id='dummy2', pool='test_pool')
+            op1 = EmptyOperator(task_id='dummy1', pool='test_pool')
+            op2 = EmptyOperator(task_id='dummy2', pool='test_pool')
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
@@ -107,8 +107,8 @@ class TestPool:
         with dag_maker(
             dag_id='test_infinite_slots',
         ):
-            op1 = DummyOperator(task_id='dummy1', pool='test_pool')
-            op2 = DummyOperator(task_id='dummy2', pool='test_pool')
+            op1 = EmptyOperator(task_id='dummy1', pool='test_pool')
+            op2 = EmptyOperator(task_id='dummy2', pool='test_pool')
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
@@ -148,8 +148,8 @@ class TestPool:
         with dag_maker(
             dag_id='test_default_pool_open_slots',
         ):
-            op1 = DummyOperator(task_id='dummy1')
-            op2 = DummyOperator(task_id='dummy2', pool_slots=2)
+            op1 = EmptyOperator(task_id='dummy1')
+            op2 = EmptyOperator(task_id='dummy2', pool_slots=2)
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)

@@ -28,6 +28,7 @@ import { finalStatesMap } from '../../../../utils';
 import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../StatusBox';
 import Time from '../../../Time';
+import { ClipboardText } from '../../../Clipboard';
 
 const Details = ({ instance, group, operator }) => {
   const isGroup = !!group.children;
@@ -36,7 +37,6 @@ const Details = ({ instance, group, operator }) => {
   const {
     taskId,
     runId,
-    duration,
     startDate,
     endDate,
     state,
@@ -114,12 +114,12 @@ const Details = ({ instance, group, operator }) => {
         <br />
         <Text>
           {taskIdTitle}
-          {taskId}
+          <ClipboardText value={taskId} />
         </Text>
         <Text whiteSpace="nowrap">
           Run Id:
           {' '}
-          {runId}
+          <ClipboardText value={runId} />
         </Text>
         {operator && (
           <Text>
@@ -133,7 +133,7 @@ const Details = ({ instance, group, operator }) => {
           {isOverall}
           Duration:
           {' '}
-          {formatDuration(duration || getDuration(startDate, endDate))}
+          {formatDuration(getDuration(startDate, endDate))}
         </Text>
         {startDate && (
         <Text>

@@ -18,7 +18,11 @@
 from datetime import datetime
 
 from airflow.models import DAG, BaseOperator
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudRunJobOperator,
@@ -33,8 +37,8 @@ with DAG(
     schedule_interval=None,
     catchup=False,
 ) as dag:
-    begin = DummyOperator(task_id="begin")
-    end = DummyOperator(task_id="end")
+    begin = EmptyOperator(task_id="begin")
+    end = EmptyOperator(task_id="end")
 
     # [START howto_operator_dbt_cloud_run_job]
     trigger_job_run1 = DbtCloudRunJobOperator(

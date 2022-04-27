@@ -215,9 +215,9 @@ following the ASF Policy.
 
   ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
 
-- **Tree**: Tree representation of a DAG that spans across time.
+- **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Tree](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/tree.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
@@ -268,7 +268,7 @@ packages:
 
 Apache Airflow version life cycle:
 
-<!-- This table is automatically updated by pre-commit scripts/ci/pre-commit/supported_versions.py -->
+<!-- This table is automatically updated by pre-commit scripts/ci/pre_commit/pre_commit_supported_versions.py -->
 <!-- Beginning of auto-generated table -->
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |

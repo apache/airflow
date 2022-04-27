@@ -18,13 +18,13 @@
 import contextlib
 import os
 import shlex
-import shutil
 import stat
 import subprocess
 import sys
+from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional
+from typing import List, Mapping, Optional, Union
 
 from airflow_breeze.utils.console import console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -41,7 +41,7 @@ def run_command(
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
     **kwargs,
-) -> Optional[subprocess.CompletedProcess]:
+) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
     be used in this command even if not explicitly specified).
@@ -74,7 +74,7 @@ def run_command(
         # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
         console.print(f"\n[bright_blue]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
-            return None
+            return subprocess.CompletedProcess(cmd, returncode=0)
     try:
         cmd_env = os.environ.copy()
         if env:
@@ -90,12 +90,12 @@ def run_command(
                 console.print("[red]========================= STDERR start ============================[/]")
                 console.print(ex.stderr)
                 console.print("[red]========================= STDERR end ==============================[/]")
-        if not check:
+        if check:
             raise
-    return None
+        return ex
 
 
-def check_pre_commit_installed(verbose: bool) -> bool:
+def assert_pre_commit_installed(verbose: bool):
     """
     Check if pre-commit is installed in the right version.
     :param verbose: print commands when running
@@ -103,41 +103,43 @@ def check_pre_commit_installed(verbose: bool) -> bool:
     """
     # Local import to make autocomplete work
     import yaml
-    from pkg_resources import parse_version
 
     pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
-    pre_commit_name = "pre-commit"
-    is_installed = False
-    if shutil.which(pre_commit_name) is not None:
-        process = run_command(
-            [pre_commit_name, "--version"], verbose=verbose, check=True, capture_output=True, text=True
-        )
-        if process and process.stdout:
-            pre_commit_version = process.stdout.split(" ")[-1].strip()
-            if parse_version(pre_commit_version) >= parse_version(min_pre_commit_version):
+    python_executable = sys.executable
+    console.print(f"[bright_blue]Checking pre-commit installed for {python_executable}[/]")
+    command_result = run_command(
+        [python_executable, "-m", "pre_commit", "--version"],
+        verbose=verbose,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if command_result.returncode == 0:
+        if command_result.stdout:
+            pre_commit_version = command_result.stdout.split(" ")[-1].strip()
+            if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
                 console.print(
-                    f"\n[green]Package {pre_commit_name} is installed. "
+                    f"\n[green]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
                 )
-                is_installed = True
             else:
                 console.print(
-                    f"\n[red]Package name {pre_commit_name} version is wrong. It should be"
+                    f"\n[red]Package name pre_commit version is wrong. It should be"
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
+                sys.exit(1)
         else:
             console.print(
                 "\n[bright_yellow]Could not determine version of pre-commit. "
                 "You might need to update it![/]\n"
             )
-            is_installed = True
     else:
-        console.print(f"\n[red]Error: Package name {pre_commit_name} is not installed.[/]")
-    if not is_installed:
-        console.print("\nPlease install using https://pre-commit.com/#install to continue\n")
-    return is_installed
+        console.print("\n[red]Error checking for pre-commit-installation:[/]\n")
+        console.print(command_result.stderr)
+        console.print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        sys.exit(1)
 
 
 def get_filesystem_type(filepath):
@@ -163,8 +165,7 @@ def get_filesystem_type(filepath):
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
-    console.print('Please run this command at earliest convenience:\n')
-    console.print(f'      `./breeze build-image --python {python}`\n')
+    print(f"\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
 
 
 @contextlib.contextmanager
@@ -229,8 +230,8 @@ def is_repo_rebased(repo: str, branch: str):
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
-    process = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
-    output = process.stdout.strip().splitlines() if process is not None else "missing"
+    command_result = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
+    output = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
     if latest_sha in output:
         rebased = True
     return rebased
@@ -244,7 +245,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     """
     is_buildx_available = False
     check_buildx = ['docker', 'buildx', 'version']
-    docker_buildx_version_process = run_command(
+    docker_buildx_version_result = run_command(
         check_buildx,
         verbose=verbose,
         no_output_dump_on_exception=True,
@@ -252,9 +253,9 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
         text=True,
     )
     if (
-        docker_buildx_version_process
-        and docker_buildx_version_process.returncode == 0
-        and docker_buildx_version_process.stdout != ''
+        docker_buildx_version_result
+        and docker_buildx_version_result.returncode == 0
+        and docker_buildx_version_result.stdout != ''
     ):
         is_buildx_available = True
     return is_buildx_available
@@ -279,8 +280,8 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
         if prepare_buildx_cache:
             build_command_param.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
             cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-            process = run_command(cmd, verbose=True, text=True)
-            if process and process.returncode != 0:
+            buildx_command_result = run_command(cmd, verbose=True, text=True)
+            if buildx_command_result and buildx_command_result.returncode != 0:
                 next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
                 run_command(next_cmd, verbose=True, text=True, check=False)
         else:
@@ -301,12 +302,14 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
 @lru_cache(maxsize=None)
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
-    return run_command(
-        ['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False
-    ).stdout.strip()
+    command_result = run_command(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=False)
+    if command_result.stdout:
+        return command_result.stdout.strip()
+    else:
+        return "COMMIT_SHA_NOT_FOUND"
 
 
-def filter_out_none(**kwargs) -> Dict[str, str]:
+def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
     for key in list(kwargs):
         if kwargs[key] is None:

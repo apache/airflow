@@ -35,7 +35,7 @@ GCSToLocalFilesystemOperator
 data from GCS to local filesystem.
 
 
-Below is an example of using this operator to upload a file to GCS.
+Below is an example of using this operator to download a file from GCS.
 
 .. exampleinclude:: /../../tests/system/providers/google/gcs/example_gcs_upload_download.py
     :language: python

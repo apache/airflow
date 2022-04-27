@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 import kubernetes
 import pytest
+from kubernetes.config import ConfigException
 
 from airflow import AirflowException
 from airflow.models import Connection
@@ -75,8 +76,10 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
+    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook._get_default_client")
     def test_in_cluster_connection(
         self,
+        mock_get_default_client,
         mock_in_cluster_loader,
         mock_merger,
         mock_loader,
@@ -89,15 +92,43 @@ class TestKubernetesHook:
         Hook param should beat extra.
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, in_cluster=in_cluster_param)
+        mock_get_default_client.return_value = kubernetes.client.api_client.ApiClient()
         api_conn = kubernetes_hook.get_conn()
         if in_cluster_called:
             mock_in_cluster_loader.assert_called_once()
             mock_merger.assert_not_called()
             mock_loader.assert_not_called()
         else:
-            mock_in_cluster_loader.assert_not_called()
+            mock_get_default_client.assert_called()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @pytest.mark.parametrize('in_cluster_fails', [True, False])
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
+    def test_get_default_client(
+        self,
+        mock_incluster,
+        mock_merger,
+        mock_loader,
+        in_cluster_fails,
+    ):
+        """
+        Verifies the behavior of the ``_get_default_client`` function.  It should try the "in cluster"
+        loader first but if that fails, try to use the default kubeconfig file.
+        """
+        if in_cluster_fails:
+            mock_incluster.side_effect = ConfigException('any')
+        kubernetes_hook = KubernetesHook()
+        api_conn = kubernetes_hook._get_default_client()
+        if in_cluster_fails:
+            mock_incluster.assert_called_once()
             mock_merger.assert_called_once_with(KUBE_CONFIG_PATH)
             mock_loader.assert_called_once()
+        else:
+            mock_incluster.assert_called_once()
+            mock_merger.assert_not_called()
+            mock_loader.assert_not_called()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
