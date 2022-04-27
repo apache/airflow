@@ -451,8 +451,7 @@ repos:
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/tests/cli/commands/test_webserver_command.py$|
-          ^airflow/tests/cli/commands/test_webserver_command.py$|
+          ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/ui/yarn.lock$|
           ^airflow/config_templates/default_airflow.cfg$|
