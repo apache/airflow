@@ -129,7 +129,7 @@ without retrying.
 The following ``SFTPSensor`` example illustrates this. The ``sensor`` is in ``reschedule`` mode, meaning it
 is periodically executed and rescheduled until it succeeds.
 
-- Each time the sensor pokes the SFTP server, it is allowed to take maximum 60 seconds as defined by ``execution_time``.
+- Each time the sensor pokes the SFTP server, it is allowed to take maximum 60 seconds as defined by ``execution_timeout``.
 - If it takes the sensor more than 60 seconds to poke the SFTP server, ``AirflowTaskTimeout`` will be raised.
   The sensor is allowed to retry when this happens. It can retry up to 2 times as defined by ``retries``.
 - From the start of the first execution, till it eventually succeeds (i.e. after the file 'root/test' appears),

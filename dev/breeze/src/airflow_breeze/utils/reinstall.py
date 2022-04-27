@@ -33,17 +33,7 @@ def reinstall_breeze(breeze_sources: Path):
     # Breeze from different sources than originally installed (i.e. when we reinstall airflow
     # From the current directory.
     console.print(f"\n[bright_blue]Reinstalling Breeze from {breeze_sources}\n")
-    subprocess.check_call(
-        [
-            "pipx",
-            "install",
-            "-e",
-            str(breeze_sources),
-            "--force",
-            "--pip-args=--upgrade",
-            "--pip-args=--upgrade-strategy=eager",
-        ]
-    )
+    subprocess.check_call(["pipx", "install", "-e", str(breeze_sources), "--force"])
     console.print(
         f"\n[bright_blue]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n"
         f"[bright_yellow]Please run your command again[/]\n"

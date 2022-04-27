@@ -294,7 +294,8 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         cluster_name: str,
-        cluster_config: Union[Dict, Cluster],
+        cluster_config: Union[Dict, Cluster, None] = None,
+        virtual_cluster_config: Optional[Dict] = None,
         labels: Optional[Dict[str, str]] = None,
         request_id: Optional[str] = None,
         retry: Union[Retry, _MethodDefault] = DEFAULT,
@@ -311,6 +312,10 @@ class DataprocHook(GoogleBaseHook):
         :param cluster_config: Required. The cluster config to create.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :param virtual_cluster_config: Optional. The virtual cluster config, used when creating a Dataproc
+            cluster that does not directly control the underlying compute resources, for example, when
+            creating a `Dataproc-on-GKE cluster`
+            :class:`~google.cloud.dataproc_v1.types.VirtualClusterConfig`
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -329,9 +334,12 @@ class DataprocHook(GoogleBaseHook):
         cluster = {
             "project_id": project_id,
             "cluster_name": cluster_name,
-            "config": cluster_config,
-            "labels": labels,
         }
+        if virtual_cluster_config is not None:
+            cluster['virtual_cluster_config'] = virtual_cluster_config  # type: ignore
+        if cluster_config is not None:
+            cluster['config'] = cluster_config  # type: ignore
+            cluster['labels'] = labels  # type: ignore
 
         client = self.get_cluster_client(region=region)
         result = client.create_cluster(
