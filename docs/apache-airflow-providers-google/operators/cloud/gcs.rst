@@ -200,7 +200,7 @@ GCSUploadSessionCompleteSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor` to check for a change in the number of files with a specified prefix in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_complete_task]
@@ -213,7 +213,7 @@ GCSObjectUpdateSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor` to check if an object is updated in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_update_exists_task]
