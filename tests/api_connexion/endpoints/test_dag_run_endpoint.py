@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DAG, DagModel, DagRun
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -1223,7 +1223,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_id = "TEST_DAG_ID"
         dag_run_id = 'TEST_DAG_RUN_ID'
         with dag_maker(dag_id) as dag:
-            task = DummyOperator(task_id='task_id', dag=dag)
+            task = EmptyOperator(task_id='task_id', dag=dag)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id)
         ti = dr.get_task_instance(task_id='task_id')
@@ -1262,7 +1262,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_id = "TEST_DAG_ID"
         dag_run_id = 'TEST_DAG_RUN_ID'
         with dag_maker(dag_id):
-            DummyOperator(task_id='task_id')
+            EmptyOperator(task_id='task_id')
         dag_maker.create_dagrun(run_id=dag_run_id)
 
         request_json = {"state": invalid_state}

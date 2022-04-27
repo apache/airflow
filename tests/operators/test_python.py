@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
     PythonOperator,
@@ -392,8 +392,8 @@ class TestBranchOperator(unittest.TestCase):
             schedule_interval=INTERVAL,
         )
 
-        self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
         self.branch_3 = None
 
     def tearDown(self):
@@ -601,8 +601,8 @@ class TestShortCircuitOperator:
         )
 
         with self.dag:
-            self.op1 = DummyOperator(task_id="op1")
-            self.op2 = DummyOperator(task_id="op2")
+            self.op1 = EmptyOperator(task_id="op1")
+            self.op2 = EmptyOperator(task_id="op2")
             self.op1.set_downstream(self.op2)
 
     def teardown(self):
@@ -1258,8 +1258,8 @@ def test_empty_branch(dag_maker, choice, expected_states):
         start_date=DEFAULT_DATE,
     ) as dag:
         branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
-        task1 = DummyOperator(task_id='task1')
-        join = DummyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
+        task1 = EmptyOperator(task_id='task1')
+        join = EmptyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
 
         branch >> [task1, join]
         task1 >> join

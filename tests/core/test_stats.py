@@ -66,9 +66,9 @@ class TestStats(unittest.TestCase):
         self.statsd_client.assert_not_called()
 
     def test_timer(self):
-        with self.stats.timer("dummy_timer"):
+        with self.stats.timer("empty_timer"):
             pass
-        self.statsd_client.timer.assert_called_once_with('dummy_timer')
+        self.statsd_client.timer.assert_called_once_with('empty_timer')
 
     def test_empty_timer(self):
         with self.stats.timer():
@@ -76,16 +76,16 @@ class TestStats(unittest.TestCase):
         self.statsd_client.timer.assert_not_called()
 
     def test_timing(self):
-        self.stats.timing("dummy_timer", 123)
-        self.statsd_client.timing.assert_called_once_with('dummy_timer', 123)
+        self.stats.timing("empty_timer", 123)
+        self.statsd_client.timing.assert_called_once_with('empty_timer', 123)
 
     def test_gauge(self):
-        self.stats.gauge("dummy", 123)
-        self.statsd_client.gauge.assert_called_once_with('dummy', 123, 1, False)
+        self.stats.gauge("empty", 123)
+        self.statsd_client.gauge.assert_called_once_with('empty', 123, 1, False)
 
     def test_decr(self):
-        self.stats.decr("dummy")
-        self.statsd_client.decr.assert_called_once_with('dummy', 1, 1)
+        self.stats.decr("empty")
+        self.statsd_client.decr.assert_called_once_with('empty', 1, 1)
 
     def test_enabled_by_config(self):
         """Test that enabling this sets the right instance properties"""
@@ -122,7 +122,7 @@ class TestStats(unittest.TestCase):
             ),
         ):
             importlib.reload(airflow.stats)
-            airflow.stats.Stats.incr("dummy_key")
+            airflow.stats.Stats.incr("empty_key")
         importlib.reload(airflow.stats)
 
 
@@ -153,27 +153,27 @@ class TestDogStats(unittest.TestCase):
         self.dogstatsd_client.assert_not_called()
 
     def test_does_send_stats_using_dogstatsd_when_dogstatsd_on(self):
-        self.dogstatsd.incr("dummy_key")
+        self.dogstatsd.incr("empty_key")
         self.dogstatsd_client.increment.assert_called_once_with(
-            metric='dummy_key', sample_rate=1, tags=[], value=1
+            metric='empty_key', sample_rate=1, tags=[], value=1
         )
 
     def test_does_send_stats_using_dogstatsd_with_tags(self):
-        self.dogstatsd.incr("dummy_key", 1, 1, ['key1:value1', 'key2:value2'])
+        self.dogstatsd.incr("empty_key", 1, 1, ['key1:value1', 'key2:value2'])
         self.dogstatsd_client.increment.assert_called_once_with(
-            metric='dummy_key', sample_rate=1, tags=['key1:value1', 'key2:value2'], value=1
+            metric='empty_key', sample_rate=1, tags=['key1:value1', 'key2:value2'], value=1
         )
 
     def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self):
-        self.dogstatsd.incr("dummy_key")
+        self.dogstatsd.incr("empty_key")
         self.dogstatsd_client.increment.assert_called_once_with(
-            metric='dummy_key', sample_rate=1, tags=[], value=1
+            metric='empty_key', sample_rate=1, tags=[], value=1
         )
 
     def test_timer(self):
-        with self.dogstatsd.timer("dummy_timer"):
+        with self.dogstatsd.timer("empty_timer"):
             pass
-        self.dogstatsd_client.timed.assert_called_once_with('dummy_timer', tags=[])
+        self.dogstatsd_client.timed.assert_called_once_with('empty_timer', tags=[])
 
     def test_empty_timer(self):
         with self.dogstatsd.timer():
@@ -183,20 +183,20 @@ class TestDogStats(unittest.TestCase):
     def test_timing(self):
         import datetime
 
-        self.dogstatsd.timing("dummy_timer", 123)
-        self.dogstatsd_client.timing.assert_called_once_with(metric='dummy_timer', value=123, tags=[])
+        self.dogstatsd.timing("empty_timer", 123)
+        self.dogstatsd_client.timing.assert_called_once_with(metric='empty_timer', value=123, tags=[])
 
-        self.dogstatsd.timing("dummy_timer", datetime.timedelta(seconds=123))
-        self.dogstatsd_client.timing.assert_called_with(metric='dummy_timer', value=123.0, tags=[])
+        self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
+        self.dogstatsd_client.timing.assert_called_with(metric='empty_timer', value=123.0, tags=[])
 
     def test_gauge(self):
-        self.dogstatsd.gauge("dummy", 123)
-        self.dogstatsd_client.gauge.assert_called_once_with(metric='dummy', sample_rate=1, value=123, tags=[])
+        self.dogstatsd.gauge("empty", 123)
+        self.dogstatsd_client.gauge.assert_called_once_with(metric='empty', sample_rate=1, value=123, tags=[])
 
     def test_decr(self):
-        self.dogstatsd.decr("dummy")
+        self.dogstatsd.decr("empty")
         self.dogstatsd_client.decrement.assert_called_once_with(
-            metric='dummy', sample_rate=1, value=1, tags=[]
+            metric='empty', sample_rate=1, value=1, tags=[]
         )
 
     def test_enabled_by_config(self):
@@ -281,7 +281,7 @@ class TestCustomStatsName(unittest.TestCase):
     @mock.patch("statsd.StatsClient")
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
+        airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.assert_not_called()
 
     @conf_vars(
@@ -293,7 +293,7 @@ class TestCustomStatsName(unittest.TestCase):
     @mock.patch("datadog.DogStatsd")
     def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
         importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
+        airflow.stats.Stats.incr("empty_key")
         mock_dogstatsd.return_value.assert_not_called()
 
     @conf_vars(
@@ -305,8 +305,8 @@ class TestCustomStatsName(unittest.TestCase):
     @mock.patch("statsd.StatsClient")
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
+        airflow.stats.Stats.incr("empty_key")
+        mock_statsd.return_value.incr.assert_called_once_with('empty_key', 1, 1)
 
     @conf_vars(
         {
@@ -317,9 +317,9 @@ class TestCustomStatsName(unittest.TestCase):
     @mock.patch("datadog.DogStatsd")
     def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
         importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
+        airflow.stats.Stats.incr("empty_key")
         mock_dogstatsd.return_value.increment.assert_called_once_with(
-            metric='dummy_key', sample_rate=1, tags=[], value=1
+            metric='empty_key', sample_rate=1, tags=[], value=1
         )
 
     def tearDown(self) -> None:

@@ -23,7 +23,7 @@ import pytest
 from airflow import DAG
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -60,8 +60,8 @@ class TestTaskEndpoint:
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
         with DAG(self.dag_id, start_date=self.task1_start_date, doc_md="details") as dag:
-            task1 = DummyOperator(task_id=self.task_id, params={'foo': 'bar'})
-            task2 = DummyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+            task1 = EmptyOperator(task_id=self.task_id, params={'foo': 'bar'})
+            task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
@@ -88,8 +88,8 @@ class TestGetTask(TestTaskEndpoint):
     def test_should_respond_200(self):
         expected = {
             "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy",
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -138,8 +138,8 @@ class TestGetTask(TestTaskEndpoint):
 
         expected = {
             "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy",
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -203,8 +203,8 @@ class TestGetTasks(TestTaskEndpoint):
             "tasks": [
                 {
                     "class_ref": {
-                        "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
@@ -238,8 +238,8 @@ class TestGetTasks(TestTaskEndpoint):
                 },
                 {
                     "class_ref": {
-                        "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -300,7 +300,7 @@ class TestGetTasks(TestTaskEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
-        assert response.json['detail'] == "'DummyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert response.json['detail'] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
 
     def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"

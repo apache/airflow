@@ -21,7 +21,7 @@ import pytest
 
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import TaskInstance, Trigger
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -70,7 +70,7 @@ def test_clean_unused(session, create_task_instance):
     )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
-    fake_task = DummyOperator(task_id="fake2", dag=task_instance.task.dag)
+    fake_task = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
     task_instance = TaskInstance(task=fake_task, run_id=task_instance.run_id)
     task_instance.state = State.SUCCESS
     task_instance.trigger_id = trigger2.id
@@ -101,6 +101,9 @@ def test_submit_event(session, create_task_instance):
     session.commit()
     # Call submit_event
     Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
+    # commit changes made by submit event and expire all cache to read from db.
+    session.flush()
+    session.expunge_all()
     # Check that the task instance is now scheduled
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED

@@ -61,7 +61,7 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help()
+    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -144,7 +144,7 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     :return: True if warning was printed.
     """
     installation_airflow_sources = get_installation_airflow_sources()
-    if airflow_sources != installation_airflow_sources:
+    if installation_airflow_sources and airflow_sources != installation_airflow_sources:
         warn_different_location(installation_airflow_sources, airflow_sources)
         ask_to_reinstall_breeze(airflow_sources / "dev" / "breeze")
         return True

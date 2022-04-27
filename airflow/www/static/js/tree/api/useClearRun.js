@@ -18,17 +18,17 @@
  */
 
 import axios from 'axios';
-import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const clearRunUrl = getMetaValue('dagrun_clear_url');
 
 export default function useClearRun(dagId, runId) {
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['dagRunClear', dagId, runId],
@@ -47,21 +47,12 @@ export default function useClearRun(dagId, runId) {
       });
     },
     {
-      onSuccess: (data) => {
-        const { message, status } = data;
-        if (message && status === 'error') {
-          toast({
-            description: message,
-            isClosable: true,
-            status,
-          });
-        }
-        if (!status || status !== 'error') {
-          // Invalidating the query will force a new API request
-          queryClient.invalidateQueries('treeData');
-          startRefresh();
-        }
+      onSuccess: () => {
+        // Invalidating the query will force a new API request
+        queryClient.invalidateQueries('treeData');
+        startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

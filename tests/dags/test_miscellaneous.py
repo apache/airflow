@@ -22,7 +22,7 @@ from datetime import timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 
 args = {
@@ -39,7 +39,7 @@ dag = DAG(
     params={"example_key": "example_value"},
 )
 
-run_this_last = DummyOperator(
+run_this_last = EmptyOperator(
     task_id='run_this_last',
     dag=dag,
 )

@@ -33,7 +33,7 @@ import {
 import { useContainerRef } from '../../context/containerRef';
 
 const ConfirmDialog = ({
-  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,
+  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm, isLoading = false,
 }) => {
   const initialFocusRef = useRef();
   const containerRef = useContainerRef();
@@ -62,7 +62,7 @@ const ConfirmDialog = ({
             <Button onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef}>
+            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef} isLoading={isLoading}>
               Confirm
             </Button>
           </AlertDialogFooter>

@@ -1,0 +1,1 @@
+Show schedule_interval/timetable description in UI

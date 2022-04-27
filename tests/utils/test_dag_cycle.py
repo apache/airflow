@@ -21,7 +21,7 @@ import pytest
 
 from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dag_cycle_tester import check_cycle
 from tests.models import DEFAULT_DATE
 
@@ -38,7 +38,7 @@ class TestCycleTester(unittest.TestCase):
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
-            DummyOperator(task_id='A')
+            EmptyOperator(task_id='A')
 
         assert not check_cycle(dag)
 
@@ -49,11 +49,11 @@ class TestCycleTester(unittest.TestCase):
         #      B -> D
         # E -> F
         with dag:
-            create_cluster = DummyOperator(task_id="c")
-            pod_task = DummyOperator(task_id="p")
-            pod_task_xcom = DummyOperator(task_id="x")
-            delete_cluster = DummyOperator(task_id="d")
-            pod_task_xcom_result = DummyOperator(task_id="r")
+            create_cluster = EmptyOperator(task_id="c")
+            pod_task = EmptyOperator(task_id="p")
+            pod_task_xcom = EmptyOperator(task_id="x")
+            delete_cluster = EmptyOperator(task_id="d")
+            pod_task_xcom_result = EmptyOperator(task_id="r")
             create_cluster >> pod_task >> delete_cluster
             create_cluster >> pod_task_xcom >> delete_cluster
             pod_task_xcom >> pod_task_xcom_result
@@ -66,12 +66,12 @@ class TestCycleTester(unittest.TestCase):
         #      B -> D
         # E -> F
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op6 = DummyOperator(task_id='F')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='D')
+            op5 = EmptyOperator(task_id='E')
+            op6 = EmptyOperator(task_id='F')
             op1.set_downstream(op2)
             op2.set_downstream(op3)
             op2.set_downstream(op4)
@@ -85,7 +85,7 @@ class TestCycleTester(unittest.TestCase):
 
         # A -> A
         with dag:
-            op1 = DummyOperator(task_id='A')
+            op1 = EmptyOperator(task_id='A')
             op1.set_downstream(op1)
 
         with pytest.raises(AirflowDagCycleException):
@@ -97,11 +97,11 @@ class TestCycleTester(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> E
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='D')
+            op5 = EmptyOperator(task_id='E')
             op1.set_downstream(op2)
             op2.set_downstream(op3)
             op3.set_downstream(op4)
@@ -117,11 +117,11 @@ class TestCycleTester(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> A
         with dag:
-            start = DummyOperator(task_id='start')
+            start = EmptyOperator(task_id='start')
             current = start
 
             for i in range(10000):
-                next_task = DummyOperator(task_id=f'task_{i}')
+                next_task = EmptyOperator(task_id=f'task_{i}')
                 current.set_downstream(next_task)
                 current = next_task
 
@@ -136,11 +136,11 @@ class TestCycleTester(unittest.TestCase):
         # E-> A -> B -> F -> A
         #       -> C -> F
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='E')
-            op5 = DummyOperator(task_id='F')
+            op1 = EmptyOperator(task_id='A')
+            op2 = EmptyOperator(task_id='B')
+            op3 = EmptyOperator(task_id='C')
+            op4 = EmptyOperator(task_id='E')
+            op5 = EmptyOperator(task_id='F')
             op1.set_downstream(op2)
             op1.set_downstream(op3)
             op4.set_downstream(op1)

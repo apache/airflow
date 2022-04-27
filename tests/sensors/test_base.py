@@ -24,7 +24,7 @@ from freezegun import freeze_time
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import TaskReschedule
 from airflow.models.xcom import XCom
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
@@ -94,7 +94,7 @@ class TestBaseSensor:
                 else:
                     sensor = DummySensor(task_id=task_id, return_value=return_value, **kwargs)
 
-                dummy_op = DummyOperator(task_id=DUMMY_OP)
+                dummy_op = EmptyOperator(task_id=DUMMY_OP)
                 sensor >> dummy_op
             return sensor, dag_maker.create_dagrun()
 

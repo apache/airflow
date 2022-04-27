@@ -25,7 +25,7 @@ import warnings
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
 
 DAG_NAME = 'test_subdag_operator'
@@ -48,7 +48,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     )
 
     for i in range(2):
-        DummyOperator(
+        EmptyOperator(
             task_id=f'{child_dag_name}-task-{i + 1}',
             default_args=args,
             dag=dag_subdag,
@@ -65,7 +65,7 @@ with DAG(
     schedule_interval=timedelta(minutes=1),
 ) as dag:
 
-    start = DummyOperator(
+    start = EmptyOperator(
         task_id='start',
     )
 
@@ -76,7 +76,7 @@ with DAG(
             default_args=DEFAULT_TASK_ARGS,
         )
 
-    some_other_task = DummyOperator(
+    some_other_task = EmptyOperator(
         task_id='some-other-task',
     )
 

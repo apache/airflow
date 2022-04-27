@@ -19,10 +19,10 @@ set -uo pipefail
 
 TIMEOUT=${TIMEOUT="4"}
 
-if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
-    RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
+if [[ -n "${ANSWER=}" ]]; then
+    RESPONSE=${ANSWER}
     echo
-    echo "Forcing response '${FORCE_ANSWER_TO_QUESTIONS}' to '${1}?'"
+    echo "Forcing response '${ANSWER}' to '${1}?'"
     case "${RESPONSE}" in
         [yY][eE][sS]|[yY])
             exit 0 ;;

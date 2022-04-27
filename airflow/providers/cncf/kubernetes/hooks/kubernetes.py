@@ -18,6 +18,8 @@ import sys
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
+from kubernetes.config import ConfigException
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
@@ -171,11 +173,21 @@ class KubernetesHook(BaseHook):
                 )
             return client.ApiClient()
 
-        self.log.debug("loading kube_config from: default file")
-        config.load_kube_config(
-            client_configuration=self.client_configuration,
-            context=cluster_context,
-        )
+        return self._get_default_client(cluster_context=cluster_context)
+
+    def _get_default_client(self, *, cluster_context=None):
+        # if we get here, then no configuration has been supplied
+        # we should try in_cluster since that's most likely
+        # but failing that just load assuming a kubeconfig file
+        # in the default location
+        try:
+            config.load_incluster_config(client_configuration=self.client_configuration)
+        except ConfigException:
+            self.log.debug("loading kube_config from: default file")
+            config.load_kube_config(
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
         return client.ApiClient()
 
     @cached_property

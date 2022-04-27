@@ -24,7 +24,7 @@ from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
@@ -265,7 +265,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return kwargs_callable(logical_date, **kwargs)
 
 
-class ExternalTaskMarker(DummyOperator):
+class ExternalTaskMarker(EmptyOperator):
     """
     Use this operator to indicate that a task on a different DAG depends on this task.
     When this task is cleared with "Recursive" selected, Airflow will clear the task on

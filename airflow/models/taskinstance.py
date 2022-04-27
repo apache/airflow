@@ -20,21 +20,22 @@ import contextlib
 import hashlib
 import logging
 import math
+import operator
 import os
 import pickle
 import signal
-import threading
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
-from inspect import currentframe
 from tempfile import NamedTemporaryFile
 from types import TracebackType
 from typing import (
     IO,
     TYPE_CHECKING,
     Any,
+    Callable,
+    Collection,
     ContextManager,
     Dict,
     Generator,
@@ -49,6 +50,7 @@ from typing import (
 )
 from urllib.parse import quote
 
+import attr
 import dill
 import jinja2
 import pendulum
@@ -62,19 +64,21 @@ from sqlalchemy import (
     PickleType,
     String,
     and_,
+    false,
     func,
     inspect,
     or_,
     text,
-    tuple_,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
@@ -120,7 +124,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
@@ -131,11 +135,10 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-
-_TASK_EXECUTION_FRAME_LOCAL_STORAGE = threading.local()
 
 
 @contextlib.contextmanager
@@ -201,8 +204,9 @@ def clear_task_instances(
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
-    task_id_by_key: Dict[str, Dict[str, Dict[int, Set[str]]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(set))
+    # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
+    task_id_by_key: Dict[str, Dict[str, Dict[int, Dict[int, Set[str]]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     for ti in tis:
         if ti.state == TaskInstanceState.RUNNING:
@@ -228,14 +232,14 @@ def clear_task_instances(
             ti.external_executor_id = None
             session.merge(ti)
 
-        task_id_by_key[ti.dag_id][ti.run_id][ti.try_number].add(ti.task_id)
+        task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
         # Clear all reschedules related to the ti to clear
 
         # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, run_id and try_number. Use a nested dict of dag_id,
-        # run_id, try_number and task_id to construct the where clause in a
+        # of dag_id, run_id, try_number, and map_index. Use a nested dict of dag_id,
+        # run_id, try_number, map_index, and task_id to construct the where clause in a
         # hierarchical manner. This speeds up the delete statement by more than 40x for
         # large number of tis (50k+).
         conditions = or_(
@@ -245,11 +249,17 @@ def clear_task_instances(
                     and_(
                         TR.run_id == run_id,
                         or_(
-                            and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                            for try_number, task_ids in task_tries.items()
+                            and_(
+                                TR.map_index == map_index,
+                                or_(
+                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
+                                    for try_number, task_ids in task_tries.items()
+                                ),
+                            )
+                            for map_index, task_tries in map_indexes.items()
                         ),
                     )
-                    for run_id, task_tries in run_ids.items()
+                    for run_id, map_indexes in run_ids.items()
                 ),
             )
             for dag_id, run_ids in task_id_by_key.items()
@@ -320,6 +330,7 @@ class _LazyXComAccessIterator(collections.abc.Iterator):
         return XCom.deserialize_value(next(self._it))
 
 
+@attr.define
 class _LazyXComAccess(collections.abc.Sequence):
     """Wrapper to lazily pull XCom with a sequence-like interface.
 
@@ -328,9 +339,28 @@ class _LazyXComAccess(collections.abc.Sequence):
     for every function call with ``with_session()``.
     """
 
-    def __init__(self, query: Query):
-        self._q = query
-        self._len = None
+    dag_id: str
+    run_id: str
+    task_id: str
+    _query: Query = attr.ib(repr=False)
+    _len: Optional[int] = attr.ib(init=False, repr=False, default=None)
+
+    @classmethod
+    def build_from_single_xcom(cls, first: "XCom", query: Query) -> "_LazyXComAccess":
+        return cls(
+            dag_id=first.dag_id,
+            run_id=first.run_id,
+            task_id=first.task_id,
+            query=query.with_entities(XCom.value)
+            .filter(
+                XCom.run_id == first.run_id,
+                XCom.task_id == first.task_id,
+                XCom.dag_id == first.dag_id,
+                XCom.map_index >= 0,
+            )
+            .order_by(None)
+            .order_by(XCom.map_index.asc()),
+        )
 
     def __len__(self):
         if self._len is None:
@@ -354,13 +384,13 @@ class _LazyXComAccess(collections.abc.Sequence):
     @contextlib.contextmanager
     def _get_bound_query(self) -> Generator[Query, None, None]:
         # Do we have a valid session already?
-        if self._q.session and self._q.session.is_active:
-            yield self._q
+        if self._query.session and self._query.session.is_active:
+            yield self._query
             return
 
         session = settings.Session()
         try:
-            yield self._q.with_session(session)
+            yield self._query.with_session(session)
         finally:
             session.close()
 
@@ -454,7 +484,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
-    next_kwargs = Column(ExtendedJSON)
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -1411,6 +1441,9 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
+        # Initialize final state counters at zero
+        for state in State.task_states:
+            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}', count=0)
         try:
             if not mark_success:
                 self.task = self.task.prepare_for_execution()
@@ -1603,31 +1636,27 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
-        try:
-            if task_to_execute.execution_timeout:
-                # If we are coming in with a next_method (i.e. from a deferral),
-                # calculate the timeout from our start_date.
-                if self.next_method:
-                    timeout_seconds = (
-                        task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
-                    ).total_seconds()
-                else:
-                    timeout_seconds = task_to_execute.execution_timeout.total_seconds()
-                try:
-                    # It's possible we're already timed out, so fast-fail if true
-                    if timeout_seconds <= 0:
-                        raise AirflowTaskTimeout()
-                    # Run task in timeout wrapper
-                    with timeout(timeout_seconds):
-                        result = execute_callable(context=context)
-                except AirflowTaskTimeout:
-                    task_to_execute.on_kill()
-                    raise
+        if task_to_execute.execution_timeout:
+            # If we are coming in with a next_method (i.e. from a deferral),
+            # calculate the timeout from our start_date.
+            if self.next_method:
+                timeout_seconds = (
+                    task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
+                ).total_seconds()
             else:
-                result = execute_callable(context=context)
-        except:  # noqa: E722
-            _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = currentframe()
-            raise
+                timeout_seconds = task_to_execute.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = execute_callable(context=context)
+            except AirflowTaskTimeout:
+                task_to_execute.on_kill()
+                raise
+        else:
+            result = execute_callable(context=context)
         with create_session() as session:
             if task_to_execute.do_xcom_push:
                 xcom_value = result
@@ -1823,33 +1852,21 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
-    def get_truncated_error_traceback(self, error: BaseException) -> Optional[TracebackType]:
+    @staticmethod
+    def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> Optional[TracebackType]:
         """
-        Returns truncated error traceback.
-
-        This method returns traceback of the error truncated to the
-        frame saved by earlier try/except along the way. If the frame
-        is found, the traceback will be truncated to below the frame.
+        Truncates the traceback of an exception to the first frame called from within a given function
 
         :param error: exception to get traceback from
-        :return: traceback to print
+        :param truncate_to: Function to truncate TB to. Must have a ``__code__`` attribute
+
+        :meta private:
         """
         tb = error.__traceback__
-        try:
-            execution_frame = _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame
-        except AttributeError:
-            self.log.warning(
-                "We expected to get frame set in local storage but it was not."
-                " Please report this as an issue with full logs"
-                " at https://github.com/apache/airflow/issues/new",
-                exc_info=True,
-            )
-            return tb
-        _TASK_EXECUTION_FRAME_LOCAL_STORAGE.frame = None
+        code = truncate_to.__func__.__code__  # type: ignore[attr-defined]
         while tb is not None:
-            if tb.tb_frame is execution_frame:
-                tb = tb.tb_next
-                break
+            if tb.tb_frame.f_code is code:
+                return tb.tb_next
             tb = tb.tb_next
         return tb or error.__traceback__
 
@@ -1868,7 +1885,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, BaseException):
-                tb = self.get_truncated_error_traceback(error)
+                tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
                 self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
                 self.log.error("%s", error)
@@ -1879,24 +1896,15 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             self.refresh_from_db(session)
 
-        task = self.task.unmap()
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
+        Stats.incr(f'operator_failures_{self.task.task_type}')
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
-            session.add(
-                TaskFail(
-                    task=task,
-                    run_id=self.run_id,
-                    start_date=self.start_date,
-                    end_date=self.end_date,
-                    map_index=self.map_index,
-                )
-            )
+            session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
 
@@ -1912,20 +1920,26 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
+        task = None
+        try:
+            task = self.task.unmap()
+        except Exception:
+            self.log.error("Unable to unmap task, can't determine if we need to send an alert email or not")
+
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
-            email_for_state = task.email_on_failure
+            email_for_state = operator.attrgetter('email_on_failure')
         else:
             if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
             self.state = State.UP_FOR_RETRY
-            email_for_state = task.email_on_retry
+            email_for_state = operator.attrgetter('email_on_retry')
 
         self._log_state('Immediate failure requested. ' if force_fail else '')
-        if email_for_state and task.email:
+        if task and email_for_state(task) and task.email:
             try:
-                self.email_alert(error)
+                self.email_alert(error, task)
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
@@ -2219,11 +2233,15 @@ class TaskInstance(Base, LoggingMixin):
         sanitized_pod = ApiClient().sanitize_for_serialization(pod)
         return sanitized_pod
 
-    def get_email_subject_content(self, exception: BaseException) -> Tuple[str, str, str]:
+    def get_email_subject_content(
+        self, exception: BaseException, task: Optional["BaseOperator"] = None
+    ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
         # Reuse it for smart sensor to send default email alert
-        use_default = not hasattr(self, 'task')
+        if task is None:
+            task = getattr(self, 'task')
+        use_default = task is None
         exception_html = str(exception).replace('\n', '<br>')
 
         default_subject = 'Airflow alert: {{ti}}'
@@ -2290,13 +2308,14 @@ class TaskInstance(Base, LoggingMixin):
 
         return subject, html_content, html_content_err
 
-    def email_alert(self, exception):
+    def email_alert(self, exception, task: "BaseOperator"):
         """Send alert email with exception information."""
-        subject, html_content, html_content_err = self.get_email_subject_content(exception)
+        subject, html_content, html_content_err = self.get_email_subject_content(exception, task=task)
+        assert task.email
         try:
-            send_email(self.task.email, subject, html_content)
+            send_email(task.email, subject, html_content)
         except Exception:
-            send_email(self.task.email, subject, html_content_err)
+            send_email(task.email, subject, html_content_err)
 
     def set_duration(self) -> None:
         """Set TI duration"""
@@ -2311,7 +2330,7 @@ class TaskInstance(Base, LoggingMixin):
         # currently possible for a downstream to depend on one individual mapped
         # task instance, only a task as a whole. This will change in AIP-42
         # Phase 2, and we'll need to further analyze the mapped task case.
-        if task.is_mapped or not task.has_mapped_dependants():
+        if task.is_mapped or next(task.iter_mapped_dependants(), None) is None:
             return
         if value is None:
             raise XComForMappingNotPushed()
@@ -2422,22 +2441,15 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(XCom.run_id, XCom.task_id, XCom.map_index, XCom.value).first()
+            first = query.with_entities(
+                XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            ).first()
             if first is None:  # No matching XCom at all.
                 return default
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
 
-            # We're pulling one specific mapped task. Add additional filters to
-            # make sure all XComs come from one task and run (for task_ids=None
-            # and include_prior_dates=True), and re-order by map index (reset
-            # needed because XCom.get_many() orders by XCom timestamp).
-            return _LazyXComAccess(
-                query.with_entities(XCom.value)
-                .filter(XCom.run_id == first.run_id, XCom.task_id == first.task_id, XCom.map_index >= 0)
-                .order_by(None)
-                .order_by(XCom.map_index.asc())
-            )
+            return _LazyXComAccess.build_from_single_xcom(first, query)
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
 
@@ -2525,20 +2537,35 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.task_id == first_task_id,
             )
 
-        if settings.engine.dialect.name == 'mssql':
-            return or_(
-                and_(
-                    TaskInstance.dag_id == ti.dag_id,
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.run_id == ti.run_id,
-                    TaskInstance.map_index == ti.map_index,
-                )
-                for ti in tis
-            )
-        else:
-            return tuple_(
-                TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index
-            ).in_([ti.key.primary for ti in tis])
+        return tuple_in_condition(
+            (TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id, TaskInstance.map_index),
+            (ti.key.primary for ti in tis),
+        )
+
+    @classmethod
+    def ti_selector_condition(cls, vals: Collection[Union[str, Tuple[str, int]]]) -> ColumnOperators:
+        """
+        Build an SQLAlchemy filter for a list where each element can contain
+        whether a task_id, or a tuple of (task_id,map_index)
+
+        :meta private:
+        """
+        # Compute a filter for TI.task_id and TI.map_index based on input values
+        # For each item, it will either be a task_id, or (task_id, map_index)
+        task_id_only = [v for v in vals if isinstance(v, str)]
+        with_map_index = [v for v in vals if not isinstance(v, str)]
+
+        filters: List[ColumnOperators] = []
+        if task_id_only:
+            filters.append(cls.task_id.in_(task_id_only))
+        if with_map_index:
+            filters.append(tuple_in_condition((cls.task_id, cls.map_index), with_map_index))
+
+        if not filters:
+            return false()
+        if len(filters) == 1:
+            return filters[0]
+        return or_(*filters)
 
 
 # State of the task instance.
@@ -2558,9 +2585,10 @@ class SimpleTaskInstance:
         dag_id: str,
         task_id: str,
         run_id: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
         try_number: int,
+        map_index: int,
         state: str,
         executor_config: Any,
         pool: str,
@@ -2569,21 +2597,20 @@ class SimpleTaskInstance:
         run_as_user: Optional[str] = None,
         priority_weight: Optional[int] = None,
     ):
-        self._dag_id: str = dag_id
-        self._task_id: str = task_id
-        self._run_id: str = run_id
-        self._start_date: datetime = start_date
-        self._end_date: datetime = end_date
-        self._try_number: int = try_number
-        self._state: str = state
-        self._executor_config: Any = executor_config
-        self._run_as_user: Optional[str] = None
-        self._run_as_user = run_as_user
-        self._pool: str = pool
-        self._priority_weight: Optional[int] = None
-        self._priority_weight = priority_weight
-        self._queue: str = queue
-        self._key = key
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.start_date = start_date
+        self.end_date = end_date
+        self.try_number = try_number
+        self.state = state
+        self.executor_config = executor_config
+        self.run_as_user = run_as_user
+        self.pool = pool
+        self.priority_weight = priority_weight
+        self.queue = queue
+        self.key = key
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -2596,6 +2623,7 @@ class SimpleTaskInstance:
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
+            map_index=ti.map_index,
             start_date=ti.start_date,
             end_date=ti.end_date,
             try_number=ti.try_number,
@@ -2610,80 +2638,16 @@ class SimpleTaskInstance:
 
     @classmethod
     def from_dict(cls, obj_dict: dict):
-        ti_key = obj_dict.get('_key', [])
-        start_date: Union[Any, datetime] = (
-            datetime.fromisoformat(str(obj_dict.get('_start_date')))
-            if obj_dict.get('_start_date') is not None
-            else None
-        )
-        end_date: Union[Any, datetime] = (
-            datetime.fromisoformat(str(obj_dict.get('_end_date')))
-            if obj_dict.get('_end_date') is not None
-            else None
-        )
-        return cls(
-            dag_id=str(obj_dict['_dag_id']),
-            task_id=str(obj_dict.get('_task_id')),
-            run_id=str(obj_dict.get('_run_id')),
-            start_date=start_date,
-            end_date=end_date,
-            try_number=obj_dict.get('_try_number', 1),
-            state=str(obj_dict.get('_state')),
-            executor_config=obj_dict.get('_executor_config'),
-            run_as_user=obj_dict.get('_run_as_user', None),
-            pool=str(obj_dict.get('_pool')),
-            priority_weight=obj_dict.get('_priority_weight', None),
-            queue=str(obj_dict.get('_queue')),
-            key=TaskInstanceKey(ti_key[0], ti_key[1], ti_key[2], ti_key[3], ti_key[4]),
-        )
-
-    @property
-    def dag_id(self) -> str:
-        return self._dag_id
-
-    @property
-    def task_id(self) -> str:
-        return self._task_id
-
-    @property
-    def run_id(self) -> str:
-        return self._run_id
-
-    @property
-    def start_date(self) -> datetime:
-        return self._start_date
-
-    @property
-    def end_date(self) -> datetime:
-        return self._end_date
-
-    @property
-    def try_number(self) -> int:
-        return self._try_number
-
-    @property
-    def state(self) -> str:
-        return self._state
-
-    @property
-    def pool(self) -> str:
-        return self._pool
-
-    @property
-    def priority_weight(self) -> Optional[int]:
-        return self._priority_weight
-
-    @property
-    def queue(self) -> str:
-        return self._queue
-
-    @property
-    def key(self) -> TaskInstanceKey:
-        return self._key
-
-    @property
-    def executor_config(self):
-        return self._executor_config
+        ti_key = TaskInstanceKey(*obj_dict.pop('key'))
+        start_date = None
+        end_date = None
+        start_date_str: Optional[str] = obj_dict.pop('start_date')
+        end_date_str: Optional[str] = obj_dict.pop('end_date')
+        if start_date_str:
+            start_date = timezone.parse(start_date_str)
+        if end_date_str:
+            end_date = timezone.parse(end_date_str)
+        return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
 STATICA_HACK = True

@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.6.0
 .....
 
-Latest change: 2022-04-10
+Latest change: 2022-04-13
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`40831144be <https://github.com/apache/airflow/commit/40831144bedd3e652d8856b918a26d2e0a8e8e02>`_  2022-04-13   ``Prepare for RC2 release of March Databricks provider (#22979)``
 `7be57eb256 <https://github.com/apache/airflow/commit/7be57eb2566651de89048798766f0ad5f267cdc2>`_  2022-04-10   ``Databricks SQL operators are now Python 3.10 compatible (#22886)``
 `aa8c08db38 <https://github.com/apache/airflow/commit/aa8c08db383ebfabf30a7c2b2debb64c0968df48>`_  2022-04-10   ``Databricks: Correctly handle HTTP exception (#22885)``
 `6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``

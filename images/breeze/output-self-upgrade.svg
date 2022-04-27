@@ -1,4 +1,4 @@
-<svg width="1720.0" height="582" viewBox="0 0 1720.0 582"
+<svg width="1720.0" height="626" viewBox="0 0 1720.0 626"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -119,10 +119,12 @@
 <div><span class="r2">                                                                                                                        </span></div>
 <div><span class="r1"> </span><span class="r1">Self upgrade Breeze.                                                                                                  </span><span class="r1"> </span></div>
 <div><span class="r1">                                                                                                                        </span></div>
-<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-current-airflow-sources</span><span class="r1">  </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Use current workdir Airflow sources for upgrade.                               </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">╭─ Self-upgrade flags ─────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-current-airflow-sources</span><span class="r1">  </span><span class="r6">-a</span><span class="r1">  </span><span class="r1">Use current workdir Airflow sources for upgrade.                               </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force</span><span class="r1">                        </span><span class="r6">-f</span><span class="r1">  </span><span class="r1">Force upgrade without asking question to the user.                             </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">                         </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                    </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
+<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">  </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                                           </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
                     </div>

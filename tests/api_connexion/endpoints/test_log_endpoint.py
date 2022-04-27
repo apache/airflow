@@ -26,7 +26,7 @@ from itsdangerous.url_safe import URLSafeSerializer
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -71,7 +71,7 @@ class TestGetLog:
         self.old_modules = dict(sys.modules)
 
         with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
-            DummyOperator(task_id=self.TASK_ID)
+            EmptyOperator(task_id=self.TASK_ID)
         dr = dag_maker.create_dagrun(
             run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.SCHEDULED,
@@ -85,7 +85,7 @@ class TestGetLog:
         with dag_maker(
             f'{self.DAG_ID}_copy', start_date=timezone.parse(self.default_time), session=session
         ) as dummy_dag:
-            DummyOperator(task_id=self.TASK_ID)
+            EmptyOperator(task_id=self.TASK_ID)
         dag_maker.create_dagrun(
             run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.SCHEDULED,

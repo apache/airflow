@@ -24,7 +24,7 @@ the shell with the same version as the "previous run".
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from airflow_breeze import global_constants
 from airflow_breeze.utils.console import console
@@ -70,9 +70,11 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         sys.exit(1)
 
 
-def check_cached_value_is_allowed(param_name: str, default_param_value: str) -> Tuple[bool, Optional[str]]:
+def read_and_validate_value_from_cache(
+    param_name: str, default_param_value: str
+) -> Tuple[bool, Optional[str]]:
     """
-    Checks if the cache is present and whether its value is valid according to current rules.
+    Reads and validates value from cache is present and whether its value is valid according to current rules.
     It could happen that the allowed values have been modified since the last time cached value was set,
     so this check is crucial to check outdated values.
     If the value is not set or in case the cached value stored is not currently allowed,
@@ -114,27 +116,3 @@ def delete_cache(param_name: str) -> bool:
         (Path(BUILD_CACHE_DIR) / f".{param_name}").unlink()
         deleted = True
     return deleted
-
-
-def synchronize_parameters_with_cache(
-    image_params: Any, parameters_passed_via_command_line: Dict[str, str]
-) -> None:
-    """
-    Synchronizes cacheable parameters between executions. It reads values from cache and updates
-    them wen done. It is only done for parameters that are relevant for image build.
-
-    :param image_params: parameters of the build
-    :param parameters_passed_via_command_line:  parameters that were passed by command line
-    """
-    cacheable_parameters = {
-        'python': 'PYTHON_MAJOR_MINOR_VERSION',
-    }
-    for parameter, cache_key in cacheable_parameters.items():
-        value_from_parameter = parameters_passed_via_command_line.get(parameter)
-        if value_from_parameter:
-            write_to_cache_file(cache_key, value_from_parameter, check_allowed_values=True)
-            setattr(image_params, parameter, value_from_parameter)
-        else:
-            is_cached, value = check_cached_value_is_allowed(cache_key, getattr(image_params, parameter))
-            if is_cached:
-                setattr(image_params, parameter, value)
