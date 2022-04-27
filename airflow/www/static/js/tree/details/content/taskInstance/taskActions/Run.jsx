@@ -30,6 +30,7 @@ const Run = ({
   dagId,
   runId,
   taskId,
+  mapIndexes,
 }) => {
   const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
   const onToggleAllDeps = () => setIgnoreAllDeps(!ignoreAllDeps);
@@ -47,6 +48,7 @@ const Run = ({
       ignoreAllDeps,
       ignoreTaskState,
       ignoreTaskDeps,
+      mapIndexes,
     });
   };
 

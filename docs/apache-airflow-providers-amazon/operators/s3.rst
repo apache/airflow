@@ -165,6 +165,23 @@ multiple files can match one key. The list of matched S3 object attributes conta
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
 
+.. _howto/sensor:S3KeysUnchangedSensor:
+
+Amazon S3 Key Unchanged Sensor
+------------------------------
+
+To check for changes in the number of objects at a specific prefix in an Amazon S3 bucket and waits until
+the inactivity period has passed with no increase in the number of objects you can use
+:class:`~airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor`.
+Note, this sensor will not behave correctly in reschedule mode,
+as the state of the listed objects in the Amazon S3 bucket will be lost between rescheduled invocations.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_keys_unchanged]
+    :end-before: [END howto_sensor_s3_keys_unchanged]
+
 .. _howto/operator:S3CreateObjectOperator:
 
 Create an Amazon S3 object
@@ -207,6 +224,22 @@ To delete one or multiple Amazon S3 objects you can use
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_objects]
     :end-before: [END howto_operator_s3_delete_objects]
+
+.. _howto/operator:S3FileTransformOperator:
+
+Transform an Amazon S3 object
+-----------------------------
+
+To transform the data from one Amazon S3 object and save it to another object you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`.
+You can also apply an optional [Amazon S3 Select expression](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
+to select the data you want to retrieve from ``source_s3_key`` using ``select_expression``.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_file_transform]
+    :end-before: [END howto_operator_s3_file_transform]
 
 Reference
 ---------

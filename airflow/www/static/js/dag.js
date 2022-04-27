@@ -171,14 +171,11 @@ export function callModal({
   $('#extra_links').prev('hr').hide();
   $('#extra_links').empty().hide();
   if (mi >= 0) {
-    // Marking state and clear are not yet supported for mapped instances
-    $('#success_action').hide();
-    $('#failed_action').hide();
-    $('#clear_action').hide();
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text(mi);
   } else {
-    $('#success_action').show();
-    $('#failed_action').show();
-    $('#clear_action').show();
+    $('#modal_map_index').hide();
+    $('#modal_map_index .value').text('');
   }
   if (isSubDag) {
     $('#div_btn_subdag').show();
@@ -339,7 +336,6 @@ $(document).on('click', '.map_index_item', function mapItem() {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate/dagRunId valid
   if (dagRunId || executionDate) {
     if (form.dag_run_id) {
       form.dag_run_id.value = dagRunId;
@@ -351,8 +347,10 @@ $('form[data-action]').on('submit', function submit(e) {
     if (form.task_id) {
       form.task_id.value = taskId;
     }
-    if (form.map_index) {
-      form.map_index.value = mapIndex === undefined ? '' : mapIndex;
+    if (form.map_index && mapIndex >= 0) {
+      form.map_index.value = mapIndex;
+    } else if (form.map_index) {
+      form.map_index.remove();
     }
     form.action = $(this).data('action');
     form.submit();

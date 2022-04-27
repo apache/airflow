@@ -31,7 +31,7 @@ import {
 } from 'react-icons/md';
 
 import { getMetaValue } from '../../../../utils';
-import { formatDateTime, formatDuration } from '../../../../datetime_utils';
+import { formatDateTime, formatDuration, getDuration } from '../../../../datetime_utils';
 import { useMappedInstances } from '../../../api';
 import { SimpleStatus } from '../../../StatusBox';
 import Table from '../../../Table';
@@ -46,7 +46,7 @@ const IconLink = (props) => (
 );
 
 const MappedInstances = ({
-  dagId, runId, taskId,
+  dagId, runId, taskId, selectRows,
 }) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -83,7 +83,7 @@ const MappedInstances = ({
             {mi.state || 'no status'}
           </Flex>
         ),
-        duration: mi.duration && formatDuration(mi.duration),
+        duration: mi.duration && formatDuration(getDuration(mi.startDate, mi.endDate)),
         startDate: mi.startDate && formatDateTime(mi.startDate),
         endDate: mi.endDate && formatDateTime(mi.endDate),
         links: (
@@ -147,6 +147,7 @@ const MappedInstances = ({
         pageSize={limit}
         setSortBy={setSortBy}
         isLoading={isLoading}
+        selectRows={selectRows}
       />
     </Box>
   );

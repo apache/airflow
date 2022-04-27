@@ -99,7 +99,7 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -513,13 +513,15 @@ def get_task_stats_from_query(qry):
     return data
 
 
-def redirect_or_json(origin, msg, status=""):
+def redirect_or_json(origin, msg, status="", status_code=200):
     """
     Some endpoints are called by javascript,
     returning json will allow us to more elegantly handle side-effects in-page
     """
     if request.headers.get('Accept') == 'application/json':
-        return {'status': status, 'message': msg}
+        if status == 'error' and status_code == 200:
+            status_code = 500
+        return Response(response=msg, status=status_code, mimetype="application/json")
     else:
         if status:
             flash(msg, status)
@@ -1757,13 +1759,13 @@ class Airflow(AirflowBaseView):
 
         if not getattr(executor, "supports_ad_hoc_ti_run", False):
             msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
         if not ti:
             msg = "Could not queue task instance for execution, task instance is missing"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         ti.refresh_from_task(task)
 
@@ -1778,7 +1780,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
-            return redirect_or_json(origin, msg, "error")
+            return redirect_or_json(origin, msg, "error", 400)
 
         executor.job_id = "manual"
         executor.start()
@@ -1943,7 +1945,7 @@ class Airflow(AirflowBaseView):
                 dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
             )
-        except ValueError as ve:
+        except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
             form = DateTimeForm(data={'execution_date': execution_date})
             return self.render_template(
@@ -1993,13 +1995,13 @@ class Airflow(AirflowBaseView):
                 dry_run=True,
             )
         except AirflowException as ex:
-            return redirect_or_json(origin, msg=str(ex), status="error")
+            return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
 
         assert isinstance(tis, collections.abc.Iterable)
         details = [str(t) for t in tis]
 
         if not details:
-            return redirect_or_json(origin, "No task instances to clear", status="error")
+            return redirect_or_json(origin, "No task instances to clear", status="error", status_code=404)
         elif request.headers.get('Accept') == 'application/json':
             return htmlsafe_json_dumps(details, separators=(',', ':'))
         return self.render_template(
@@ -2039,18 +2041,24 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get('recursive') == "true"
         only_failed = request.form.get('only_failed') == "true"
 
+        task_ids: List[Union[str, Tuple[str, int]]]
+        if map_indexes is None:
+            task_ids = [task_id]
+        else:
+            task_ids = [(task_id, map_index) for map_index in map_indexes]
+
         dag = dag.partial_subset(
-            task_ids_or_regex=fr"^{task_id}$",
+            task_ids_or_regex=[task_id],
             include_downstream=downstream,
             include_upstream=upstream,
         )
+
+        if len(dag.task_dict) > 1:
+            # If we had upstream/downstream etc then also include those!
+            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+
         end_date = execution_date if not future else None
         start_date = execution_date if not past else None
-
-        if map_indexes is None:
-            task_ids: Union[List[str], List[Tuple[str, int]]] = [task_id]
-        else:
-            task_ids = [(task_id, map_index) for map_index in map_indexes]
 
         return self._clear_dag_tis(
             dag,
@@ -2353,13 +2361,13 @@ class Airflow(AirflowBaseView):
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             msg = f'DAG {dag_id} not found'
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=404)
 
         try:
             task = dag.get_task(task_id)
         except airflow.exceptions.TaskNotFound:
             msg = f"Task {task_id} not found"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=404)
 
         task.dag = dag
 
@@ -2368,12 +2376,12 @@ class Airflow(AirflowBaseView):
             'failed',
         ):
             msg = f"Invalid state {state}, must be either 'success' or 'failed'"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=400)
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
-            return redirect_or_json(origin, msg, status='error')
+            return redirect_or_json(origin, msg, status='error', status_code=400)
 
         if map_indexes is None:
             tasks: Union[List[Operator], List[Tuple[Operator, int]]] = [task]
@@ -2686,7 +2694,8 @@ class Airflow(AirflowBaseView):
 
         if dag_states and dag_states[-1].data_interval_start and dag_states[-1].data_interval_end:
             last_automated_data_interval = DataInterval(
-                dag_states[-1].data_interval_start, dag_states[-1].data_interval_end
+                timezone.coerce_datetime(dag_states[-1].data_interval_start),
+                timezone.coerce_datetime(dag_states[-1].data_interval_end),
             )
 
             year = last_automated_data_interval.end.year
@@ -3812,6 +3821,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
+        ConnectionModelView.extra_field_name_mapping[key] = value.field_name
         ConnectionModelView.add_columns.append(key)
         ConnectionModelView.edit_columns.append(key)
         ConnectionModelView.extra_fields.append(key)
@@ -3901,6 +3911,8 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ('conn_id', 'asc')
 
+    extra_field_name_mapping: Dict[str, str] = {}
+
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
         [
@@ -3986,19 +3998,19 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        conn_type = form.data['conn_type']
         conn_id = form.data["conn_id"]
+        conn_type = form.data["conn_type"]
 
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
         # The extra form field with all extra values (including custom fields) is in the form being processed
         # so we start with those values, and override them with anything in the custom fields.
         extra = {}
 
-        extra_field = form.data.get("extra")
+        extra_json = form.data.get("extra")
 
-        if extra_field:
+        if extra_json:
             try:
-                extra.update(json.loads(extra_field))
+                extra.update(json.loads(extra_json))
             except (JSONDecodeError, TypeError):
                 flash(
                     Markup(
@@ -4007,18 +4019,24 @@ class ConnectionModelView(AirflowModelView):
                         "<p>If connection parameters need to be added to <em>Extra</em>, "
                         "please make sure they are in the form of a single, valid JSON object.</p><br>"
                         "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
-                        f"{extra_field}",
+                        f"{extra_json}",
                     ),
                     category="error",
                 )
+        del extra_json
 
-        custom_fields = {
-            key: form.data[key]
-            for key in self.extra_fields
-            if key in form.data and key.startswith(f"extra__{conn_type}__")
-        }
-
-        extra.update(custom_fields)
+        for key in self.extra_fields:
+            if key in form.data and key.startswith("extra__"):
+                # Check to ensure the extra field corresponds to the connection type of the form submission
+                # before adding to extra_field_name_mapping.
+                conn_type_from_extra_field = key.split("__")[1]
+                if conn_type_from_extra_field == conn_type:
+                    value = form.data[key]
+                    # Some extra fields have a default value of False so we need to explicitly check the
+                    # value isn't an empty string.
+                    if value != "":
+                        field_name = self.extra_field_name_mapping[key]
+                        extra[field_name] = value
 
         if extra.keys():
             form.extra.data = json.dumps(extra)
@@ -4038,10 +4056,16 @@ class ConnectionModelView(AirflowModelView):
             logging.warning('extra field for %s is not a dictionary', form.data.get('conn_id', '<unknown>'))
             return
 
-        for field in self.extra_fields:
-            value = extra_dictionary.get(field, '')
+        for field_key in self.extra_fields:
+            field_name = self.extra_field_name_mapping[field_key]
+            value = extra_dictionary.get(field_name, '')
+
+            if not value:
+                # check if connection `extra` json is using old prefixed field name style
+                value = extra_dictionary.get(field_key, '')
+
             if value:
-                field = getattr(form, field)
+                field = getattr(form, field_key)
                 field.data = value
 
 

@@ -1055,14 +1055,18 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
         mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
 
     dr: DagRun = dag_maker.create_dagrun()
-    ti1, _ = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+    ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
     ti1.state = TaskInstanceState.SUCCESS
     session.add(
         TaskMap(dag_id=dr.dag_id, task_id=ti1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
     )
     session.flush()
 
-    dr.task_instance_scheduling_decisions(session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    # ti1 finished execution. ti2 goes directly to finished state because it's
+    # expanded against a zero-length XCom.
+    assert decision.finished_tis == [ti1, ti2]
 
     indices = (
         session.query(TI.map_index, TI.state)
@@ -1157,3 +1161,24 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert decision.schedulable_tis == []
     assert result == [2, 4]
+
+
+def test_schedule_tis_map_index(dag_maker, session):
+    with dag_maker(session=session, dag_id="test"):
+        task = BaseOperator(task_id='task_1')
+
+    dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
+    ti0 = TI(task=task, run_id=dr.run_id, map_index=0, state=TaskInstanceState.SUCCESS)
+    ti1 = TI(task=task, run_id=dr.run_id, map_index=1, state=None)
+    ti2 = TI(task=task, run_id=dr.run_id, map_index=2, state=TaskInstanceState.SUCCESS)
+    session.add_all((dr, ti0, ti1, ti2))
+    session.flush()
+
+    assert dr.schedule_tis((ti1,), session=session) == 1
+
+    session.refresh(ti0)
+    session.refresh(ti1)
+    session.refresh(ti2)
+    assert ti0.state == TaskInstanceState.SUCCESS
+    assert ti1.state == TaskInstanceState.SCHEDULED
+    assert ti2.state == TaskInstanceState.SUCCESS

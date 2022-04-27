@@ -488,7 +488,7 @@ class S3FileTransformOperator(BaseOperator):
     location.
 
     The locations of the source and the destination files in the local
-    filesystem is provided as an first and second arguments to the
+    filesystem is provided as a first and second arguments to the
     transformation script. The transformation script is expected to read the
     data from source, transform it and write the output to the local
     destination file. The operator then takes over control and uploads the
@@ -496,6 +496,10 @@ class S3FileTransformOperator(BaseOperator):
 
     S3 Select is also available to filter the source contents. Users can
     omit the transformation script if S3 Select expression is specified.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3FileTransformOperator`
 
     :param source_s3_key: The key to be retrieved from S3. (templated)
     :param dest_s3_key: The key to be written from S3. (templated)

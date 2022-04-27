@@ -559,7 +559,7 @@ need to run the following steps:
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-provider-packages [PACKAGE ...]
+     breeze prepare-provider-packages [PACKAGE ...]
 
 If you run this command without packages, you will prepare all packages. However, You can specify
 providers that you would like to build if you just want to build few provider packages.
@@ -570,7 +570,7 @@ before running, so you should run it before generating ``apache-airflow`` packag
 
 .. code-block:: bash
 
-     ./breeze-legacy prepare-airflow-packages
+     breeze prepare-airflow-package
 
 This prepares airflow .whl package in the dist folder.
 
@@ -1086,7 +1086,7 @@ example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 
-  ./breeze-legacy prepare-provider-packages -- google postgres mysql
+  breeze prepare-provider-packages google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.

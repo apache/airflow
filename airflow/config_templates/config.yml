@@ -826,8 +826,8 @@
       default: "False"
     - name: auth_backends
       description: |
-        How to authenticate users of the API. See
-        https://airflow.apache.org/docs/apache-airflow/stable/security.html for possible values.
+        Comma separated list of auth backends to authenticate users of the API. See
+        https://airflow.apache.org/docs/apache-airflow/stable/security/api.html for possible values.
         ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
