@@ -16,6 +16,7 @@
 # under the License.
 
 import multiprocessing as mp
+import os
 import sys
 from typing import List, Tuple
 
@@ -155,6 +156,8 @@ def build_ci_image(
             production_image=False,
         )
         if ci_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
             console.print(f"\n[blue]Building empty CI Image for Python {ci_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=ci_image_params)
             build_result = run_command(
@@ -164,6 +167,7 @@ def build_ci_image(
                 dry_run=dry_run,
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
+                env=env,
             )
         else:
             console.print(f"\n[blue]Building CI Image for Python {ci_image_params.python}\n")
