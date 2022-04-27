@@ -318,7 +318,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
-        num_retries: Optional[int] = None,
         location: Optional[str] = None,
         exists_ok: bool = True,
     ) -> Table:
@@ -374,8 +373,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-        if num_retries:
-            warnings.warn("Parameter `num_retries` is deprecated", DeprecationWarning)
 
         _table_resource: Dict[str, Any] = {}
 
@@ -1069,7 +1066,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         source_dataset: str,
         view_dataset: str,
         view_table: str,
-        source_project: Optional[str] = None,
         view_project: Optional[str] = None,
         project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -1087,12 +1083,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.project_id will be used.
         :return: the datasets resource of the source dataset.
         """
-        if source_project:
-            project_id = source_project
-            warnings.warn(
-                "Parameter ``source_project`` is deprecated. Use ``project_id``.",
-                DeprecationWarning,
-            )
         view_project = view_project or project_id
         view_access = AccessEntry(
             role=None,
