@@ -232,10 +232,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     ```
 
-- Clean the checkout: the sdist step below will
+- Clean the checkout repo
 
     ```shell script
     git clean -fxd
+    ```
+
+- Restore breeze installation (The breeze's `.egginfo` is cleared by git-clean)
+
+    ```shell script
+    pipx install -e ./dev/breeze --force
+    ```
+
+- Make sure you have the latest CI image
+
+    ```shell script
+    breeze pull-image --python 3.7
     ```
 
 - Tarball the repo
