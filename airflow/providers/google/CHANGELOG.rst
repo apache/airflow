@@ -73,6 +73,10 @@ Breaking changes
 
 * ``CloudDatastoreExportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
 
+* ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``.
+
+* ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``.
+
 6.8.0
 .....
 
