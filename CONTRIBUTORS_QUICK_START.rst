@@ -127,6 +127,7 @@ Docker Compose
 
 Pyenv and setting up virtual-env
 --------------------------------
+    Note: You might have issues with pyenv if you have a Mac with an M1 chip. Consider using virtualenv as an alternative.
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
