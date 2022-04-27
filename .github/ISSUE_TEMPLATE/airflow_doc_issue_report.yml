@@ -14,7 +14,7 @@ body:
 
         Note, you do not need to create an issue if you have a change ready to submit!
 
-        You can open a [pull eequest](https://github.com/apache/airflow/pulls) immediately instead.
+        You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: textarea
