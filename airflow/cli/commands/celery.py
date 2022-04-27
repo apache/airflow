@@ -36,14 +36,21 @@ from airflow.utils.serve_logs import serve_logs
 WORKER_PROCESS_NAME = "worker"
 
 
-click_flower_hostname = click.option(
+@airflow_cmd.group()
+def celery():
+    """Celery components"""
+    pass
+
+
+@celery.command()
+@click.option(
     "-H",
     "--hostname",
     metavar="HOSTNAME",
     default=conf.get("celery", "FLOWER_HOST"),
     help="Set the hostname on which to run the server",
 )
-click_flower_port = click.option(
+@click.option(
     "-p",
     "--port",
     metavar="PORT",
@@ -51,7 +58,7 @@ click_flower_port = click.option(
     type=int,
     help="The port on which to run the server",
 )
-click_flower_broker_api = click.option(
+@click.option(
     "-a",
     "--broker-api",
     metavar="BROKER_API",
@@ -60,19 +67,19 @@ click_flower_broker_api = click.option(
 
     Examples:
 
-    postgresql://user:secret@host1:5432,host2:5433/otherdb?connect_timeout=10&application_name=myapp
+    postgresql://user:secret@host1:5432,host2:5433/otherdb?connect_timeout=10&application_name=myapp    
 
     redis://localhost:6379/0
-
+    
     amqp://myuser:mypassword@localhost:5672/myvhost
-
-    sqs://ABCDEFGHIJKLMNOPQRST:ZYXK7NiynGlTogH8Nj+P9nlE73sq3@
-    """
+    
+    sqs://sqs.us-east-1.amazonaws.com:80
+    """,
 )
-click_flower_url_prefix = click.option(
+@click.option(
     "-u", "--url-prefix", default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
 )
-click_flower_basic_auth = click.option(
+@click.option(
     "-A",
     "--basic-auth",
     metavar="BASIC_AUTH",
@@ -84,69 +91,9 @@ click_flower_basic_auth = click.option(
     Example:
     
     --basic-auth user1:password1,user2:password2
-    """
-    ),
+    """,
 )
-click_flower_conf = click.option("-c", "--flower-conf", metavar="FLOWER_CONF", help="Configuration file for flower")
-click_worker_autoscale = click.option(
-    "-a", "--autoscale", metavar="AUTOSCALE", help="Minimum and Maximum number of worker to autoscale"
-)
-click_worker_skip_serve_logs = click.option(
-    "-s",
-    "--skip-serve-logs",
-    is_flag=True,
-    default=False,
-    help="Don't start the serve logs process along with the workers",
-)
-click_worker_queues = click.option(
-    "-q",
-    "--queues",
-    metavar="QUEUES",
-    default=conf.get("operators", "DEFAULT_QUEUE"),
-    help="Comma delimited list of queues to serve",
-)
-click_worker_concurrency = click.option(
-    "-c",
-    "--concurrency",
-    metavar="CONCURRENCY",
-    type=int,
-    default=conf.get("celery", "worker_concurrency"),
-    help="The number of worker processes",
-)
-click_worker_hostname = click.option(
-    "-H",
-    "--celery-hostname",
-    metavar="CELERY_HOSTNAME",
-    help="Set the hostname of celery worker if you have multiple workers on a single machine",
-)
-click_worker_umask = click.option(
-    "-u",
-    "--umask",
-    metavar="UMASK",
-    default=conf.get("celery", "worker_umask"),
-    help="Set the umask of celery worker in daemon mode",
-)
-click_worker_without_mingle = click.option(
-    "--without-mingle", is_flag=True, default=False, help="Don't synchronize with other workers at start-up"
-)
-click_worker_without_gossip = click.option(
-    "--without-gossip", is_flag=True, default=False, help="Don't subscribe to other workers events"
-)
-
-
-@airflow_cmd.group()
-def celery():
-    """Celery components"""
-    pass
-
-
-@celery.command()
-@click_flower_hostname
-@click_flower_port
-@click_flower_broker_api
-@click_flower_url_prefix
-@click_flower_basic_auth
-@click_flower_conf
+@click.option("-c", "--flower-conf", metavar="FLOWER_CONF", help="Configuration file for flower")
 @click_stdout
 @click_stderr
 @click_pid
@@ -219,14 +166,48 @@ def _run_worker(options, skip_serve_logs):
 @click_stdout
 @click_stderr
 @click_log_file
-@click_worker_autoscale
-@click_worker_skip_serve_logs
-@click_worker_queues
-@click_worker_concurrency
-@click_worker_hostname
-@click_worker_umask
-@click_worker_without_mingle
-@click_worker_without_gossip
+@click.option(
+    "-a", "--autoscale", metavar="AUTOSCALE", help="Minimum and Maximum number of worker to autoscale"
+)
+@click.option(
+    "-s",
+    "--skip-serve-logs",
+    is_flag=True,
+    default=False,
+    help="Don't start the serve logs process along with the workers",
+)
+@click.option(
+    "-q",
+    "--queues",
+    metavar="QUEUES",
+    default=conf.get("operators", "DEFAULT_QUEUE"),
+    help="Comma delimited list of queues to serve",
+)
+@click.option(
+    "-c",
+    "--concurrency",
+    metavar="CONCURRENCY",
+    type=int,
+    default=conf.get("celery", "worker_concurrency"),
+    help="The number of worker processes",
+)
+@click.option(
+    "-H",
+    "--celery-hostname",
+    metavar="CELERY_HOSTNAME",
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
+)
+@click.option(
+    "-u",
+    "--umask",
+    metavar="UMASK",
+    default=conf.get("celery", "worker_umask"),
+    help="Set the umask of celery worker in daemon mode",
+)
+@click.option(
+    "--without-mingle", is_flag=True, default=False, help="Don't synchronize with other workers at start-up"
+)
+@click.option("--without-gossip", is_flag=True, default=False, help="Don't subscribe to other workers events")
 def worker(
     pid,
     daemon_,
