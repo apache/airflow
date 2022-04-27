@@ -34,8 +34,13 @@ const useSelection = () => {
 
   const onSelect = (payload) => {
     const params = new URLSearchParams(searchParams);
+
     if (payload.runId) params.set(RUN_ID, payload.runId);
+    else params.delete(RUN_ID);
+
     if (payload.taskId) params.set(TASK_ID, payload.taskId);
+    else params.delete(TASK_ID);
+
     setSearchParams(params);
   };
 
