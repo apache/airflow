@@ -48,7 +48,7 @@ def ask_to_reinstall_breeze(breeze_sources: Path):
     """
     answer = user_confirm(
         f"Do you want to reinstall Breeze from {breeze_sources.parent.parent}?",
-        timeout=3,
+        timeout=None,
         default_answer=Answer.NO,
     )
     if answer == Answer.YES:

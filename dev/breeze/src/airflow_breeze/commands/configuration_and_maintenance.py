@@ -248,7 +248,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     )
     console.print(f"[bright_blue]Activation command script is available here: {autocomplete_path}[/]\n")
     console.print(f"[bright_yellow]We need to add above script to your {detected_shell} profile.[/]\n")
-    given_answer = user_confirm("Would you like me to do that automatically?", default_answer=Answer.NO, timeout=3)
+    given_answer = user_confirm("Would you like me to do that automatically?", default_answer=Answer.NO, timeout=30)
     if given_answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
