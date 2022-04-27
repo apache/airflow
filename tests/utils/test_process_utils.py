@@ -117,6 +117,10 @@ class TestExecuteInSubProcess:
         with pytest.raises(CalledProcessError):
             process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
 
+    def test_using_env_as_kwarg_works(self, caplog):
+        execute_in_subprocess(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE=1))
+        assert "My value is 1" in caplog.text
+
 
 def my_sleep_subprocess():
     sleep(100)
