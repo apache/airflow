@@ -274,18 +274,28 @@ You should be aware, about a few things:
 Examples of image extending
 ---------------------------
 
-Example of upgrading Airflow Provider packages
-..............................................
+Example of customizing Airflow Provider packages
+................................................
 
 The :ref:`Airflow Providers <providers:community-maintained-providers>` are released independently of core
 Airflow and sometimes you might want to upgrade specific providers only to fix some problems or
 use features available in that provider version. Here is an example of how you can do it
 
-.. exampleinclude:: docker-examples/extending/add-providers/Dockerfile
+.. exampleinclude:: docker-examples/extending/custom-providers/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
 
+Example of adding Airflow Provider package and ``apt`` package
+..............................................................
+
+The following example adds ``apache-spark`` airflow-providers which requires both ``java`` and
+python package from PyPI.
+
+.. exampleinclude:: docker-examples/extending/add-providers/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
 
 Example of adding ``apt`` package
 .................................
@@ -501,7 +511,7 @@ You can use ``docker-context-files`` for the following purposes:
 
 
 * you can place ``.whl`` packages that you downloaded and install them with
-  ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` set to ``true`` . It's useful if you build the image in
+  ``INSTALL_PACKAGES_FROM_CONTEXT`` set to ``true`` . It's useful if you build the image in
   restricted security environments (see: :ref:`image-build-secure-environments` for details):
 
 .. exampleinclude:: docker-examples/restricted/restricted_environments.sh
@@ -741,7 +751,7 @@ security vetting and only use the new packages when they were vetted.
 On a separate (air-gaped) system, all the PyPI packages can be copied to ``docker-context-files``
 where you can build the image using the packages downloaded by passing those build args:
 
-* ``INSTALL_FROM_DOCKER_CONTEXT_FILES="true"``  - to use packages present in ``docker-context-files``
+* ``INSTALL_PACKAGES_FROM_CONTEXT="true"``  - to use packages present in ``docker-context-files``
 * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``

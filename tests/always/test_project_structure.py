@@ -167,7 +167,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         '.CloudDataTransferServiceS3ToGCSOperator',
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceGCSToGCSOperator',
-        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator',

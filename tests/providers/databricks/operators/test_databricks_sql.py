@@ -53,7 +53,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == mock_results
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            http_headers=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
@@ -78,7 +84,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == ["id,value", "1,value1"]
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            http_headers=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
@@ -139,6 +151,25 @@ COPY_OPTIONS ('force' = 'true')
         assert (
             op._create_sql_query()
             == f"""COPY INTO test
+FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_target_credential(self):
+        expression = "col1, col2"
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            expression_list=expression,
+            storage_credential='abc',
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test WITH (CREDENTIAL abc)
 FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
 FILEFORMAT = CSV
 """.strip()

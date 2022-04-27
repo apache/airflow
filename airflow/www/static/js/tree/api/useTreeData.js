@@ -59,8 +59,7 @@ const useTreeData = () => {
       throw (error);
     }
   }, {
-    // only enabled and refetch if the refresh switch is on
-    enabled: isRefreshOn,
+    // only refetch if the refresh switch is on
     refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
     initialData,
   });

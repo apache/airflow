@@ -23,6 +23,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.datastore import (
+    CloudDatastoreEntitiesLink,
+    CloudDatastoreImportExportLink,
+)
+from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -73,6 +78,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -102,8 +108,6 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         self.overwrite_existing = overwrite_existing
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: 'Context') -> dict:
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
@@ -132,6 +136,11 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException(f'Operation failed: result={result}')
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=f"{self.bucket}/{result['response']['outputUrl'].split('/')[3]}",
+        )
         return result
 
 
@@ -179,6 +188,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    operator_extra_links = (CloudDatastoreImportExportLink(),)
 
     def __init__(
         self,
@@ -206,8 +216,6 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         self.polling_interval_in_seconds = polling_interval_in_seconds
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: 'Context'):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
@@ -231,6 +239,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException(f'Operation failed: result={result}')
 
+        CloudDatastoreImportExportLink.persist(context=context, task_instance=self)
         return result
 
 
@@ -265,6 +274,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         "partial_keys",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDatastoreEntitiesLink(),)
 
     def __init__(
         self,
@@ -293,6 +303,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
             partial_keys=self.partial_keys,
             project_id=self.project_id,
         )
+        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
         return keys
 
 
@@ -389,6 +400,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
         "body",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudDatastoreEntitiesLink(),)
 
     def __init__(
         self,
@@ -417,6 +429,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
             body=self.body,
             project_id=self.project_id,
         )
+        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
         return response
 
 

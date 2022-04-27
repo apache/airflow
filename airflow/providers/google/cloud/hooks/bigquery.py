@@ -370,6 +370,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :param num_retries: Maximum number of retries in case of connection problems.
+        :param location: (Optional) The geographic location where the table should reside.
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """

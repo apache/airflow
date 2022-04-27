@@ -28,12 +28,16 @@ if TYPE_CHECKING:
 
 class StepFunctionExecutionSensor(BaseSensorOperator):
     """
-    Asks for the state of the Step Function State Machine Execution until it
+    Asks for the state of the AWS Step Function State Machine Execution until it
     reaches a failure state or success state.
-    If it fails, failing the task.
+    If it fails, then fail the task.
 
     On successful completion of the Execution the Sensor will do an XCom Push
     of the State Machine's output to `output`
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/operator:StepFunctionExecutionSensor`
 
     :param execution_arn: execution_arn to check the state of
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'

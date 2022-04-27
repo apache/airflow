@@ -1333,11 +1333,12 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
 ARG ADDITIONAL_PYTHON_DEPS=""
 # We can set this value to true in case we want to install .whl .tar.gz packages placed in the
 # docker-context-files folder. This can be done for both - additional packages you want to install
-# and for airflow as well (you have to set INSTALL_FROM_PYPI to false in this case)
-ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
-# By default we install latest airflow from PyPI. You can set it to false if you want to install
-# Airflow from the .whl or .tar.gz packages placed in `docker-context-files` folder.
-ARG INSTALL_FROM_PYPI="true"
+# and for airflow as well (you have to set AIRFLOW_IS_IN_CONTEXT to true in this case)
+ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
+# By default we install latest airflow from PyPI or sources. You can set this parameter to false
+# if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
+# to skip installing Airflow/Providers from PyPI or sources.
+ARG AIRFLOW_IS_IN_CONTEXT="false"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
 # * certifi<2021.0.0 required to keep snowflake happy
@@ -1345,8 +1346,8 @@ ARG INSTALL_FROM_PYPI="true"
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
-    INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \
-    INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI} \
+    INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
+    AIRFLOW_IS_IN_CONTEXT=${AIRFLOW_IS_IN_CONTEXT} \
     EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 WORKDIR /opt/airflow
@@ -1355,9 +1356,9 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+    elif [[ ${AIRFLOW_IS_IN_CONTEXT} == "false" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
