@@ -1066,7 +1066,7 @@
       default: database
     - name: web_server_master_timeout
       description: |
-        Number of seconds the webserver waits before killing gunicorn main that doesn't respond
+        Number of seconds the webserver waits before killing gunicorn master that doesn't respond
       version_added: ~
       type: string
       example: ~
