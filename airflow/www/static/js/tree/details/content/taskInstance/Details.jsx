@@ -37,7 +37,6 @@ const Details = ({ instance, group, operator }) => {
   const {
     taskId,
     runId,
-    duration,
     startDate,
     endDate,
     state,
@@ -134,7 +133,7 @@ const Details = ({ instance, group, operator }) => {
           {isOverall}
           Duration:
           {' '}
-          {formatDuration(duration || getDuration(startDate, endDate))}
+          {formatDuration(getDuration(startDate, endDate))}
         </Text>
         {startDate && (
         <Text>

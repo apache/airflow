@@ -35,6 +35,7 @@ CONN_ID = "test-gcp-conn-id"
 BODY = {"key", "value"}
 TRANSACTION = "transaction-name"
 BUCKET = "gs://test-bucket"
+OUTPUT_URL = f"{BUCKET}/entities_export_name/entities_export_name.overall_export_metadata"
 FILE = "filename"
 OPERATION_ID = "1234"
 
@@ -44,7 +45,10 @@ class TestCloudDatastoreExportEntitiesOperator:
     def test_execute(self, mock_hook):
         mock_hook.return_value.export_to_storage_bucket.return_value = {"name": OPERATION_ID}
         mock_hook.return_value.poll_operation_until_done.return_value = {
-            "metadata": {"common": {"state": "SUCCESSFUL"}}
+            "metadata": {"common": {"state": "SUCCESSFUL"}},
+            "response": {
+                "outputUrl": OUTPUT_URL,
+            },
         }
 
         op = CloudDatastoreExportEntitiesOperator(
@@ -53,7 +57,7 @@ class TestCloudDatastoreExportEntitiesOperator:
             project_id=PROJECT_ID,
             bucket=BUCKET,
         )
-        op.execute({})
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.export_to_storage_bucket.assert_called_once_with(
@@ -82,7 +86,7 @@ class TestCloudDatastoreImportEntitiesOperator:
             bucket=BUCKET,
             file=FILE,
         )
-        op.execute({})
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.import_from_storage_bucket.assert_called_once_with(
@@ -107,7 +111,7 @@ class TestCloudDatastoreAllocateIds:
             project_id=PROJECT_ID,
             partial_keys=partial_keys,
         )
-        op.execute({})
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.allocate_ids.assert_called_once_with(
@@ -138,7 +142,7 @@ class TestCloudDatastoreCommit:
         op = CloudDatastoreCommitOperator(
             task_id="test_task", gcp_conn_id=CONN_ID, project_id=PROJECT_ID, body=BODY
         )
-        op.execute({})
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.commit.assert_called_once_with(project_id=PROJECT_ID, body=BODY)
