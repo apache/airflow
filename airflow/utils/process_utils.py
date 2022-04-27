@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
