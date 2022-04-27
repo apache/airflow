@@ -445,11 +445,13 @@ repos:
         exclude: >
           (?x)
           ^airflow/www/fab_security/manager.py$|
+          ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
           ^airflow/api_connexion/openapi/v1.yaml$|
+          ^airflow/tests/cli/commands/test_webserver_command.py$|
           ^airflow/tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/ui/yarn.lock$|
