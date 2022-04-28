@@ -20,7 +20,7 @@ import itertools
 import mmap
 import os
 import unittest
-from typing import List
+from typing import Dict, List, Optional, Set
 
 from parameterized import parameterized
 
@@ -140,14 +140,14 @@ def get_classes_from_file(filepath: str):
         content = py_file.read()
     doc_node = ast.parse(content, filepath)
     module = filepath_to_module(filepath)
-    results: List[str] = []
+    results: Dict = {}
     for current_node in ast.walk(doc_node):
         if not isinstance(current_node, ast.ClassDef):
             continue
         name = current_node.name
         if not name.endswith("Operator") and not name.endswith("Sensor") and not name.endswith("Operator"):
             continue
-        results.append(f"{module}.{name}")
+        results[f"{module}.{name}"] = current_node
     return results
 
 
@@ -215,25 +215,113 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
     }
 
-    def test_missing_example_for_operator(self):
-        """
-        Assert that all operators defined under operators, sensors and transfers directories
-        are used in any of the example dags
-        """
-        all_operators = set()
+    # These operators should not have assets
+    MISSING_ASSETS_FOR_OPERATORS = {
+        'airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator',
+        'airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator',
+        'airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator',
+        'airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator',
+        'airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator',
+        'airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator',
+        'airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator',
+        'airflow.providers.google.cloud.operators.bigquery_dts.BigQueryDeleteDataTransferConfigOperator',
+        'airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator',
+        'airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator',
+        'airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.cloud_memorystore.'
+        'CloudMemorystoreMemcachedDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator',
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
+        'CloudDataTransferServiceDeleteJobOperator',
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
+        'CloudDataTransferServiceGetOperationOperator',
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
+        'CloudDataTransferServiceListOperationsOperator',
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
+        'CloudDataTransferServicePauseOperationOperator',
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.'
+        'CloudDataTransferServiceResumeOperationOperator',
+        'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
+        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator',
+        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator',
+        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator',
+        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator',
+        'airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator',
+        'airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator',
+        'airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteBackupOperator',
+        'airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteServiceOperator',
+        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator',
+        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator',
+        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator',
+        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator',
+        'airflow.providers.google.cloud.operators.datastore.CloudDatastoreRunQueryOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPInspectContentOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
+        'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
+        'airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator',
+        'airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator',
+        'airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator',
+        'airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator',
+        'airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator',
+        'airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator',
+        'airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator',
+        'airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator',
+        'airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator',
+        'airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator',
+        'airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteAlertOperator',
+        'airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteNotificationChannelOperator',
+        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueDeleteOperator',
+        'airflow.providers.google.cloud.operators.tasks.CloudTasksTaskDeleteOperator',
+        'airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator',
+        'airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator',
+        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator',
+        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator',
+        'airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator',
+        'airflow.providers.google.cloud.operators.workflows.WorkflowsDeleteWorkflowOperator',
+        'airflow.providers.google.marketing_platform.sensors.campaign_manager.'
+        'GoogleCampaignManagerReportSensor',
+        'airflow.providers.google.marketing_platform.sensors.display_video.'
+        'GoogleDisplayVideo360GetSDFDownloadOperationSensor',
+        'airflow.providers.google.marketing_platform.sensors.display_video.'
+        'GoogleDisplayVideo360ReportSensor',
+        'airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor',
+    }
+
+    def list_of_operators(self, skip_services: Optional[Set] = None):
+        all_operators = {}
         services = set()
-        for resource_type in ["operators", "sensors", "transfers"]:
+        for resource_type in ["operators", "sensors", "transfers", "operators/vertex_ai"]:
             operator_files = set(
                 self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
             )
             for filepath in operator_files:
                 service_name = os.path.basename(filepath)[: -(len(".py"))]
-                if service_name in self.MISSING_EXAMPLE_DAGS:
+                if skip_services and service_name in skip_services:
                     continue
                 services.add(service_name)
-                operators_paths = set(get_classes_from_file(f"{ROOT_FOLDER}/{filepath}"))
+                operators_paths = get_classes_from_file(f"{ROOT_FOLDER}/{filepath}")
                 all_operators.update(operators_paths)
+        return services, all_operators
 
+    def test_missing_example_for_operator(self):
+        """
+        Assert that all operators defined under operators, sensors and transfers directories
+        are used in any of the example dags
+        """
+        services, all_operators = self.list_of_operators(skip_services=self.MISSING_EXAMPLE_DAGS)
+        all_operators = set(all_operators.keys())
         for service in services:
             example_dags = self.examples_for_service(service)
             example_paths = {
@@ -246,8 +334,31 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         all_operators -= self.BASE_OPERATORS
         assert set() == all_operators
 
+    def test_missing_assets_for_operator(self):
+        services, all_operators = self.list_of_operators()
+        assets, no_assets = set(), set()
+        for name, operator in all_operators.items():
+            for attr in operator.body:
+                if (
+                    isinstance(attr, ast.Assign)
+                    and attr.targets
+                    and getattr(attr.targets[0], "id", "") == "operator_extra_links"
+                ):
+                    assets.add(name)
+                    break
+            else:
+                no_assets.add(name)
+
+        asset_should_be_missing = self.MISSING_ASSETS_FOR_OPERATORS - no_assets
+        no_assets -= self.MISSING_ASSETS_FOR_OPERATORS
+        # TODO: (bhirsz): uncomment when we reach full coverage
+        # assert set() == no_assets, "Operator is missing assets"
+        assert set() == asset_should_be_missing, "Operator should not have assets"
+
     @parameterized.expand(
-        itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers"])
+        itertools.product(
+            ["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers", "operators/vertex_ai"]
+        )
     )
     def test_detect_invalid_system_tests(self, resource_type, filename_suffix):
         operators_tests = self.find_resource_files(top_level_directory="tests", resource_type=resource_type)
