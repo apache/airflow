@@ -23,6 +23,7 @@ import graphviz
 
 from airflow import AirflowException
 from airflow.models import TaskInstance
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskmixin import DependencyMixin
@@ -114,7 +115,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, BaseOperator):
+    if isinstance(node, BaseOperator) or isinstance(node, AbstractOperator):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):
