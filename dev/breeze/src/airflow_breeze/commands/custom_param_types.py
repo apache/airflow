@@ -26,6 +26,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
+from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.recording import output_file_for_recording
 
@@ -51,6 +52,18 @@ class BetterChoice(click.Choice):
 
         # Use square braces to indicate an option or optional argument.
         return f"[{choices_str}]"
+
+
+class AnswerChoice(BetterChoice):
+    """
+    Stores forced answer if it has been selected
+    """
+
+    name = "AnswerChoice"
+
+    def convert(self, value, param, ctx):
+        set_forced_answer(value)
+        return super().convert(value, param, ctx)
 
 
 @dataclass
