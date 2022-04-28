@@ -1,4 +1,4 @@
-<svg width="1720.0" height="1814" viewBox="0 0 1720.0 1814"
+<svg width="1720.0" height="1836" viewBox="0 0 1720.0 1836"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -146,6 +146,7 @@
 <div><span class="r4">╭─ Developer tools ────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> shell         </span><span class="r1"> </span><span class="r1">Enter breeze.py environment. this is the default command use when no other is selected.</span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> start-airflow </span><span class="r1"> </span><span class="r1">Enter breeze.py environment and starts all Airflow components in the tmux session.     </span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> exec          </span><span class="r1"> </span><span class="r1">Joins the interactive shell of running airflow container                               </span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> stop          </span><span class="r1"> </span><span class="r1">Stop running breeze environment.                                                       </span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> build-docs    </span><span class="r1"> </span><span class="r1">Build documentation in the container.                                                  </span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> static-checks </span><span class="r1"> </span><span class="r1">Run static checks.                                                                     </span><span class="r1"> </span><span class="r1">            </span><span class="r1"> </span><span class="r4">│</span></div>
