@@ -86,11 +86,12 @@ def calculate_md5_checksum_for_files(
     return modified_files, not_modified_files
 
 
-def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
+def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, verbose: bool) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
 
     :param md5sum_cache_dir: directory where cached md5 sums are stored
+    :param verbose: should we print verbose information
     :return: True if build is needed.
     """
     build_needed = False
@@ -104,9 +105,10 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
         get_console().print('\n[warning]Likely CI image needs rebuild[/]\n')
         build_needed = True
     else:
-        get_console().print(
-            'Docker image build is not needed for CI build as no important files are changed!'
-        )
+        if verbose:
+            get_console().print(
+                '[info]Docker image build is not needed for CI build as no important files are changed![/]'
+            )
     return build_needed
 
 
