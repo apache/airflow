@@ -49,7 +49,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.constraints import run_generate_constraints, run_generate_constraints_in_parallel
 from airflow_breeze.utils.docker_command_utils import (
     construct_env_variables_docker_compose_command,
@@ -331,8 +331,8 @@ def generate_constraints(
         )
     if given_answer != Answer.YES:
         if run_in_parallel:
-            console.print("\n[yellow]Use this command to build the images:[/]\n")
-            console.print(
+            get_console().print("\n[info]Use this command to build the images:[/]\n")
+            get_console().print(
                 f"     breeze build-image --run-in-parallel --python-versions '{python_versions}' "
                 f"--upgrade-to-newer-dependencies true\n"
             )
@@ -340,8 +340,8 @@ def generate_constraints(
             shell_params = ShellParams(
                 image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
             )
-            console.print("\n[yellow]Use this command to build the image:[/]\n")
-            console.print(
+            get_console().print("\n[info]Use this command to build the image:[/]\n")
+            get_console().print(
                 f"     breeze build-image --python'{shell_params.python}' "
                 f"--upgrade-to-newer-dependencies true\n"
             )
@@ -375,7 +375,7 @@ def generate_constraints(
                 generate_constraints_mode=generate_constraints_mode,
             )
         if return_code != 0:
-            console.print(f"[red]There was an error when generating constraints: {info}[/]")
+            get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
             sys.exit(return_code)
 
 

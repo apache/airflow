@@ -23,7 +23,7 @@ from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
 
@@ -149,7 +149,7 @@ class BuildCiParams:
         return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
 
     def print_info(self):
-        console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
+        get_console().print(f"CI Image: {self.airflow_version} Python: {self.python}.")
 
 
 REQUIRED_CI_IMAGE_ARGS = [

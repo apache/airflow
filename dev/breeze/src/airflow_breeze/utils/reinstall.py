@@ -21,7 +21,7 @@ from pathlib import Path
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 
 
 def reinstall_breeze(breeze_sources: Path):
@@ -32,11 +32,11 @@ def reinstall_breeze(breeze_sources: Path):
     # Note that we cannot use `pipx upgrade` here because we sometimes install
     # Breeze from different sources than originally installed (i.e. when we reinstall airflow
     # From the current directory.
-    console.print(f"\n[bright_blue]Reinstalling Breeze from {breeze_sources}\n")
+    get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
     subprocess.check_call(["pipx", "install", "-e", str(breeze_sources), "--force"])
-    console.print(
-        f"\n[bright_blue]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n"
-        f"[bright_yellow]Please run your command again[/]\n"
+    get_console().print(
+        f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n"
+        f"[warning]Please run your command again[/]\n"
     )
     sys.exit(0)
 
@@ -58,30 +58,30 @@ def ask_to_reinstall_breeze(breeze_sources: Path):
 
 
 def warn_non_editable():
-    console.print(
-        "\n[red]Breeze is installed in a wrong way.[/]\n"
-        "\n[red]It should only be installed in editable mode[/]\n\n"
-        "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
+    get_console().print(
+        "\n[error]Breeze is installed in a wrong way.[/]\n"
+        "\n[error]It should only be installed in editable mode[/]\n\n"
+        "[info]Please go to Airflow sources and run[/]\n\n"
         f"     {NAME} self-upgrade --force --use-current-airflow-sources\n"
     )
 
 
 def warn_different_location(installation_airflow_sources: Path, current_airflow_sources: Path):
-    console.print(
-        f"\n[bright_yellow]WARNING! Breeze was installed from "
+    get_console().print(
+        f"\n[warning]Breeze was installed from "
         f"different location![/]\n\n"
         f"Breeze installed from   : {installation_airflow_sources}\n"
         f"Current Airflow sources : {current_airflow_sources}\n\n"
-        f"[bright_yellow]This might cause various problems!![/]\n\n"
+        f"[warning]This might cause various problems!![/]\n\n"
         f"If you experience problems - reinstall Breeze with:\n\n"
         f"    {NAME} self-upgrade --force --use-current-airflow-sources\n\n"
     )
 
 
 def warn_dependencies_changed():
-    console.print(
-        f"\n[bright_yellow]WARNING! Breeze dependencies changed since the installation![/]\n\n"
-        f"[bright_yellow]This might cause various problems!![/]\n\n"
+    get_console().print(
+        f"\n[warning]Breeze dependencies changed since the installation![/]\n\n"
+        f"[warning]This might cause various problems!![/]\n\n"
         f"If you experience problems - reinstall Breeze with:\n\n"
         f"    {NAME} self-upgrade --force\n\n"
     )
