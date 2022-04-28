@@ -587,7 +587,7 @@ cat <<EOF
 Hey fellow Airflowers,
 
 I have cut Airflow ${VERSION}. This email is calling a vote on the release,
-which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+which will last at least 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
 until Monday, October 11, 2021 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
