@@ -52,8 +52,6 @@ const useTreeData = () => {
       if (urlRoot) params.append('root', urlRoot);
       if (baseDate) params.append('base_date', baseDate);
 
-      console.log(treeDataUrl);
-
       const newData = await axios.get(treeDataUrl, { params });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(newData.dagRuns)) stopRefresh();
