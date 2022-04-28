@@ -268,6 +268,33 @@ class GCSToGCSOperator(BaseOperator):
             else:
                 self._copy_source_without_wildcard(hook=hook, prefix=prefix)
 
+    def _ignore_existing_files(self, hook, prefix, **kwargs):
+        # list all files in the Destination GCS bucket
+        # and only keep those files which are present in
+        # Source GCS bucket and not in Destination GCS bucket
+        delimiter = kwargs.get('delimiter') or self.delimiter
+        if self.destination_object is None:
+            existing_objects = hook.list(self.destination_bucket, prefix=prefix, delimiter=delimiter)
+        else:
+            self.log.info("Replaced destination_object with source_object prefix.")
+            destination_objects = hook.list(
+                self.destination_bucket,
+                prefix=self.destination_object,
+                delimiter=delimiter,
+            )
+            existing_objects = [
+                dest_object.replace(self.destination_object, prefix, 1)
+                for dest_object in destination_objects
+            ]
+
+        objects = set(objects) - set(existing_objects)
+        if len(objects) > 0:
+            self.log.info('%s files are going to be synced: %s.', len(objects), objects)
+        else:
+            self.log.info('There are no new files to sync. Have a nice day!')
+        
+        return objects
+
     def _copy_source_without_wildcard(self, hook, prefix):
         """
         For source_objects with no wildcard, this operator would first list
@@ -310,6 +337,10 @@ class GCSToGCSOperator(BaseOperator):
         """
         objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
 
+        if not self.replace:
+            # If we are not replacing, ignore files already existing in source buckets
+            objects = self._ignore_existing_files(hook, prefix)
+
         # If objects is empty and we have prefix, let's check if prefix is a blob
         # and copy directly
         if len(objects) == 0 and prefix:
@@ -347,26 +378,8 @@ class GCSToGCSOperator(BaseOperator):
             # If we are not replacing, list all files in the Destination GCS bucket
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
+            objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter)
 
-            if self.destination_object is None:
-                existing_objects = hook.list(self.destination_bucket, prefix=prefix_, delimiter=delimiter)
-            else:
-                self.log.info("Replaced destination_object with source_object prefix.")
-                destination_objects = hook.list(
-                    self.destination_bucket,
-                    prefix=self.destination_object,
-                    delimiter=delimiter,
-                )
-                existing_objects = [
-                    dest_object.replace(self.destination_object, prefix_, 1)
-                    for dest_object in destination_objects
-                ]
-
-            objects = set(objects) - set(existing_objects)
-            if len(objects) > 0:
-                self.log.info('%s files are going to be synced: %s.', len(objects), objects)
-            else:
-                self.log.info('There are no new files to sync. Have a nice day!')
         for source_object in objects:
             if self.destination_object is None:
                 destination_object = source_object
