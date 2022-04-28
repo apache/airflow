@@ -34,6 +34,8 @@ Breaking changes
    For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
    and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
 
+* ``DatastoreHook``: Remove ``datastore_conn_id``. please use ``gcp_conn_id``
+
 * ``CloudBuildCreateBuildOperator``: Remove ``body``. Please use ``build``
 
 * ``BigtableCreateInstanceOperator`` Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``.
