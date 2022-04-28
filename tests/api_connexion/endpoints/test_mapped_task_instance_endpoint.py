@@ -19,6 +19,7 @@ import os
 
 import pytest
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -262,8 +263,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             'detail': 'Task instance is mapped, add the map_index value to the URL',
             'status': 404,
             'title': 'Task instance not found',
-            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-            'apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound',
+            'type': EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_one_mapped_task_works(self, one_task_with_single_mapped_ti):
@@ -286,8 +286,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             'detail': 'Task instance is mapped, add the map_index value to the URL',
             'status': 404,
             'title': 'Task instance not found',
-            'type': 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/'
-            'apache-airflow/latest/stable-rest-api-ref.html#section/Errors/NotFound',
+            'type': EXCEPTIONS_LINK_MAP[404],
         }
 
 

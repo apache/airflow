@@ -65,6 +65,6 @@ class TestCallbackRequest(unittest.TestCase):
     def test_from_json(self, input, request_class):
         json_str = input.to_json()
 
-        result = getattr(request_class, 'from_json')(json_str=json_str)
+        result = request_class.from_json(json_str=json_str)
 
         self.assertEqual(result, input)

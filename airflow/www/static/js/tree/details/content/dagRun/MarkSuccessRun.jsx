@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useMarkSuccessRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const MarkSuccessRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -29,32 +32,25 @@ const MarkSuccessRun = ({ dagId, runId }) => {
   const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(dagId, runId);
 
   const onClick = async () => {
-    try {
-      const data = await markSuccess({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await markSuccess({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await markSuccess({ confirmed: true });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await markSuccess({ confirmed: true });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="green" isLoading={isLoading}>Mark Success</Button>
+      <Button onClick={onClick} colorScheme="green" isLoading={isLoading} isDisabled={!canEdit}>Mark Success</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as success:"
         body={affectedTasks}
       />

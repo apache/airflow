@@ -195,6 +195,10 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     in reschedule mode, as the state of the listed objects in the S3 bucket will
     be lost between rescheduled invocations.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:S3KeysUnchangedSensor`
+
     :param bucket_name: Name of the S3 bucket
     :param prefix: The prefix being waited on. Relative path from bucket root level.
     :param aws_conn_id: a reference to the s3 connection

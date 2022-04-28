@@ -18,10 +18,10 @@
  */
 
 import axios from 'axios';
-import { useToast } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
+import useErrorToast from '../useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const clearUrl = getMetaValue('clear_url');
@@ -30,13 +30,13 @@ export default function useClearTask({
   dagId, runId, taskId, executionDate,
 }) {
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
 
   return useMutation(
     ['clearTask', dagId, runId, taskId],
     ({
-      past, future, upstream, downstream, recursive, failed, confirmed,
+      past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -51,29 +51,25 @@ export default function useClearTask({
         downstream,
         recursive,
         only_failed: failed,
-      }).toString();
+      });
 
-      return axios.post(clearUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
     },
     {
-      onSuccess: (data) => {
-        const { message, status } = data;
-        if (message && status === 'error') {
-          toast({
-            description: message,
-            isClosable: true,
-            status,
-          });
-        }
-        if (!status || status !== 'error') {
-          queryClient.invalidateQueries('treeData');
-          startRefresh();
-        }
+      onSuccess: () => {
+        queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        startRefresh();
       },
+      onError: (error) => errorToast({ error }),
     },
   );
 }

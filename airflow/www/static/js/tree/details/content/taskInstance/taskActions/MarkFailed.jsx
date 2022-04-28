@@ -28,11 +28,15 @@ import {
 import ActionButton from './ActionButton';
 import { useConfirmMarkTask, useMarkFailedTask } from '../../../../api';
 import ConfirmDialog from '../../ConfirmDialog';
+import { getMetaValue } from '../../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const MarkFailed = ({
   dagId,
   runId,
   taskId,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -62,50 +66,47 @@ const MarkFailed = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await confirmChangeMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await confirmChangeMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await markFailedMutation({
-        past,
-        future,
-        upstream,
-        downstream,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await markFailedMutation({
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
+
+  const isLoading = isMarkLoading || isConfirmLoading;
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={onClick} isLoading={isMarkLoading || isConfirmLoading}>
+      <Button colorScheme="red" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
         Mark Failed
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as failed:"
         body={affectedTasks}
       />

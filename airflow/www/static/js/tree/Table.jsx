@@ -21,7 +21,7 @@
  * Custom wrapper of react-table using Chakra UI components
 */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, forwardRef } from 'react';
 import {
   Flex,
   Table as ChakraTable,
@@ -33,9 +33,10 @@ import {
   IconButton,
   Text,
   useColorModeValue,
+  Checkbox,
 } from '@chakra-ui/react';
 import {
-  useTable, useSortBy, usePagination,
+  useTable, useSortBy, usePagination, useRowSelect,
 } from 'react-table';
 import {
   MdKeyboardArrowLeft, MdKeyboardArrowRight,
@@ -44,8 +45,23 @@ import {
   TiArrowUnsorted, TiArrowSortedDown, TiArrowSortedUp,
 } from 'react-icons/ti';
 
+const IndeterminateCheckbox = forwardRef(
+  ({ indeterminate, checked, ...rest }, ref) => {
+    const defaultRef = useRef();
+    const resolvedRef = ref || defaultRef;
+
+    useEffect(() => {
+      resolvedRef.current.indeterminate = indeterminate;
+    }, [resolvedRef, indeterminate]);
+
+    return (
+      <Checkbox ref={resolvedRef} isChecked={checked} {...rest} />
+    );
+  },
+);
+
 const Table = ({
-  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false,
+  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false, selectRows,
 }) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
@@ -55,6 +71,24 @@ const Table = ({
 
   const lowerCount = (offset || 0) + 1;
   const upperCount = lowerCount + data.length - 1;
+
+  // Don't show row selection if selectRows doesn't exist
+  const selectProps = selectRows
+    ? [useRowSelect,
+      (hooks) => {
+        hooks.visibleColumns.push((cols) => [
+          {
+            id: 'selection',
+            Cell: ({ row }) => (
+              <div>
+                <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
+              </div>
+            ),
+          },
+          ...cols,
+        ]);
+      }]
+    : [];
 
   const {
     getTableProps,
@@ -66,7 +100,8 @@ const Table = ({
     canNextPage,
     nextPage,
     previousPage,
-    state: { pageIndex, sortBy },
+    selectedFlatRows,
+    state: { pageIndex, sortBy, selectedRowIds },
   } = useTable(
     {
       columns,
@@ -81,6 +116,7 @@ const Table = ({
     },
     useSortBy,
     usePagination,
+    ...selectProps,
   );
 
   const handleNext = () => {
@@ -96,6 +132,11 @@ const Table = ({
   useEffect(() => {
     if (setSortBy) setSortBy(sortBy);
   }, [sortBy, setSortBy]);
+
+  useEffect(() => {
+    if (selectRows) selectRows(selectedFlatRows.map((row) => row.original.mapIndex));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRowIds, selectRows]);
 
   return (
     <>

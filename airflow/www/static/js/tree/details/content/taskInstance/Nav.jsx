@@ -98,7 +98,7 @@ const Nav = ({
           <LinkButton href={xcomLink}>XCom</LinkButton>
         </>
         )}
-        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">All Instances</LinkButton>
+        <LinkButton href={allInstancesLink} title="View all instances across all DAG runs">List Instances, all runs</LinkButton>
         <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
       <Divider mt={3} />

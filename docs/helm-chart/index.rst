@@ -47,8 +47,7 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
-    changelog
-    Updating <updating>
+    release_notes
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__

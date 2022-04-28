@@ -25,11 +25,15 @@ import {
 } from '@chakra-ui/react';
 
 import { useRunTask } from '../../../../api';
+import { getMetaValue } from '../../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const Run = ({
   dagId,
   runId,
   taskId,
+  mapIndexes,
 }) => {
   const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
   const onToggleAllDeps = () => setIgnoreAllDeps(!ignoreAllDeps);
@@ -47,12 +51,13 @@ const Run = ({
       ignoreAllDeps,
       ignoreTaskState,
       ignoreTaskDeps,
+      mapIndexes,
     });
   };
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <Button
           bg={ignoreAllDeps && 'gray.100'}
           onClick={onToggleAllDeps}
@@ -75,7 +80,7 @@ const Run = ({
           Ignore Task Deps
         </Button>
       </ButtonGroup>
-      <Button colorScheme="blue" onClick={onClick} isLoading={isLoading}>
+      <Button colorScheme="blue" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
         Run
       </Button>
     </Flex>
