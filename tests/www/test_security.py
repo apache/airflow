@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import datetime
 import logging
 from unittest import mock
 
 import pytest
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
+from freezegun import freeze_time
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
@@ -814,3 +816,68 @@ def test_fab_models_use_airflow_base_meta():
     # TODO: move this test to appropriate place when we have more tests for FAB models
     user = User()
     assert user.metadata is Base.metadata
+
+
+@pytest.fixture()
+def mock_security_manager(app_builder):
+    mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
+    mocked_security_manager.update_user = mock.MagicMock()
+    return mocked_security_manager
+
+
+@pytest.fixture()
+def new_user():
+    user = mock.MagicMock()
+    user.login_count = None
+    user.fail_login_count = None
+    user.last_login = None
+    return user
+
+
+@pytest.fixture()
+def old_user():
+    user = mock.MagicMock()
+    user.login_count = 42
+    user.fail_login_count = 9
+    user.last_login = datetime.datetime(1984, 12, 1, 0, 0, 0)
+    return user
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))  # Get the Delorean, doc!
+def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=True)
+
+    assert new_user.login_count == 1
+    assert new_user.fail_login_count == 0
+    assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=True)
+
+    assert old_user.login_count == 43
+    assert old_user.fail_login_count == 0
+    assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=False)
+
+    assert new_user.login_count == 0
+    assert new_user.fail_login_count == 1
+    assert new_user.last_login is None
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=False)
+
+    assert old_user.login_count == 42
+    assert old_user.fail_login_count == 10
+    assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
+    assert mock_security_manager.update_user.called_once
