@@ -50,7 +50,7 @@ from airflow_breeze.global_constants import (
     get_available_packages,
 )
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
-from airflow_breeze.shell.enter_shell import enter_shell
+from airflow_breeze.shell.enter_shell import enter_shell, find_airflow_container
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
@@ -66,6 +66,7 @@ DEVELOPER_COMMANDS = {
     "commands": [
         "shell",
         "start-airflow",
+        "exec",
         "stop",
         "build-docs",
         "static-checks",
@@ -143,6 +144,9 @@ DEVELOPER_PARAMETERS = {
                 "--integration",
             ],
         },
+    ],
+    "breeze exec": [
+        {"name": "Drops in the interactive shell of active airflow container"},
     ],
     "breeze stop": [
         {
@@ -478,3 +482,32 @@ class DocBuildParams:
             for single_filter in self.package_filter:
                 doc_args.extend(["--package-filter", single_filter])
         return doc_args
+
+
+@main.command(name='exec', help='Joins the interactive shell of running airflow container')
+@option_verbose
+@option_dry_run
+@click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)
+def exec(verbose: bool, dry_run: bool, exec_args: Tuple):
+    container_running = find_airflow_container(verbose, dry_run)
+    if container_running:
+        cmd_to_run = [
+            "docker",
+            "exec",
+            "-it",
+            container_running,
+            "/opt/airflow/scripts/docker/entrypoint_exec.sh",
+        ]
+        if exec_args:
+            cmd_to_run.extend(exec_args)
+        process = run_command(
+            cmd_to_run,
+            verbose=verbose,
+            dry_run=dry_run,
+            check=False,
+            no_output_dump_on_exception=False,
+            text=True,
+        )
+        if not process:
+            sys.exit(1)
+        sys.exit(process.returncode)
