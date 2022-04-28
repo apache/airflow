@@ -199,14 +199,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
-  For major/minor version release, please follow  the instructions at [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
     ```
 
 - Set your version in `setup.py` (without the RC tag)
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Build the release notes:
 
