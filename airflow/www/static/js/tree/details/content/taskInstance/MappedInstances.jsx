@@ -36,6 +36,7 @@ import { useMappedInstances } from '../../../api';
 import { SimpleStatus } from '../../../StatusBox';
 import Table from '../../../Table';
 
+const canEdit = getMetaValue('can_edit') === 'True';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
@@ -147,7 +148,7 @@ const MappedInstances = ({
         pageSize={limit}
         setSortBy={setSortBy}
         isLoading={isLoading}
-        selectRows={selectRows}
+        selectRows={canEdit && selectRows}
       />
     </Box>
   );

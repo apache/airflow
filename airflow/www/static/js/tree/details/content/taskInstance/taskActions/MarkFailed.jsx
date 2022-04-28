@@ -28,6 +28,9 @@ import {
 import ActionButton from './ActionButton';
 import { useConfirmMarkTask, useMarkFailedTask } from '../../../../api';
 import ConfirmDialog from '../../ConfirmDialog';
+import { getMetaValue } from '../../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const MarkFailed = ({
   dagId,
@@ -90,13 +93,13 @@ const MarkFailed = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={onClick} isLoading={isLoading}>
+      <Button colorScheme="red" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
         Mark Failed
       </Button>
       <ConfirmDialog
