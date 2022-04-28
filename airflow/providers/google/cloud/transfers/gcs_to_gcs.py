@@ -272,7 +272,8 @@ class GCSToGCSOperator(BaseOperator):
         # list all files in the Destination GCS bucket
         # and only keep those files which are present in
         # Source GCS bucket and not in Destination GCS bucket
-        delimiter = kwargs.get('delimiter') or self.delimiter
+        delimiter = kwargs.get('delimiter')
+        objects = kwargs.get('objects')
         if self.destination_object is None:
             existing_objects = hook.list(self.destination_bucket, prefix=prefix, delimiter=delimiter)
         else:
@@ -292,7 +293,6 @@ class GCSToGCSOperator(BaseOperator):
             self.log.info('%s files are going to be synced: %s.', len(objects), objects)
         else:
             self.log.info('There are no new files to sync. Have a nice day!')
-        
         return objects
 
     def _copy_source_without_wildcard(self, hook, prefix):
@@ -339,7 +339,7 @@ class GCSToGCSOperator(BaseOperator):
 
         if not self.replace:
             # If we are not replacing, ignore files already existing in source buckets
-            objects = self._ignore_existing_files(hook, prefix)
+            objects = self._ignore_existing_files(hook, prefix, objects=objects, delimiter=self.delimiter)
 
         # If objects is empty and we have prefix, let's check if prefix is a blob
         # and copy directly
@@ -378,7 +378,7 @@ class GCSToGCSOperator(BaseOperator):
             # If we are not replacing, list all files in the Destination GCS bucket
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
-            objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter)
+            objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter, objects=objects)
 
         for source_object in objects:
             if self.destination_object is None:
