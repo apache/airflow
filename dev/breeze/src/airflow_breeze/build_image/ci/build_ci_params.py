@@ -33,7 +33,7 @@ class BuildCiParams:
     CI build parameters. Those parameters are used to determine command issued to build CI image.
     """
 
-    upgrade_to_newer_dependencies: str = "false"
+    upgrade_to_newer_dependencies: bool = False
     python: str = "3.7"
     airflow_branch: str = AIRFLOW_BRANCH
     build_id: int = 0

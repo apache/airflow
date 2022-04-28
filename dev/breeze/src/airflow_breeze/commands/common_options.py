@@ -197,9 +197,8 @@ option_debian_version = click.option(
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     '--upgrade-to-newer-dependencies',
-    default="false",
-    show_default=True,
-    help='When other than "false", upgrade all PIP packages to latest.',
+    is_flag=True,
+    help='When set, upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
 option_additional_extras = click.option(

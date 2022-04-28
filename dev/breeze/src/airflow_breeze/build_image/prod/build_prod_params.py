@@ -52,7 +52,7 @@ class BuildProdParams:
     empty_image: bool = False
     airflow_is_in_context: bool = False
     install_packages_from_context: bool = False
-    upgrade_to_newer_dependencies: str = "false"
+    upgrade_to_newer_dependencies: bool = False
     airflow_version: str = get_airflow_version()
     python: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH

@@ -18,6 +18,7 @@
 import os
 import re
 import subprocess
+from random import randint
 from typing import Dict, List, Tuple, Union
 
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
@@ -286,7 +287,14 @@ def construct_arguments_for_docker_build_command(
     image_params: Union[BuildCiParams, BuildProdParams], required_args: List[str], optional_args: List[str]
 ) -> List[str]:
     """
-    Constructs docker compose command arguments list based on parameters passed
+    Constructs docker compose command arguments list based on parameters passed. Maps arguments to
+    argument values.
+
+    It maps:
+    * all the truthy/falsy values are converted to "true" / "false" respectively
+    * if upgrade_to_newer_dependencies is set to True, it is replaced by a random string to account
+      for the need of always triggering upgrade for docker build.
+
     :param image_params: parameters of the image
     :param required_args: build argument that are required
     :param optional_args: build arguments that are optional (should not be used if missing or empty)
@@ -295,8 +303,10 @@ def construct_arguments_for_docker_build_command(
 
     def get_env_variable_value(arg_name: str):
         value = str(getattr(image_params, arg_name))
-        value = "true" if value == "True" else value
-        value = "false" if value == "False" else value
+        value = "true" if value.lower() in ["true", "t", "yes", "y"] else value
+        value = "false" if value.lower() in ["false", "f", "no", "n"] else value
+        if arg_name == "upgrade_to_newer_dependencies" and value == "true":
+            value = f"{randint(0, 2**32):x}"
         return value
 
     args_command = []
