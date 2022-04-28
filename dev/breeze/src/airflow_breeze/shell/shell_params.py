@@ -143,13 +143,14 @@ class ShellParams:
         return sqlite_url
 
     def print_badge_info(self):
-        get_console().print(f'Use {self.the_image_type} image')
-        get_console().print(f'Branch Name: {self.airflow_branch}')
-        get_console().print(f'Docker Image: {self.airflow_image_name_with_tag}')
-        get_console().print(f'Airflow source version:{self.airflow_version}')
-        get_console().print(f'Python Version: {self.python}')
-        get_console().print(f'Backend: {self.backend} {self.backend_version}')
-        get_console().print(f'Airflow used at runtime: {self.use_airflow_version}')
+        if self.verbose:
+            get_console().print(f'[info]Use {self.the_image_type} image[/]')
+            get_console().print(f'[info]Branch Name: {self.airflow_branch}[/]')
+            get_console().print(f'[info]Docker Image: {self.airflow_image_name_with_tag}[/]')
+            get_console().print(f'[info]Airflow source version:{self.airflow_version}[/]')
+            get_console().print(f'[info]Python Version: {self.python}[/]')
+            get_console().print(f'[info]Backend: {self.backend} {self.backend_version}[/]')
+            get_console().print(f'[info]Airflow used at runtime: {self.use_airflow_version}[/]')
 
     @property
     def compose_files(self):

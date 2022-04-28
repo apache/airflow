@@ -122,7 +122,8 @@ def run_shell_with_build_image_checks(
     )
     ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies=False)
     if build_ci_image_check_cache.exists():
-        get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
+        if verbose:
+            get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
     else:
         get_console().print(
             f'[warning]{shell_params.the_image_type} image not built locally. Forcing build.[/]'

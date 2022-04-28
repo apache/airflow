@@ -211,9 +211,10 @@ def change_directory_permission(directory_to_fix: Path):
 
 
 @working_directory(AIRFLOW_SOURCES_ROOT)
-def fix_group_permissions():
+def fix_group_permissions(verbose: bool):
     """Fixes permissions of all the files and directories that have group-write access."""
-    get_console().print("[info]Fixing group permissions[/]")
+    if verbose:
+        get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().split('\n')
