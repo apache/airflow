@@ -53,7 +53,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.shell.enter_shell import enter_shell
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.confirm import set_forced_answer
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_env_variables_docker_compose_command,
     get_extra_docker_flags,
@@ -221,8 +221,8 @@ def shell(
     """Enter breeze.py environment. this is the default command use when no other is selected."""
     set_forced_answer(answer)
     if verbose or dry_run:
-        console.print("\n[green]Welcome to breeze.py[/]\n")
-        console.print(f"\n[green]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print("\n[success]Welcome to breeze.py[/]\n")
+        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -409,7 +409,7 @@ def static_checks(
     assert_pre_commit_installed(verbose=verbose)
     command_to_execute = [sys.executable, "-m", "pre_commit", 'run']
     if last_commit and commit_ref:
-        console.print("\n[red]You cannot specify both --last-commit and --commit-ref[/]\n")
+        get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
         sys.exit(1)
     for single_check in type:
         command_to_execute.append(single_check)
@@ -439,7 +439,7 @@ def static_checks(
         env=env,
     )
     if static_checks_result.returncode != 0:
-        console.print("[red]There were errors during pre-commit check. They should be fixed[/]")
+        get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
 
 

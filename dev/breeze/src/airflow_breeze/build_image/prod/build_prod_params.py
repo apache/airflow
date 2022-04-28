@@ -31,7 +31,7 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 
 
 @dataclass
@@ -173,10 +173,10 @@ class BuildProdParams:
             self.airflow_version = self.install_airflow_reference
         elif len(self.install_airflow_version) > 0:
             if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
-                console.print(
-                    f'\n[red]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
+                get_console().print(
+                    f'\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
                 )
-                console.print('[red]Only numerical versions allowed for PROD image here !')
+                get_console().print('[error]Only numerical versions allowed for PROD image here !')
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
@@ -239,7 +239,7 @@ class BuildProdParams:
         return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
     def print_info(self):
-        console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
+        get_console().print(f"CI Image: {self.airflow_version} Python: {self.python}.")
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:

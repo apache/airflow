@@ -66,7 +66,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.commands.main import main
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import set_forced_answer
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -216,7 +216,7 @@ def build_image(
             verbose=verbose, dry_run=dry_run, with_ci_group=with_ci_group, ci_image_params=ci_image_params
         )
         if return_code != 0:
-            console.print(f"[red]Error when building image! {info}")
+            get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
     set_forced_answer(answer)
@@ -290,7 +290,7 @@ def pull_image(
             poll_time=10.0,
         )
         if return_code != 0:
-            console.print(f"[red]There was an error when pulling CI image: {info}[/]")
+            get_console().print(f"[error]There was an error when pulling CI image: {info}[/]")
             sys.exit(return_code)
 
 
@@ -321,7 +321,7 @@ def verify_image(
     if image_name is None:
         build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
-    console.print(f"[bright_blue]Verifying CI image: {image_name}[/]")
+    get_console().print(f"[info]Verifying CI image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
         verbose=verbose,

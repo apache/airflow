@@ -32,10 +32,9 @@ import json
 from datetime import timedelta
 from typing import Any, Dict, List, Tuple
 
-from rich.console import Console
 from rich.progress import Progress
 
-console = Console(width=400, color_system="standard")
+from airflow_breeze.utils.console import get_console
 
 
 def find_newer_dependencies(
@@ -58,12 +57,12 @@ def find_newer_dependencies(
         min_date = (pendulum.now(tz=tz) - timedelta(days=max_age)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-    console.print(
-        "\n[bright_yellow]Those are possible candidates that broke current "
+    get_console().print(
+        "\n[info]Those are possible candidates that broke current "
         "`pip` resolution mechanisms by falling back to long backtracking[/]\n"
     )
-    console.print(f"\n[bright_yellow]We are limiting to packages updated after {min_date} ({timezone})[/]\n")
-    with Progress(console=console) as progress:
+    get_console().print(f"\n[info]We are limiting to packages updated after {min_date} ({timezone})[/]\n")
+    with Progress(console=get_console()) as progress:
         task = progress.add_task(f"Processing {count_packages} packages.", total=count_packages)
         for package_line in package_lines:
             package, _, constraints_package_version_string = package_line.split("=")
@@ -79,17 +78,17 @@ def find_newer_dependencies(
                 constrained_packages[package] = constraints_package_version
             progress.advance(task)
             progress.refresh()
-    console.print(
-        "\n[bright_yellow]If you see long running builds with `pip` backtracking, you should follow[/]"
+    get_console().print(
+        "\n[warning]If you see long running builds with `pip` backtracking, you should follow[/]"
     )
-    console.print(
-        "[bright_yellow]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
+    get_console().print(
+        "[warning]https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md[/]\n"
     )
     constraint_string = ""
     for package, constrained_version in constrained_packages.items():
         constraint_string += f' "{package}=={constrained_version}"'
-    console.print("[bright_yellow]Use the following pip install command (see the doc above for details)\n")
-    console.print(
+    get_console().print("[info]Use the following pip install command (see the doc above for details)\n")
+    get_console().print(
         'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
         '"dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"' + constraint_string,
         markup=False,

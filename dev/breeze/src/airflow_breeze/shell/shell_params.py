@@ -31,7 +31,7 @@ from airflow_breeze.global_constants import (
     MOUNT_SELECTED,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, SCRIPTS_CI_DIR
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -143,13 +143,13 @@ class ShellParams:
         return sqlite_url
 
     def print_badge_info(self):
-        console.print(f'Use {self.the_image_type} image')
-        console.print(f'Branch Name: {self.airflow_branch}')
-        console.print(f'Docker Image: {self.airflow_image_name_with_tag}')
-        console.print(f'Airflow source version:{self.airflow_version}')
-        console.print(f'Python Version: {self.python}')
-        console.print(f'Backend: {self.backend} {self.backend_version}')
-        console.print(f'Airflow used at runtime: {self.use_airflow_version}')
+        get_console().print(f'Use {self.the_image_type} image')
+        get_console().print(f'Branch Name: {self.airflow_branch}')
+        get_console().print(f'Docker Image: {self.airflow_image_name_with_tag}')
+        get_console().print(f'Airflow source version:{self.airflow_version}')
+        get_console().print(f'Python Version: {self.python}')
+        get_console().print(f'Backend: {self.backend} {self.backend_version}')
+        get_console().print(f'Airflow used at runtime: {self.use_airflow_version}')
 
     @property
     def compose_files(self):

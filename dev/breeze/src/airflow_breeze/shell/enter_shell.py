@@ -29,7 +29,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
     VARIABLES_IN_CACHE,
@@ -83,18 +83,18 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
     if not check_docker_is_running(verbose):
-        console.print(
-            '[red]Docker is not running.[/]\n'
-            '[bright_yellow]Please make sure Docker is installed and running.[/]'
+        get_console().print(
+            '[error]Docker is not running.[/]\n'
+            '[warning]Please make sure Docker is installed and running.[/]'
         )
         sys.exit(1)
     check_docker_version(verbose)
     check_docker_compose_version(verbose)
     updated_kwargs = synchronize_cached_params(kwargs)
     if read_from_cache_file('suppress_asciiart') is None:
-        console.print(ASCIIART, style=ASCIIART_STYLE)
+        get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:
-        console.print(CHEATSHEET, style=CHEATSHEET_STYLE)
+        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**updated_kwargs))
     return run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
 
@@ -122,10 +122,10 @@ def run_shell_with_build_image_checks(
     )
     ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies="false")
     if build_ci_image_check_cache.exists():
-        console.print(f'[bright_blue]{shell_params.the_image_type} image already built locally.[/]')
+        get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
     else:
-        console.print(
-            f'[bright_yellow]{shell_params.the_image_type} image not built locally. ' f'Forcing build.[/]'
+        get_console().print(
+            f'[warning]{shell_params.the_image_type} image not built locally. Forcing build.[/]'
         )
         ci_image_params.force_build = True
 
