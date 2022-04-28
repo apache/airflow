@@ -238,9 +238,6 @@ class BuildProdParams:
     def airflow_image_readme_url(self):
         return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
-    def print_info(self):
-        get_console().print(f"CI Image: {self.airflow_version} Python: {self.python}.")
-
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
         airflow_pre_cached_pip = 'true'
