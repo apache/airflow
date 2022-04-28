@@ -51,7 +51,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import commit_sha, prepare_build_command, run_command
 
 NECESSARY_HOST_VOLUMES = [
@@ -101,7 +101,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
         for flag in NECESSARY_HOST_VOLUMES:
             extra_docker_flags.extend(["-v", str(AIRFLOW_SOURCES_ROOT) + flag])
     else:  # none
-        console.print('[bright_blue]Skip mounting host volumes to Docker[/]')
+        get_console().print('[info]Skip mounting host volumes to Docker[/]')
     extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/files:/files"])
     extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/dist:/dist"])
     extra_docker_flags.extend(["--rm"])
@@ -159,8 +159,10 @@ def check_docker_permission_denied(verbose) -> bool:
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and 'Got permission denied while trying to connect' in command_result.stdout:
-            console.print('ERROR: You have `permission denied` error when trying to communicate with docker.')
-            console.print(
+            get_console().print(
+                'ERROR: You have `permission denied` error when trying to communicate with docker.'
+            )
+            get_console().print(
                 'Most likely you need to add your user to `docker` group: \
                 https://docs.docker.com/ engine/install/linux-postinstall/ .'
             )
@@ -215,20 +217,21 @@ def check_docker_version(verbose: bool):
         if docker_version_result.returncode == 0:
             docker_version = docker_version_result.stdout.strip()
         if docker_version == '':
-            console.print(
+            get_console().print(
                 f"""
-[yellow]Your version of docker is unknown. If the scripts fail, please make sure to[/]
-[yellow]install docker at least: {MIN_DOCKER_VERSION} version.[/]
+[warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
+[warning]install docker at least: {MIN_DOCKER_VERSION} version.[/]
 """
             )
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
-                console.print(f'[green]Good version of Docker: {docker_version}.[/]')
+                get_console().print(f'[success]Good version of Docker: {docker_version}.[/]')
             else:
-                console.print(
+                get_console().print(
                     f"""
-[yellow]Your version of docker is too old:{docker_version}. Please upgrade to at least {MIN_DOCKER_VERSION}[/]
+[warning]Your version of docker is too old:{docker_version}.
+Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 """
                 )
 
@@ -257,24 +260,24 @@ def check_docker_compose_version(verbose: bool):
             version = '.'.join(version_extracted.groups())
             good_version = compare_version(version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                console.print(f'[green]Good version of docker-compose: {version}[/]')
+                get_console().print(f'[success]Good version of docker-compose: {version}[/]')
             else:
-                console.print(
+                get_console().print(
                     f"""
-[yellow]You have too old version of docker-compose: {version}! At least 1.29 is needed! Please upgrade!
+[warning]You have too old version of docker-compose: {version}! At least 1.29 is needed! Please upgrade!
 """
                 )
-                console.print(
+                get_console().print(
                     """
 See https://docs.docker.com/compose/install/ for instructions.
 Make sure docker-compose you install is first on the PATH variable of yours.
 """
                 )
     else:
-        console.print(
+        get_console().print(
             """
-[yellow]Unknown docker-compose version. At least 1.29 is needed![/]
-[yellow]If Breeze fails upgrade to latest available docker-compose version.[/]
+[warning]Unknown docker-compose version. At least 1.29 is needed![/]
+[warning]If Breeze fails upgrade to latest available docker-compose version.[/]
 """
         )
 
@@ -376,8 +379,8 @@ def tag_and_push_image(
     :param verbose: whethere we produce verbose output
     :return:
     """
-    console.print(
-        f"[blue]Tagging and pushing the {image_params.airflow_image_name} as "
+    get_console().print(
+        f"[info]Tagging and pushing the {image_params.airflow_image_name} as "
         f"{image_params.airflow_image_name_with_tag}.[/]"
     )
     cmd = construct_docker_tag_command(image_params)

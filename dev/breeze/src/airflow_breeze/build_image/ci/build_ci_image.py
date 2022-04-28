@@ -28,7 +28,7 @@ from airflow_breeze.build_image.ci.build_ci_params import (
 from airflow_breeze.utils.cache import touch_cache_file
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_docker_build_command,
     construct_empty_docker_build_command,
@@ -71,9 +71,8 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
             if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
                 return True
             else:
-                console.print(
-                    "\n[bright_yellow]This might take a lot of time, w"
-                    "e think you should rebase first.[/]\n"
+                get_console().print(
+                    "\n[warning]This might take a lot of time, w" "e think you should rebase first.[/]\n"
                 )
                 answer = user_confirm(
                     "But if you really, really want - you can do it", timeout=5, default_answer=Answer.NO
@@ -81,25 +80,25 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                 if answer == Answer.YES:
                     return True
                 else:
-                    console.print(
-                        "[bright_blue]Please rebase your code before continuing.[/]\n"
+                    get_console().print(
+                        "[info]Please rebase your code before continuing.[/]\n"
                         "Check this link to know more "
                         "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n"
                     )
-                    console.print('[red]Exiting the process[/]\n')
+                    get_console().print('[error]Exiting the process[/]\n')
                     sys.exit(1)
         elif answer == Answer.NO:
             instruct_build_image(build_ci_params.python)
             return False
         else:  # users_status == Answer.QUIT:
-            console.print('\n[bright_yellow]Quitting the process[/]\n')
+            get_console().print('\n[warning]Quitting the process[/]\n')
             sys.exit()
     except TimeoutOccurred:
-        console.print('\nTimeout. Considering your response as No\n')
+        get_console().print('\nTimeout. Considering your response as No\n')
         instruct_build_image(build_ci_params.python)
         return False
     except Exception as e:
-        console.print(f'\nTerminating the process on {e}')
+        get_console().print(f'\nTerminating the process on {e}')
         sys.exit(1)
 
 
@@ -126,8 +125,8 @@ def build_ci_image(
     """
     fix_group_permissions()
     if verbose or dry_run:
-        console.print(
-            f"\n[bright_blue]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
+        get_console().print(
+            f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
             f"python version: {ci_image_params.python}[/]\n"
         )
     with ci_group(
@@ -158,7 +157,7 @@ def build_ci_image(
         if ci_image_params.empty_image:
             env = os.environ.copy()
             env['DOCKER_BUILDKIT'] = "1"
-            console.print(f"\n[blue]Building empty CI Image for Python {ci_image_params.python}\n")
+            get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=ci_image_params)
             build_result = run_command(
                 cmd,
@@ -170,7 +169,7 @@ def build_ci_image(
                 env=env,
             )
         else:
-            console.print(f"\n[blue]Building CI Image for Python {ci_image_params.python}\n")
+            get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
             build_result = run_command(
                 cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
             )
@@ -181,13 +180,13 @@ def build_ci_image(
                 touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
                 calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
             else:
-                console.print("[red]Error when building image![/]")
+                get_console().print("[error]Error when building image![/]")
                 return (
                     build_result.returncode,
                     f"Image build: {ci_image_params.python}",
                 )
         else:
-            console.print("[blue]Not updating build cache because we are in `dry_run` mode.[/]")
+            get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
         if ci_image_params.push_image:
             return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
         return build_result.returncode, f"Image build: {ci_image_params.python}"
@@ -197,8 +196,8 @@ def build_ci_image_in_parallel(
     verbose: bool, dry_run: bool, parallelism: int, python_version_list: List[str], **kwargs
 ):
     """Run CI image builds in parallel."""
-    console.print(
-        f"\n[bright_blue]Running with parallelism = {parallelism} for the images: {python_version_list}:"
+    get_console().print(
+        f"\n[info]Running with parallelism = {parallelism} for the images: {python_version_list}:"
     )
     pool = mp.Pool(parallelism)
     results = [pool.apply_async(build_ci_image, args=(verbose, dry_run, False), kwds=kwargs)]

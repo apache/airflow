@@ -20,7 +20,7 @@ import sys
 from subprocess import DEVNULL
 from typing import Tuple
 
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
@@ -32,7 +32,9 @@ def verify_an_image(
         ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
     )
     if command_result.returncode != 0:
-        console.print(f"[red]Error when inspecting {image_type} image: {command_result.returncode}[/]")
+        get_console().print(
+            f"[error]Error when inspecting {image_type} image: {command_result.returncode}[/]"
+        )
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", "auto", "--color=yes")
     if image_type == 'PROD':
@@ -58,7 +60,7 @@ def run_docker_compose_tests(
         ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
     )
     if command_result.returncode != 0:
-        console.print(f"[red]Error when inspecting PROD image: {command_result.returncode}[/]")
+        get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
     pytest_args = ("-n", "auto", "--color=yes")
     test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"

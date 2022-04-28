@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Mapping, Optional, Union
 
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
@@ -70,9 +70,9 @@ def run_command(
         env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
         if env_to_print:
             env_to_print += ' '
-        console.print(f"\n[bright_blue]Working directory {workdir} [/]\n")
+        get_console().print(f"\n[info]Working directory {workdir} [/]\n")
         # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-        console.print(f"\n[bright_blue]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
+        get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
             return subprocess.CompletedProcess(cmd, returncode=0)
     try:
@@ -83,13 +83,21 @@ def run_command(
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
             if ex.stdout:
-                console.print("[blue]========================= OUTPUT start ============================[/]")
-                console.print(ex.stdout)
-                console.print("[blue]========================= OUTPUT end ==============================[/]")
+                get_console().print(
+                    "[info]========================= OUTPUT start ============================[/]"
+                )
+                get_console().print(ex.stdout)
+                get_console().print(
+                    "[info]========================= OUTPUT end ==============================[/]"
+                )
             if ex.stderr:
-                console.print("[red]========================= STDERR start ============================[/]")
-                console.print(ex.stderr)
-                console.print("[red]========================= STDERR end ==============================[/]")
+                get_console().print(
+                    "[error]========================= STDERR start ============================[/]"
+                )
+                get_console().print(ex.stderr)
+                get_console().print(
+                    "[error]========================= STDERR end ==============================[/]"
+                )
         if check:
             raise
         return ex
@@ -108,7 +116,7 @@ def assert_pre_commit_installed(verbose: bool):
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
-    console.print(f"[bright_blue]Checking pre-commit installed for {python_executable}[/]")
+    get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
     command_result = run_command(
         [python_executable, "-m", "pre_commit", "--version"],
         verbose=verbose,
@@ -120,25 +128,24 @@ def assert_pre_commit_installed(verbose: bool):
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
             if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
-                console.print(
-                    f"\n[green]Package pre_commit is installed. "
+                get_console().print(
+                    f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
                 )
             else:
-                console.print(
-                    f"\n[red]Package name pre_commit version is wrong. It should be"
+                get_console().print(
+                    f"\n[error]Package name pre_commit version is wrong. It should be"
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
                 sys.exit(1)
         else:
-            console.print(
-                "\n[bright_yellow]Could not determine version of pre-commit. "
-                "You might need to update it![/]\n"
+            get_console().print(
+                "\n[warning]Could not determine version of pre-commit. " "You might need to update it![/]\n"
             )
     else:
-        console.print("\n[red]Error checking for pre-commit-installation:[/]\n")
-        console.print(command_result.stderr)
-        console.print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+        get_console().print(command_result.stderr)
+        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -164,8 +171,8 @@ def get_filesystem_type(filepath):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
-    print(f"\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
+    get_console().print(f'[warning]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
+    print(f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
 
 
 @contextlib.contextmanager
@@ -206,7 +213,7 @@ def change_directory_permission(directory_to_fix: Path):
 @working_directory(AIRFLOW_SOURCES_ROOT)
 def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
-    console.print("[bright_blue]Fixing group permissions[/]")
+    get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().split('\n')
@@ -288,11 +295,11 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
             build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
     else:
         if prepare_buildx_cache:
-            console.print(
-                '\n[red] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
+            get_console().print(
+                '\n[error] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
             )
-            console.print(
-                '[red] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
+            get_console().print(
+                '[error] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
             )
             sys.exit(1)
         build_command_param.append("build")
