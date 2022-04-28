@@ -25,7 +25,7 @@ from pytest import param
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
-from airflow.www.views import ConnectionModelView
+from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import check_content_in_response
 
 CONNECTION = {
@@ -311,3 +311,14 @@ def test_connection_muldelete(admin_client, connection):
     assert resp.status_code == 200
     with create_session() as session:
         assert session.query(Connection).filter(Connection.id == conn_id).count() == 0
+
+
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
+    mock_pm_hooks.return_value = {
+        "first": mock.MagicMock(connection_testable=True),
+        "second": mock.MagicMock(connection_testable=False),
+        "third": None,
+    }
+
+    assert ["first"] == ConnectionFormWidget().testable_connection_types
