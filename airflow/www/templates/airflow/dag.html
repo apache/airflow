@@ -83,7 +83,7 @@
   {% if external_log_name is defined %}
   <meta name="external_log_name" content="{{ external_log_name }}">
   {% endif %}
-  <meta name="can_edit" content="{{ appbuilder.sm.can_edit_dag(dag.dag_id) }}">
+  <meta name="can_edit" content="{{ dag.can_edit }}">
 {% endblock %}
 
 {% block content %}
