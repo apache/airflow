@@ -1606,10 +1606,22 @@ class Airflow(AirflowBaseView):
             ti_attrs: Optional[List[Tuple[str, Any]]] = None
         else:
             ti.refresh_from_task(task)
+            ti_attrs_to_skip = [
+                'dag_id',
+                'key',
+                'mark_success_url',
+                'log',
+                'log_url',
+                'task',
+            ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
+                all_ti_attrs = (
+                    (name, getattr(ti, name))
+                    for name in dir(ti)
+                    if not name.startswith("_") and name not in ti_attrs_to_skip
+                )
             ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()
