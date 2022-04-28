@@ -769,33 +769,6 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
-class TestBigQueryConnIdDeprecationWarning:
-    @pytest.mark.parametrize(
-        "operator_class, kwargs",
-        [
-            (BigQueryCheckOperator, dict(sql='Select * from test_table')),
-            (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
-            (BigQueryIntervalCheckOperator, dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5})),
-            (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID)),
-            (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table')),
-            (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET)),
-            (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET)),
-            (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET)),
-        ],
-    )
-    def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
-        bigquery_conn_id = 'google_cloud_default'
-        with pytest.warns(
-            DeprecationWarning,
-            match=(
-                "The bigquery_conn_id parameter has been deprecated. "
-                "You should pass the gcp_conn_id parameter."
-            ),
-        ):
-            operator = operator_class(task_id=TASK_ID, bigquery_conn_id=bigquery_conn_id, **kwargs)
-            assert bigquery_conn_id == operator.gcp_conn_id
-
-
 class TestBigQueryUpsertTableOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):

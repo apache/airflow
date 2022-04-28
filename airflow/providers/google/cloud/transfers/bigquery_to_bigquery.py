@@ -44,8 +44,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param write_disposition: The write disposition if the table already exists.
     :param create_disposition: The create disposition if the table doesn't exist.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -85,7 +83,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
         write_disposition: str = 'WRITE_EMPTY',
         create_disposition: str = 'CREATE_IF_NEEDED',
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
@@ -94,15 +91,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.source_project_dataset_tables = source_project_dataset_tables
         self.destination_project_dataset_table = destination_project_dataset_table
@@ -122,7 +110,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
             self.destination_project_dataset_table,
         )
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,

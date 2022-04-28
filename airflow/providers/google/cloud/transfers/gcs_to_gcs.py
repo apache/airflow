@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage operator."""
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -69,8 +68,6 @@ class GCSToGCSOperator(BaseOperator):
         If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' delimiter will be copied to the destination object.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -186,7 +183,6 @@ class GCSToGCSOperator(BaseOperator):
         move_object=False,
         replace=True,
         gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
         delegate_to=None,
         last_modified_time=None,
         maximum_modified_time=None,
@@ -196,14 +192,6 @@ class GCSToGCSOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.source_bucket = source_bucket
         self.source_object = source_object

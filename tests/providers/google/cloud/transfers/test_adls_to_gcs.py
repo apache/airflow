@@ -68,7 +68,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
             dest_gcs=GCS_PATH,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -115,7 +115,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
             dest_gcs=GCS_PATH,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             gzip=True,
         )
 
