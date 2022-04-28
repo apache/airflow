@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useMarkSuccessRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const MarkSuccessRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -42,7 +45,7 @@ const MarkSuccessRun = ({ dagId, runId }) => {
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="green" isLoading={isLoading}>Mark Success</Button>
+      <Button onClick={onClick} colorScheme="green" isLoading={isLoading} isDisabled={!canEdit}>Mark Success</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

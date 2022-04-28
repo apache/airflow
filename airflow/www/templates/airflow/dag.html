@@ -82,7 +82,8 @@
   {% endif %}
   {% if external_log_name is defined %}
   <meta name="external_log_name" content="{{ external_log_name }}">
-{% endif %}
+  {% endif %}
+  <meta name="can_edit" content="{{ dag.can_edit }}">
 {% endblock %}
 
 {% block content %}
