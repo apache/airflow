@@ -538,8 +538,10 @@ class GCSFileTransformOperator(BaseOperator):
 
     :param source_bucket: The bucket to locate the source_object. (templated)
     :param source_object: The key to be retrieved from GCS. (templated)
-    :param destination_bucket: The bucket to upload the key after transformation. (templated)
-    :param destination_object: The key to be written in GCS. (templated)
+    :param destination_bucket: The bucket to upload the key after transformation.
+        If not provided, source_bucket will be used. (templated)
+    :param destination_object: The key to be written in GCS.
+        If not provided, source_object will be used. (templated)
     :param transform_script: location of the executable transformation script or list of arguments
         passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
