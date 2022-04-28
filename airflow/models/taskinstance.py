@@ -803,13 +803,12 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def mark_success_url(self):
         """URL to mark TI success"""
-        iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
             "/confirm"
             f"?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&execution_date={iso}"
+            f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
             "&state=success"
