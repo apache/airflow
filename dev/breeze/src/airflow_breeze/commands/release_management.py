@@ -320,13 +320,12 @@ def generate_constraints(
     set_forced_answer(answer)
     if run_in_parallel:
         given_answer = user_confirm(
-            f"Did you build all CI images {python_versions} with --upgrade-to-newer-dependencies "
-            f"true flag set?",
+            f"Did you build all CI images {python_versions} with --upgrade-to-newer-dependencies flag set?",
             timeout=None,
         )
     else:
         given_answer = user_confirm(
-            f"Did you build CI image {python} with --upgrade-to-newer-dependencies true flag set?",
+            f"Did you build CI image {python} with --upgrade-to-newer-dependencies flag set?",
             timeout=None,
         )
     if given_answer != Answer.YES:
@@ -334,7 +333,7 @@ def generate_constraints(
             get_console().print("\n[info]Use this command to build the images:[/]\n")
             get_console().print(
                 f"     breeze build-image --run-in-parallel --python-versions '{python_versions}' "
-                f"--upgrade-to-newer-dependencies true\n"
+                f"--upgrade-to-newer-dependencies\n"
             )
         else:
             shell_params = ShellParams(
@@ -343,7 +342,7 @@ def generate_constraints(
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
                 f"     breeze build-image --python'{shell_params.python}' "
-                f"--upgrade-to-newer-dependencies true\n"
+                f"--upgrade-to-newer-dependencies\n"
             )
         sys.exit(1)
     if run_in_parallel:

@@ -120,7 +120,7 @@ def run_shell_with_build_image_checks(
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python}"
     )
-    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies="false")
+    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies=False)
     if build_ci_image_check_cache.exists():
         get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
     else:
