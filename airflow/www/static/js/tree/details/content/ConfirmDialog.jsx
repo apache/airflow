@@ -55,7 +55,7 @@ const ConfirmDialog = ({
 
           <AlertDialogBody>
             <Text mb={2}>{description}</Text>
-            {body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
+            {Array.isArray(body) && body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
           </AlertDialogBody>
 
           <AlertDialogFooter>

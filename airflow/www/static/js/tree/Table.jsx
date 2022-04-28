@@ -72,6 +72,24 @@ const Table = ({
   const lowerCount = (offset || 0) + 1;
   const upperCount = lowerCount + data.length - 1;
 
+  // Don't show row selection if selectRows doesn't exist
+  const selectProps = selectRows
+    ? [useRowSelect,
+      (hooks) => {
+        hooks.visibleColumns.push((cols) => [
+          {
+            id: 'selection',
+            Cell: ({ row }) => (
+              <div>
+                <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
+              </div>
+            ),
+          },
+          ...cols,
+        ]);
+      }]
+    : [];
+
   const {
     getTableProps,
     getTableBodyProps,
@@ -98,20 +116,7 @@ const Table = ({
     },
     useSortBy,
     usePagination,
-    useRowSelect,
-    (hooks) => {
-      hooks.visibleColumns.push((cols) => [
-        {
-          id: 'selection',
-          Cell: ({ row }) => (
-            <div>
-              <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-            </div>
-          ),
-        },
-        ...cols,
-      ]);
-    },
+    ...selectProps,
   );
 
   const handleNext = () => {
