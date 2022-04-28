@@ -143,7 +143,7 @@ def build_production_image(
     :param with_ci_group: whether to wrap the build in CI logging group
     :param prod_image_params: PROD image parameters
     """
-    fix_group_permissions()
+    fix_group_permissions(verbose=verbose)
     if verbose or dry_run:
         get_console().print(
             f"\n[info]Building PROD image of airflow from {AIRFLOW_SOURCES_ROOT} "
@@ -154,7 +154,6 @@ def build_production_image(
         f"with tag: {prod_image_params.image_tag}",
         enabled=with_ci_group,
     ):
-        prod_image_params.print_info()
         if prod_image_params.cleanup_context:
             clean_docker_context_files(verbose=verbose, dry_run=dry_run)
         check_docker_context_files(prod_image_params.install_packages_from_context)
