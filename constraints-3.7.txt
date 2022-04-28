@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-26T09:19:18Z
+# This constraints file was automatically generated on 2022-04-28T20:16:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -150,7 +150,7 @@ azure-common==1.1.28
 azure-core==1.23.1
 azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
-azure-identity==1.9.0
+azure-identity==1.10.0
 azure-keyvault-secrets==4.4.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.0
+boto3==1.22.3
 boto==2.49.0
-botocore==1.25.0
+botocore==1.25.3
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -192,14 +192,14 @@ click-default-group==1.2.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.1.2
+click==8.1.3
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.0.0
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.13.0
+connexion==2.13.1
 coverage==6.3.2
 crcmod==1.7
 cron-descriptor==1.2.24
@@ -229,7 +229,7 @@ entrypoints==0.4
 eventlet==0.33.0
 execnet==1.9.0
 facebook-business==13.0.0
-fastavro==1.4.10
+fastavro==1.4.11
 fastjsonschema==2.15.3
 filelock==3.6.0
 fissix==21.11.13
@@ -264,7 +264,7 @@ google-cloud-build==3.8.1
 google-cloud-container==1.0.2
 google-cloud-core==2.3.0
 google-cloud-datacatalog==3.7.1
-google-cloud-dataplex==0.2.1
+google-cloud-dataplex==1.0.0
 google-cloud-dataproc-metastore==1.5.0
 google-cloud-dataproc==4.0.2
 google-cloud-dlp==1.0.1
@@ -307,7 +307,7 @@ httplib2==0.19.1
 httpx==0.22.0
 humanize==4.0.0
 hvac==0.11.2
-identify==2.4.12
+identify==2.5.0
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
@@ -331,7 +331,7 @@ jsonpath-ng==1.5.3
 jsonschema==4.4.0
 jupyter-client==7.3.0
 jupyter-core==4.10.0
-jwcrypto==1.0
+jwcrypto==1.2
 keyring==23.5.0
 kombu==5.2.4
 krb5==0.3.0
@@ -353,7 +353,7 @@ mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
 moto==3.1.6
-msal-extensions==0.3.1
+msal-extensions==1.0.0
 msal==1.17.0
 msgpack==1.0.3
 msrest==0.6.21
@@ -458,7 +458,7 @@ python-jenkins==1.7.0
 python-jose==3.3.0
 python-ldap==3.4.0
 python-nvd3==0.15.0
-python-slugify==6.1.1
+python-slugify==6.1.2
 python-telegram-bot==13.11
 python3-openid==3.2.0
 pytz-deprecation-shim==0.1.0.post0
@@ -499,11 +499,11 @@ smmap==5.0.0
 snakebite-py3==3.0.5
 sniffio==1.2.0
 snowballstemmer==2.2.0
-snowflake-connector-python==2.7.6
-snowflake-sqlalchemy==1.3.3
+snowflake-connector-python==2.7.7
+snowflake-sqlalchemy==1.3.4
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
-sphinx-airflow-theme==0.0.8
+sphinx-airflow-theme==0.0.9
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.5.0
@@ -543,31 +543,31 @@ tornado==6.1
 towncrier==21.9.0
 tqdm==4.64.0
 traitlets==5.1.1
-trino==0.312.0
+trino==0.313.0
 twine==4.0.0
 typed-ast==1.5.3
-types-Deprecated==1.2.6
-types-Markdown==3.3.13
+types-Deprecated==1.2.7
+types-Markdown==3.3.14
 types-PyMySQL==1.0.18
 types-PyYAML==6.0.7
 types-boto==2.49.14
-types-certifi==2021.10.8.1
-types-croniter==1.0.9
-types-cryptography==3.3.20
+types-certifi==2021.10.8.2
+types-croniter==1.0.10
+types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.9
 types-paramiko==2.8.19
 types-protobuf==3.19.18
-types-python-dateutil==2.8.12
+types-python-dateutil==2.8.14
 types-python-slugify==5.0.4
-types-pytz==2021.3.6
+types-pytz==2021.3.7
 types-redis==4.2.0
-types-requests==2.27.20
+types-requests==2.27.24
 types-setuptools==57.4.14
 types-six==1.16.15
-types-tabulate==0.8.7
-types-termcolor==1.1.3
-types-toml==0.10.5
+types-tabulate==0.8.8
+types-termcolor==1.1.4
+types-toml==0.10.6
 types-urllib3==1.26.13
 typing_extensions==4.2.0
 tzdata==2022.1
@@ -587,11 +587,11 @@ websocket-client==1.3.2
 wrapt==1.14.0
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.158.0
+yandexcloud==0.159.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
-zict==2.1.0
+zict==2.2.0
 zipp==3.8.0
 zope.event==4.5.0
 zope.interface==5.4.0
