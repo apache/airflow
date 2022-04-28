@@ -472,7 +472,14 @@ Those are commands mostly used by contributors:
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``./breeze-legacy tests`` command
-* Join running interactive shell with ``./breeze-legacy exec`` command
+* Build CI docker image with ``breeze build-image`` command
+* Cleanup breeze with ``breeze cleanup`` command
+* Run static checks with autocomplete support ``breeze static-checks`` command
+* Run test specified with ``./breeze-legacy tests`` command
+
+Additional management tasks:
+
+* Join running interactive shell with ``breeze exec`` command
 * Stop running interactive environment with ``breeze stop`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
 
@@ -580,8 +587,7 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -595,12 +601,11 @@ command but it is very similar to current ``breeze`` command):
 
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``./breeze-legacy exec`` while you already started the
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -611,6 +616,12 @@ command and it is not yet available in the current ``breeze`` command):
       </a>
     </div>
 
+
+Those are all available flags of ``exec`` command:
+
+.. image:: ./images/breeze/output-exec.svg
+  :width: 100%
+  :alt: Breeze exec
 
 Additional tools
 ----------------
