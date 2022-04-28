@@ -262,6 +262,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
+    Copy the tarball to a location outside of the repo and verify licences.
+
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
