@@ -199,11 +199,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
+  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+
     ```shell script
     git checkout v${VERSION_BRANCH}-test
     ```
 
-- Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Set your version in `setup.py` (without the RC tag)
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Build the release notes:
 
@@ -258,6 +261,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
+
+    Copy the tarball to a location outside of the repo and verify licences.
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
@@ -416,6 +421,7 @@ protected_branches:
    export BRANCH_PREFIX=2-1
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
+   git push --set-upstream origin constraints-${BRANCH_PREFIX}
    git push origin tag constraints-${BRANCH_PREFIX}
    ```
 
@@ -564,8 +570,6 @@ Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
-- Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
-
 - Send out a vote to the dev@airflow.apache.org mailing list:
 
 Subject:
@@ -583,8 +587,8 @@ cat <<EOF
 Hey fellow Airflowers,
 
 I have cut Airflow ${VERSION}. This email is calling a vote on the release,
-which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
-until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
+which will last at least 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+until Monday, October 11, 2021 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
@@ -1146,6 +1150,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
