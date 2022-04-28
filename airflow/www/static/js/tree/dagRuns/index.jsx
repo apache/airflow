@@ -38,7 +38,7 @@ const DurationTick = ({ children, ...rest }) => (
 );
 
 const DagRuns = () => {
-  const { data: { dagRuns = [] } } = useTreeData();
+  const { data: { dagRuns } } = useTreeData();
   const { selected, onSelect } = useSelection();
   const durations = [];
   const runs = dagRuns.map((dagRun) => {
