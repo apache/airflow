@@ -55,6 +55,7 @@ class TestTaskEndpoint:
     mapped_dag_id = "test_mapped_task"
     task_id = "op1"
     task_id2 = 'op2'
+    task_id3 = "op3"
     mapped_task_id = "mapped_task"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
@@ -66,6 +67,7 @@ class TestTaskEndpoint:
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
         with DAG(self.mapped_dag_id, start_date=self.task1_start_date) as mapped_dag:
+            task3 = EmptyOperator(task_id=self.task_id3)  # noqa
             mapped_task = EmptyOperator.partial(task_id=self.mapped_task_id).expand()  # noqa
 
         task1 >> task2
@@ -312,6 +314,73 @@ class TestGetTasks(TestTaskEndpoint):
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == expected
+
+    def test_get_tasks_mapped(self):
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "is_mapped": True,
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": "mapped_task",
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                },
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": self.task_id3,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                },
+            ],
+            "total_entries": 2,
+        }
+        response = self.client.get(
+            f"/api/v1/dags/{self.mapped_dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == expected
