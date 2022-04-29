@@ -27,6 +27,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_db_reset,
+    option_debian_version,
     option_dry_run,
     option_force_build,
     option_forward_credentials,
@@ -84,6 +85,7 @@ DEVELOPER_PARAMETERS = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--debian-version",
                 "--forward-credentials",
                 "--db-reset",
             ],
@@ -107,6 +109,7 @@ DEVELOPER_PARAMETERS = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--debian-version",
                 "--forward-credentials",
                 "--db-reset",
             ],
@@ -192,6 +195,7 @@ DEVELOPER_PARAMETERS = {
 @option_dry_run
 @option_python
 @option_backend
+@option_debian_version
 @option_github_repository
 @option_postgres_version
 @option_mysql_version
@@ -214,6 +218,7 @@ def shell(
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
+    debian_version: str,
     forward_credentials: bool,
     mount_sources: str,
     use_airflow_version: str,
@@ -244,6 +249,7 @@ def shell(
         db_reset=db_reset,
         extra_args=extra_args,
         answer=answer,
+        debian_version=debian_version,
     )
 
 
