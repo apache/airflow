@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 import pytest
 from parameterized import parameterized
 
-from airflow.providers.tableau.sensors.tableau_job_status import (
+from airflow.providers.tableau.sensors.tableau import (
     TableauJobFailedException,
     TableauJobFinishCode,
     TableauJobStatusSensor,
@@ -36,7 +36,7 @@ class TestTableauJobStatusSensor(unittest.TestCase):
     def setUp(self):
         self.kwargs = {'job_id': 'job_2', 'site_id': 'test_site', 'task_id': 'task', 'dag': None}
 
-    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauHook')
+    @patch('airflow.providers.tableau.sensors.tableau.TableauHook')
     def test_poke(self, mock_tableau_hook):
         """
         Test poke
@@ -51,7 +51,7 @@ class TestTableauJobStatusSensor(unittest.TestCase):
         mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
 
     @parameterized.expand([(TableauJobFinishCode.ERROR,), (TableauJobFinishCode.CANCELED,)])
-    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauHook')
+    @patch('airflow.providers.tableau.sensors.tableau.TableauHook')
     def test_poke_failed(self, finish_code, mock_tableau_hook):
         """
         Test poke failed
