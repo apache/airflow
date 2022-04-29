@@ -89,6 +89,41 @@ Breaking changes
 
 * ``CloudDatastoreExportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
 
+* ``bigquery_conn_id`` is removed. Please use ``gcp_conn_id``.
+  affected classes:
+  ``BigQueryCheckOperator``
+  ``BigQueryCreateEmptyDatasetOperator``
+  ``BigQueryDeleteDatasetOperator``
+  ``BigQueryDeleteTableOperator``
+  ``BigQueryExecuteQueryOperator``
+  ``BigQueryGetDataOperator``
+  ``BigQueryHook``
+  ``BigQueryIntervalCheckOperator``
+  ``BigQueryTableExistenceSensor``
+  ``BigQueryTablePartitionExistenceSensor``
+  ``BigQueryToBigQueryOperator``
+  ``BigQueryToGCSOperator``
+  ``BigQueryUpdateTableSchemaOperator``
+  ``BigQueryUpsertTableOperator``
+  ``BigQueryValueCheckOperator``
+  ``GCSToBigQueryOperator``
+
+* ``google_cloud_storage_conn_id`` is removed. Please use ``gcp_conn_id``.
+  affected classes:
+  ``ADLSToGCSOperator``
+  ``BaseSQLToGCSOperator``
+  ``CassandraToGCSOperator``
+  ``GCSBucketCreateAclEntryOperator``
+  ``GCSCreateBucketOperator``
+  ``GCSDeleteObjectsOperator``
+  ``GCSHook``
+  ``GCSListObjectsOperator``
+  ``GCSObjectCreateAclEntryOperator``
+  ``GCSToBigQueryOperator``
+  ``GCSToGCSOperator``
+  ``GCSToLocalFilesystemOperator``
+  ``LocalFilesystemToGCSOperator``
+
 * ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``.
 
 * ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``.

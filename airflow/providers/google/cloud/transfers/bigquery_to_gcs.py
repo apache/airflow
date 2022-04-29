@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
-import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -47,8 +46,6 @@ class BigQueryToGCSOperator(BaseOperator):
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :param print_header: Whether to print a header for a CSV file extract.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -84,7 +81,6 @@ class BigQueryToGCSOperator(BaseOperator):
         field_delimiter: str = ',',
         print_header: bool = True,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         location: Optional[str] = None,
@@ -92,15 +88,6 @@ class BigQueryToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
