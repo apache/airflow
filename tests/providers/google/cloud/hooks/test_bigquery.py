@@ -82,25 +82,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         assert mock_bigquery_connection.return_value == result
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
-    def test_bigquery_bigquery_conn_id_deprecation_warning(
-        self,
-        mock_base_hook_init,
-    ):
-        bigquery_conn_id = "bigquery conn id"
-        warning_message = (
-            "The bigquery_conn_id parameter has been deprecated. "
-            "You should pass the gcp_conn_id parameter."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BigQueryHook(bigquery_conn_id=bigquery_conn_id)
-            mock_base_hook_init.assert_called_once_with(
-                delegate_to=None,
-                gcp_conn_id='bigquery conn id',
-                impersonation_chain=None,
-            )
-        assert warning_message == str(warnings[0].message)
-
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_location_propagates_properly(self, run_with_config, _):

@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useClearRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const ClearRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -29,32 +32,31 @@ const ClearRun = ({ dagId, runId }) => {
   const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
 
   const onClick = async () => {
-    try {
-      const data = await onClear({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await onClear({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await onClear({ confirmed: true });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await onClear({ confirmed: true });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
     <>
-      <Button onClick={onClick} isLoading={isLoading}>Clear existing tasks</Button>
+      <Button
+        onClick={onClick}
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
+        Clear existing tasks
+      </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to clear:"
         body={affectedTasks}
       />

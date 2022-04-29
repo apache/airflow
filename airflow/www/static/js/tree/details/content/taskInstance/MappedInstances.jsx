@@ -31,11 +31,13 @@ import {
 } from 'react-icons/md';
 
 import { getMetaValue } from '../../../../utils';
-import { formatDateTime, formatDuration } from '../../../../datetime_utils';
+import { formatDuration, getDuration } from '../../../../datetime_utils';
 import { useMappedInstances } from '../../../api';
 import { SimpleStatus } from '../../../StatusBox';
 import Table from '../../../Table';
+import Time from '../../../Time';
 
+const canEdit = getMetaValue('can_edit') === 'True';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
@@ -46,7 +48,7 @@ const IconLink = (props) => (
 );
 
 const MappedInstances = ({
-  dagId, runId, taskId,
+  dagId, runId, taskId, selectRows,
 }) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -83,9 +85,9 @@ const MappedInstances = ({
             {mi.state || 'no status'}
           </Flex>
         ),
-        duration: mi.duration && formatDuration(mi.duration),
-        startDate: mi.startDate && formatDateTime(mi.startDate),
-        endDate: mi.endDate && formatDateTime(mi.endDate),
+        duration: mi.duration && formatDuration(getDuration(mi.startDate, mi.endDate)),
+        startDate: <Time dateTime={mi.startDate} />,
+        endDate: <Time dateTime={mi.endDate} />,
         links: (
           <Flex alignItems="center">
             <IconLink mr={1} title="Details" aria-label="Details" icon={<MdDetails />} href={detailsLink} />
@@ -147,6 +149,7 @@ const MappedInstances = ({
         pageSize={limit}
         setSortBy={setSortBy}
         isLoading={isLoading}
+        selectRows={canEdit && selectRows}
       />
     </Box>
   );

@@ -64,6 +64,7 @@ def get_mapped_instances(task_instance, session):
             TaskInstance.run_id == task_instance.run_id,
             TaskInstance.task_id == task_instance.task_id,
         )
+        .order_by(TaskInstance.map_index)
         .all()
     )
 
@@ -145,7 +146,6 @@ def encode_ti(
         'run_id': task_instance.run_id,
         'map_index': task_instance.map_index,
         'state': task_instance.state,
-        'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),
         'end_date': datetime_to_string(task_instance.end_date),
         'try_number': try_count,

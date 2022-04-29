@@ -69,7 +69,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
-    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -87,21 +86,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         delegate_to: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        bigquery_conn_id: Optional[str] = None,
         api_resource_configs: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         labels: Optional[Dict] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -318,7 +306,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
-        num_retries: Optional[int] = None,
         location: Optional[str] = None,
         exists_ok: bool = True,
     ) -> Table:
@@ -370,11 +357,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :param num_retries: Maximum number of retries in case of connection problems.
+        :param location: (Optional) The geographic location where the table should reside.
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-        if num_retries:
-            warnings.warn("Parameter `num_retries` is deprecated", DeprecationWarning)
 
         _table_resource: Dict[str, Any] = {}
 
@@ -1068,7 +1054,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         source_dataset: str,
         view_dataset: str,
         view_table: str,
-        source_project: Optional[str] = None,
         view_project: Optional[str] = None,
         project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -1086,12 +1071,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.project_id will be used.
         :return: the datasets resource of the source dataset.
         """
-        if source_project:
-            project_id = source_project
-            warnings.warn(
-                "Parameter ``source_project`` is deprecated. Use ``project_id``.",
-                DeprecationWarning,
-            )
         view_project = view_project or project_id
         view_access = AccessEntry(
             role=None,

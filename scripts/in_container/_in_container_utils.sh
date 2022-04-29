@@ -123,8 +123,18 @@ function in_container_fix_ownership() {
             "/opt/airflow/dags"
             "${AIRFLOW_SOURCES}"
         )
+        echo
+        echo "${COLOR_BLUE}Fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Directories: ${DIRECTORIES_TO_FIX[*]}${COLOR_RESET}"
+        echo
         find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
             xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+        echo "${COLOR_BLUE}Fixed ownership of generated files."
+        echo
+     else
+        echo
+        echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
+        echo
     fi
 }
 
@@ -181,7 +191,7 @@ function dump_airflow_logs() {
 
 function install_airflow_from_wheel() {
     local extras
-    extras="${1}"
+    extras="${1:-}"
     local airflow_package
     airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
     echo
@@ -324,6 +334,9 @@ function setup_provider_packages() {
     export PACKAGE_PREFIX_HYPHEN=""
     if [[ ${VERBOSE:="false"} == "true" ||  ${VERBOSE} == "True" ]]; then
         OPTIONAL_VERBOSE_FLAG+=("--verbose")
+    fi
+    if [[ ${ANSWER:=""} != "" ]]; then
+        OPTIONAL_ANSWER_FLAG+=("--answer" "${ANSWER}")
     fi
     readonly PACKAGE_TYPE
     readonly PACKAGE_PREFIX_UPPERCASE

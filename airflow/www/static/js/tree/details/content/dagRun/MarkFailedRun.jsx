@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useMarkFailedRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const MarkFailedRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -29,13 +32,9 @@ const MarkFailedRun = ({ dagId, runId }) => {
   const { mutateAsync: markFailed, isLoading } = useMarkFailedRun(dagId, runId);
 
   const onClick = async () => {
-    try {
-      const data = await markFailed({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (error) {
-      console.error(error);
-    }
+    const data = await markFailed({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = () => {
@@ -46,11 +45,12 @@ const MarkFailedRun = ({ dagId, runId }) => {
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="red" isLoading={isLoading}>Mark Failed</Button>
+      <Button onClick={onClick} colorScheme="red" isLoading={isLoading} isDisabled={!canEdit}>Mark Failed</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to mark as failed or skipped:"
         body={affectedTasks}
       />

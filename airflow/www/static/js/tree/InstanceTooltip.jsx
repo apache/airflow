@@ -27,7 +27,7 @@ import Time from './Time';
 const InstanceTooltip = ({
   group,
   instance: {
-    startDate, endDate, duration, state, runId, mappedStates,
+    startDate, endDate, state, runId, mappedStates,
   },
 }) => {
   const isGroup = !!group.children;
@@ -91,7 +91,7 @@ const InstanceTooltip = ({
       <Text>
         Duration:
         {' '}
-        {formatDuration(duration || getDuration(startDate, endDate))}
+        {formatDuration(getDuration(startDate, endDate))}
       </Text>
     </Box>
   );

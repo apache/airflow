@@ -89,10 +89,6 @@ class GCSToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud and
-        interact with the BigQuery service.
-    :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
-        and interact with the Google Cloud Storage service.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -165,8 +161,6 @@ class GCSToBigQueryOperator(BaseOperator):
         encoding="UTF-8",
         max_id_key=None,
         gcp_conn_id='google_cloud_default',
-        bigquery_conn_id=None,
-        google_cloud_storage_conn_id=None,
         delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
@@ -181,15 +175,6 @@ class GCSToBigQueryOperator(BaseOperator):
         description=None,
         **kwargs,
     ):
-        # To preserve backward compatibility. Remove one day
-        if bigquery_conn_id or google_cloud_storage_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id and google_cloud_storage_conn_id parameters have been deprecated. "
-                "You should pass only gcp_conn_id parameter. "
-                "Will be used bigquery_conn_id or google_cloud_storage_conn_id if gcp_conn_id not passed.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         super().__init__(**kwargs)
 
@@ -220,7 +205,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.encoding = encoding
 
         self.max_id_key = max_id_key
-        self.gcp_conn_id = gcp_conn_id or bigquery_conn_id or google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options

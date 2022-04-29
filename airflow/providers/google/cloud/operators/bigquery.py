@@ -46,10 +46,6 @@ if TYPE_CHECKING:
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
-_DEPRECATION_MSG = (
-    "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter."
-)
-
 
 class BigQueryUIColors(enum.Enum):
     """Hex colors for BigQuery operators"""
@@ -161,8 +157,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
 
     :param sql: the sql to be executed
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :param location: The geographic location of the job. See details at:
@@ -192,7 +186,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         *,
         sql: str,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -200,10 +193,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
-        if bigquery_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id
-
         self.gcp_conn_id = gcp_conn_id
         self.sql = sql
         self.use_legacy_sql = use_legacy_sql
@@ -224,8 +213,6 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -256,7 +243,6 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         pass_value: Any,
         tolerance: Any = None,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -264,11 +250,6 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id
-
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
@@ -299,8 +280,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -332,7 +311,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         date_filter_column: str = 'ds',
         days_back: SupportsAbs[int] = -7,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -346,10 +324,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             days_back=days_back,
             **kwargs,
         )
-
-        if bigquery_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id
 
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
@@ -397,8 +371,6 @@ class BigQueryGetDataOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -430,22 +402,12 @@ class BigQueryGetDataOperator(BaseOperator):
         max_results: int = 100,
         selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -462,7 +424,7 @@ class BigQueryGetDataOperator(BaseOperator):
         )
 
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -513,8 +475,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         must be ``true`` if this is set to ``false``. For standard SQL queries, this
         flag is ignored and results are never flattened.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -598,7 +558,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         allow_large_results: bool = False,
         flatten_results: Optional[bool] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         udf_config: Optional[list] = None,
         use_legacy_sql: bool = True,
@@ -618,16 +577,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
-
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
             DeprecationWarning,
@@ -1197,8 +1146,6 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
         The default value is False.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -1236,20 +1183,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         project_id: Optional[str] = None,
         delete_contents: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
-
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.delete_contents = delete_contents
@@ -1289,8 +1226,6 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -1331,21 +1266,11 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         dataset_reference: Optional[Dict] = None,
         location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         exists_ok: bool = False,
         **kwargs,
     ) -> None:
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.dataset_id = dataset_id
         self.project_id = project_id
@@ -1767,8 +1692,6 @@ class BigQueryDeleteTableOperator(BaseOperator):
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
         will be deleted. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -1796,7 +1719,6 @@ class BigQueryDeleteTableOperator(BaseOperator):
         *,
         deletion_dataset_table: str,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         ignore_if_missing: bool = False,
         location: Optional[str] = None,
@@ -1804,15 +1726,6 @@ class BigQueryDeleteTableOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.deletion_dataset_table = deletion_dataset_table
         self.gcp_conn_id = gcp_conn_id
@@ -1848,8 +1761,6 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :param project_id: The name of the project where we want to update the dataset.
         Don't need to provide, if projectId in dataset_reference.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
@@ -1879,22 +1790,12 @@ class BigQueryUpsertTableOperator(BaseOperator):
         table_resource: dict,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.dataset_id = dataset_id
         self.table_resource = table_resource
@@ -1907,7 +1808,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
         hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,

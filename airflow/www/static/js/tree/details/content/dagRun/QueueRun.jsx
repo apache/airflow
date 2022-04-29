@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useQueueRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const QueueRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -30,24 +33,16 @@ const QueueRun = ({ dagId, runId }) => {
 
   // Get what the changes will be and show it in a modal
   const onClick = async () => {
-    try {
-      const data = await onQueue({ confirmed: false });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await onQueue({ confirmed: false });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   // Confirm changes
   const onConfirm = async () => {
-    try {
-      await onQueue({ confirmed: true });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await onQueue({ confirmed: true });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
@@ -57,6 +52,7 @@ const QueueRun = ({ dagId, runId }) => {
         isLoading={isLoading}
         ml="5px"
         title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
+        isDisabled={!canEdit}
       >
         Queue up new tasks
       </Button>
@@ -64,6 +60,7 @@ const QueueRun = ({ dagId, runId }) => {
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to queue:"
         body={affectedTasks}
       />

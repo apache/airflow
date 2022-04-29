@@ -28,12 +28,16 @@ import {
 import ActionButton from './ActionButton';
 import ConfirmDialog from '../../ConfirmDialog';
 import { useClearTask } from '../../../../api';
+import { getMetaValue } from '../../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const Run = ({
   dagId,
   runId,
   taskId,
   executionDate,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -64,44 +68,38 @@ const Run = ({
   });
 
   const onClick = async () => {
-    try {
-      const data = await clearTask({
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        failed,
-        confirmed: false,
-      });
-      setAffectedTasks(data);
-      onOpen();
-    } catch (e) {
-      console.error(e);
-    }
+    const data = await clearTask({
+      past,
+      future,
+      upstream,
+      downstream,
+      recursive,
+      failed,
+      confirmed: false,
+      mapIndexes,
+    });
+    setAffectedTasks(data);
+    onOpen();
   };
 
   const onConfirm = async () => {
-    try {
-      await clearTask({
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        failed,
-        confirmed: true,
-      });
-      setAffectedTasks([]);
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
+    await clearTask({
+      past,
+      future,
+      upstream,
+      downstream,
+      recursive,
+      failed,
+      confirmed: true,
+      mapIndexes,
+    });
+    setAffectedTasks([]);
+    onClose();
   };
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
@@ -113,6 +111,7 @@ const Run = ({
         colorScheme="blue"
         onClick={onClick}
         isLoading={isLoading}
+        isDisabled={!canEdit}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear
@@ -121,6 +120,7 @@ const Run = ({
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
+        isLoading={isLoading}
         description="Task instances you are about to clear:"
         body={affectedTasks}
       />

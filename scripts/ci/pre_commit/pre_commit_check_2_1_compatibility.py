@@ -35,6 +35,7 @@ errors: List[str] = []
 
 GET_ATTR_MATCHER = re.compile(r".*getattr\((ti|TI), ['\"]run_id['\"]\).*")
 TI_RUN_ID_MATCHER = re.compile(r".*(ti|TI)\.run_id.*")
+TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")
 
 
 def _check_file(_file: Path):
@@ -78,6 +79,15 @@ def _check_file(_file: Path):
                 f"(Airflow 2.3+ only):[/]\n\n"
                 f"{lines[index]}\n\n"
                 f"[yellow]You should not use map_index field in providers "
+                f"as it is not available in Airflow 2.2[/]"
+            )
+
+        if TRY_NUM_MATCHER.match(line):
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                f"(Airflow 2.3+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                f"[yellow]You should not expect try_number field for context in providers "
                 f"as it is not available in Airflow 2.2[/]"
             )
 

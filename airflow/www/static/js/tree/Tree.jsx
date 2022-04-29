@@ -17,9 +17,9 @@
  * under the License.
  */
 
-/* global localStorage */
+/* global localStorage, ResizeObserver */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Table,
   Tbody,
@@ -42,40 +42,47 @@ import Details from './details';
 import { useSelection } from './context/selection';
 import { useAutoRefresh } from './context/autorefresh';
 
-const sidePanelKey = 'showSidePanel';
+const sidePanelKey = 'hideSidePanel';
 
 const Tree = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
-  const [tableWidth, setTableWidth] = useState('100%');
   const { data: { groups = {}, dagRuns = [] } } = useTreeData();
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
-  const isPanelOpen = JSON.parse(localStorage.getItem(sidePanelKey));
+  const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const { clearSelection } = useSelection();
   const toggleSidePanel = () => {
     if (!isOpen) {
-      localStorage.setItem(sidePanelKey, true);
+      localStorage.setItem(sidePanelKey, false);
     } else {
       clearSelection();
-      localStorage.setItem(sidePanelKey, false);
+      localStorage.setItem(sidePanelKey, true);
     }
     onToggle();
   };
 
-  const dagRunIds = dagRuns.map((dr) => dr.runId);
+  const scrollOnResize = new ResizeObserver(() => {
+    const runsContainer = scrollRef.current;
+    // Set scroll to top right if it is scrollable
+    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+      runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
+    }
+  });
 
   useEffect(() => {
     if (tableRef && tableRef.current) {
-      setTableWidth(tableRef.current.offsetWidth);
-      const runsContainer = scrollRef.current;
-      // Set initial scroll to top right if it is scrollable
-      if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-        runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
-      }
+      const table = tableRef.current;
+
+      scrollOnResize.observe(table);
+      return () => {
+        scrollOnResize.unobserve(table);
+      };
     }
-  }, [tableRef, isOpen]);
+    return () => {};
+  }, [tableRef, scrollOnResize]);
 
   return (
     <Box>
@@ -116,12 +123,12 @@ const Tree = () => {
         >
           <Table>
             <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-              <DagRuns tableWidth={tableWidth} />
+              <DagRuns />
             </Thead>
             {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
             <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
               {renderTaskRows({
-                task: groups, dagRunIds, tableWidth,
+                task: groups, dagRunIds,
               })}
             </Tbody>
           </Table>

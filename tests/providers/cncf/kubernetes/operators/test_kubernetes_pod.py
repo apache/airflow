@@ -17,26 +17,45 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
+from tests.test_utils import db
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
+KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
 
 
-def create_context(task):
-    dag = DAG(dag_id="dag")
+@pytest.fixture(scope='function', autouse=True)
+def clear_db():
+    db.clear_db_dags()
+    db.clear_db_runs()
+    yield
+
+
+def create_context(task, persist_to_db=False):
+    dag = task.dag if task.has_dag() else DAG(dag_id="dag")
     dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), run_type=DagRunType.MANUAL
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+        run_type=DagRunType.MANUAL,
+        dag_id=dag.dag_id,
     )
     task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
+    if persist_to_db:
+        with create_session() as session:
+            session.add(DagModel(dag_id=dag.dag_id))
+            session.add(dag_run)
+            session.add(task_instance)
+            session.commit()
     return {
         "dag": dag,
         "ts": DEFAULT_DATE.isoformat(),
@@ -777,36 +796,8 @@ class TestKubernetesPodOperator:
         assert 'already_checked!=True' in kwargs['label_selector']
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
-        ".KubernetesPodOperator.patch_already_checked"
-    )
-    def test_mark_created_pod_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod):
-        """If we aren't deleting pods and have a failure, mark it so we don't reattach to it"""
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            name="test",
-            task_id="task",
-            is_delete_operator_pod=False,
-        )
-        remote_pod_mock = MagicMock()
-        remote_pod_mock.status.phase = 'Failed'
-        self.await_pod_mock.return_value = remote_pod_mock
-        context = create_context(k)
-        with pytest.raises(AirflowException):
-            k.execute(context=context)
-        mock_patch_already_checked.assert_called_once()
-        mock_delete_pod.assert_not_called()
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
-        ".KubernetesPodOperator.patch_already_checked"
-    )
-    def test_mark_created_pod_if_not_deleted_during_exception(
-        self, mock_patch_already_checked, mock_delete_pod
-    ):
+    @mock.patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
+    def test_mark_checked_unexpected_exception(self, mock_patch_already_checked, mock_delete_pod):
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             namespace="default",
@@ -822,26 +813,28 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    @pytest.mark.parametrize('should_fail', [True, False])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators."
-        "kubernetes_pod.KubernetesPodOperator.patch_already_checked"
-    )
-    def test_mark_reattached_pod_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod):
-        """If we aren't deleting pods and have a failure, mark it so we don't reattach to it"""
+    @mock.patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
+    def test_mark_checked_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod, should_fail):
+        """If we aren't deleting pods mark "checked" if the task completes (successful or otherwise)"""
+        dag = DAG('hello2', start_date=pendulum.now())
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
             name="test",
             task_id="task",
             is_delete_operator_pod=False,
+            dag=dag,
         )
         remote_pod_mock = MagicMock()
-        remote_pod_mock.status.phase = 'Failed'
+        remote_pod_mock.status.phase = 'Failed' if should_fail else 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
-
-        context = create_context(k)
-        with pytest.raises(AirflowException):
+        context = create_context(k, persist_to_db=True)
+        if should_fail:
+            with pytest.raises(AirflowException):
+                k.execute(context=context)
+        else:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()

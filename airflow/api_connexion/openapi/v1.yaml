@@ -3013,6 +3013,9 @@ components:
         depends_on_past:
           type: boolean
           readOnly: true
+        is_mapped:
+          type: boolean
+          readOnly: true
         wait_for_downstream:
           type: boolean
           readOnly: true

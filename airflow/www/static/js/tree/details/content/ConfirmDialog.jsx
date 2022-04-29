@@ -33,7 +33,7 @@ import {
 import { useContainerRef } from '../../context/containerRef';
 
 const ConfirmDialog = ({
-  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm,
+  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm, isLoading = false,
 }) => {
   const initialFocusRef = useRef();
   const containerRef = useContainerRef();
@@ -55,14 +55,14 @@ const ConfirmDialog = ({
 
           <AlertDialogBody>
             <Text mb={2}>{description}</Text>
-            {body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
+            {Array.isArray(body) && body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
           </AlertDialogBody>
 
           <AlertDialogFooter>
             <Button onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef}>
+            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef} isLoading={isLoading}>
               Confirm
             </Button>
           </AlertDialogFooter>
