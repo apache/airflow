@@ -3867,8 +3867,8 @@ class ConnectionFormWidget(FormWidget):
     def testable_connection_types(self):
         return [
             connection_type
-            for connection_type, provider_info in ProvidersManager().hooks.items()
-            if provider_info.connection_testable
+            for connection_type, hook_info in ProvidersManager().hooks.items()
+            if hook_info and hook_info.connection_testable
         ]
 
 
