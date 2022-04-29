@@ -73,7 +73,7 @@ def create_docker(txt: str):
     print(
         """\
         docker build -f Dockerfile.pmc --tag local/airflow .
-        docker run local/airflow airflow info
+        docker run --rm local/airflow airflow info
         """
     )
 
