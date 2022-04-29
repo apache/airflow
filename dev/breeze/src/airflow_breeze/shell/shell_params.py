@@ -22,6 +22,7 @@ from typing import Optional, Tuple
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -51,6 +52,7 @@ class ShellParams:
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     backend: str = ALLOWED_BACKENDS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     dry_run: bool = False
     load_example_dags: bool = False
     load_default_connections: bool = False
@@ -156,7 +158,12 @@ class ShellParams:
     def compose_files(self):
         compose_ci_file = []
         main_ci_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/base.yml"
-        backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}.yml"
+        if self.backend == "mssql":
+            backend_docker_compose_file = (
+                f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-{self.debian_version}.yml"
+            )
+        else:
+            backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}.yml"
         backend_port_docker_compose_file = (
             f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-port.yml"
         )
