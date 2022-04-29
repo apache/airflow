@@ -124,6 +124,8 @@ Breaking changes
   ``GCSToLocalFilesystemOperator``
   ``LocalFilesystemToGCSOperator``
 
+* ``S3ToGCSOperator``: Remove ``dest_gcs_conn_id``. Please use ``gcp_conn_id``
+
 * ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``.
 
 * ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``.
