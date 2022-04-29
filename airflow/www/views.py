@@ -3748,7 +3748,7 @@ class XComModelView(AirflowModelView):
     ]
 
     search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'map_index']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'map_index', 'execution_date']
     base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -3758,6 +3758,7 @@ class XComModelView(AirflowModelView):
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
         'map_index': wwwutils.format_map_index,
+        'execution_date': wwwutils.datetime_f('execution_date'),
     }
 
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
