@@ -17,6 +17,7 @@
 import inspect
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import textwrap
@@ -985,7 +986,8 @@ class TestDagBag:
         test that file processing results in import error when task does not
         obey cluster policy and has owner whose type is not string.
         """
-        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_nonstring_owner.py")
+        TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name('dags_corrupted')
+        dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
 
         dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
         assert set() == set(dagbag.dag_ids)
