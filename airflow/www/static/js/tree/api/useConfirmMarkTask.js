@@ -20,7 +20,7 @@
 import axios from 'axios';
 import { useMutation } from 'react-query';
 import { getMetaValue } from '../../utils';
-import useErrorToast from '../useErrorToast';
+import useErrorToast from '../utils/useErrorToast';
 
 const confirmUrl = getMetaValue('confirm_url');
 

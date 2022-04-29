@@ -24,10 +24,10 @@ import { render } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment-timezone';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 import DagRuns from './index';
 import { ContainerRefProvider } from '../context/containerRef';
-import { SelectionProvider } from '../context/selection';
 import { TimezoneProvider } from '../context/timezone';
 import { AutoRefreshProvider } from '../context/autorefresh';
 
@@ -42,13 +42,13 @@ const Wrapper = ({ children }) => {
           <ContainerRefProvider value={{}}>
             <TimezoneProvider value={{ timezone: 'UTC' }}>
               <AutoRefreshProvider value={{ isRefreshOn: false, stopRefresh: () => {} }}>
-                <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+                <MemoryRouter>
                   <Table>
                     <Tbody>
                       {children}
                     </Tbody>
                   </Table>
-                </SelectionProvider>
+                </MemoryRouter>
               </AutoRefreshProvider>
             </TimezoneProvider>
           </ContainerRefProvider>

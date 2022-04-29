@@ -24,8 +24,8 @@ import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { formatData, areActiveRuns } from '../treeDataUtils';
-import useErrorToast from '../useErrorToast';
+import { formatData, areActiveRuns } from '../utils/treeData';
+import useErrorToast from '../utils/useErrorToast';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
