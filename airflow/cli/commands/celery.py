@@ -77,7 +77,11 @@ def celery():
     """,
 )
 @click.option(
-    "-u", "--url-prefix", default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
+    "-u",
+    "--url-prefix",
+    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    metavar="URL_PREFIX",
+    help="URL prefix for Flower",
 )
 @click.option(
     "-A",

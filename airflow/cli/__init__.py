@@ -61,6 +61,7 @@ click_execution_date_or_run_id = click.argument(
 click_log_file = click.option(
     "-l",
     "--log-file",
+    metavar="LOG_FILE",
     type=click.Path(exists=False, dir_okay=False, writable=True),
     help="Location of the log file",
 )
