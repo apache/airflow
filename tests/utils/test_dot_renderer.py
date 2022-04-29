@@ -107,7 +107,7 @@ class TestDotRenderer:
             'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]' in source
         )
 
-    def test_should_render_dag_with_abstract_mapped_operator(self, session, dag_maker):
+    def test_should_render_dag_with_mapped_operator(self, session, dag_maker):
         with dag_maker(dag_id="DAG_ID", session=session) as dag:
             BashOperator.partial(task_id="first").expand(bash_command=["echo hello", "echo world"])
 
