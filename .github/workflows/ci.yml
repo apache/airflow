@@ -633,9 +633,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: false
-          # TODO(potiuk): check why the SVG images in CI suddenly started to be different
-          # than locally even with new rich 12.3.0 ?????
-          SKIP: "identity,update-breeze-file"
+          SKIP: "identity"
           COLUMNS: 250
       - name: "Fix ownership"
         run: breeze fix-ownership
