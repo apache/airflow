@@ -22,6 +22,8 @@ import os
 import unittest
 from typing import Dict, Set
 
+import pytest
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
@@ -133,31 +135,35 @@ def filepath_to_module(filepath: str):
     return filepath.replace("/", ".")[: -(len('.py'))]
 
 
-class ProjectStructureTest:
-    PROVIDER = "dummy"
-    OPERATOR_DIRS = {"operators", "sensors", "transfers"}
+def print_sorted(container: Set, indent: str = "    ") -> None:
+    sorted_container = sorted(container)
+    print(f"{indent}" + f"\n{indent}".join(sorted_container))
 
-    def operator_paths(self):
-        """Override this method if your operators are located under different paths"""
-        for resource_type in self.OPERATOR_DIRS:
+
+class ProjectStructureTest:
+    PROVIDER = "blank"
+    CLASS_DIRS = {"operators", "sensors", "transfers"}
+    CLASS_SUFFIXES = ["Operator", "Sensor"]
+
+    def class_paths(self):
+        """Override this method if your classes are located under different paths"""
+        for resource_type in self.CLASS_DIRS:
             python_files = glob.glob(
-                f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/*/{resource_type}/**.py"
+                f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/**/{resource_type}/**.py", recursive=True
             )
             # Make path relative
             resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in python_files)
-            # Exclude __init__.py and pycache
             resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
             yield from resource_files
 
-    def list_of_operators(self):
-        all_operators = {}
-        for operator_file in self.operator_paths():
+    def list_of_classes(self):
+        classes = {}
+        for operator_file in self.class_paths():
             operators_paths = self.get_classes_from_file(f"{ROOT_FOLDER}/{operator_file}")
-            all_operators.update(operators_paths)
-        return all_operators
+            classes.update(operators_paths)
+        return classes
 
-    @staticmethod
-    def get_classes_from_file(filepath: str):
+    def get_classes_from_file(self, filepath: str):
         with open(filepath) as py_file:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
@@ -167,63 +173,76 @@ class ProjectStructureTest:
             if not isinstance(current_node, ast.ClassDef):
                 continue
             name = current_node.name
-            if (
-                not name.endswith("Operator")
-                and not name.endswith("Sensor")
-                and not name.endswith("Operator")
-            ):
+            if not any(name.endswith(suffix) for suffix in self.CLASS_SUFFIXES):
                 continue
             results[f"{module}.{name}"] = current_node
         return results
 
 
 class ExampleCoverageTest(ProjectStructureTest):
+    """Checks that every operator is covered by example"""
+
     # Those operators are deprecated, so we do not need examples for them
-    DEPRECATED_OPERATORS: Set = set()
+    DEPRECATED_CLASSES: Set = set()
 
     # Those operators should not have examples as they are never used standalone (they are abstract)
-    BASE_OPERATORS: Set = set()
+    BASE_CLASSES: Set = set()
 
     # Please add the examples to those operators at the earliest convenience :)
-    MISSING_EXAMPLES_FOR_OPERATORS: Set = set()
+    MISSING_EXAMPLES_FOR_CLASSES: Set = set()
 
     def example_paths(self):
         """Override this method if your example dags are located elsewhere"""
         # old_design:
-        yield from glob.glob(f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/*/example_dags/example_*.py")
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/**/example_dags/example_*.py", recursive=True
+        )
         # new_design:
-        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/{self.PROVIDER}/**/example_*.py")
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/tests/system/providers/{self.PROVIDER}/**/example_*.py", recursive=True
+        )
 
-    def test_missing_example_for_operator(self):
+    def test_missing_examples(self):
         """
         Assert that all operators defined under operators, sensors and transfers directories
         are used in any of the example dags
         """
-        all_operators = self.list_of_operators()
-        all_operators = set(all_operators.keys())
+        classes = self.list_of_classes()
+        assert 0 != len(classes), "Failed to retrieve operators, override class_paths if needed"
+        classes = set(classes.keys())
         for example in self.example_paths():
-            all_operators -= get_imports_from_file(example)
+            classes -= get_imports_from_file(example)
 
-        covered_but_omitted = self.MISSING_EXAMPLES_FOR_OPERATORS - all_operators
-        all_operators -= self.MISSING_EXAMPLES_FOR_OPERATORS
-        all_operators -= self.DEPRECATED_OPERATORS
-        all_operators -= self.BASE_OPERATORS
-        assert set() == all_operators, (
-            "Not all operators are covered with example dags. "
-            "Update self.MISSING_EXAMPLES_FOR_OPERATORS if you want to skip this error"
-        )
-        assert set() == covered_but_omitted, "Operator listed in missing examples but is used in example dag"
+        covered_but_omitted = self.MISSING_EXAMPLES_FOR_CLASSES - classes
+        classes -= self.MISSING_EXAMPLES_FOR_CLASSES
+        classes -= self.DEPRECATED_CLASSES
+        classes -= self.BASE_CLASSES
+        if set() != classes:
+            print("Classes with missing examples:")
+            print_sorted(classes)
+            pytest.fail(
+                "Not all classes are covered with example dags. Update self.MISSING_EXAMPLES_FOR_CLASSES "
+                "if you want to skip this error"
+            )
+        if set() != covered_but_omitted:
+            print("Covered classes that are listed as missing:")
+            print_sorted(covered_but_omitted)
+            pytest.fail("Operator listed in missing examples but is used in example dag")
 
 
 class AssetsCoverageTest(ProjectStructureTest):
+    """Checks that every operator have operator_extra_links attribute"""
 
     # These operators should not have assets
     ASSETS_NOT_REQUIRED: Set = set()
 
-    def test_missing_assets_for_operator(self):
-        all_operators = self.list_of_operators()
+    # Please add assets to following classes
+    MISSING_ASSETS_FOR_CLASSES: Set = set()
+
+    def test_missing_assets(self):
+        classes = self.list_of_classes()
         assets, no_assets = set(), set()
-        for name, operator in all_operators.items():
+        for name, operator in classes.items():
             for attr in operator.body:
                 if (
                     isinstance(attr, ast.Assign)
@@ -237,16 +256,22 @@ class AssetsCoverageTest(ProjectStructureTest):
 
         asset_should_be_missing = self.ASSETS_NOT_REQUIRED - no_assets
         no_assets -= self.ASSETS_NOT_REQUIRED
-        # TODO: (bhirsz): uncomment when we reach full coverage
-        # assert set() == no_assets, "Operator is missing assets"
-        assert set() == asset_should_be_missing, "Operator should not have assets"
+        no_assets -= self.MISSING_ASSETS_FOR_CLASSES
+        if set() != no_assets:
+            print("Classes with missing assets:")
+            print_sorted(no_assets)
+            pytest.fail("Some classes are missing assets")
+        if set() != asset_should_be_missing:
+            print("Classes that should not have assets:")
+            print_sorted(asset_should_be_missing)
+            pytest.fail("Class should not have assets")
 
 
 class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest):
     PROVIDER = "google"
-    OPERATOR_DIRS = ProjectStructureTest.OPERATOR_DIRS | {"operators/vertex_ai"}
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS | {"operators/vertex_ai"}
 
-    DEPRECATED_OPERATORS = {
+    DEPRECATED_CLASSES = {
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceS3ToGCSOperator',
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
@@ -266,14 +291,14 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         'airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator',
     }
 
-    BASE_OPERATORS = {
+    BASE_CLASSES = {
         'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator',
         'airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator',
     }
 
-    MISSING_EXAMPLES_FOR_OPERATORS = {
+    MISSING_EXAMPLES_FOR_CLASSES = {
         'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
@@ -307,7 +332,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     # These operators should not have assets
-    MISSING_ASSETS_FOR_OPERATORS = {
+    ASSETS_NOT_REQUIRED = {
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator',
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator',
         'airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator',
@@ -389,6 +414,20 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         'GoogleDisplayVideo360ReportSensor',
         'airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor',
     }
+
+    @pytest.mark.xfail(reason="We did not reach full coverage yet")
+    def test_missing_assets(self):
+        super().test_missing_assets()
+
+
+class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "elasticsearch"
+    CLASS_DIRS = {"hooks"}
+    CLASS_SUFFIXES = ["Hook"]
+
+
+class TestDockerProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "docker"
 
 
 class TestOperatorsHooks(unittest.TestCase):
