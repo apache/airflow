@@ -20,9 +20,7 @@ import itertools
 import mmap
 import os
 import unittest
-from typing import Dict, List, Optional, Set
-
-from parameterized import parameterized
+from typing import Dict, Set
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -119,14 +117,14 @@ def get_imports_from_file(filepath: str):
     with open(filepath) as py_file:
         content = py_file.read()
     doc_node = ast.parse(content, filepath)
-    import_names: List[str] = []
+    import_names: Set[str] = set()
     for current_node in ast.walk(doc_node):
         if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
             continue
         for alias in current_node.names:
             name = alias.name
             fullname = f'{current_node.module}.{name}' if isinstance(current_node, ast.ImportFrom) else name
-            import_names.append(fullname)
+            import_names.add(fullname)
     return import_names
 
 
@@ -135,33 +133,119 @@ def filepath_to_module(filepath: str):
     return filepath.replace("/", ".")[: -(len('.py'))]
 
 
-def get_classes_from_file(filepath: str):
-    with open(filepath) as py_file:
-        content = py_file.read()
-    doc_node = ast.parse(content, filepath)
-    module = filepath_to_module(filepath)
-    results: Dict = {}
-    for current_node in ast.walk(doc_node):
-        if not isinstance(current_node, ast.ClassDef):
-            continue
-        name = current_node.name
-        if not name.endswith("Operator") and not name.endswith("Sensor") and not name.endswith("Operator"):
-            continue
-        results[f"{module}.{name}"] = current_node
-    return results
+class ProjectStructureTest:
+    PROVIDER = "dummy"
+    OPERATOR_DIRS = {"operators", "sensors", "transfers"}
+
+    def operator_paths(self):
+        """Override this method if your operators are located under different paths"""
+        for resource_type in self.OPERATOR_DIRS:
+            python_files = glob.glob(
+                f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/*/{resource_type}/**.py"
+            )
+            # Make path relative
+            resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in python_files)
+            # Exclude __init__.py and pycache
+            resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
+            yield from resource_files
+
+    def list_of_operators(self):
+        all_operators = {}
+        for operator_file in self.operator_paths():
+            operators_paths = self.get_classes_from_file(f"{ROOT_FOLDER}/{operator_file}")
+            all_operators.update(operators_paths)
+        return all_operators
+
+    @staticmethod
+    def get_classes_from_file(filepath: str):
+        with open(filepath) as py_file:
+            content = py_file.read()
+        doc_node = ast.parse(content, filepath)
+        module = filepath_to_module(filepath)
+        results: Dict = {}
+        for current_node in ast.walk(doc_node):
+            if not isinstance(current_node, ast.ClassDef):
+                continue
+            name = current_node.name
+            if (
+                not name.endswith("Operator")
+                and not name.endswith("Sensor")
+                and not name.endswith("Operator")
+            ):
+                continue
+            results[f"{module}.{name}"] = current_node
+        return results
 
 
-class TestGoogleProviderProjectStructure(unittest.TestCase):
-    MISSING_EXAMPLE_DAGS = {
-        'adls_to_gcs',
-        'sql_to_gcs',
-        'bigquery_to_mysql',
-        'cassandra_to_gcs',
-        'drive',
-        'ads_to_gcs',
-    }
+class ExampleCoverageTest(ProjectStructureTest):
+    # Those operators are deprecated, so we do not need examples for them
+    DEPRECATED_OPERATORS: Set = set()
 
-    # Those operators are deprecated and we do not need examples for them
+    # Those operators should not have examples as they are never used standalone (they are abstract)
+    BASE_OPERATORS: Set = set()
+
+    # Please add the examples to those operators at the earliest convenience :)
+    MISSING_EXAMPLES_FOR_OPERATORS: Set = set()
+
+    def example_paths(self):
+        """Override this method if your example dags are located elsewhere"""
+        # old_design:
+        yield from glob.glob(f"{ROOT_FOLDER}/airflow/providers/{self.PROVIDER}/*/example_dags/example_*.py")
+        # new_design:
+        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/{self.PROVIDER}/**/example_*.py")
+
+    def test_missing_example_for_operator(self):
+        """
+        Assert that all operators defined under operators, sensors and transfers directories
+        are used in any of the example dags
+        """
+        all_operators = self.list_of_operators()
+        all_operators = set(all_operators.keys())
+        for example in self.example_paths():
+            all_operators -= get_imports_from_file(example)
+
+        covered_but_omitted = self.MISSING_EXAMPLES_FOR_OPERATORS - all_operators
+        all_operators -= self.MISSING_EXAMPLES_FOR_OPERATORS
+        all_operators -= self.DEPRECATED_OPERATORS
+        all_operators -= self.BASE_OPERATORS
+        assert set() == all_operators, (
+            "Not all operators are covered with example dags. "
+            "Update self.MISSING_EXAMPLES_FOR_OPERATORS if you want to skip this error"
+        )
+        assert set() == covered_but_omitted, "Operator listed in missing examples but is used in example dag"
+
+
+class AssetsCoverageTest(ProjectStructureTest):
+
+    # These operators should not have assets
+    ASSETS_NOT_REQUIRED: Set = set()
+
+    def test_missing_assets_for_operator(self):
+        all_operators = self.list_of_operators()
+        assets, no_assets = set(), set()
+        for name, operator in all_operators.items():
+            for attr in operator.body:
+                if (
+                    isinstance(attr, ast.Assign)
+                    and attr.targets
+                    and getattr(attr.targets[0], "id", "") == "operator_extra_links"
+                ):
+                    assets.add(name)
+                    break
+            else:
+                no_assets.add(name)
+
+        asset_should_be_missing = self.ASSETS_NOT_REQUIRED - no_assets
+        no_assets -= self.ASSETS_NOT_REQUIRED
+        # TODO: (bhirsz): uncomment when we reach full coverage
+        # assert set() == no_assets, "Operator is missing assets"
+        assert set() == asset_should_be_missing, "Operator should not have assets"
+
+
+class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest):
+    PROVIDER = "google"
+    OPERATOR_DIRS = ProjectStructureTest.OPERATOR_DIRS | {"operators/vertex_ai"}
+
     DEPRECATED_OPERATORS = {
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceS3ToGCSOperator',
@@ -182,16 +266,14 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator',
     }
 
-    # Those operators should not have examples as they are never used standalone (they are abstract)
     BASE_OPERATORS = {
         'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator',
+        'airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator',
     }
 
-    # Please at the examples to those operators at the earliest convenience :)
     MISSING_EXAMPLES_FOR_OPERATORS = {
-        'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator',
         'airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator',
@@ -213,6 +295,15 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
+        'airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator',
+        'airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator',
+        'airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator',
+        'airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator',
+        'airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator',
+        'airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator',
+        'airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator',
+        'airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.'
+        'GetBatchPredictionJobOperator',
     }
 
     # These operators should not have assets
@@ -298,102 +389,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'GoogleDisplayVideo360ReportSensor',
         'airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor',
     }
-
-    def list_of_operators(self, skip_services: Optional[Set] = None):
-        all_operators = {}
-        services = set()
-        for resource_type in ["operators", "sensors", "transfers", "operators/vertex_ai"]:
-            operator_files = set(
-                self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
-            )
-            for filepath in operator_files:
-                service_name = os.path.basename(filepath)[: -(len(".py"))]
-                if skip_services and service_name in skip_services:
-                    continue
-                services.add(service_name)
-                operators_paths = get_classes_from_file(f"{ROOT_FOLDER}/{filepath}")
-                all_operators.update(operators_paths)
-        return services, all_operators
-
-    def test_missing_example_for_operator(self):
-        """
-        Assert that all operators defined under operators, sensors and transfers directories
-        are used in any of the example dags
-        """
-        services, all_operators = self.list_of_operators(skip_services=self.MISSING_EXAMPLE_DAGS)
-        all_operators = set(all_operators.keys())
-        for service in services:
-            example_dags = self.examples_for_service(service)
-            example_paths = {
-                path for example_dag in example_dags for path in get_imports_from_file(example_dag)
-            }
-            all_operators -= example_paths
-
-        all_operators -= self.MISSING_EXAMPLES_FOR_OPERATORS
-        all_operators -= self.DEPRECATED_OPERATORS
-        all_operators -= self.BASE_OPERATORS
-        assert set() == all_operators
-
-    def test_missing_assets_for_operator(self):
-        services, all_operators = self.list_of_operators()
-        assets, no_assets = set(), set()
-        for name, operator in all_operators.items():
-            for attr in operator.body:
-                if (
-                    isinstance(attr, ast.Assign)
-                    and attr.targets
-                    and getattr(attr.targets[0], "id", "") == "operator_extra_links"
-                ):
-                    assets.add(name)
-                    break
-            else:
-                no_assets.add(name)
-
-        asset_should_be_missing = self.MISSING_ASSETS_FOR_OPERATORS - no_assets
-        no_assets -= self.MISSING_ASSETS_FOR_OPERATORS
-        # TODO: (bhirsz): uncomment when we reach full coverage
-        # assert set() == no_assets, "Operator is missing assets"
-        assert set() == asset_should_be_missing, "Operator should not have assets"
-
-    @parameterized.expand(
-        itertools.product(
-            ["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers", "operators/vertex_ai"]
-        )
-    )
-    def test_detect_invalid_system_tests(self, resource_type, filename_suffix):
-        operators_tests = self.find_resource_files(top_level_directory="tests", resource_type=resource_type)
-        operators_files = self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
-
-        files = {f for f in operators_tests if f.endswith(filename_suffix)}
-
-        expected_files = (f"tests/{f[8:]}" for f in operators_files)
-        expected_files = (f.replace(".py", filename_suffix).replace("/test_", "/") for f in expected_files)
-        expected_files = {f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}' for f in expected_files}
-
-        assert set() == files - expected_files
-
-    @staticmethod
-    def find_resource_files(
-        top_level_directory: str = "airflow",
-        department: str = "*",
-        resource_type: str = "*",
-        service: str = "*",
-    ):
-        python_files = glob.glob(
-            f"{ROOT_FOLDER}/{top_level_directory}/providers/google/{department}/{resource_type}/{service}.py"
-        )
-        # Make path relative
-        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in python_files)
-        # Exclude __init__.py and pycache
-        resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
-        return resource_files
-
-    @staticmethod
-    def examples_for_service(service_name):
-        yield from glob.glob(
-            f"{ROOT_FOLDER}/airflow/providers/google/*/example_dags/example_{service_name}*.py"
-        )
-        yield from glob.glob(f"{ROOT_FOLDER}/tests/system/providers/google/{service_name}/example_*.py")
 
 
 class TestOperatorsHooks(unittest.TestCase):
