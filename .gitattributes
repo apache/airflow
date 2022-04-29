@@ -1,20 +1,15 @@
-airflow/providers export-ignore
 breeze export-ignore
 breeze-legacy export-ignore
 breeze-complete export-ignore
-chart export-ignore
 clients export-ignore
 clients export-ignore
 dev export-ignore
 docker-context-files export-ignore
 docker_tests export-ignore
-docs/apache-airflow-providers* export-ignore
-docs/helm-chart export-ignore
 empty export-ignore
 kubernetes_tests export-ignore
 manifests export-ignore
 newsfragments export-ignore
-provider_packages export-ignore
 scripts export-ignore
 tests export-ignore
 
