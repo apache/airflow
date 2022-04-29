@@ -810,13 +810,6 @@ class DataprocHook(GoogleBaseHook):
             ``retry`` is specified, the timeout applies to each individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
-        if region is None:
-            warnings.warn(
-                "Default region value `global` will be deprecated. Please, provide region value.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = 'global'
         client = self.get_job_client(region=region)
 
         job = client.cancel_job(
