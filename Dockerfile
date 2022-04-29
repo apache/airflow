@@ -1575,5 +1575,5 @@ LABEL org.apache.airflow.distro="debian" \
   io.artifacthub.package.license='Apache-2.0' \
   io.artifacthub.package.readme-url='${AIRFLOW_IMAGE_README_URL}'
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
+ENTRYPOINT ["/usr/bin/dumb-init", "-c", "--", "/entrypoint"]
 CMD []
