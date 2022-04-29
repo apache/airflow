@@ -54,6 +54,7 @@ sensors:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.sensors.tableau_job_status
+      - airflow.providers.tableau.sensors.tableau
 
 hooks:
   - integration-name: Tableau
