@@ -284,8 +284,7 @@ class GCSToGCSOperator(BaseOperator):
                 delimiter=delimiter,
             )
             existing_objects = [
-                dest_object.replace(self.destination_object, prefix, 1)
-                for dest_object in destination_objects
+                dest_object.replace(self.destination_object, prefix, 1) for dest_object in destination_objects
             ]
 
         objects = set(objects) - set(existing_objects)
