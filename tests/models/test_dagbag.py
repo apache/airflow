@@ -980,6 +980,25 @@ class TestDagBag:
         assert expected_import_errors == dagbag.import_errors
 
     @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    def test_task_cluster_policy_nonstring_owner(self):
+        """
+        test that file processing results in import error when task does not
+        obey cluster policy and has owner whose type is not string.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_nonstring_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        assert set() == set(dagbag.dag_ids)
+        expected_import_errors = {
+            dag_file: (
+                f"""DAG policy violation (DAG ID: test_nonstring_owner, Path: {dag_file}):\n"""
+                """Notices:\n"""
+                """ * owner should be a string. Current value: ['a']"""
+            )
+        }
+        assert expected_import_errors == dagbag.import_errors
+
+    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
     def test_task_cluster_policy_obeyed(self):
         """
         test that dag successfully imported without import errors when tasks
