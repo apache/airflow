@@ -19,6 +19,7 @@
 import re
 from collections import namedtuple
 from time import sleep
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from azure.mgmt.containerinstance.models import (
