@@ -23,7 +23,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 
 import renderTaskRows from './renderTaskRows';
-import { TableWrapper } from './testUtils';
+import { TableWrapper } from './utils/testUtils';
 
 const mockTreeData = {
   groups: {

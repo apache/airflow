@@ -19,7 +19,7 @@
 
 import { renderHook } from '@testing-library/react-hooks';
 import useTreeData from './useTreeData';
-import Wrapper from '../testUtils';
+import Wrapper from '../utils/testUtils';
 
 /* global describe, test, expect, beforeAll */
 

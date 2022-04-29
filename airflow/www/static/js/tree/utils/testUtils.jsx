@@ -24,9 +24,9 @@ import { MemoryRouter } from 'react-router-dom';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import moment from 'moment-timezone';
 
-import { ContainerRefProvider } from './context/containerRef';
-import { TimezoneProvider } from './context/timezone';
-import { AutoRefreshProvider } from './context/autorefresh';
+import { ContainerRefProvider } from '../context/containerRef';
+import { TimezoneProvider } from '../context/timezone';
+import { AutoRefreshProvider } from '../context/autorefresh';
 
 global.moment = moment;
 

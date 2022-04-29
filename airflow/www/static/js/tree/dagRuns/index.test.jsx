@@ -24,7 +24,7 @@ import { render } from '@testing-library/react';
 import moment from 'moment-timezone';
 
 import DagRuns from './index';
-import { TableWrapper } from '../testUtils';
+import { TableWrapper } from '../utils/testUtils';
 
 const dagRuns = [
   {
