@@ -144,12 +144,14 @@ class BuildProdParams:
             self.airflow_branch_for_pypi_preloading = "v2-1-test"
         elif self.airflow_version == 'v2-2-test':
             self.airflow_branch_for_pypi_preloading = "v2-2-test"
-        elif re.match(r'v?2\.0*', self.airflow_version):
+        elif re.match(r'^2\.0.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-0-stable"
-        elif re.match(r'v?2\.1*', self.airflow_version):
+        elif re.match(r'^2\.1.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-1-stable"
-        elif re.match(r'v?2\.2*', self.airflow_version):
+        elif re.match(r'^2\.2.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-2-stable"
+        elif re.match(r'^2\.3.*$', self.airflow_version):
+            self.airflow_branch_for_pypi_preloading = "v2-3-stable"
         else:
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
         return build_args
