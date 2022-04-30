@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.1
 .....
 
-Latest change: 2022-04-29
+Latest change: 2022-04-30
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`11bbe471cd <https://github.com/apache/airflow/commit/11bbe471cd138c39435b612dfda3226959d30257>`_  2022-04-30   ``Prepare documentation for cncf.kubernetes 4.0.1 release (#23374)``
 `8e3abe4180 <https://github.com/apache/airflow/commit/8e3abe418021a3ba241ead1cad79a1c5b492c587>`_  2022-04-29   ``Fix ''KubernetesPodOperator'' with 'KubernetesExecutor'' on 2.3.0 (#23371)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `c7399c7190 <https://github.com/apache/airflow/commit/c7399c7190750ba705b8255b7a92de2554e6eef3>`_  2022-04-21   ``KubernetesHook should try incluster first when not otherwise configured (#23126)``
