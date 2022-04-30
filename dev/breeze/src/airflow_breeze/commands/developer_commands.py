@@ -165,6 +165,7 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--docs-only",
                 "--spellcheck-only",
+                "--for-production",
                 "--package-filter",
             ],
         },
@@ -325,6 +326,12 @@ def start_airflow(
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
     '-p',
+    '--for-production',
+    help="Builds documentation for official release i.e. all links point to stable version.",
+    is_flag=True,
+)
+@click.option(
+    '-p',
     '--package-filter',
     help="List of packages to consider.",
     type=BetterChoice(get_available_packages()),
@@ -336,6 +343,7 @@ def build_docs(
     github_repository: str,
     docs_only: bool,
     spellcheck_only: bool,
+    for_production: bool,
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
@@ -345,6 +353,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
+        for_production=for_production,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = construct_env_variables_docker_compose_command(params)
@@ -476,6 +485,7 @@ class DocBuildParams:
     package_filter: Tuple[str]
     docs_only: bool
     spellcheck_only: bool
+    for_production: bool
 
     @property
     def args_doc_builder(self) -> List[str]:
@@ -484,6 +494,8 @@ class DocBuildParams:
             doc_args.append("--docs-only")
         if self.spellcheck_only:
             doc_args.append("--spellcheck-only")
+        if self.for_production:
+            doc_args.append("--for-production")
         if self.package_filter and len(self.package_filter) > 0:
             for single_filter in self.package_filter:
                 doc_args.extend(["--package-filter", single_filter])
