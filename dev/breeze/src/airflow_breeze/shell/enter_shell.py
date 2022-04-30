@@ -152,18 +152,14 @@ def find_airflow_container(verbose, dry_run) -> Optional[str]:
     env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
     cmd = ['docker-compose', 'ps', '--all', '--filter', 'status=running', 'airflow']
     docker_compose_ps_command = run_command(
-        cmd,
-        verbose=verbose,
-        dry_run=dry_run,
-        text=True,
-        capture_output=True,
-        env=env_variables,
-        # print output if run in verbose mode to better diagnose problems.
-        no_output_dump_on_exception=not verbose,
+        cmd, verbose=verbose, dry_run=dry_run, text=True, capture_output=True, env=env_variables, check=False
     )
     if dry_run:
         return "CONTAINER_ID"
     if docker_compose_ps_command.returncode != 0:
+        if verbose:
+            get_console().print(docker_compose_ps_command.stdout)
+            get_console().print(docker_compose_ps_command.stderr)
         stop_exec_on_error(docker_compose_ps_command.returncode)
         return None
 
