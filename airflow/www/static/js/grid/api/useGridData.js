@@ -42,7 +42,7 @@ const useGridData = () => {
     },
   } = useFilters();
 
-  return useQuery(['useGridData', baseDate, numRuns, runType, runState], async () => {
+  const { data, isSuccess, ...rest } = useQuery(['useGridData', baseDate, numRuns, runType, runState], async () => {
     try {
       const rootParam = urlRoot ? `&root=${urlRoot}` : '';
       const baseDateParam = baseDate ? `&base_date=${baseDate}` : '';
@@ -65,6 +65,13 @@ const useGridData = () => {
     // only refetch if the refresh switch is on
     refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
   });
+
+  // Placeholder object that is not use on refetch, but only
+  // for the initial load.
+  if (!isSuccess) {
+    return { data: { groups: {}, dagRuns: [] }, ...rest };
+  }
+  return { data, isSuccess, ...rest };
 };
 
 export default useGridData;

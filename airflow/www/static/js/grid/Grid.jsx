@@ -51,9 +51,8 @@ const sidePanelKey = 'hideSidePanel';
 const Grid = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
-  const { data, isSuccess } = useGridData();
-  const groups = (data && data.groups) || {};
-  const dagRuns = (data && data.dagRuns) || [];
+
+  const { data: { groups, dagRuns }, isSuccess } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
