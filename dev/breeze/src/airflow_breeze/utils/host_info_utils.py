@@ -43,11 +43,3 @@ def get_host_os():
     # Mac: Darwin
     # Windows: Windows
     return platform.system()
-
-
-def get_stat_bin():
-    os = get_host_os()
-    stat_bin = 'stat'
-    if os == 'Darwin':
-        stat_bin = 'gstat'
-    return stat_bin

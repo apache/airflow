@@ -21,7 +21,7 @@
 
 import React, { useContext, useState, useEffect } from 'react';
 import { getMetaValue } from '../../utils';
-import { formatData, areActiveRuns } from '../treeDataUtils';
+import { formatData, areActiveRuns } from '../utils/treeData';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 

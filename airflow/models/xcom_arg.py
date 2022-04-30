@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import AbstractOperator
@@ -156,21 +156,31 @@ class XComArg(DependencyMixin):
         return result
 
     @staticmethod
-    def apply_upstream_relationship(op: "Operator", arg: Any):
-        """
-        Set dependency for XComArgs.
+    def iter_xcom_args(arg: Any) -> Iterator["XComArg"]:
+        """Return XComArg instances in an arbitrary value.
 
-        This looks for XComArg objects in ``arg`` "deeply" (looking inside lists, dicts and classes decorated
-        with "template_fields") and sets the relationship to ``op`` on any found.
+        This recursively traverse ``arg`` and look for XComArg instances in any
+        collection objects, and instances with ``template_fields`` set.
         """
         if isinstance(arg, XComArg):
-            op.set_upstream(arg.operator)
+            yield arg
         elif isinstance(arg, (tuple, set, list)):
             for elem in arg:
-                XComArg.apply_upstream_relationship(op, elem)
+                yield from XComArg.iter_xcom_args(elem)
         elif isinstance(arg, dict):
             for elem in arg.values():
-                XComArg.apply_upstream_relationship(op, elem)
+                yield from XComArg.iter_xcom_args(elem)
         elif isinstance(arg, AbstractOperator):
             for elem in arg.template_fields:
-                XComArg.apply_upstream_relationship(op, elem)
+                yield from XComArg.iter_xcom_args(elem)
+
+    @staticmethod
+    def apply_upstream_relationship(op: "Operator", arg: Any):
+        """Set dependency for XComArgs.
+
+        This looks for XComArg objects in ``arg`` "deeply" (looking inside
+        collections objects and classes decorated with ``template_fields``), and
+        sets the relationship to ``op`` on any found.
+        """
+        for ref in XComArg.iter_xcom_args(arg):
+            op.set_upstream(ref.operator)

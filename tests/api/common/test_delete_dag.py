@@ -96,15 +96,7 @@ class TestDeleteDAGSuccessfulDelete:
                     event="varimport",
                 )
             )
-            session.add(
-                TF(
-                    task=task,
-                    run_id=ti.run_id,
-                    start_date=test_date,
-                    end_date=test_date,
-                    map_index=ti.map_index,
-                )
-            )
+            session.add(TF(ti=ti))
             session.add(
                 TR(
                     task=ti.task,

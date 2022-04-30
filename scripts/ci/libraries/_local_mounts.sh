@@ -31,7 +31,7 @@ function local_mounts::generate_local_mounts_list {
         "$prefix".github:/opt/airflow/.github:cached
         "$prefix".inputrc:/root/.inputrc:cached
         "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
-        "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+        "$prefix"RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached
         "$prefix"LICENSE:/opt/airflow/LICENSE:cached
         "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
         "$prefix"NOTICE:/opt/airflow/NOTICE:cached

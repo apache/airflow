@@ -22,7 +22,7 @@
 
 - [Prepare the Apache Airflow Helm Chart Release Candidate](#prepare-the-apache-airflow-helm-chart-release-candidate)
   - [Pre-requisites](#pre-requisites)
-  - [Build Changelog](#build-changelog)
+  - [Build Release Notes](#build-release-notes)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
@@ -59,18 +59,23 @@ details the steps for releasing Helm Chart.
 
 - Helm version >= 3.5.4
 
-## Build Changelog
+## Build Release Notes
 
-Before creating the RC, you need to build and commit the changelog for the release. For example, to list the
-commits between the last release, `1.1.0`, and `main`:
+Before creating the RC, you need to build and commit the release notes for the release:
 
-```shell
-git log --oneline helm-chart/1.1.0..main --pretty='format:- %s' -- chart/ docs/helm-chart/
+Preview with:
+
+```shell script
+towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir chart --config chart/newsfragments/config.toml
 ```
+
+Then remove the `--draft` flag to have towncrier build the release notes for real.
+
+If no significant changes where added in this release, add the header and put "No significant changes.".
 
 ### Add changelog annotations to `Chart.yaml`
 
-Once the changelog has been built, run the script to generate the changelog annotations.
+Once the release notes have been built, run the script to generate the changelog annotations.
 
 ```shell
 ./dev/chart/build_changelog_annotations.py
@@ -666,7 +671,7 @@ The source release, as well as the "binary" Helm Chart release, are available:
 📦   ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚   Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
 🚀   Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
-🛠️   Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+🛠️   Release Notes: https://airflow.apache.org/docs/helm-chart/$VERSION/release_notes.html
 
 Thanks to all the contributors who made this possible.
 
@@ -689,7 +694,7 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 
 ## Create release on GitHub
 
-Create a new release on GitHub with the changelog and assets from the release svn.
+Create a new release on GitHub with the release notes and assets from the release svn.
 
 ## Close the milestone
 
@@ -712,7 +717,7 @@ We’ve just released Apache Airflow Helm Chart ${VERSION} 🎉
 📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
 🚀 Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
-🛠 Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+🛠 Release Notes: https://airflow.apache.org/docs/helm-chart/$VERSION/release_notes.html
 
 Thanks to all the contributors who made this possible.
 EOF
@@ -728,7 +733,7 @@ We've just released Apache Airflow Helm chart $VERSION 🎉
 
 📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
-🛠️ Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+🛠️ Release Notes: https://airflow.apache.org/docs/helm-chart/$VERSION/release_notes.html
 
 Thanks to all the contributors who made this possible.
 EOF

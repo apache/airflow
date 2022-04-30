@@ -23,7 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -137,6 +137,7 @@ def _get_ti(
     exec_date_or_run_id: str,
     map_index: int,
     *,
+    pool: Optional[str] = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> Tuple[TaskInstance, bool]:
@@ -165,7 +166,7 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task)
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
@@ -361,7 +362,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -483,18 +484,22 @@ def task_states_for_dag_run(args, session=None):
             "not found"
         )
 
-    AirflowConsole().print_as(
-        data=dag_run.task_instances,
-        output=args.output,
-        mapper=lambda ti: {
+    has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
+
+    def format_task_instance(ti: TaskInstance) -> Dict[str, str]:
+        data = {
             "dag_id": ti.dag_id,
             "execution_date": dag_run.execution_date.isoformat(),
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
-        },
-    )
+        }
+        if has_mapped_instances:
+            data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
+        return data
+
+    AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
 
 
 @cli_utils.action_cli(check_db=False)

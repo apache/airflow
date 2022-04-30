@@ -18,6 +18,7 @@
 import json
 import sys
 import unittest
+from copy import copy
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -301,14 +302,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             k.execute(context=context)
             mock_logger.info.assert_any_call('retrieved from mount')
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod['spec']['containers'][0]['args'] = args
-            self.expected_pod['spec']['containers'][0]['volumeMounts'] = [
+            expected_pod = copy(self.expected_pod)
+            expected_pod['spec']['containers'][0]['args'] = args
+            expected_pod['spec']['containers'][0]['volumeMounts'] = [
                 {'name': 'test-volume', 'mountPath': '/tmp/test_volume', 'readOnly': False}
             ]
-            self.expected_pod['spec']['volumes'] = [
+            expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            assert self.expected_pod == actual_pod
+            expected_pod['metadata']['labels']['already_checked'] = 'True'
+            assert expected_pod == actual_pod
 
     def test_run_as_user_root(self):
         security_context = {
