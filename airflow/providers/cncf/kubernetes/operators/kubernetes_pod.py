@@ -103,7 +103,8 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
+        during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
