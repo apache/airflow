@@ -28,6 +28,7 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prerequisites](#prerequisites)
   - [Setting environment with emulation](#setting-environment-with-emulation)
   - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -489,6 +490,12 @@ Production Docker images should be manually prepared and pushed by the release m
 who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
 to have an environment prepared to build multi-platform images. You can achieve it with either emulation
 (very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
+
+## Prerequisites
+
+You need to have buildx plugin installed to run the build. Also you need to have regctl
+installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
+DockerHub. The script to build images will refuse to work if you do not have those two installed.
 
 ## Setting environment with emulation
 
