@@ -1,13 +1,13 @@
 #
-# This constraints file was automatically generated on 2022-04-26T09:23:26Z
-# via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
+# This constraints file was automatically generated on 2022-04-30T22:20:10Z
+# via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
 #
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-# Editable install with no version control (apache-airflow==2.3.0.dev0)
+# Editable install with no version control (apache-airflow==2.3.0)
 Authlib==1.0.1
 Babel==2.10.1
 Deprecated==1.2.13
@@ -55,22 +55,22 @@ charset-normalizer==2.0.12
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
-click==8.1.2
+click==8.1.3
 clickclick==20.10.2
 cloudpickle==2.0.0
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-connexion==2.13.0
+connexion==2.13.1
 cron-descriptor==1.2.24
 croniter==1.3.4
-cryptography==36.0.2
-dask==2022.4.1
+cryptography==37.0.1
+dask==2022.4.2
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.4
-distributed==2022.4.1
+distributed==2022.4.2
 dnspython==2.2.1
 docutils==0.18.1
 email-validator==1.2.0
@@ -125,12 +125,12 @@ pycparser==2.21
 pykerberos==1.2.4
 pyparsing==3.0.8
 pyrsistent==0.18.1
-pyspnego==0.5.1
+pyspnego==0.5.2
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-ldap==3.4.0
 python-nvd3==0.15.0
-python-slugify==6.1.1
+python-slugify==6.1.2
 python3-openid==3.2.0
 pytz==2022.1
 pytzdata==2020.1
@@ -164,6 +164,6 @@ virtualenv==20.14.1
 wcwidth==0.2.5
 websocket-client==1.3.2
 wrapt==1.14.0
-zict==2.1.0
+zict==2.2.0
 zope.event==4.5.0
 zope.interface==5.4.0
