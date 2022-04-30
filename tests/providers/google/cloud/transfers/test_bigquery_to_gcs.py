@@ -49,7 +49,7 @@ class TestBigQueryToGCSOperator(unittest.TestCase):
             labels=labels,
         )
 
-        operator.execute(None)
+        operator.execute(context=mock.MagicMock())
 
         mock_hook.return_value.run_extract.assert_called_once_with(
             source_project_dataset_table=source_project_dataset_table,
