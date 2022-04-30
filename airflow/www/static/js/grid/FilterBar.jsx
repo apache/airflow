@@ -26,7 +26,7 @@ import {
 } from '@chakra-ui/react';
 import React from 'react';
 
-import useFilters from './context/filters';
+import useFilters from './utils/useFilters';
 
 const FilterBar = () => {
   const {

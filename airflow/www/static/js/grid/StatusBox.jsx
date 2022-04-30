@@ -29,7 +29,7 @@ import {
 
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from './context/containerRef';
-import useFilters from './context/filters';
+import useFilters from './utils/useFilters';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;

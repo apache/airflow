@@ -26,7 +26,7 @@ import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import { areActiveRuns } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
-import useFilters from '../context/filters';
+import useFilters from '../utils/useFilters';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
