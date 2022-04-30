@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add k8s container's error message in airflow exception (#22871)``
+* ``KubernetesHook should try incluster first when not otherwise configured (#23126)``
+* ``KubernetesPodOperator should patch "already checked" always (#22734)``
+* ``Delete old Spark Application in SparkKubernetesOperator (#21092)``
+* ``Cleanup dup code now that k8s provider requires 2.3.0+ (#22845)``
+* ``Fix ''KubernetesPodOperator'' with 'KubernetesExecutor'' on 2.3.0 (#23371)``
+* ``Fix KPO to have hyphen instead of period (#22982)``
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 4.0.0
 .....
 
