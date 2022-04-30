@@ -1,5 +1,3 @@
-// We need this lint rule for now because these are only dev-dependencies
-/* eslint-disable import/no-extraneous-dependencies */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,18 +17,26 @@
  * under the License.
  */
 
-import '@testing-library/jest-dom';
+/* global stateColors */
 
-// Mock a global object we use across the app
-global.stateColors = {
-  deferred: 'mediumpurple',
-  failed: 'red',
-  queued: 'gray',
-  running: 'lime',
-  scheduled: 'tan',
-  skipped: 'hotpink',
-  success: 'green',
-  up_for_reschedule: 'turquoise',
-  up_for_retry: 'gold',
-  upstream_failed: 'orange',
-};
+import {
+  Box,
+  Flex,
+  Text,
+} from '@chakra-ui/react';
+import React from 'react';
+
+const LegendRow = () => (
+  <Flex mt={0} mb={2} p={4} flexWrap="wrap">
+    {
+      Object.entries(stateColors).map(([state, stateColor]) => (
+        <Flex alignItems="center" mr={3} key={stateColor}>
+          <Box h="12px" w="12px" mr={1} style={{ backgroundColor: stateColor }} />
+          <Text fontSize="md">{state}</Text>
+        </Flex>
+      ))
+    }
+  </Flex>
+);
+
+export default LegendRow;
