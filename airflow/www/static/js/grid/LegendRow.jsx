@@ -20,18 +20,18 @@
 /* global stateColors */
 
 import {
-  Box,
   Flex,
   Text,
 } from '@chakra-ui/react';
 import React from 'react';
+import { SimpleStatus } from './StatusBox';
 
 const LegendRow = () => (
   <Flex mt={0} mb={2} p={4} flexWrap="wrap">
     {
       Object.entries(stateColors).map(([state, stateColor]) => (
         <Flex alignItems="center" mr={3} key={stateColor}>
-          <Box h="12px" w="12px" mr={1} style={{ backgroundColor: stateColor }} />
+          <SimpleStatus mr={1} state={state} />
           <Text fontSize="md">{state}</Text>
         </Flex>
       ))

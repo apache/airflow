@@ -104,7 +104,14 @@ const FilterBar = () => {
         </Select>
       </Box>
       <Box px={2}>
-        <Button colorScheme="cyan" background="white" variant="outline" onClick={clearFilters} size="lg">
+        <Button
+          colorScheme="cyan"
+          aria-label="Reset filters"
+          background="white"
+          variant="outline"
+          onClick={clearFilters}
+          size="lg"
+        >
           Clear Filters
         </Button>
       </Box>
