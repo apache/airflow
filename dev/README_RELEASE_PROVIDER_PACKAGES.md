@@ -44,6 +44,8 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
+  - [Close the testing status issue](#close-the-testing-status-issue)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -870,3 +872,11 @@ Cheers,
 <your name>
 EOF
 ```
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
