@@ -35,6 +35,7 @@ SKIP_CHECK_REMOTE_IMAGE = False
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
+ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALLOWED_INTEGRATIONS = [
     'cassandra',
@@ -84,7 +85,8 @@ ALLOWED_INSTALLATION_PACKAGE_FORMATS = ['wheel', 'sdist']
 ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
 ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
 ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
-ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
+MULTI_PLATFORM = "linux/amd64,linux/arm64"
+ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
 PARAM_NAME_DESCRIPTION = {

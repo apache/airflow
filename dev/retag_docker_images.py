@@ -61,7 +61,10 @@ def pull_push_all_images(
                 prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
             )
             print(f"Copying image: {source_image} -> {target_image}")
-            subprocess.run(["regctl", "image", "copy", source_image, target_image], check=True)
+            subprocess.run(
+                ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
+                check=True,
+            )
 
 
 @click.group(invoke_without_command=True)
