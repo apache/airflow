@@ -346,7 +346,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.3.0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1162,7 +1162,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.3.0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1913,7 +1913,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.3.0
    Python version:         3.8
    Backend:                mysql 5.7
 
