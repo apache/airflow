@@ -20,8 +20,7 @@
 
 import time
 import uuid
-import warnings
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
@@ -766,27 +765,6 @@ class DataprocHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-
-    def submit(
-        self,
-        project_id: str,
-        job: dict,
-        region: str = 'global',
-        job_error_states: Optional[Iterable[str]] = None,
-    ) -> None:
-        """
-        Submits Google Cloud Dataproc job.
-
-        :param project_id: The id of Google Cloud Dataproc project.
-        :param job: The job to be submitted
-        :param region: The region of Google Dataproc cluster.
-        :param job_error_states: Job states that should be considered error states.
-        """
-        # TODO: Remover one day
-        warnings.warn("This method is deprecated. Please use `submit_job`", DeprecationWarning, stacklevel=2)
-        job_object = self.submit_job(region=region, project_id=project_id, job=job)
-        job_id = job_object.reference.job_id
-        self.wait_for_job(job_id=job_id, region=region, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
