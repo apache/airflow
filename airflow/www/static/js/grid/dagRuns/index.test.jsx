@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect */
+/* global describe, test, expect, jest */
 
 import React from 'react';
 import { render } from '@testing-library/react';
