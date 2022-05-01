@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-04-29T12:33:02Z
+# This constraints file was automatically generated on 2022-05-01T11:54:38Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -8,7 +8,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-# Editable install with no version control (apache-airflow==2.3.0.dev0)
+# Editable install with no version control (apache-airflow==2.4.0.dev0)
 APScheduler==3.6.3
 Authlib==1.0.1
 Babel==2.10.1
@@ -99,9 +99,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.3
+boto3==1.22.4
 boto==2.49.0
-botocore==1.25.3
+botocore==1.25.4
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -244,7 +244,7 @@ inflection==0.5.1
 influxdb-client==1.28.0
 iniconfig==1.1.1
 ipdb==0.13.9
-ipython==7.32.0
+ipython==7.33.0
 isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
@@ -278,7 +278,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.1.6
+moto==3.1.7
 msal-extensions==1.0.0
 msal==1.17.0
 msgpack==1.0.3
@@ -286,7 +286,7 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.22.0.post1
+mypy-boto3-rds==1.22.4
 mypy-boto3-redshift-data==1.22.0.post1
 mypy-extensions==0.4.3
 mypy==0.910
@@ -441,7 +441,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.3.2
+sphinxcontrib-spelling==7.3.3
 spython==0.2.1
 sqlalchemy-bigquery==1.4.3
 sqlalchemy-drill==1.1.2
@@ -472,27 +472,27 @@ twine==4.0.0
 typed-ast==1.4.3
 types-Deprecated==1.2.7
 types-Markdown==3.3.14
-types-PyMySQL==1.0.18
+types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
-types-boto==2.49.14
+types-boto==2.49.15
 types-certifi==2021.10.8.2
 types-croniter==1.0.10
 types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.9
-types-paramiko==2.8.19
+types-paramiko==2.8.21
 types-protobuf==3.19.18
 types-python-dateutil==2.8.14
 types-python-slugify==5.0.4
 types-pytz==2021.3.7
 types-redis==4.2.0
-types-requests==2.27.24
+types-requests==2.27.25
 types-setuptools==57.4.14
 types-six==1.16.15
 types-tabulate==0.8.8
 types-termcolor==1.1.4
 types-toml==0.10.6
-types-urllib3==1.26.13
+types-urllib3==1.26.14
 typing_extensions==4.2.0
 tzdata==2022.1
 tzlocal==4.2
