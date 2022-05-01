@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.3.0.dev0
+    FROM airflow:2.3.0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,7 +250,7 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.3.0.dev0
+    FROM airflow:2.3.0
     COPY my_after_entrypoint_script.sh /
 
 Build your image and then you can run this script by running the command:
