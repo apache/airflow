@@ -91,6 +91,8 @@ Breaking changes
 
 * ``DataprocHook``: order of parameters in ``wait_for_job`` function has changed.
 
+* ``DataprocHook``: Remove function ``submit``. Please use ``submit_job``
+
 * ``DataprocSubmitJobOperator``: order of parameters has changed.
 
 * ``CloudDatastoreImportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
