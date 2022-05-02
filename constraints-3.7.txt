@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-01T10:32:16Z
+# This constraints file was automatically generated on 2022-05-02T09:51:54Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -167,7 +167,7 @@ azure-storage-file==2.1.0
 backcall==0.2.0
 backoff==1.10.0
 backports.zoneinfo==0.2.1
-bcrypt==3.2.0
+bcrypt==3.2.2
 beautifulsoup4==4.11.1
 billiard==3.6.4.0
 black==22.3.0
@@ -224,7 +224,7 @@ ecdsa==0.17.0
 elasticsearch-dbapi==0.2.9
 elasticsearch-dsl==7.4.0
 elasticsearch==7.13.4
-email-validator==1.2.0
+email-validator==1.2.1
 entrypoints==0.4
 eventlet==0.33.0
 execnet==1.9.0
@@ -247,7 +247,7 @@ gevent==21.12.0
 gitdb==4.0.9
 github3.py==3.0.0
 google-ads==14.0.0
-google-api-core==2.7.2
+google-api-core==2.7.3
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.1
@@ -584,7 +584,7 @@ watchtower==2.0.1
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.3.2
-wrapt==1.14.0
+wrapt==1.14.1
 xmltodict==0.12.0
 yamllint==1.26.3
 yandexcloud==0.159.0
