@@ -47,7 +47,6 @@ env:
   LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
-  WITH_CI_GROUPS: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -792,17 +791,35 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Prepare airflow package: wheel"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Install and test provider packages and airflow via wheel files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          USE_AIRFLOW_VERSION: "wheel"
-          PACKAGE_FORMAT: "wheel"
-      - name: "Replace non-compliant providers with their 2.1-compliant versions"
-        run: ./scripts/ci/provider_packages/ci_make_providers_2_1_compliant.sh
+        run: >
+          breeze verify-provider-packages --use-airflow-version wheel --use-packages-from-dist
+          --package-format wheel
+      - name: "Remove airflow package and replace providers with 2.1-compliant versions"
+        run: |
+          rm -vf dist/apache_airflow-*.whl \
+             dist/apache_airflow_providers_cncf_kubernetes*.whl \
+             dist/apache_airflow_providers_celery*.whl
+          pip download --no-deps --dest dist \
+              apache-airflow-providers-cncf-kubernetes==3.0.0 \
+              apache-airflow-providers-celery==2.1.3
       - name: "Install and test provider packages and airflow on Airflow 2.1 files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        run: >
+          breeze verify-provider-packages --use-airflow-version 2.1.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.1.0
         env:
-          USE_AIRFLOW_VERSION: "2.1.0"
-          PACKAGE_FORMAT: "wheel"
+          # The extras below are all extras that should be installed with Airflow 2.1.0
+          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas.apache.beam,apache.cassandra,apache.drill,\
+            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
+            apache.spark,apache.sqoop,apache.webhdfs,arangodb,asana,async,\
+            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,dbt.cloud,\
+            deprecated_api,dingding,discord,docker,\
+            elasticsearch,exasol,facebook,ftp,github,github_enterprise,google,google_auth,\
+            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
+            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
+            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
+            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
+            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
+            virtualenv,yandex,zendesk"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -851,11 +868,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: "./dist/apache-airflow-providers-*.tar.gz"
           retention-days: 1
       - name: "Install and test provider packages and airflow via sdist files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          USE_AIRFLOW_VERSION: "sdist"
-          PACKAGE_FORMAT: "sdist"
-          AIRFLOW_EXTRAS: "all"
+        run: >
+          breeze verify-provider-packages --use-airflow-version sdist --use-packages-from-dist
+          --package-format sdist
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

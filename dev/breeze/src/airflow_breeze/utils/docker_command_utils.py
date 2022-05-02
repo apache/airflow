@@ -103,7 +103,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
         for flag in NECESSARY_HOST_VOLUMES:
             extra_docker_flags.extend(["-v", str(AIRFLOW_SOURCES_ROOT) + flag])
     else:  # none
-        get_console().print('[info]Skip mounting host volumes to Docker[/]')
+        extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT / 'empty'}:/opt/airflow/airflow"])
     extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/files:/files"])
     extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/dist:/dist"])
     extra_docker_flags.extend(["--rm"])
@@ -286,6 +286,16 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
+def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProdParams, ShellParams]):
+    raw_value = getattr(params, arg_name, None)
+    value = str(raw_value) if raw_value is not None else ''
+    value = "true" if raw_value is True else value
+    value = "false" if raw_value is False else value
+    if arg_name == "upgrade_to_newer_dependencies" and value == "true":
+        value = f"{randint(0, 2**32):x}"
+    return value
+
+
 def construct_arguments_for_docker_build_command(
     image_params: Union[BuildCiParams, BuildProdParams], required_args: List[str], optional_args: List[str]
 ) -> List[str]:
@@ -304,20 +314,14 @@ def construct_arguments_for_docker_build_command(
     :return: list of `--build-arg` commands to use for the parameters passed
     """
 
-    def get_env_variable_value(arg_name: str):
-        value = str(getattr(image_params, arg_name))
-        value = "true" if value.lower() in ["true", "t", "yes", "y"] else value
-        value = "false" if value.lower() in ["false", "f", "no", "n"] else value
-        if arg_name == "upgrade_to_newer_dependencies" and value == "true":
-            value = f"{randint(0, 2**32):x}"
-        return value
-
     args_command = []
     for required_arg in required_args:
         args_command.append("--build-arg")
-        args_command.append(required_arg.upper() + "=" + get_env_variable_value(arg_name=required_arg))
+        args_command.append(
+            required_arg.upper() + "=" + get_env_variable_value(arg_name=required_arg, params=image_params)
+        )
     for optional_arg in optional_args:
-        param_value = get_env_variable_value(optional_arg)
+        param_value = get_env_variable_value(optional_arg, params=image_params)
         if len(param_value) > 0:
             args_command.append("--build-arg")
             args_command.append(optional_arg.upper() + "=" + param_value)
@@ -444,6 +448,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     """
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
+    set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_REFERENCE', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH)
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
@@ -485,9 +490,11 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'WHEEL_VERSION', "0.36.2")
 
 
-MAP_ENV_VARIABLES_TO_PARAMS_FIELDS = {
+DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
+    "AIRFLOW_EXTRAS": "airflow_extras",
+    "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
@@ -498,21 +505,21 @@ MAP_ENV_VARIABLES_TO_PARAMS_FIELDS = {
     "DB_RESET": 'db_reset',
     "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",
-    "HOST_GROUP_ID": "host_group_id",
-    "HOST_USER_ID": "host_user_id",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "ISSUE_ID": "issue_id",
     "LOAD_EXAMPLES": "load_example_dags",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "NUM_RUNS": "num_runs",
+    "PACKAGE_FORMAT": "package_format",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
-    "SKIP_PACKAGE_VERIFICATION": "skip_package_verification",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
+    "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
+    "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
 }
 
-VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS = {
+DOCKER_VARIABLE_CONSTANTS = {
     "FLOWER_HOST_PORT": FLOWER_HOST_PORT,
     "MSSQL_HOST_PORT": MSSQL_HOST_PORT,
     "MSSQL_VERSION": MSSQL_VERSION,
@@ -525,26 +532,8 @@ VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS = {
     "WEBSERVER_HOST_PORT": WEBSERVER_HOST_PORT,
 }
 
-VARIABLES_IN_CACHE = {
-    'backend': 'BACKEND',
-    'mssql_version': 'MSSQL_VERSION',
-    'mysql_version': 'MYSQL_VERSION',
-    'postgres_version': 'POSTGRES_VERSION',
-    'python': 'PYTHON_MAJOR_MINOR_VERSION',
-}
 
-SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES = {
-    'backend': 'DEFAULT_BACKEND',
-    'mssql_version': 'MSSQL_VERSION',
-    'mysql_version': 'MYSQL_VERSION',
-    'postgres_version': 'POSTGRES_VERSION',
-    'python': 'DEFAULT_PYTHON_MAJOR_MINOR_VERSION',
-}
-
-
-def construct_env_variables_docker_compose_command(
-    params: Union[ShellParams, BuildCiParams]
-) -> Dict[str, str]:
+def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiParams]) -> Dict[str, str]:
     """
     Constructs environment variables needed by the docker-compose command, based on Shell parameters
     passed to it.
@@ -559,13 +548,13 @@ def construct_env_variables_docker_compose_command(
     :return: dictionary of env variables to set
     """
     env_variables: Dict[str, str] = os.environ.copy()
-    for variable in MAP_ENV_VARIABLES_TO_PARAMS_FIELDS:
-        param_name = MAP_ENV_VARIABLES_TO_PARAMS_FIELDS[variable]
-        param_value = getattr(params, param_name, None)
+    for variable in DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES:
+        param_name = DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES[variable]
+        param_value = get_env_variable_value(param_name, params=params)
         env_variables[variable] = str(param_value) if param_value is not None else ""
     # Set constant defaults if not defined
-    for variable in VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS:
-        constant_param_value = VARIABLES_FOR_DOCKER_COMPOSE_CONSTANTS[variable]
+    for variable in DOCKER_VARIABLE_CONSTANTS:
+        constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
         if not env_variables.get(constant_param_value):
             env_variables[variable] = str(constant_param_value)
     update_expected_environment_variables(env_variables)

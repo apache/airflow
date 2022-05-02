@@ -17,30 +17,30 @@
             font-style: bold;
             font-weight: 700;
         }
-        .rich-svg-662778973-terminal-wrapper span {
+        .rich-svg-1034040239-terminal-wrapper span {
             display: inline-block;
             white-space: pre;
             vertical-align: top;
             font-size: 18px;
             font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
         }
-        .rich-svg-662778973-terminal-wrapper a {
+        .rich-svg-1034040239-terminal-wrapper a {
             text-decoration: none;
             color: inherit;
         }
-        .rich-svg-662778973-terminal-body .blink {
-           animation: rich-svg-662778973-blinker 1s infinite;
+        .rich-svg-1034040239-terminal-body .blink {
+           animation: rich-svg-1034040239-blinker 1s infinite;
         }
-        @keyframes rich-svg-662778973-blinker {
+        @keyframes rich-svg-1034040239-blinker {
             from { opacity: 1.0; }
             50% { opacity: 0.3; }
             to { opacity: 1.0; }
         }
-        .rich-svg-662778973-terminal-wrapper {
+        .rich-svg-1034040239-terminal-wrapper {
             padding: 140px;
             padding-top: 100px;
         }
-        .rich-svg-662778973-terminal {
+        .rich-svg-1034040239-terminal {
             position: relative;
             display: flex;
             flex-direction: column;
@@ -49,7 +49,7 @@
             border-radius: 14px;
             box-shadow: 0 0 0 1px #484848;
         }
-        .rich-svg-662778973-terminal:after {
+        .rich-svg-1034040239-terminal:after {
             position: absolute;
             width: 100%;
             height: 100%;
@@ -60,7 +60,7 @@
             transform: rotate(-4.5deg);
             z-index: -1;
         }
-        .rich-svg-662778973-terminal-header {
+        .rich-svg-1034040239-terminal-header {
             position: relative;
             width: 100%;
             background-color: #2e2e2e;
@@ -72,7 +72,7 @@
             box-shadow: inset 0px -1px 0px 0px #4e4e4e,
                         inset 0px -4px 8px 0px #1a1a1a;
         }
-        .rich-svg-662778973-terminal-title-tab {
+        .rich-svg-1034040239-terminal-title-tab {
             display: inline-block;
             margin-top: 14px;
             margin-left: 124px;
@@ -85,36 +85,36 @@
                         inset 1px 0px 0px 0px #4e4e4e,
                         inset -1px 0px 0px 0px #4e4e4e;
         }
-        .rich-svg-662778973-terminal-traffic-lights {
+        .rich-svg-1034040239-terminal-traffic-lights {
             position: absolute;
             top: 24px;
             left: 20px;
         }
-        .rich-svg-662778973-terminal-body {
+        .rich-svg-1034040239-terminal-body {
             line-height: 22px;
             padding: 14px;
         }
-        .rich-svg-662778973-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-662778973-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+        .rich-svg-1034040239-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1034040239-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
     </style>
     <foreignObject x="0" y="0" width="100%" height="100%">
         <body xmlns="http://www.w3.org/1999/xhtml">
-            <div class="rich-svg-662778973-terminal-wrapper">
-                <div class="rich-svg-662778973-terminal">
-                    <div class="rich-svg-662778973-terminal-header">
-                        <svg class="rich-svg-662778973-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
+            <div class="rich-svg-1034040239-terminal-wrapper">
+                <div class="rich-svg-1034040239-terminal">
+                    <div class="rich-svg-1034040239-terminal-header">
+                        <svg class="rich-svg-1034040239-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="14" cy="8" r="8" fill="#ff6159"/>
                             <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
                             <circle cx="62" cy="8" r="8" fill="#28c941"/>
                         </svg>
-                        <div class="rich-svg-662778973-terminal-title-tab">Command: build-image</div>
+                        <div class="rich-svg-1034040239-terminal-title-tab">Command: build-image</div>
                     </div>
-                    <div class="rich-svg-662778973-terminal-body">
+                    <div class="rich-svg-1034040239-terminal-body">
                         <div><span class="r2">                                                                                                                        </span></div>
 <div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze build-image [OPTIONS]                                                                                    </span></div>
 <div><span class="r2">                                                                                                                        </span></div>
@@ -125,11 +125,11 @@
 <div><span class="r4">│</span><span class="r1">                                       </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)                                  </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: 3.7]                                              </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--upgrade-to-newer-dependencies</span><span class="r1">  </span><span class="r6">-u</span><span class="r1">  </span><span class="r1">When set, upgrade all PIP packages to latest.                                </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debian-version</span><span class="r1">                 </span><span class="r6">-d</span><span class="r1">  </span><span class="r1">Debian version used for the image.</span><span class="r1"> </span><span class="r7">(bullseye | buster)</span><span class="r1"> </span><span class="r4">[default: bullseye]</span><span class="r1">   </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debian-version</span><span class="r1">                 </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Debian version used for the image.</span><span class="r1"> </span><span class="r7">(bullseye | buster)</span><span class="r1"> </span><span class="r4">[default: bullseye]</span><span class="r1">   </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--image-tag</span><span class="r1">                      </span><span class="r6">-t</span><span class="r1">  </span><span class="r1">Tag added to the default naming conventions of Airflow CI/PROD images.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--docker-cache</span><span class="r1">                   </span><span class="r6">-c</span><span class="r1">  </span><span class="r1">Cache option for image used during the build.</span><span class="r1"> </span><span class="r7">(pulled | local | disabled)</span><span class="r1">    </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: pulled]                            </span><span class="r1"> </span><span class="r1">                               </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force-build</span><span class="r1">                    </span><span class="r6">-f</span><span class="r1">  </span><span class="r1">Force image build no matter if it is determined as needed.                   </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force-build</span><span class="r1">                    </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Force image build no matter if it is determined as needed.                   </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Building multiple images ───────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--build-multiple-images</span><span class="r1">    </span><span class="r1">Run the operation sequentially on all or selected subset of Python versions.           </span><span class="r1">  </span><span class="r4">│</span></div>

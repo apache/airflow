@@ -1,4 +1,4 @@
-<svg width="1720.0" height="1880" viewBox="0 0 1720.0 1880"
+<svg width="1720.0" height="2144" viewBox="0 0 1720.0 2144"
      xmlns="http://www.w3.org/2000/svg">
     <style>
         @font-face {
@@ -17,30 +17,30 @@
             font-style: bold;
             font-weight: 700;
         }
-        .rich-svg-1735457778-terminal-wrapper span {
+        .rich-svg-1738564615-terminal-wrapper span {
             display: inline-block;
             white-space: pre;
             vertical-align: top;
             font-size: 18px;
             font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
         }
-        .rich-svg-1735457778-terminal-wrapper a {
+        .rich-svg-1738564615-terminal-wrapper a {
             text-decoration: none;
             color: inherit;
         }
-        .rich-svg-1735457778-terminal-body .blink {
-           animation: rich-svg-1735457778-blinker 1s infinite;
+        .rich-svg-1738564615-terminal-body .blink {
+           animation: rich-svg-1738564615-blinker 1s infinite;
         }
-        @keyframes rich-svg-1735457778-blinker {
+        @keyframes rich-svg-1738564615-blinker {
             from { opacity: 1.0; }
             50% { opacity: 0.3; }
             to { opacity: 1.0; }
         }
-        .rich-svg-1735457778-terminal-wrapper {
+        .rich-svg-1738564615-terminal-wrapper {
             padding: 140px;
             padding-top: 100px;
         }
-        .rich-svg-1735457778-terminal {
+        .rich-svg-1738564615-terminal {
             position: relative;
             display: flex;
             flex-direction: column;
@@ -49,7 +49,7 @@
             border-radius: 14px;
             box-shadow: 0 0 0 1px #484848;
         }
-        .rich-svg-1735457778-terminal:after {
+        .rich-svg-1738564615-terminal:after {
             position: absolute;
             width: 100%;
             height: 100%;
@@ -60,7 +60,7 @@
             transform: rotate(-4.5deg);
             z-index: -1;
         }
-        .rich-svg-1735457778-terminal-header {
+        .rich-svg-1738564615-terminal-header {
             position: relative;
             width: 100%;
             background-color: #2e2e2e;
@@ -72,7 +72,7 @@
             box-shadow: inset 0px -1px 0px 0px #4e4e4e,
                         inset 0px -4px 8px 0px #1a1a1a;
         }
-        .rich-svg-1735457778-terminal-title-tab {
+        .rich-svg-1738564615-terminal-title-tab {
             display: inline-block;
             margin-top: 14px;
             margin-left: 124px;
@@ -85,36 +85,36 @@
                         inset 1px 0px 0px 0px #4e4e4e,
                         inset -1px 0px 0px 0px #4e4e4e;
         }
-        .rich-svg-1735457778-terminal-traffic-lights {
+        .rich-svg-1738564615-terminal-traffic-lights {
             position: absolute;
             top: 24px;
             left: 20px;
         }
-        .rich-svg-1735457778-terminal-body {
+        .rich-svg-1738564615-terminal-body {
             line-height: 22px;
             padding: 14px;
         }
-        .rich-svg-1735457778-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-1735457778-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+        .rich-svg-1738564615-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-1738564615-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
     </style>
     <foreignObject x="0" y="0" width="100%" height="100%">
         <body xmlns="http://www.w3.org/1999/xhtml">
-            <div class="rich-svg-1735457778-terminal-wrapper">
-                <div class="rich-svg-1735457778-terminal">
-                    <div class="rich-svg-1735457778-terminal-header">
-                        <svg class="rich-svg-1735457778-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
+            <div class="rich-svg-1738564615-terminal-wrapper">
+                <div class="rich-svg-1738564615-terminal">
+                    <div class="rich-svg-1738564615-terminal-header">
+                        <svg class="rich-svg-1738564615-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="14" cy="8" r="8" fill="#ff6159"/>
                             <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
                             <circle cx="62" cy="8" r="8" fill="#28c941"/>
                         </svg>
-                        <div class="rich-svg-1735457778-terminal-title-tab">Breeze commands</div>
+                        <div class="rich-svg-1738564615-terminal-title-tab">Breeze commands</div>
                     </div>
-                    <div class="rich-svg-1735457778-terminal-body">
+                    <div class="rich-svg-1738564615-terminal-body">
                         <div><span class="r2">                                                                                                                        </span></div>
 <div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze [OPTIONS] COMMAND [ARGS]...                                                                              </span></div>
 <div><span class="r2">                                                                                                                        </span></div>
@@ -122,20 +122,31 @@
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">               </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for images.</span><span class="r1"> </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)</span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">                             </span><span class="r4">[default: 3.7]                                              </span><span class="r1"> </span><span class="r1">                          </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--backend</span><span class="r1">              </span><span class="r6">-b</span><span class="r1">  </span><span class="r1">Database backend to use.</span><span class="r1"> </span><span class="r7">(&gt;sqlite&lt; | mysql | postgres | mssql)</span><span class="r1"> </span><span class="r4">[default: sqlite]</span><span class="r1">       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-airflow-version</span><span class="r1">  </span><span class="r6">-V</span><span class="r1">  </span><span class="r1">Use (reinstall at entry) Airflow version from PyPI.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1">                             </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--postgres-version</span><span class="r1">     </span><span class="r6">-P</span><span class="r1">  </span><span class="r1">Version of Postgres used.</span><span class="r1"> </span><span class="r7">(&gt;10&lt; | 11 | 12 | 13)</span><span class="r1"> </span><span class="r4">[default: 10]</span><span class="r1">                          </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mysql-version</span><span class="r1">        </span><span class="r6">-M</span><span class="r1">  </span><span class="r1">Version of MySQL used.</span><span class="r1"> </span><span class="r7">(&gt;5.7&lt; | 8)</span><span class="r1"> </span><span class="r4">[default: 5.7]</span><span class="r1">                                      </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mssql-version</span><span class="r1">        </span><span class="r6">-S</span><span class="r1">  </span><span class="r1">Version of MsSQL used.</span><span class="r1"> </span><span class="r7">(&gt;2017-latest&lt; | 2019-latest)</span><span class="r1"> </span><span class="r4">[default: 2017-latest]</span><span class="r1">            </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debian-version</span><span class="r1">       </span><span class="r6">-d</span><span class="r1">  </span><span class="r1">Debian version used for the image.</span><span class="r1"> </span><span class="r7">(bullseye | buster)</span><span class="r1"> </span><span class="r4">[default: bullseye]</span><span class="r1">             </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--integration</span><span class="r1">          </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Integration(s) to enable when running (can be more than one).                          </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                             </span><span class="r7">(cassandra | kerberos | mongo | openldap | pinot | rabbitmq | redis | statsd | trino | </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                             </span><span class="r7">all)                                                                                   </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--forward-credentials</span><span class="r1">  </span><span class="r6">-f</span><span class="r1">  </span><span class="r1">Forward local credentials to container when running.                                   </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--db-reset</span><span class="r1">             </span><span class="r6">-d</span><span class="r1">  </span><span class="r1">Reset DB when entering the container.                                                  </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Advanced flags for the default (shell) command ─────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force-build</span><span class="r1">    </span><span class="r6">-f</span><span class="r1">  </span><span class="r1">Force image build no matter if it is determined as needed.                                   </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mount-sources</span><span class="r1">  </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Choose scope of local sources should be mounted (default = selected).</span><span class="r1"> </span><span class="r7">(selected | all | none)</span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                       </span><span class="r4">[default: selected]                                                  </span><span class="r1"> </span><span class="r1">                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--integration</span><span class="r1">    </span><span class="r1">  </span><span class="r1">  </span><span class="r1">Integration(s) to enable when running (can be more than one).                                </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                       </span><span class="r7">(cassandra | kerberos | mongo | openldap | pinot | rabbitmq | redis | statsd | trino | all)</span><span class="r1">  </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-airflow-version</span><span class="r1">       Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              `sdist` if Airflow should be removed, installed from wheel packages or sdist packages   </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              available in dist folder respectively. Important! Using it Implies </span><span class="r5">--mount-sources</span><span class="r1">      </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              `none`.                                                                                 </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r7">(none | wheel | sdist | &lt;airflow_version&gt;)                                            </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--airflow-extras</span><span class="r1">            Airflow extras to install when </span><span class="r5">--use-airflow-version</span><span class="r1"> is used </span><span class="r7">(TEXT)</span><span class="r1">                   </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-packages-from-dist</span><span class="r1">    Install all found packages (</span><span class="r5">--package-format</span><span class="r1"> determines type) from &#x27;dist&#x27; folder when   </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              entering breeze.                                                                        </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--package-format</span><span class="r1">            </span><span class="r1">Format of packages that should be installed from dist.</span><span class="r1"> </span><span class="r7">(wheel | sdist)</span><span class="r1">                </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r4">[default: wheel]                                      </span><span class="r1"> </span><span class="r1">                               </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force-build</span><span class="r1">               </span><span class="r1">Force image build no matter if it is determined as needed.                            </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mount-sources</span><span class="r1">             </span><span class="r1">Choose scope of local sources should be mounted (default = selected).                 </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r7">(selected | all | none)                                              </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r4">[default: selected]                                                  </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debian-version</span><span class="r1">            </span><span class="r1">Debian version used for the image.</span><span class="r1"> </span><span class="r7">(bullseye | buster)</span><span class="r1"> </span><span class="r4">[default: bullseye]</span><span class="r1">            </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
 <div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">            </span><span class="r6">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                                         </span><span class="r1">  </span><span class="r4">│</span></div>
@@ -178,6 +189,7 @@
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> verify-prod-image </span><span class="r1"> </span><span class="r1">Verify Production image.                                                                       </span><span class="r1">  </span><span class="r4">│</span></div>
 <div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
 <div><span class="r4">╭─ Release management ─────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1"> </span><span class="r5"> verify-provider-packages       </span><span class="r1"> </span><span class="r1">Verifies if all provider code is following expectations for providers.      </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-provider-documentation </span><span class="r1"> </span><span class="r1">Prepare CHANGELOG, README and COMMITS information for providers.            </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-provider-packages      </span><span class="r1"> </span><span class="r1">Prepare sdist/whl packages of Airflow Providers.                            </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>
 <div><span class="r4">│</span><span class="r1"> </span><span class="r5"> prepare-airflow-package        </span><span class="r1"> </span><span class="r1">Prepare sdist/whl package of Airflow.                                       </span><span class="r1"> </span><span class="r1">      </span><span class="r1"> </span><span class="r4">│</span></div>

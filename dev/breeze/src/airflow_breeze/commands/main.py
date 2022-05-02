@@ -16,6 +16,7 @@
 # under the License.
 
 from airflow_breeze.commands.common_options import (
+    option_airflow_extras,
     option_answer,
     option_backend,
     option_db_reset,
@@ -24,6 +25,7 @@ from airflow_breeze.commands.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
+    option_installation_package_format,
     option_integration,
     option_mount_sources,
     option_mssql_version,
@@ -31,6 +33,7 @@ from airflow_breeze.commands.common_options import (
     option_postgres_version,
     option_python,
     option_use_airflow_version,
+    option_use_packages_from_dist,
     option_verbose,
 )
 from airflow_breeze.commands.configure_rich_click import click
@@ -50,6 +53,9 @@ from airflow_breeze.utils.path_utils import create_directories
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version
+@option_airflow_extras
+@option_use_packages_from_dist
+@option_installation_package_format
 @option_mount_sources
 @option_integration
 @option_db_reset
