@@ -42,7 +42,7 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
   const { data: taskData } = useTasks(dagId);
-  const { data: { dagRuns = [] } } = useTreeData();
+  const { data: { dagRuns } } = useTreeData();
   if (!taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
 

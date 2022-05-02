@@ -43,7 +43,7 @@ const graphUrl = getMetaValue('graph_url');
 const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
 const DagRun = ({ runId }) => {
-  const { data: { dagRuns = [] } } = useTreeData();
+  const { data: { dagRuns } } = useTreeData();
   const run = dagRuns.find((dr) => dr.runId === runId);
   if (!run) return null;
   const {
