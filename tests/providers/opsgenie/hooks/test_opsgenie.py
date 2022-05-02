@@ -138,3 +138,19 @@ class TestOpsgenieAlertHook(unittest.TestCase):
             close_alert_payload=CloseAlertPayload(**pay_load),
             kwargs=kwargs,
         )
+
+    @mock.patch.object(AlertApi, 'delete_alert')
+    def test_delete_alert(self, delete_alert_mock):
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+
+        # When
+        identifier = 'identifier_example'
+        identifier_type = 'id'
+        user = "some_user"
+        source = "airflow"
+
+        # Then
+        hook.delete_alert(identifier=identifier, identifier_type=identifier_type, user=user, source=source)
+        delete_alert_mock.assert_called_once_with(
+            identifier=identifier, identifier_type=identifier_type, user=user, source=source
+        )
