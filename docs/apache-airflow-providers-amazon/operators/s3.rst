@@ -196,6 +196,21 @@ To create a new (or replace) Amazon S3 object you can use
     :start-after: [START howto_operator_s3_create_object]
     :end-before: [END howto_operator_s3_create_object]
 
+.. _howto/operator:S3ListOperator:
+
+List Amazon S3 objects
+----------------------
+
+To list all Amazon S3 objects within an Amazon S3 bucket you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3ListOperator`.
+You can specify ``prefix`` to filter the objects whose name begin with such prefix.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_list]
+    :end-before: [END howto_operator_s3_list]
+
 .. _howto/operator:S3CopyObjectOperator:
 
 Copy an Amazon S3 object
