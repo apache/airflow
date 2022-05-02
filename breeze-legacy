@@ -2222,7 +2222,6 @@ function breeze::check_and_save_all_params() {
     fi
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
-    parameters::check_and_save_allowed_param "PLATFORM" "platform" "--platform"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
@@ -2233,7 +2232,6 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
-    parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
 }
 
 #######################################################################################################
