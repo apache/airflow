@@ -39,7 +39,7 @@ using the latest stable version of SQLite for local development.
 
 **Note**: Python v3.10 is not supported yet. For details, see `#19059 <https://github.com/apache/airflow/issues/19059>`__.
 
-Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.9.
+Starting with Airflow 2.3.0, Airflow is tested with Python 3.7, 3.8, 3.9 and 3.10.
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
 wildly on the deployment options you have

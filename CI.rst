@@ -661,9 +661,9 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
