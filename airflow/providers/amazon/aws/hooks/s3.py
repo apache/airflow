@@ -152,7 +152,7 @@ class S3Hook(AwsBaseHook):
     ) -> Tuple[str, str]:
         """
         Get the S3 bucket name and key from either:
-            - bucket name and key. Return the infos as it is after checking `key` is a relative path
+            - bucket name and key. Return the info as it is after checking `key` is a relative path
             - key. Must be a full s3:// url
 
         :param bucket: The S3 bucket name
