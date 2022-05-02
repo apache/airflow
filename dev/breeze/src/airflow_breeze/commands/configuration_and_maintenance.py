@@ -405,7 +405,7 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
 @option_dry_run
 def resource_check(verbose: bool, dry_run: bool):
     shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(verbose, shell_params.airflow_image_name, dry_run=dry_run)
+    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 
 
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")

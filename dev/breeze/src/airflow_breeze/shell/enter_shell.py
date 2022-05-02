@@ -17,55 +17,19 @@
 """Command to enter container shell for Breeze."""
 import subprocess
 import sys
-from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
-from airflow_breeze import global_constants
-from airflow_breeze.build_image.ci.build_ci_image import build_ci_image
-from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.cache import (
-    read_and_validate_value_from_cache,
-    read_from_cache_file,
-    write_to_cache_file,
-)
+from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
-    SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
-    VARIABLES_IN_CACHE,
-    check_docker_compose_version,
     check_docker_is_running,
     check_docker_resources,
-    check_docker_version,
     construct_env_variables_docker_compose_command,
 )
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.rebuild_image_if_needed import rebuild_ci_image_if_needed
 from airflow_breeze.utils.run_utils import filter_out_none, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
-
-
-def synchronize_cached_params(parameters_passed_by_the_user: Dict[str, str]) -> Dict[str, str]:
-    """
-    Synchronizes cached params with arguments passed via dictionary.
-
-    It will read from cache parameters that are missing and writes back in case user
-    actually provided new values for those parameters. It synchronizes all cacheable parameters.
-
-    :param parameters_passed_by_the_user: user args passed
-    :return: updated args
-    """
-    updated_params = dict(parameters_passed_by_the_user)
-    for param in VARIABLES_IN_CACHE:
-        if param in parameters_passed_by_the_user:
-            param_name = VARIABLES_IN_CACHE[param]
-            user_param_value = parameters_passed_by_the_user[param]
-            if user_param_value is not None:
-                write_to_cache_file(param_name, user_param_value)
-            else:
-                param_value = getattr(global_constants, SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES[param])
-                _, user_param_value = read_and_validate_value_from_cache(param_name, param_value)
-            updated_params[param] = user_param_value
-    return updated_params
 
 
 def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
@@ -88,14 +52,11 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
             '[warning]Please make sure Docker is installed and running.[/]'
         )
         sys.exit(1)
-    check_docker_version(verbose)
-    check_docker_compose_version(verbose)
-    updated_kwargs = synchronize_cached_params(kwargs)
     if read_from_cache_file('suppress_asciiart') is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
-    enter_shell_params = ShellParams(**filter_out_none(**updated_kwargs))
+    enter_shell_params = ShellParams(**filter_out_none(**kwargs))
     return run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
 
 
@@ -116,28 +77,24 @@ def run_shell_with_build_image_checks(
     :param dry_run: do not execute "write" commands - just print what would happen
     :param shell_params: parameters of the execution
     """
-    check_docker_resources(verbose, shell_params.airflow_image_name, dry_run=dry_run)
-    build_ci_image_check_cache = Path(
-        BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python}"
-    )
-    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies=False)
-    if build_ci_image_check_cache.exists():
-        if verbose:
-            get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
-    else:
-        get_console().print(
-            f'[warning]{shell_params.the_image_type} image not built locally. Forcing build.[/]'
-        )
-        ci_image_params.force_build = True
-
-    build_ci_image(verbose, dry_run=dry_run, with_ci_group=False, ci_image_params=ci_image_params)
+    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
     shell_params.print_badge_info()
     cmd = ['docker-compose', 'run', '--service-ports', "-e", "BREEZE", '--rm', 'airflow']
     cmd_added = shell_params.command_passed
     env_variables = construct_env_variables_docker_compose_command(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-    return run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True)
+
+    command_result = run_command(
+        cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
+    )
+    if command_result.returncode == 0:
+        return command_result
+    else:
+        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+        if verbose:
+            get_console().print(command_result.stderr)
+        return command_result
 
 
 def stop_exec_on_error(returncode: int):
@@ -147,7 +104,7 @@ def stop_exec_on_error(returncode: int):
 
 def find_airflow_container(verbose, dry_run) -> Optional[str]:
     exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
-    check_docker_resources(verbose, exec_shell_params.airflow_image_name, dry_run)
+    check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
     exec_shell_params.print_badge_info()
     env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
     cmd = ['docker-compose', 'ps', '--all', '--filter', 'status=running', 'airflow']
