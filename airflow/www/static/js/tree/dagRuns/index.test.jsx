@@ -21,75 +21,43 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
-import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment-timezone';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { MemoryRouter } from 'react-router-dom';
 
 import DagRuns from './index';
-import { ContainerRefProvider } from '../context/containerRef';
-import { TimezoneProvider } from '../context/timezone';
-import { AutoRefreshProvider } from '../context/autorefresh';
+import { TableWrapper } from '../utils/testUtils';
 
-global.moment = moment;
-
-const Wrapper = ({ children }) => {
-  const queryClient = new QueryClient();
-  return (
-    <React.StrictMode>
-      <ChakraProvider>
-        <QueryClientProvider client={queryClient}>
-          <ContainerRefProvider value={{}}>
-            <TimezoneProvider value={{ timezone: 'UTC' }}>
-              <AutoRefreshProvider value={{ isRefreshOn: false, stopRefresh: () => {} }}>
-                <MemoryRouter>
-                  <Table>
-                    <Tbody>
-                      {children}
-                    </Tbody>
-                  </Table>
-                </MemoryRouter>
-              </AutoRefreshProvider>
-            </TimezoneProvider>
-          </ContainerRefProvider>
-        </QueryClientProvider>
-      </ChakraProvider>
-    </React.StrictMode>
-  );
-};
+const dagRuns = [
+  {
+    dagId: 'dagId',
+    runId: 'run1',
+    dataIntervalStart: new Date(),
+    dataIntervalEnd: new Date(),
+    startDate: '2021-11-08T21:14:19.704433+00:00',
+    endDate: '2021-11-08T21:17:13.206426+00:00',
+    state: 'failed',
+    runType: 'scheduled',
+    executionDate: '2021-11-08T21:14:19.704433+00:00',
+  },
+  {
+    dagId: 'dagId',
+    runId: 'run2',
+    dataIntervalStart: new Date(),
+    dataIntervalEnd: new Date(),
+    state: 'success',
+    runType: 'manual',
+    startDate: '2021-11-09T00:19:43.023200+00:00',
+    endDate: '2021-11-09T00:22:18.607167+00:00',
+  },
+];
 
 describe('Test DagRuns', () => {
-  const dagRuns = [
-    {
-      dagId: 'dagId',
-      runId: 'run1',
-      dataIntervalStart: new Date(),
-      dataIntervalEnd: new Date(),
-      startDate: '2021-11-08T21:14:19.704433+00:00',
-      endDate: '2021-11-08T21:17:13.206426+00:00',
-      state: 'failed',
-      runType: 'scheduled',
-      executionDate: '2021-11-08T21:14:19.704433+00:00',
-    },
-    {
-      dagId: 'dagId',
-      runId: 'run2',
-      dataIntervalStart: new Date(),
-      dataIntervalEnd: new Date(),
-      state: 'success',
-      runType: 'manual',
-      startDate: '2021-11-09T00:19:43.023200+00:00',
-      endDate: '2021-11-09T00:22:18.607167+00:00',
-    },
-  ];
-
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
     global.treeData = JSON.stringify({
       groups: {},
       dagRuns,
     });
     const { queryAllByTestId, getByText, queryByText } = render(
-      <DagRuns />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: TableWrapper },
     );
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
@@ -127,26 +95,15 @@ describe('Test DagRuns', () => {
       ],
     });
     const { getByText } = render(
-      <DagRuns />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: TableWrapper },
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
   });
 
   test('Handles empty data correctly', () => {
-    global.treeData = {
-      groups: {},
-      dagRuns: [],
-    };
+    global.treeData = null;
     const { queryByTestId } = render(
-      <DagRuns />, { wrapper: Wrapper },
-    );
-    expect(queryByTestId('run')).toBeNull();
-  });
-
-  test('Handles no data correctly', () => {
-    global.treeData = {};
-    const { queryByTestId } = render(
-      <DagRuns />, { wrapper: Wrapper },
+      <DagRuns />, { wrapper: TableWrapper },
     );
     expect(queryByTestId('run')).toBeNull();
   });
