@@ -127,15 +127,15 @@ def set_state(
         raise ValueError("Received tasks with no DAG")
 
     if execution_date:
-        run_id = dag.get_dagrun(execution_date=execution_date).run_id
+        run_id = dag.get_dagrun(execution_date=execution_date, session=session).run_id
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
-    dag_run_ids = get_run_ids(dag, run_id, future, past)
+    dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
     task_ids = [task_id if isinstance(task_id, str) else task_id[0] for task_id in task_id_map_index_list]
 
-    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids))
+    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
 
     sub_dag_run_ids = list(
@@ -261,10 +261,10 @@ def verify_dagruns(
             session.merge(dag_run)
 
 
-def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str]) -> Iterator[_DagRunInfo]:
-    for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids):
+def _iter_existing_dag_run_infos(dag: DAG, run_ids: List[str], session: SASession) -> Iterator[_DagRunInfo]:
+    for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids, session=session):
         dag_run.dag = dag
-        dag_run.verify_integrity()
+        dag_run.verify_integrity(session=session)
         yield _DagRunInfo(dag_run.logical_date, dag.get_run_data_interval(dag_run))
 
 
@@ -318,8 +318,8 @@ def get_execution_dates(
 @provide_session
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
     """Returns run_ids of DAG execution"""
-    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True)
-    current_dagrun = dag.get_dagrun(run_id=run_id)
+    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
+    current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = (
         session.query(DagRun)
         .filter(DagRun.dag_id == dag.dag_id)
@@ -336,7 +336,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     if not dag.timetable.can_run:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
+        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
         run_ids = sorted({d.run_id for d in dag_runs})
     elif not dag.timetable.periodic:
         run_ids = [run_id]
@@ -344,7 +344,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
         dates = [
             info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
-        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates)]
+        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates, session=session)]
     return run_ids
 
 

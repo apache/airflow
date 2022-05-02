@@ -19,7 +19,7 @@ import multiprocessing as mp
 from typing import List, Tuple
 
 from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_env_variables_docker_compose_command,
     get_extra_docker_flags,
@@ -63,8 +63,8 @@ def run_generate_constraints_in_parallel(
     verbose: bool,
 ):
     """Run generate constraints in parallel"""
-    console.print(
-        f"\n[bright_blue]Generating constraints with parallelism = {parallelism} "
+    get_console().print(
+        f"\n[info]Generating constraints with parallelism = {parallelism} "
         f"for the constraints: {python_version_list}[/]"
     )
     pool = mp.Pool(parallelism)

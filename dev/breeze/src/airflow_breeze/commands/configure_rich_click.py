@@ -44,7 +44,7 @@ try:
     click.rich_click.STYLE_ERRORS_SUGGESTION = "bright_blue italic"
     click.rich_click.ERRORS_SUGGESTION = "\nTry running the '--help' flag for more information.\n"
     click.rich_click.ERRORS_EPILOGUE = (
-        "\nTo find out more, visit [bright_blue]https://github.com/apache/airflow/blob/main/BREEZE.rst[/]\n"
+        "\nTo find out more, visit [info]https://github.com/apache/airflow/blob/main/BREEZE.rst[/]\n"
     )
     click.rich_click.OPTION_GROUPS = {
         **DEVELOPER_PARAMETERS,

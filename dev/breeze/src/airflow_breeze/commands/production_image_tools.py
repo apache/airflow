@@ -67,7 +67,7 @@ from airflow_breeze.commands.main import main
 from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import set_forced_answer
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -81,7 +81,6 @@ PRODUCTION_IMAGE_TOOLS_COMMANDS = {
         "verify-prod-image",
     ],
 }
-
 PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
     "breeze build-prod-image": [
         {
@@ -98,7 +97,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
         {
             "name": "Building multiple images",
             "options": [
-                "--build_multiple_images",
+                "--build-multiple-images",
                 "--python-versions",
             ],
         },
@@ -124,13 +123,13 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
         {
             "name": "Customization options (for specific customization needs)",
             "options": [
-                "--cleanup-docker-context-files",
-                "--install-from-docker-context-files",
+                "--install-packages-from-context",
+                "--airflow-is-in-context",
+                "--cleanup-context",
                 "--disable-mysql-client-installation",
                 "--disable-mssql-client-installation",
                 "--disable-postgres-client-installation",
                 "--disable-airflow-repo-cache",
-                "--disable-pypi",
                 "--install-airflow-reference",
                 "--installation-method",
             ],
@@ -208,13 +207,19 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 )
 @option_install_providers_from_sources
 @click.option(
-    '--install-from-docker-context-files',
+    '--airflow-is-in-context',
+    help="If set Airflow is installed from docker-context-files only rather than from PyPI or sources.",
+    is_flag=True,
+)
+@click.option(
+    '--install-packages-from-context',
     help='Install wheels from local docker-context-files when building image.',
     is_flag=True,
 )
 @click.option(
-    '--cleanup-docker-context-files',
-    help='Clean up docker context files before running build.',
+    '--cleanup-context',
+    help='Clean up docker context files before running build (cannot be used together'
+    ' with --install-packages-from-context).',
     is_flag=True,
 )
 @click.option(
@@ -228,7 +233,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
     help="Disable cache from Airflow repository during building.",
     is_flag=True,
 )
-@click.option('--disable-pypi', help="Disable PyPI during building.", is_flag=True)
 @click.option(
     '--install-airflow-reference',
     help="Install Airflow using GitHub tag or branch.",
@@ -264,7 +268,7 @@ def build_prod_image(
             verbose=verbose, dry_run=dry_run, with_ci_group=with_ci_group, prod_image_params=prod_image_params
         )
         if return_code != 0:
-            console.print(f"[red]Error when building image! {info}")
+            get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
     set_forced_answer(answer)
@@ -340,7 +344,7 @@ def pull_prod_image(
             poll_time=10.0,
         )
         if return_code != 0:
-            console.print(f"[red]There was an error when pulling PROD image: {info}[/]")
+            get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
             sys.exit(return_code)
 
 
@@ -373,7 +377,7 @@ def verify_prod_image(
             python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
-    console.print(f"[bright_blue]Verifying PROD image: {image_name}[/]")
+    get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
         verbose=verbose,

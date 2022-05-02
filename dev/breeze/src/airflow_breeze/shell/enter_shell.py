@@ -18,7 +18,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from airflow_breeze import global_constants
 from airflow_breeze.build_image.ci.build_ci_image import build_ci_image
@@ -29,7 +29,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     SOURCE_OF_DEFAULT_VALUES_FOR_VARIABLES,
     VARIABLES_IN_CACHE,
@@ -83,18 +83,18 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
     if not check_docker_is_running(verbose):
-        console.print(
-            '[red]Docker is not running.[/]\n'
-            '[bright_yellow]Please make sure Docker is installed and running.[/]'
+        get_console().print(
+            '[error]Docker is not running.[/]\n'
+            '[warning]Please make sure Docker is installed and running.[/]'
         )
         sys.exit(1)
     check_docker_version(verbose)
     check_docker_compose_version(verbose)
     updated_kwargs = synchronize_cached_params(kwargs)
     if read_from_cache_file('suppress_asciiart') is None:
-        console.print(ASCIIART, style=ASCIIART_STYLE)
+        get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:
-        console.print(CHEATSHEET, style=CHEATSHEET_STYLE)
+        get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**updated_kwargs))
     return run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
 
@@ -120,12 +120,13 @@ def run_shell_with_build_image_checks(
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, shell_params.airflow_branch, f".built_{shell_params.python}"
     )
-    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies="false")
+    ci_image_params = BuildCiParams(python=shell_params.python, upgrade_to_newer_dependencies=False)
     if build_ci_image_check_cache.exists():
-        console.print(f'[bright_blue]{shell_params.the_image_type} image already built locally.[/]')
+        if verbose:
+            get_console().print(f'[info]{shell_params.the_image_type} image already built locally.[/]')
     else:
-        console.print(
-            f'[bright_yellow]{shell_params.the_image_type} image not built locally. ' f'Forcing build.[/]'
+        get_console().print(
+            f'[warning]{shell_params.the_image_type} image not built locally. Forcing build.[/]'
         )
         ci_image_params.force_build = True
 
@@ -137,3 +138,39 @@ def run_shell_with_build_image_checks(
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
     return run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True)
+
+
+def stop_exec_on_error(returncode: int):
+    get_console().print('\n[error]ERROR in finding the airflow docker-compose process id[/]\n')
+    sys.exit(returncode)
+
+
+def find_airflow_container(verbose, dry_run) -> Optional[str]:
+    exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
+    check_docker_resources(verbose, exec_shell_params.airflow_image_name, dry_run)
+    exec_shell_params.print_badge_info()
+    env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
+    cmd = ['docker-compose', 'ps', '--all', '--filter', 'status=running', 'airflow']
+    docker_compose_ps_command = run_command(
+        cmd, verbose=verbose, dry_run=dry_run, text=True, capture_output=True, env=env_variables, check=False
+    )
+    if dry_run:
+        return "CONTAINER_ID"
+    if docker_compose_ps_command.returncode != 0:
+        if verbose:
+            get_console().print(docker_compose_ps_command.stdout)
+            get_console().print(docker_compose_ps_command.stderr)
+        stop_exec_on_error(docker_compose_ps_command.returncode)
+        return None
+
+    output = docker_compose_ps_command.stdout
+    container_info = output.strip().split('\n')
+    if container_info:
+        container_running = container_info[-1].split(' ')[0]
+        if container_running.startswith('-'):
+            # On docker-compose v1 we get '--------' as output here
+            stop_exec_on_error(docker_compose_ps_command.returncode)
+        return container_running
+    else:
+        stop_exec_on_error(1)
+        return None

@@ -24,8 +24,8 @@ import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { formatData, areActiveRuns } from '../treeDataUtils';
-import useErrorToast from '../useErrorToast';
+import { formatData, areActiveRuns } from '../utils/treeData';
+import useErrorToast from '../utils/useErrorToast';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -59,8 +59,7 @@ const useTreeData = () => {
       throw (error);
     }
   }, {
-    // only enabled and refetch if the refresh switch is on
-    enabled: isRefreshOn,
+    // only refetch if the refresh switch is on
     refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
     initialData,
   });

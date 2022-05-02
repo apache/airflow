@@ -20,7 +20,6 @@ This module contains Azure Data Lake Storage to
 Google Cloud Storage operator.
 """
 import os
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
@@ -44,8 +43,6 @@ class ADLSToGCSOperator(ADLSListOperator):
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -111,7 +108,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         dest_gcs: str,
         azure_data_lake_conn_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         replace: bool = False,
         gzip: bool = False,
@@ -120,15 +116,6 @@ class ADLSToGCSOperator(ADLSListOperator):
     ) -> None:
 
         super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.src_adls = src_adls
         self.dest_gcs = dest_gcs

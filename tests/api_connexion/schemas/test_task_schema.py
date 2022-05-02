@@ -56,6 +56,7 @@ class TestTaskSchema:
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
             "weight_rule": "downstream",
+            "is_mapped": False,
         }
         assert expected == result
 
@@ -101,6 +102,7 @@ class TestTaskCollectionSchema:
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
+                    "is_mapped": False,
                 }
             ],
             "total_entries": 1,

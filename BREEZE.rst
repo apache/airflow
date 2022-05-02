@@ -378,6 +378,17 @@ default settings.
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
 
+Another part of configuration is enabling/disabling cheatsheet, asciiart. The cheatsheet and asciiart can
+be disabled - they are "nice looking" and cheatsheet
+contains useful information for first time users but eventually you might want to disable both if you
+find it repetitive and annoying.
+
+With the config setting colour-blind-friendly communication for Breeze messages. By default we communicate
+with the users about information/errors/warnings/successes via colour-coded messages, but we can switch
+it off by passing ``--no-colour`` to config in which case the messages to the user printed by Breeze
+will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
+rather than colours.
+
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command but it is very similar to current ``breeze`` command):
 
@@ -461,7 +472,14 @@ Those are commands mostly used by contributors:
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``./breeze-legacy tests`` command
-* Join running interactive shell with ``./breeze-legacy exec`` command
+* Build CI docker image with ``breeze build-image`` command
+* Cleanup breeze with ``breeze cleanup`` command
+* Run static checks with autocomplete support ``breeze static-checks`` command
+* Run test specified with ``./breeze-legacy tests`` command
+
+Additional management tasks:
+
+* Join running interactive shell with ``breeze exec`` command
 * Stop running interactive environment with ``breeze stop`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
 
@@ -569,8 +587,7 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -584,12 +601,11 @@ command but it is very similar to current ``breeze`` command):
 
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``./breeze-legacy exec`` while you already started the
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -600,6 +616,12 @@ command and it is not yet available in the current ``breeze`` command):
       </a>
     </div>
 
+
+Those are all available flags of ``exec`` command:
+
+.. image:: ./images/breeze/output-exec.svg
+  :width: 100%
+  :alt: Breeze exec
 
 Additional tools
 ----------------
@@ -1356,6 +1378,7 @@ You can connect to these ports/databases using:
 * Flower:    http://127.0.0.1:25555
 * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
 * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+* MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
 * Redis:     redis://127.0.0.1:26379/0
 
 If you do not use ``start-airflow`` command, you can start the webserver manually with
@@ -1435,3 +1458,18 @@ Breeze uses built-in capability of ``rich`` to record and print the command help
 It's enabled by setting ``RECORD_BREEZE_OUTPUT_FILE`` to a file name where it will be recorded.
 By default it records the screenshots with default characters width and with "Breeze screenshot" title,
 but you can override it with ``RECORD_BREEZE_WIDTH`` and ``RECORD_BREEZE_TITLE`` variables respectively.
+
+Uninstalling Breeze
+===================
+Breeze was installed with ``pipx``, with ``pipx list``, you can list the installed packages.
+Once you have the name of ``breeze`` package you can proceed to uninstall it.
+
+.. code-block:: bash
+
+    pipx list
+
+This will also remove breeze from the folder: ``${HOME}.local/bin/``
+
+.. code-block:: bash
+
+    pipx uninstall apache-airflow-breeze

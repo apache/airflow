@@ -44,7 +44,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.3.0.dev0'
+version = '2.4.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -264,7 +264,7 @@ dask = [
 ]
 databricks = [
     'requests>=2.26.0, <3',
-    'databricks-sql-connector>=1.0.2, <2.0.0',
+    'databricks-sql-connector>=2.0.0, <3.0.0',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -334,7 +334,7 @@ google = [
     'google-cloud-bigquery-datatransfer>=3.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
     'google-cloud-build>=3.0.0',
-    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-container>=2.2.0,<3.0.0',
     'google-cloud-datacatalog>=3.0.0',
     'google-cloud-dataplex>=0.1.0',
     'google-cloud-dataproc>=3.1.0',

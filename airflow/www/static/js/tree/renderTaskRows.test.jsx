@@ -24,10 +24,10 @@ import { render, fireEvent } from '@testing-library/react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import moment from 'moment';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 import renderTaskRows from './renderTaskRows';
 import { ContainerRefProvider } from './context/containerRef';
-import { SelectionProvider } from './context/selection';
 
 global.moment = moment;
 
@@ -101,13 +101,13 @@ const Wrapper = ({ children }) => {
       <ChakraProvider>
         <QueryClientProvider client={queryClient}>
           <ContainerRefProvider value={{}}>
-            <SelectionProvider value={{ onSelect: () => {}, selected: {} }}>
+            <MemoryRouter>
               <Table>
                 <Tbody>
                   {children}
                 </Tbody>
               </Table>
-            </SelectionProvider>
+            </MemoryRouter>
           </ContainerRefProvider>
         </QueryClientProvider>
       </ChakraProvider>

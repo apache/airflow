@@ -28,6 +28,9 @@ import {
 import ActionButton from './ActionButton';
 import ConfirmDialog from '../../ConfirmDialog';
 import { useClearTask } from '../../../../api';
+import { getMetaValue } from '../../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const Run = ({
   dagId,
@@ -96,7 +99,7 @@ const Run = ({
 
   return (
     <Flex justifyContent="space-between" width="100%">
-      <ButtonGroup isAttached variant="outline">
+      <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
@@ -108,6 +111,7 @@ const Run = ({
         colorScheme="blue"
         onClick={onClick}
         isLoading={isLoading}
+        isDisabled={!canEdit}
         title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
       >
         Clear

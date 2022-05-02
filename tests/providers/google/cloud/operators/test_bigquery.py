@@ -82,7 +82,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             task_id=TASK_ID, dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID, table_id=TEST_TABLE_ID
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -108,7 +108,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             view=VIEW_DEFINITION,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -134,7 +134,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             materialized_view=MATERIALIZED_VIEW_DEFINITION,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -170,7 +170,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             cluster_fields=cluster_fields,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -200,7 +200,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             autodetect=True,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_external_table.assert_called_once_with(
             external_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
             schema_fields=[],
@@ -246,7 +246,7 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
             location=TEST_DATASET_LOCATION,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_dataset.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -263,7 +263,7 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
             task_id=TASK_ID, dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.get_dataset.assert_called_once_with(
             dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID
         )
@@ -281,7 +281,7 @@ class TestBigQueryUpdateTableOperator(unittest.TestCase):
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.update_table.assert_called_once_with(
             table_resource=table_resource,
             fields=None,
@@ -310,7 +310,7 @@ class TestBigQueryUpdateTableSchemaOperator(unittest.TestCase):
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,
         )
-        operator.execute(None)
+        operator.execute(context=MagicMock())
 
         mock_hook.return_value.update_table_schema.assert_called_once_with(
             schema_fields_updates=schema_field_updates,
@@ -349,7 +349,7 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset_resource=dataset_resource,
             dataset_id=TEST_DATASET,
@@ -769,33 +769,6 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
-class TestBigQueryConnIdDeprecationWarning:
-    @pytest.mark.parametrize(
-        "operator_class, kwargs",
-        [
-            (BigQueryCheckOperator, dict(sql='Select * from test_table')),
-            (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
-            (BigQueryIntervalCheckOperator, dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5})),
-            (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID)),
-            (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table')),
-            (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET)),
-            (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET)),
-            (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET)),
-        ],
-    )
-    def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
-        bigquery_conn_id = 'google_cloud_default'
-        with pytest.warns(
-            DeprecationWarning,
-            match=(
-                "The bigquery_conn_id parameter has been deprecated. "
-                "You should pass the gcp_conn_id parameter."
-            ),
-        ):
-            operator = operator_class(task_id=TASK_ID, bigquery_conn_id=bigquery_conn_id, **kwargs)
-            assert bigquery_conn_id == operator.gcp_conn_id
-
-
 class TestBigQueryUpsertTableOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
@@ -806,7 +779,7 @@ class TestBigQueryUpsertTableOperator(unittest.TestCase):
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        operator.execute(None)
+        operator.execute(context=MagicMock())
         mock_hook.return_value.run_table_upsert.assert_called_once_with(
             dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID, table_resource=TEST_TABLE_RESOURCES
         )
@@ -836,7 +809,7 @@ class TestBigQueryInsertJobOperator:
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
-        result = op.execute({})
+        result = op.execute(context=MagicMock())
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -873,7 +846,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
             cancel_on_kill=False,
         )
-        op.execute({})
+        op.execute(context=MagicMock())
 
         op.on_kill()
         mock_hook.return_value.cancel_job.assert_not_called()
@@ -944,7 +917,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
             reattach_states={"PENDING"},
         )
-        result = op.execute({})
+        result = op.execute(context=MagicMock())
 
         mock_hook.return_value.get_job.assert_called_once_with(
             location=TEST_DATASET_LOCATION,
@@ -989,7 +962,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
             force_rerun=True,
         )
-        result = op.execute({})
+        result = op.execute(context=MagicMock())
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,

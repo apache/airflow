@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useClearRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const ClearRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -42,7 +45,13 @@ const ClearRun = ({ dagId, runId }) => {
 
   return (
     <>
-      <Button onClick={onClick} isLoading={isLoading}>Clear existing tasks</Button>
+      <Button
+        onClick={onClick}
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
+        Clear existing tasks
+      </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

@@ -26,7 +26,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.recording import output_file_for_recording
 
 
@@ -71,8 +71,8 @@ class CacheableChoice(click.Choice):
         if isinstance(value, CacheableDefault):
             is_cached, new_value = read_and_validate_value_from_cache(param_name, value.value)
             if not is_cached:
-                console.print(
-                    f"\n[bright_blue]Default value of {param.name} " f"parameter {new_value} used.[/]\n"
+                get_console().print(
+                    f"\n[info]Default value of {param.name} " f"parameter {new_value} used.[/]\n"
                 )
         else:
             allowed, allowed_values = check_if_values_allowed(param_name, value)
@@ -81,8 +81,8 @@ class CacheableChoice(click.Choice):
                 write_to_cache_file(param_name, new_value, check_allowed_values=False)
             else:
                 new_value = allowed_values[0]
-                console.print(
-                    f"\n[yellow]The value {value} is not allowed for parameter {param.name}. "
+                get_console().print(
+                    f"\n[warning]The value {value} is not allowed for parameter {param.name}. "
                     f"Setting default value to {new_value}"
                 )
                 write_to_cache_file(param_name, new_value, check_allowed_values=False)

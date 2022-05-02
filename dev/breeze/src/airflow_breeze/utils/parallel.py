@@ -20,7 +20,7 @@ import time
 from multiprocessing.pool import ApplyResult
 from typing import List
 
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 
 
 def print_async_summary(completed_list: List[ApplyResult]) -> None:
@@ -29,14 +29,14 @@ def print_async_summary(completed_list: List[ApplyResult]) -> None:
     :param completed_list: list of completed async results.
     """
     completed_list.sort(key=lambda x: x.get()[1])
-    console.print()
+    get_console().print()
     for result in completed_list:
         return_code, info = result.get()
         if return_code != 0:
-            console.print(f"[red]NOK[/] for {info}: Return code: {return_code}.")
+            get_console().print(f"[error]NOK[/] for {info}: Return code: {return_code}.")
         else:
-            console.print(f"[green]OK [/] for {info}.")
-    console.print()
+            get_console().print(f"[success]OK [/] for {info}.")
+    get_console().print()
 
 
 def get_completed_result_list(results: List[ApplyResult]) -> List[ApplyResult]:
@@ -57,16 +57,16 @@ def check_async_run_results(results: List[ApplyResult], poll_time: float = 0.2):
         current_completed_number = len(completed_list)
         if current_completed_number != completed_number:
             completed_number = current_completed_number
-            console.print(
-                f"\n[bright_blue]Completed {completed_number} out of {total_number_of_results} "
+            get_console().print(
+                f"\n[info]Completed {completed_number} out of {total_number_of_results} "
                 f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
             )
             print_async_summary(completed_list)
         time.sleep(poll_time)
         completed_list = get_completed_result_list(results)
     completed_number = len(completed_list)
-    console.print(
-        f"\n[bright_blue]Completed {completed_number} out of {total_number_of_results} "
+    get_console().print(
+        f"\n[info]Completed {completed_number} out of {total_number_of_results} "
         f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
     )
     print_async_summary(completed_list)
@@ -75,7 +75,7 @@ def check_async_run_results(results: List[ApplyResult], poll_time: float = 0.2):
         if result.get()[0] != 0:
             errors = True
     if errors:
-        console.print("\n[red]There were errors when running some tasks. Quitting.[/]\n")
+        get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
         sys.exit(1)
     else:
-        console.print("\n[green]All images are OK.[/]\n")
+        get_console().print("\n[success]All images are OK.[/]\n")

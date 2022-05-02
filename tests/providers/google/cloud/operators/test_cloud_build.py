@@ -88,23 +88,10 @@ class TestCloudBuildOperator(TestCase):
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_create_build_with_body(self, mock_hook):
+    def test_create_build_with_missing_build(self, mock_hook):
         mock_hook.return_value.create_build.return_value = Build()
-        operator = CloudBuildCreateBuildOperator(body=BUILD, task_id="id")
-        operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
-        build = Build(BUILD)
-        mock_hook.return_value.create_build.assert_called_once_with(
-            build=build, project_id=None, wait=True, retry=DEFAULT, timeout=None, metadata=()
-        )
-
-    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_create_build_with_body_and_build(self, mock_hook):
-        mock_hook.return_value.create_build.return_value = Build()
-        with pytest.raises(
-            AirflowException, match="You should not pass both build or body parameters. Both are set."
-        ):
-            CloudBuildCreateBuildOperator(build=BUILD, body=BUILD, task_id="id")
+        with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
+            CloudBuildCreateBuildOperator(task_id="id")
 
     @parameterized.expand(
         [

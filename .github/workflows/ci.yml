@@ -81,6 +81,7 @@ jobs:
             "XD-DENG",
             "aijamalnk",
             "alexvanboxel",
+            "aneesh-joseph",
             "aoen",
             "artwr",
             "ashb",
@@ -99,8 +100,10 @@ jobs:
             "jghoman",
             "jhtimmins",
             "jmcarp",
+            "josh-fell",
             "kaxil",
             "leahecole",
+            "malthe",
             "mik-laj",
             "milton0825",
             "mistercrunch",
@@ -426,9 +429,9 @@ jobs:
         run: >
           breeze build-prod-image
           --push-image
-          --install-from-docker-context-files
+          --install-packages-from-context
           --disable-airflow-repo-cache
-          --disable-pypi
+          --airflow-is-in-context
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
@@ -669,15 +672,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze free-space
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - run: ./scripts/ci/install_breeze.sh
+      - name: "Free space"
+        run: breeze free-space
       - name: "Get Python version"
         run: "echo \"::set-output name=host-python-version::$(python -c
  'import platform; print(platform.python_version())')\""
@@ -1659,15 +1662,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
-        run: breeze build-image --push-image
+        run: >
+          breeze build-image
+          --prepare-buildx-cache
+          --platform linux/amd64,linux/arm64
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PLATFORM: "linux/amd64,linux/arm64"
-          PREPARE_BUILDX_CACHE: "true"
-          VERSION_SUFFIX_FOR_PYPI: dev0
+          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: >
           Pull CI image for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1683,25 +1683,24 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze prepare-provider-packages
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel
+        env:
+          VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Prepare airflow package"
         run: breeze prepare-airflow-package --package-format wheel
+        env:
+          VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest
         run: >
           breeze build-prod-image
-          --push-image
-          --install-from-docker-context-files
+          --airflow-is-in-context
+          --install-packages-from-context
+          --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --disable-pypi
+          --platform linux/amd64,linux/arm64
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PLATFORM: "linux/amd64,linux/arm64"
-          PREPARE_BUILDX_CACHE: "true"
-          VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
