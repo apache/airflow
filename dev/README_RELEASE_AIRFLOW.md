@@ -424,7 +424,6 @@ protected_branches:
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
    git push --set-upstream origin constraints-${BRANCH_PREFIX}
-   git push origin tag constraints-${BRANCH_PREFIX}
    ```
 
 
