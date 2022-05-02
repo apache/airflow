@@ -198,7 +198,8 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
-    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, dag_maker):
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
+    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, mock_stats_incr, dag_maker):
         """
         Test that the dag file processor does not try to insert already existing item into the database
         """
@@ -206,12 +207,14 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
+        mock_stats_incr.reset_mock()
         test_start_date = days_ago(2)
         with dag_maker(
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         ) as dag:
             task = EmptyOperator(task_id='dummy')
+
 
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
@@ -231,6 +234,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
+        mock_stats_incr.assert_called_once_with('sla_missed')
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
