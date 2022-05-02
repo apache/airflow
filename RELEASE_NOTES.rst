@@ -41,8 +41,13 @@ Previously, a task’s log is dynamically rendered from the ``[core] log_filenam
 
 A new ``log_template`` table is introduced to solve this problem. This table is synchronized with the aforementioned config values every time Airflow starts, and a new field ``log_template_id`` is added to every DAG run to point to the format used by tasks (``NULL`` indicates the first ever entry for compatibility).
 
-Minimum kubernetes version bumped from ``3.0.0`` to ``21.7.0`` (#20759)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Minimum kubernetes library version bumped from ``3.0.0`` to ``21.7.0`` (#20759)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. note::
+
+   This is only about changing the ``kubernetes`` library, not the Kubernetes cluster. Airflow support for
+   Kubernetes version is described in `Installation prerequisites <https://airflow.apache.org/docs/apache-airflow/stable/installation/prerequisites.html>`_.
 
 No change in behavior is expected.  This was necessary in order to take advantage of a `bugfix <https://github.com/kubernetes-client/python-base/commit/70b78cd8488068c014b6d762a0c8d358273865b4>`_ concerning refreshing of Kubernetes API tokens with EKS, which enabled the removal of some `workaround code <https://github.com/apache/airflow/pull/20759>`_.
 
