@@ -152,7 +152,7 @@ Up until now the examples we've shown could all be achieved with a ``for`` loop 
     def make_list():
         # This can also be from an API call, checking a database, -- almost anything you like, as long as the
         # resulting list/dictionary can be stored in the current XCom backend.
-        return [[1, 2], ("a", "b") , {"a": "b"}, "str"]
+        return [[1, 2], ("a", "b"), {"a": "b"}, "str"]
 
 
     @task
