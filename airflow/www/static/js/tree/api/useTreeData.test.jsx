@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
+
 import { renderHook } from '@testing-library/react-hooks';
-import { QueryClient, QueryClientProvider } from 'react-query';
 import useTreeData from './useTreeData';
-import { AutoRefreshProvider } from '../context/autorefresh';
+import { Wrapper } from '../utils/testUtils';
 
 /* global describe, test, expect, beforeAll */
 
@@ -39,17 +38,6 @@ const pendingTreeData = {
       run_type: 'manual',
     },
   ],
-};
-
-const Wrapper = ({ children }) => {
-  const queryClient = new QueryClient();
-  return (
-    <AutoRefreshProvider>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    </AutoRefreshProvider>
-  );
 };
 
 describe('Test useTreeData hook', () => {

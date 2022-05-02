@@ -43,7 +43,7 @@ const LabelValue = ({ label, value }) => (
 );
 
 const Header = () => {
-  const { data: { dagRuns = [] } } = useTreeData();
+  const { data: { dagRuns } } = useTreeData();
   const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
   const { data: { tasks } } = useTasks();
   const dagRun = dagRuns.find((r) => r.runId === runId);

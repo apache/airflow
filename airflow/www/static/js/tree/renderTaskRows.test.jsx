@@ -21,15 +21,9 @@
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
-import moment from 'moment';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { MemoryRouter } from 'react-router-dom';
 
 import renderTaskRows from './renderTaskRows';
-import { ContainerRefProvider } from './context/containerRef';
-
-global.moment = moment;
+import { TableWrapper } from './utils/testUtils';
 
 const mockTreeData = {
   groups: {
@@ -94,27 +88,6 @@ const mockTreeData = {
   ],
 };
 
-const Wrapper = ({ children }) => {
-  const queryClient = new QueryClient();
-  return (
-    <React.StrictMode>
-      <ChakraProvider>
-        <QueryClientProvider client={queryClient}>
-          <ContainerRefProvider value={{}}>
-            <MemoryRouter>
-              <Table>
-                <Tbody>
-                  {children}
-                </Tbody>
-              </Table>
-            </MemoryRouter>
-          </ContainerRefProvider>
-        </QueryClientProvider>
-      </ChakraProvider>
-    </React.StrictMode>
-  );
-};
-
 describe('Test renderTaskRows', () => {
   test('Group defaults to closed but clicking on the name will open a group', () => {
     global.treeData = mockTreeData;
@@ -123,7 +96,7 @@ describe('Test renderTaskRows', () => {
 
     const { getByTestId, getByText, getAllByTestId } = render(
       <>{renderTaskRows({ task, dagRunIds })}</>,
-      { wrapper: Wrapper },
+      { wrapper: TableWrapper },
     );
 
     const groupName = getByText('group_1');
@@ -168,7 +141,7 @@ describe('Test renderTaskRows', () => {
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: [] })}</>,
-      { wrapper: Wrapper },
+      { wrapper: TableWrapper },
     );
 
     expect(getByText('group_1')).toBeInTheDocument();

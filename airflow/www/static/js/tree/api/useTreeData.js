@@ -29,24 +29,30 @@ import useErrorToast from '../utils/useErrorToast';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
-const treeDataUrl = getMetaValue('tree_data_url');
+const treeDataUrl = getMetaValue('tree_data_url') || '';
 const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const baseDate = getMetaValue('base_date');
 
+const emptyData = {
+  dagRuns: [],
+  groups: {},
+};
+
 const useTreeData = () => {
-  const emptyData = {
-    dagRuns: [],
-    groups: {},
-  };
   const initialData = formatData(treeData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
   return useQuery('treeData', async () => {
     try {
-      const root = urlRoot ? `&root=${urlRoot}` : '';
-      const base = baseDate ? `&base_date=${baseDate}` : '';
-      const newData = await axios.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
+      const params = new URLSearchParams({
+        dag_id: dagId,
+      });
+      if (numRuns && numRuns !== 25) params.append('num_runs', numRuns);
+      if (urlRoot) params.append('root', urlRoot);
+      if (baseDate) params.append('base_date', baseDate);
+
+      const newData = await axios.get(treeDataUrl, { params });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(newData.dagRuns)) stopRefresh();
       return newData;
@@ -62,6 +68,7 @@ const useTreeData = () => {
     // only refetch if the refresh switch is on
     refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
     initialData,
+    placeholderData: emptyData,
   });
 };
 

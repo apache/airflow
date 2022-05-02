@@ -47,7 +47,7 @@ const sidePanelKey = 'hideSidePanel';
 const Tree = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
-  const { data: { groups = {}, dagRuns = [] } } = useTreeData();
+  const { data: { groups, dagRuns } } = useTreeData();
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
   const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
