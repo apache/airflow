@@ -30,7 +30,7 @@ import { AutoRefreshProvider } from '../context/autorefresh';
 
 global.moment = moment;
 
-const Wrapper = ({ children }) => {
+export const Wrapper = ({ children }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -65,5 +65,3 @@ export const TableWrapper = ({ children }) => (
     </Table>
   </Wrapper>
 );
-
-export default Wrapper;
