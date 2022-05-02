@@ -177,10 +177,7 @@ def build_ci_image(
             )
         if not dry_run:
             if build_result.returncode == 0:
-                ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
-                ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
-                touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
-                calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
+                mark_image_as_refreshed(ci_image_params)
             else:
                 get_console().print("[error]Error when building image![/]")
                 return (
@@ -192,6 +189,13 @@ def build_ci_image(
         if ci_image_params.push_image:
             return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
         return build_result.returncode, f"Image build: {ci_image_params.python}"
+
+
+def mark_image_as_refreshed(ci_image_params: BuildCiParams):
+    ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
+    ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
+    touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
+    calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
 
 
 def build_ci_image_in_parallel(

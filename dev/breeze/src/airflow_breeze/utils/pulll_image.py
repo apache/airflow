@@ -19,6 +19,7 @@ import multiprocessing as mp
 import time
 from typing import List, Tuple, Union
 
+from airflow_breeze.build_image.ci.build_ci_image import mark_image_as_refreshed
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import get_console
@@ -80,7 +81,7 @@ def run_pull_image(
     poll_time: float,
 ) -> Tuple[int, str]:
     """
-    Pull image soecified.
+    Pull image specified.
     :param image_params: Image parameters.
     :param dry_run: whether it's dry run
     :param verbose: whether it's verbose
@@ -138,6 +139,8 @@ def run_pull_image(
                     dry_run=dry_run,
                     check=False,
                 )
+                if command_result.returncode == 0 and isinstance(image_params, BuildCiParams):
+                    mark_image_as_refreshed(image_params)
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if verbose or dry_run:
