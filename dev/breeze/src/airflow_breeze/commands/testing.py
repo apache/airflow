@@ -37,6 +37,7 @@ TESTING_COMMANDS = {
     "name": "Testing",
     "commands": [
         "docker-compose-tests",
+        "tests",
     ],
 }
 
@@ -49,6 +50,11 @@ TESTING_PARAMETERS = {
                 "--python",
                 "--image-tag",
             ],
+        }
+    ],
+    "breeze tests": [
+        {
+            "name": "Run tests",
         }
     ],
 }
@@ -91,3 +97,19 @@ def docker_compose_tests(
         extra_pytest_args=extra_pytest_args,
     )
     sys.exit(return_code)
+
+
+@main.command(
+    name='tests',
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_verbose
+@option_dry_run
+def tests(
+    verbose: bool,
+    dry_run: bool,
+):
+    """Run tests."""
