@@ -39,7 +39,7 @@ import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import Details from './details';
-import { useSelection } from './context/selection';
+import useSelection from './utils/useSelection';
 import { useAutoRefresh } from './context/autorefresh';
 
 const sidePanelKey = 'hideSidePanel';

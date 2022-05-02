@@ -31,49 +31,27 @@ Using the Operator
 ------------------
 
 There are two ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
+to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly to our ``DatabricksSubmitRunOperator`` through the
+``json`` parameter.  With this approach you get full control over the underlying payload to Jobs REST API, including
+execution of Databricks jobs with multiple tasks, but it's harder to detect errors because of the lack of the type checking.
 
 Another way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``runs/submit`` endpoint.
+one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must to specify following:
 
-.. list-table::
-   :widths: 25 25
-   :header-rows: 1
+* Task specification - it should be one of:
 
-   * - Parameter
-     - Input
-   * - spark_jar_task: dict
-     - main class and parameters for the JAR task
-   * - notebook_task: dict
-     - notebook path and parameters for the task
-   * - spark_python_task: dict
-     - python file path and parameters to run the python file with
-   * - spark_submit_task: dict
-     - parameters needed to run a spark-submit command
-   * - pipeline_task: dict
-     - parameters needed to run a Delta Live Tables pipeline
-   * - new_cluster: dict
-     - specs for a new cluster on which this task will be run
-   * - existing_cluster_id: string
-     - ID for existing cluster on which to run this task
-   * - libraries: list of dict
-     - libraries which this run will use
-   * - run_name: string
-     - run name used for this task
-   * - timeout_seconds: integer
-     - The timeout for this run
-   * - databricks_conn_id: string
-     - the name of the Airflow connection to use
-   * - polling_period_seconds: integer
-     - controls the rate which we poll for the result of this run
-   * - databricks_retry_limit: integer
-     - amount of times retry if the Databricks backend is unreachable
-   * - databricks_retry_delay: decimal
-     - number of seconds to wait between retries
-   * - databricks_retry_args: dict
-     - An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-   * - do_xcom_push: boolean
-     - whether we should push run_id and run_page_url to xcom
+  * ``spark_jar_task`` - main class and parameters for the JAR task
+  * ``notebook_task`` - notebook path and parameters for the task
+  * ``spark_python_task`` - python file path and parameters to run the python file with
+  * ``spark_submit_task`` - parameters needed to run a ``spark-submit`` command
+  * ``pipeline_task`` - parameters needed to run a Delta Live Tables pipeline
+
+* Cluster specification - it should be one of:
+  * ``new_cluster`` - specs for a new cluster on which this task will be run
+  * ``existing_cluster_id`` - ID for existing cluster on which to run this task
+
+All other parameters are optional, and described in the documentation of the ``DatabricksSubmitRunOperator`` class.
+
 
 Examples
 --------

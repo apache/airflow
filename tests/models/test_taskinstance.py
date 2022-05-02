@@ -1312,7 +1312,8 @@ class TestTaskInstance:
         )
         assert query['dag_id'][0] == 'dag'
         assert query['task_id'][0] == 'op'
-        assert pendulum.parse(query['execution_date'][0]) == now
+        assert query['dag_run_id'][0] == 'test'
+        assert ti.execution_date == now
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()

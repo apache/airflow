@@ -28,7 +28,7 @@ import Header from './Header';
 import TaskInstanceContent from './content/taskInstance';
 import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
-import { useSelection } from '../context/selection';
+import useSelection from '../utils/useSelection';
 
 const Details = () => {
   const { selected } = useSelection();

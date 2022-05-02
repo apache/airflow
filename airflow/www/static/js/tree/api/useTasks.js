@@ -27,5 +27,8 @@ export default function useTasks(dagId) {
   return useQuery(
     ['tasks', dagId],
     () => axios.get(tasksUrl),
+    {
+      placeholderData: { tasks: [] },
+    },
   );
 }

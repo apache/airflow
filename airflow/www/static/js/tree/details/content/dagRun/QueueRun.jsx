@@ -22,6 +22,9 @@ import { Button, useDisclosure } from '@chakra-ui/react';
 
 import { useQueueRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
+import { getMetaValue } from '../../../../utils';
+
+const canEdit = getMetaValue('can_edit') === 'True';
 
 const QueueRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
@@ -49,6 +52,7 @@ const QueueRun = ({ dagId, runId }) => {
         isLoading={isLoading}
         ml="5px"
         title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
+        isDisabled={!canEdit}
       >
         Queue up new tasks
       </Button>

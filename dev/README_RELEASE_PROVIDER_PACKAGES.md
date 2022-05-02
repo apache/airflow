@@ -42,6 +42,8 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
+  - [Close the testing status issue](#close-the-testing-status-issue)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -86,7 +88,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 
 ```shell script
-./breeze-legacy prepare-provider-documentation [packages]
+breeze prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -107,7 +109,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-./breeze-legacy --non-interactive prepare-provider-documentation [packages]
+breeze prepare-provider-documentation --answer yes [packages]
 ```
 
 ## Build provider packages for SVN apache upload
@@ -132,13 +134,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze-legacy prepare-provider-packages --package-format both
+breeze prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze-legacy prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -197,14 +199,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze-legacy prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
-    PACKAGE PACKAGE ....
+breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -647,7 +648,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Airflow  Providers - release of DATE OF RELEASE
+[RESULT][VOTE] Airflow Providers - release of DATE OF RELEASE
 ```
 
 Message:
@@ -683,12 +684,12 @@ We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
 ```shell script
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
 
+# Go to the directory where you have checked out the dev svn release
+# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
 export SOURCE_DIR=$(pwd)
 
@@ -699,8 +700,10 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Go the folder where you have checked out the release repo
-# Clone it if it's not done yet
+cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# or clone it if it's not done yet
 svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+cd airflow-release
 
 # Update to latest version
 svn update
@@ -730,7 +733,7 @@ python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
 
 
 # Commit to SVN
-svn commit -m "Release Airflow Providers on $(date)"
+svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 ```
 
 Verify that the packages appear in
@@ -796,7 +799,6 @@ set tags for the providers in the repo.
 ./dev/provider_packages/tag_providers.sh
 ```
 
-
 ## Notify developers of release
 
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
@@ -806,7 +808,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-Airflow Providers released on $(date) are ready
+Airflow Providers released on $(date "+%B %d, %Y") are ready
 EOF
 ```
 
@@ -824,7 +826,7 @@ The source release, as well as the binary releases, are available here:
 
 https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-You can install the providers via PyPI  https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
@@ -832,3 +834,11 @@ Cheers,
 <your name>
 EOF
 ```
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.

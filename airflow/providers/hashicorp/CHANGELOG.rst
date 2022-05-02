@@ -27,6 +27,9 @@ Features
 
 * ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare mid-April provider documentation. (#22819)``
+
 2.1.4
 .....
 

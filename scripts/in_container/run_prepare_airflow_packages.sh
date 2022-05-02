@@ -46,16 +46,6 @@ function prepare_airflow_packages() {
     fi
     local tag_build=()
     if [[ -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
-        # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not set
-        # (so when rc is prepared)
-        # or when they are both set (so when we prepare alpha/beta/dev)
-        #
-        # In case the suffix is already added, we are not adding it again - this is to handle the
-        # case on where the suffix is embedded during development (we keep NEW_VERSIONdev0 in the code
-        # for a while during development, but around the release it changes to the final one so our CI
-        # must handle both cases.
-        #
-        # Instead we check if the prefix we want to add is the same as the embedded one and fail if not.
         AIRFLOW_VERSION=$(python setup.py --version)
         if [[  ${AIRFLOW_VERSION} =~ ^[0-9\.]+$  ]]; then
             echo

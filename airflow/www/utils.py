@@ -146,7 +146,6 @@ def encode_ti(
         'run_id': task_instance.run_id,
         'map_index': task_instance.map_index,
         'state': task_instance.state,
-        'duration': task_instance.duration,
         'start_date': datetime_to_string(task_instance.start_date),
         'end_date': datetime_to_string(task_instance.end_date),
         'try_number': try_count,
