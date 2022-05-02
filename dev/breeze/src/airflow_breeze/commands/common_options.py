@@ -294,7 +294,8 @@ option_wait_for_image = click.option(
 )
 option_tag_as_latest = click.option(
     '--tag-as-latest',
-    help='Tags the image as latest after pulling.',
+    help='Tags the image as latest and update checksum of all files after pulling. '
+    'Used in CI to pull the image built in another job.',
     is_flag=True,
     envvar='TAG_AS_LATEST',
 )
