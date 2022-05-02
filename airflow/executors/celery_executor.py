@@ -40,16 +40,19 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cl
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
+from sqlalchemy.orm.session import Session
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType, TaskTuple
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
@@ -235,6 +238,10 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
+        self.stuck_tasks_last_check_time: float = time.time()
+        self.stuck_queued_task_check_interval = conf.getint(
+            'celery', 'stuck_queued_task_check_interval', fallback=300
+        )
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
 
@@ -319,6 +326,10 @@ class CeleryExecutor(BaseExecutor):
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
 
+        if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
+            self.stuck_tasks_last_check_time = time.time()
+            self._clear_stuck_queued_tasks()
+
     def _check_for_stalled_adopted_tasks(self):
         """
         See if any of the tasks we adopted from another Executor run have not
@@ -357,6 +368,71 @@ class CeleryExecutor(BaseExecutor):
             )
             for key in timedout_keys:
                 self.change_state(key, State.FAILED)
+
+    @provide_session
+    def _clear_stuck_queued_tasks(self, session: Session = NEW_SESSION) -> None:
+        """
+        Tasks can get lost by celery if the celery worker is shut down while it is picking up
+        a new work item (observed when using redis broker). When this happens the task is stuck
+        in queued state indefinitely until the scheduler is restarted (which causes the task to be
+        picked up by the adoption code and re-scheduled at that point). This function is intended
+        to detect that situation and re-schedule those tasks without requiring a scheduler
+        restart. We chose to use task_adoption_timeout to decide when a queued task is considered
+        stuck and should be rescheduled.
+        """
+        self.log.debug("Checking for stuck queued tasks")
+        max_allowed_time = utcnow() - self.task_adoption_timeout
+        queued_too_long = (
+            session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .filter(
+                TaskInstance.state == State.QUEUED,
+                TaskInstance.queued_by_job_id == self.job_id,
+                DagRun.state == State.RUNNING,
+                TaskInstance.queued_dttm < max_allowed_time,
+            )
+            .all()
+        )
+        # this filtering is done after the query rather than in the query because the query result
+        # set should always be quite small (a few rows at most), and self.tasks could be relatively
+        # large (hundreds or possibly thousands) which could make for a long db query in extreme cases
+        queued_too_long = [ti for ti in queued_too_long if ti.key in self.tasks]
+        if not queued_too_long:
+            return
+
+        try:
+            with timeout(seconds=15):
+                latest_states = self.bulk_state_fetcher.get_many(
+                    [self.tasks[ti.key] for ti in queued_too_long]
+                )
+                queued_too_long = [
+                    ti
+                    for ti in queued_too_long
+                    if latest_states[ti.external_executor_id][0] == celery_states.PENDING
+                ]
+        except AirflowTaskTimeout:
+            # This "latest state" check isn't super important, so if it's taking too long we'll
+            # just log it and continue on
+            self.log.debug("Timed out while loading latest celery task states for stuck queued tasks")
+
+        for task in queued_too_long:
+            self.log.info(
+                'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
+                task,
+                self.task_adoption_timeout.total_seconds(),
+            )
+            task.state = State.SCHEDULED
+            task.queued_dttm = None
+            session.merge(task)
+            self.adopted_task_timeouts.pop(task.key, None)
+            self.running.discard(task.key)
+            self.queued_tasks.pop(task.key, None)
+            celery_async_result = self.tasks.pop(task.key, None)
+            if celery_async_result:
+                try:
+                    app.control.revoke(celery_async_result.task_id)
+                except Exception as ex:
+                    self.log.info("Error revoking task %s from celery: %s", task, ex)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
