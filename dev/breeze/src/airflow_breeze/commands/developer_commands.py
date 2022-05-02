@@ -60,6 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.rebuild_image_if_needed import rebuild_ci_image_if_needed
 from airflow_breeze.utils.run_utils import assert_pre_commit_installed, run_command
 
 DEVELOPER_COMMANDS = {
@@ -348,6 +349,7 @@ def build_docs(
 ):
     """Build documentation in the container."""
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
