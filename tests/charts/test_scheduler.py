@@ -530,3 +530,10 @@ class SchedulerTest(unittest.TestCase):
                 "memory": "2Gi",
             },
         } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
+
+    def test_persistence_volume_annotations(self):
+        docs = render_chart(
+            values={"executor": "LocalExecutor", "workers": {"persistence": {"annotations": {"foo": "bar"}}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
