@@ -435,6 +435,7 @@ class DagFileProcessor(LoggingMixin):
                             timestamp=ts,
                         )
                         sla_misses.append(sla_miss)
+                        Stats.incr('sla_missed')
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
