@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.10
+    rev: v1.1.13
     hooks:
       - id: forbid-tabs
         name: Fail if tabs are used in the project
@@ -146,6 +146,7 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+  # Keep version of black in sync wit blackend-docs and pre-commit-hook-names
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
@@ -161,7 +162,7 @@ repos:
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v4.2.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -203,7 +204,7 @@ repos:
         pass_filenames: true
   # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.31.0
+    rev: v2.32.0
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
@@ -264,7 +265,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.69'
+    rev: '0.76'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -546,7 +547,7 @@ repos:
       - id: run-shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
-        entry: koalaman/shellcheck:v0.7.2 -x -a
+        entry: koalaman/shellcheck:v0.8.0 -x -a
         files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
         exclude: ^dev/breeze/autocomplete/.*$
       - id: lint-css

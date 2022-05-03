@@ -270,12 +270,8 @@ def connections_add(args):
                 or urlunparse(
                     (
                         new_conn.conn_type,
-                        '{login}:{password}@{host}:{port}'.format(
-                            login=new_conn.login or '',
-                            password='******' if new_conn.password else '',
-                            host=new_conn.host or '',
-                            port=new_conn.port or '',
-                        ),
+                        f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
+                        f"@{new_conn.host or ''}:{new_conn.port or ''}",
                         new_conn.schema or '',
                         '',
                         '',
