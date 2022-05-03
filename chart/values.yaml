@@ -477,6 +477,8 @@ workers:
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
+    # Annotations to add to worker volumes
+    annotations: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -1315,6 +1317,8 @@ redis:
     size: 1Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
     storageClassName:
+    # Annotations to add to redis volumes
+    annotations: {}
 
   resources: {}
   #  limits:

@@ -1266,6 +1266,14 @@
                             "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
                             "type": "boolean",
                             "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to worker volumes.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -3781,6 +3789,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to redis volumes.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },

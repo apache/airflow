@@ -100,6 +100,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: redis-db
+        {{- if .Values.redis.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}
+        {{- end }}
       spec:
       {{- if .Values.redis.persistence.storageClassName }}
         storageClassName: {{ .Values.redis.persistence.storageClassName }}

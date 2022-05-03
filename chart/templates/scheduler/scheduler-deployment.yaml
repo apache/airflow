@@ -264,6 +264,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: logs
+        {{- if .Values.workers.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- end }}
       spec:
       {{- if .Values.workers.persistence.storageClassName }}
         storageClassName: {{ .Values.workers.persistence.storageClassName }}
