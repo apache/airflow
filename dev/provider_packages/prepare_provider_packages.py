@@ -1318,7 +1318,7 @@ def get_all_changes_for_package(
         changes = subprocess.check_output(
             get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
             cwd=source_provider_package_path,
-            universal_newlines=True,
+            text=True,
         )
         if changes:
             provider_details = get_provider_details(provider_package_id)
@@ -1332,7 +1332,7 @@ def get_all_changes_for_package(
                     changes_since_last_doc_only_check = subprocess.check_output(
                         get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
                         cwd=source_provider_package_path,
-                        universal_newlines=True,
+                        text=True,
                     )
                     if not changes_since_last_doc_only_check:
                         console.print()
@@ -1385,7 +1385,7 @@ def get_all_changes_for_package(
         changes = subprocess.check_output(
             get_git_log_command(verbose, next_version_tag, version_tag),
             cwd=source_provider_package_path,
-            universal_newlines=True,
+            text=True,
         )
         changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
             current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1397,7 +1397,7 @@ def get_all_changes_for_package(
     changes = subprocess.check_output(
         get_git_log_command(verbose, next_version_tag),
         cwd=source_provider_package_path,
-        universal_newlines=True,
+        text=True,
     )
     changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
         current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False

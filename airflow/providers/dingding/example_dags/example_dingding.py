@@ -32,12 +32,10 @@ def failure_callback(context):
     :param context: The context of the executed task.
     """
     message = (
-        'AIRFLOW TASK FAILURE TIPS:\n'
-        'DAG:    {}\n'
-        'TASKS:  {}\n'
-        'Reason: {}\n'.format(
-            context['task_instance'].dag_id, context['task_instance'].task_id, context['exception']
-        )
+        f"AIRFLOW TASK FAILURE TIPS:\n"
+        f"DAG:    {context['task_instance'].dag_id}\n"
+        f"TASKS:  {context['task_instance'].task_id}\n"
+        f"Reason: {context['exception']}\n"
     )
     return DingdingOperator(
         task_id='dingding_success_callback',
