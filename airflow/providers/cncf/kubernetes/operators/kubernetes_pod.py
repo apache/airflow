@@ -139,6 +139,9 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param await_all_containers: if there are multiple containers, wait until all the
+        containers are in a terminated state. If False, the task will ends once a container
+        is in a terminated state.
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -200,6 +203,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
+        await_all_containers: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
@@ -262,6 +266,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: Optional[k8s.V1Pod] = None
         self.pod: Optional[k8s.V1Pod] = None
+        self.await_all_containers = await_all_containers
 
     def _render_nested_template_fields(
         self,
@@ -396,7 +401,9 @@ class KubernetesPodOperator(BaseOperator):
 
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=self.pod)
-            remote_pod = self.pod_manager.await_pod_completion(self.pod)
+            remote_pod = self.pod_manager.await_pod_completion(
+                pod=self.pod, await_all_containers=self.await_all_containers
+            )
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,

@@ -26,7 +26,13 @@ from pendulum.tz.timezone import Timezone
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase, container_is_running
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodManager,
+    PodPhase,
+    container_is_running,
+    container_is_terminated,
+    get_container_state,
+)
 
 
 class TestPodManager:
@@ -330,11 +336,49 @@ class TestPodManager:
         assert ret.running is exp_running
 
 
-def params_for_test_container_is_running():
-    """The `container_is_running` method is designed to handle an assortment of bad objects
+@pytest.mark.parametrize('is_running', [True, False])
+@mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_state')
+def test_container_is_running(get_container_state_mock, is_running):
+    mock_pod = MagicMock()
+    c = MagicMock()
+    c.running = {'a': 'b'} if is_running else None
+    get_container_state_mock.return_value = c
+    assert container_is_running(mock_pod, 'base') is is_running
+    get_container_state_mock.assert_called_with(pod=mock_pod, container_name='base')
+
+
+@mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_state')
+def test_container_is_running_returned_none(get_container_state_mock):
+    mock_pod = MagicMock()
+    get_container_state_mock.return_value = None
+    assert container_is_running(mock_pod, 'base') is False
+    get_container_state_mock.assert_called_with(pod=mock_pod, container_name='base')
+
+
+@pytest.mark.parametrize('is_terminated', [True, False])
+@mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_state')
+def test_container_is_terminated(get_container_state_mock, is_terminated):
+    mock_pod = MagicMock()
+    c = MagicMock()
+    c.terminated = {'a': 'b'} if is_terminated else None
+    get_container_state_mock.return_value = c
+    assert container_is_terminated(mock_pod, 'base') is is_terminated
+    get_container_state_mock.assert_called_with(pod=mock_pod, container_name='base')
+
+
+@mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_state')
+def test_container_is_terminated_returned_none(get_container_state_mock):
+    mock_pod = MagicMock()
+    get_container_state_mock.return_value = None
+    assert container_is_terminated(mock_pod, 'base') is False
+    get_container_state_mock.assert_called_with(pod=mock_pod, container_name='base')
+
+
+def params_for_get_container_state():
+    """The `get_container_state` method is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,
     an object `e` such that `e.status.container_statuses` is None, and so on.  This function
-    emits params used in `test_container_is_running` to verify this behavior.
+    emits params used in `test_get_container_state` to verify this behavior.
 
     We create mock classes not derived from MagicMock because with an instance `e` of MagicMock,
     tests like `e.hello is not None` are always True.
@@ -347,20 +391,17 @@ def params_for_test_container_is_running():
         def __init__(self, name):
             self.name = name
 
-    def remote_pod(running=None, not_running=None):
+    def remote_pod(container_list=None):
         e = RemotePodMock()
         e.status = RemotePodMock()
         e.status.container_statuses = []
-        for r in not_running or []:
-            e.status.container_statuses.append(container(r, False))
-        for r in running or []:
-            e.status.container_statuses.append(container(r, True))
+        for r in container_list or []:
+            e.status.container_statuses.append(container(r))
         return e
 
-    def container(name, running):
+    def container(name):
         c = ContainerStatusMock(name)
         c.state = RemotePodMock()
-        c.state.running = {'a': 'b'} if running else None
         return c
 
     pod_mock_list = []
@@ -373,16 +414,18 @@ def params_for_test_container_is_running():
     p.status.container_statuses = []
     pod_mock_list.append(pytest.param(p, False, id='empty remote_pod.status.container_statuses'))
     pod_mock_list.append(pytest.param(remote_pod(), False, id='filter empty'))
-    pod_mock_list.append(pytest.param(remote_pod(None, ['base']), False, id='filter 0 running'))
-    pod_mock_list.append(pytest.param(remote_pod(['hello'], ['base']), False, id='filter 1 not running'))
-    pod_mock_list.append(pytest.param(remote_pod(['base'], ['hello']), True, id='filter 1 running'))
+    pod_mock_list.append(pytest.param(remote_pod(None), False, id='filter 0 running'))
+    pod_mock_list.append(pytest.param(remote_pod(['base', 'hello']), True, id='filter 1 running'))
     return pod_mock_list
 
 
-@pytest.mark.parametrize('remote_pod, result', params_for_test_container_is_running())
-def test_container_is_running(remote_pod, result):
-    """The `container_is_running` function is designed to handle an assortment of bad objects
+@pytest.mark.parametrize('remote_pod, state', params_for_get_container_state())
+def test_get_container_state(remote_pod, state):
+    """The `container_is_terminated` function is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,
     an object `e` such that `e.status.container_statuses` is None, and so on.  This test
     verifies the expected behavior."""
-    assert container_is_running(remote_pod, 'base') is result
+    if state:
+        assert get_container_state(remote_pod, 'base') is not None
+    else:
+        assert get_container_state(remote_pod, 'base') is None
