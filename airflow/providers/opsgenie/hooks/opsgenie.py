@@ -126,7 +126,7 @@ class OpsgenieAlertHook(BaseHook):
                 identifier=identifier,
                 identifier_type=identifier_type,
                 close_alert_payload=close_alert_payload,
-                kwargs=kwargs,
+                **kwargs,
             )
             return api_response
         except OpenApiException as e:
