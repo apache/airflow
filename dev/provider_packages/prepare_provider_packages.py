@@ -1460,7 +1460,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    python_requires = "~=3.6"
+    python_requires = "~=3.7"
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
     context: Dict[str, Any] = {
