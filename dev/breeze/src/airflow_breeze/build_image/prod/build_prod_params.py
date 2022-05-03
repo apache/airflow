@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Parameters to build PROD image."""
+import json
 import os
 import re
 import sys
@@ -53,7 +54,6 @@ class BuildProdParams:
     airflow_is_in_context: bool = False
     install_packages_from_context: bool = False
     upgrade_to_newer_dependencies: bool = False
-    airflow_version: str = get_airflow_version()
     python: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
     install_airflow_reference: str = ""
@@ -86,6 +86,13 @@ class BuildProdParams:
     installation_method: str = "."
     debian_version: str = "bullseye"
     answer: Optional[str] = None
+
+    @property
+    def airflow_version(self) -> str:
+        if self.install_airflow_version:
+            return self.install_airflow_version
+        else:
+            return get_airflow_version()
 
     @property
     def airflow_branch(self) -> str:
@@ -172,7 +179,6 @@ class BuildProdParams:
                 ]
             )
             extra_build_flags.extend(self.args_for_remote_install)
-            self.airflow_version = self.install_airflow_reference
         elif len(self.install_airflow_version) > 0:
             if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
                 get_console().print(
@@ -185,8 +191,15 @@ class BuildProdParams:
                 ["--build-arg", f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}"]
             )
             extra_build_flags.extend(["--build-arg", f"AIRFLOW_VERSION={self.install_airflow_version}"])
+            constraints_base = (
+                f"https://raw.githubusercontent.com/{self.github_repository}/"
+                f"{self.airflow_constraints_reference}"
+            )
+            constraints_location = (
+                f"{constraints_base}/constraints-{self.install_airflow_version}/constraints-{self.python}.txt"
+            )
+            self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
-            self.airflow_version = self.install_airflow_version
         else:
             extra_build_flags.extend(
                 [
@@ -204,6 +217,22 @@ class BuildProdParams:
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
                 ]
             )
+
+        maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
+        logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
+        readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
+        extra_build_flags.extend(
+            [
+                "--label",
+                "io.artifacthub.package.license=Apache-2.0",
+                "--label",
+                f"io.artifacthub.package.readme-url={readme_url}",
+                "--label",
+                f"io.artifacthub.package.maintainers={maintainers}",
+                "--label",
+                f"io.artifacthub.package.logo-url={logo_url}",
+            ]
+        )
         return extra_build_flags
 
     @property

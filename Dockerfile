@@ -1571,9 +1571,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.licenses="Apache-2.0" \
   org.opencontainers.image.ref.name="airflow" \
   org.opencontainers.image.title="Production Airflow Image" \
-  org.opencontainers.image.description="Reference, production-ready Apache Airflow image" \
-  io.artifacthub.package.license='Apache-2.0' \
-  io.artifacthub.package.readme-url='${AIRFLOW_IMAGE_README_URL}'
-
+  org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []
