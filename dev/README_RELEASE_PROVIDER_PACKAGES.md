@@ -719,7 +719,7 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.6+)
+# Check which old packages will be removed (you need python 3.7+)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
     --directory .
 
