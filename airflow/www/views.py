@@ -1904,6 +1904,14 @@ class Airflow(AirflowBaseView):
             flash(f"The run_id {dr.run_id} already exists", "error")
             return redirect(origin)
 
+        # Flash a warning when slash is used, but still allow it to continue on.
+        if run_id and "/" in run_id:
+            flash(
+                "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
+                "also makes the run impossible to retrieve via Airflow's REST API.",
+                "warning",
+            )
+
         run_conf = {}
         if request_conf:
             try:
