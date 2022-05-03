@@ -97,6 +97,7 @@ images:
 nodeSelector: {}
 affinity: {}
 tolerations: []
+topologySpreadConstraints: []
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
@@ -528,6 +529,7 @@ workers:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
   # hostAliases to use in worker pods.
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -641,6 +643,7 @@ scheduler:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -725,6 +728,7 @@ createUserJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -791,6 +795,7 @@ migrateDatabaseJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -932,6 +937,7 @@ webserver:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   podAnnotations: {}
 
@@ -1019,6 +1025,7 @@ triggerer:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1115,6 +1122,7 @@ flower:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1159,6 +1167,7 @@ statsd:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1267,6 +1276,7 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1330,6 +1340,7 @@ redis:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   # Set to 0 for backwards-compatiblity
   uid: 0
@@ -1398,6 +1409,7 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   podAnnotations: {}
 
