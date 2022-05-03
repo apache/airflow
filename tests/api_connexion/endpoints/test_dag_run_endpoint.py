@@ -1074,47 +1074,48 @@ class TestPostDagRun(TestDagRunEndpoint):
         } == response.json
 
     def test_should_response_200_for_matching_execution_date_logical_date(self):
+        execution_date = "2020-11-10T08:25:56.939143+00:00"
+        logical_date = "2020-11-10T08:25:56.939143+00:00"
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
-                "execution_date": "2020-11-10T08:25:56.939143+00:00",
-                "logical_date": "2020-11-10T08:25:56.939143+00:00",
+                "execution_date": execution_date,
+                "logical_date": logical_date,
             },
             environ_overrides={"REMOTE_USER": "test"},
         )
+        dag_run_id = f"manual__{logical_date}"
+
         assert response.status_code == 200
         assert {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
-            "dag_run_id": "manual__2020-11-10T08:25:56.939143+00:00",
+            "dag_run_id": dag_run_id,
             "end_date": None,
-            "execution_date": "2020-11-10T08:25:56.939143+00:00",
-            "logical_date": "2020-11-10T08:25:56.939143+00:00",
+            "execution_date": execution_date,
+            "logical_date": logical_date,
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
-            "data_interval_end": "2020-11-10T08:25:56.939143+00:00",
-            "data_interval_start": "2020-11-10T08:25:56.939143+00:00",
+            "data_interval_end": logical_date,
+            "data_interval_start": logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
         } == response.json
 
     def test_should_response_400_for_conflicting_execution_date_logical_date(self):
+        execution_date = "2020-11-10T08:25:56.939143+00:00"
+        logical_date = "2020-11-11T08:25:56.939143+00:00"
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={
-                "execution_date": "2020-11-10T08:25:56.939143+00:00",
-                "logical_date": "2020-11-11T08:25:56.939143+00:00",
-            },
+            json={"execution_date": execution_date, "logical_date": logical_date},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         assert response.json["title"] == "logical_date conflicts with execution_date"
-        assert response.json["detail"] == (
-            "'2020-11-11T08:25:56.939143+00:00' != '2020-11-10T08:25:56.939143+00:00'"
-        )
+        assert response.json["detail"] == (f"'{logical_date}' != '{execution_date}'")
 
     @parameterized.expand(
         [
