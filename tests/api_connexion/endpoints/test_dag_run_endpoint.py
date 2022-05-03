@@ -1367,3 +1367,117 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
+
+
+class TestClearDagRun(TestDagRunEndpoint):
+    def test_should_respond_200(self, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"dry_run": False}
+
+        response = self.client.post(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        assert response.status_code == 200
+        assert response.json == {
+            "conf": {},
+            "dag_id": dag_id,
+            "dag_run_id": dag_run_id,
+            "end_date": None,
+            "execution_date": dr.execution_date.isoformat(),
+            "external_trigger": False,
+            "logical_date": dr.logical_date.isoformat(),
+            "start_date": dr.logical_date.isoformat(),
+            "state": "queued",
+            "data_interval_start": dr.data_interval_start.isoformat(),
+            "data_interval_end": dr.data_interval_end.isoformat(),
+            "last_scheduling_decision": None,
+            "run_type": dr.run_type,
+        }
+
+        ti.refresh_from_db()
+        assert ti.state is None
+
+    def test_dry_run(self, dag_maker, session):
+        """Test that dry_run being True returns TaskInstances without clearing DagRun"""
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"dry_run": True}
+
+        response = self.client.post(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            "task_instances": [
+                {
+                    "dag_id": dag_id,
+                    "dag_run_id": dag_run_id,
+                    "execution_date": dr.execution_date.isoformat(),
+                    "task_id": "task_id",
+                }
+            ]
+        }
+
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        assert dr.state == "running"
+
+    def test_should_raises_401_unauthenticated(self, session):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_404(self):
+        response = self.client.post(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
