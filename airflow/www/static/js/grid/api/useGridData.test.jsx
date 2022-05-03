@@ -18,12 +18,12 @@
  */
 
 import { renderHook } from '@testing-library/react-hooks';
-import useTreeData from './useTreeData';
+import useGridData from './useGridData';
 import { Wrapper } from '../utils/testUtils';
 
 /* global describe, test, expect, beforeAll */
 
-const pendingTreeData = {
+const pendingGridData = {
   groups: {},
   dag_runs: [
     {
@@ -46,9 +46,9 @@ describe('Test useTreeData hook', () => {
   });
 
   test('data is valid camelcase json', () => {
-    global.treeData = JSON.stringify(pendingTreeData);
+    global.gridData = JSON.stringify(pendingGridData);
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useGridData(), { wrapper: Wrapper });
     const { data } = result.current;
 
     expect(typeof data === 'object').toBe(true);
@@ -56,20 +56,20 @@ describe('Test useTreeData hook', () => {
     expect(data.dag_runs).toBeUndefined();
   });
 
-  test('Can handle no treeData', () => {
-    global.treeData = null;
+  test('Can handle no gridData', () => {
+    global.gridData = null;
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useGridData(), { wrapper: Wrapper });
     const { data } = result.current;
 
     expect(data.dagRuns).toStrictEqual([]);
     expect(data.groups).toStrictEqual({});
   });
 
-  test('Can handle empty treeData object', () => {
-    global.treeData = {};
+  test('Can handle empty gridData object', () => {
+    global.gridData = {};
 
-    const { result } = renderHook(() => useTreeData(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useGridData(), { wrapper: Wrapper });
     const { data } = result.current;
 
     expect(data.dagRuns).toStrictEqual([]);

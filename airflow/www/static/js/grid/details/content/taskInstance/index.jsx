@@ -35,7 +35,7 @@ import Logs from './Logs';
 import TaskNav from './Nav';
 import Details from './Details';
 
-import { useTreeData, useTasks } from '../../../api';
+import { useGridData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
 import { getMetaValue } from '../../../../utils';
 
@@ -56,7 +56,7 @@ const getTask = ({ taskId, runId, task }) => {
 
 const TaskInstance = ({ taskId, runId }) => {
   const [selectedRows, setSelectedRows] = useState([]);
-  const { data: { groups, dagRuns } } = useTreeData();
+  const { data: { groups, dagRuns } } = useGridData();
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
   const { executionDate } = run;

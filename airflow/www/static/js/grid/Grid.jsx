@@ -34,7 +34,7 @@ import {
   Button,
 } from '@chakra-ui/react';
 
-import { useTreeData } from './api';
+import { useGridData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
@@ -44,10 +44,10 @@ import { useAutoRefresh } from './context/autorefresh';
 
 const sidePanelKey = 'hideSidePanel';
 
-const Tree = () => {
+const Grid = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
-  const { data: { groups, dagRuns } } = useTreeData();
+  const { data: { groups, dagRuns } } = useGridData();
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
   const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
@@ -141,4 +141,4 @@ const Tree = () => {
   );
 };
 
-export default Tree;
+export default Grid;

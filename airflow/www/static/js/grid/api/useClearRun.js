@@ -24,14 +24,14 @@ import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const queuedUrl = getMetaValue('dagrun_queued_url');
+const clearRunUrl = getMetaValue('dagrun_clear_url');
 
-export default function useQueueRun(dagId, runId) {
+export default function useClearRun(dagId, runId) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunQueue', dagId, runId],
+    ['dagRunClear', dagId, runId],
     ({ confirmed = false }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
@@ -40,7 +40,7 @@ export default function useQueueRun(dagId, runId) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post(queuedUrl, params, {
+      return axios.post(clearRunUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -48,7 +48,8 @@ export default function useQueueRun(dagId, runId) {
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('treeData');
+        // Invalidating the query will force a new API request
+        queryClient.invalidateQueries('gridData');
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

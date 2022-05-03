@@ -17,11 +17,11 @@
  * under the License.
  */
 
-/* global localStorage, treeData, document */
+/* global localStorage, gridData, document */
 
 import React, { useContext, useState, useEffect } from 'react';
 import { getMetaValue } from '../../utils';
-import { formatData, areActiveRuns } from '../utils/treeData';
+import { formatData, areActiveRuns } from '../utils/gridData';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
@@ -33,7 +33,7 @@ const AutoRefreshContext = React.createContext(null);
 export const AutoRefreshProvider = ({ children }) => {
   let dagRuns = [];
   try {
-    const data = JSON.parse(treeData);
+    const data = JSON.parse(gridData);
     if (data.dag_runs) dagRuns = formatData(data.dag_runs);
   } catch {
     dagRuns = [];

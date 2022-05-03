@@ -33,7 +33,7 @@ import { mean } from 'lodash';
 
 import { getDuration, formatDuration } from '../../../datetime_utils';
 import { finalStatesMap, getMetaValue } from '../../../utils';
-import { useTasks, useTreeData } from '../../api';
+import { useTasks, useGridData } from '../../api';
 import Time from '../../Time';
 import { SimpleStatus } from '../../StatusBox';
 
@@ -42,7 +42,7 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
   const { data: taskData } = useTasks(dagId);
-  const { data: { dagRuns } } = useTreeData();
+  const { data: { dagRuns } } = useGridData();
   if (!taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;
 
