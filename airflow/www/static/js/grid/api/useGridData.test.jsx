@@ -17,15 +17,11 @@
  * under the License.
  */
 
+/* global describe, test, expect, beforeAll */
+
 import { renderHook } from '@testing-library/react-hooks';
 import useGridData from './useGridData';
 import { Wrapper } from '../utils/testUtils';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { MemoryRouter } from 'react-router-dom';
-
-import { AutoRefreshProvider } from '../context/autorefresh';
-
-/* global describe, test, expect, beforeAll */
 
 const pendingGridData = {
   groups: {},
@@ -42,19 +38,6 @@ const pendingGridData = {
       run_type: 'manual',
     },
   ],
-};
-
-const Wrapper = ({ children }) => {
-  const queryClient = new QueryClient();
-  return (
-    <AutoRefreshProvider>
-      <MemoryRouter>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      </MemoryRouter>
-    </AutoRefreshProvider>
-  );
 };
 
 describe('Test useTreeData hook', () => {
