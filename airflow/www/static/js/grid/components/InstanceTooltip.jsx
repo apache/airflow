@@ -20,8 +20,8 @@
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
-import { finalStatesMap } from '../utils';
-import { formatDuration, getDuration } from '../datetime_utils';
+import { finalStatesMap } from '../../utils';
+import { formatDuration, getDuration } from '../../datetime_utils';
 import Time from './Time';
 
 const InstanceTooltip = ({

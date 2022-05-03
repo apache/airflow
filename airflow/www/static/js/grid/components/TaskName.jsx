@@ -25,7 +25,7 @@ import {
 import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
 const TaskName = ({
-  isGroup = false, isMapped = false, onToggle, isOpen, level, label,
+  isGroup = false, isMapped = false, onToggle, isOpen = false, level = 0, label,
 }) => (
   <Flex
     as={isGroup ? 'button' : 'div'}

@@ -17,30 +17,22 @@
  * under the License.
  */
 
-/* global moment */
+/* global describe, test, expect, jest, window */
 
 import React from 'react';
-import { useTimezone } from './context/timezone';
-import { defaultFormatWithTZ } from '../datetime_utils';
+import '@testing-library/jest-dom';
+import { render, fireEvent } from '@testing-library/react';
 
-const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
-  const { timezone } = useTimezone();
-  const time = moment(dateTime);
+import { ClipboardButton } from './Clipboard';
 
-  // eslint-disable-next-line no-underscore-dangle
-  if (!dateTime || !time._isValid) return null;
+describe('ClipboardButton', () => {
+  test('Loads button', async () => {
+    window.prompt = jest.fn();
 
-  const formattedTime = time.tz(timezone).format(format);
-  const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
-  return (
-    <time
-      dateTime={dateTime}
-      // show title if date is not UTC
-      title={timezone.toUpperCase() !== 'UTC' ? utcTime : undefined}
-    >
-      {formattedTime}
-    </time>
-  );
-};
+    const { getByText } = render(<ClipboardButton value="lorem ipsum" />);
 
-export default Time;
+    const button = getByText(/copy/i);
+    fireEvent.click(button);
+    expect(window.prompt).toHaveBeenCalledWith('Copy to clipboard: Ctrl+C, Enter', 'lorem ipsum');
+  });
+});
