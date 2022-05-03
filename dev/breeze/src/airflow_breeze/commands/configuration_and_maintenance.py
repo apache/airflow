@@ -40,7 +40,7 @@ from airflow_breeze.commands.main import main
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
-from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
+from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
@@ -130,7 +130,6 @@ CONFIGURATION_AND_MAINTENANCE_PARAMETERS = {
 @option_dry_run
 @option_github_repository
 def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: Optional[str]):
-    set_forced_answer(answer)
     if all:
         get_console().print(
             "\n[info]Removing cache of parameters, clean up docker cache "
@@ -162,7 +161,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
                 '--force',
             ]
             docker_rmi_command_to_execute.extend(images)
-            given_answer = user_confirm("Are you sure?", timeout=None)
+            given_answer = user_confirm("Are you sure with the removal?")
             if given_answer == Answer.YES:
                 run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
             elif given_answer == Answer.QUIT:
@@ -170,14 +169,14 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         else:
             get_console().print("[light_blue]No locally downloaded images to remove[/]\n")
     get_console().print("Pruning docker images")
-    given_answer = user_confirm("Are you sure?", timeout=None)
+    given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
         run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
     get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
-    given_answer = user_confirm("Are you sure?", timeout=None)
+    given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not dry_run:
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
@@ -215,7 +214,7 @@ def self_upgrade(force: bool, use_current_airflow_sources: bool):
         if force:
             reinstall_breeze(breeze_sources)
         else:
-            ask_to_reinstall_breeze(breeze_sources)
+            ask_to_reinstall_breeze(breeze_sources, timeout=None)
     else:
         warn_non_editable()
         sys.exit(1)
@@ -235,7 +234,6 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     """
     Enables autocompletion of breeze commands.
     """
-    set_forced_answer(answer)
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get('SHELL')
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
@@ -247,8 +245,10 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
         AIRFLOW_SOURCES_ROOT / "dev" / "breeze" / "autocomplete" / f"{NAME}-complete-{detected_shell}.sh"
     )
     get_console().print(f"[info]Activation command script is available here: {autocomplete_path}[/]\n")
-    get_console().print(f"[info]We need to add above script to your {detected_shell} profile.[/]\n")
-    given_answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
+    get_console().print(f"[warning]We need to add above script to your {detected_shell} profile.[/]\n")
+    given_answer = user_confirm(
+        "Should we proceed with modifying the script?", default_answer=Answer.NO, timeout=STANDARD_TIMEOUT
+    )
     if given_answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
@@ -388,8 +388,7 @@ def change_config(
 @option_dry_run
 @option_answer
 def free_space(verbose: bool, dry_run: bool, answer: str):
-    set_forced_answer(answer)
-    if user_confirm("Are you sure to run free-space and perform cleanup?", timeout=None) == Answer.YES:
+    if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
         run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)

@@ -48,7 +48,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.constraints import run_generate_constraints, run_generate_constraints_in_parallel
 from airflow_breeze.utils.docker_command_utils import (
@@ -192,7 +192,6 @@ def prepare_provider_documentation(
     skip_package_verification: bool,
     packages: List[str],
 ):
-    set_forced_answer(answer)
     shell_params = ShellParams(
         verbose=verbose,
         mount_sources=MOUNT_ALL,
@@ -317,16 +316,13 @@ def generate_constraints(
     generate_constraints_mode: str,
     with_ci_group: bool,
 ):
-    set_forced_answer(answer)
     if run_in_parallel:
         given_answer = user_confirm(
             f"Did you build all CI images {python_versions} with --upgrade-to-newer-dependencies flag set?",
-            timeout=None,
         )
     else:
         given_answer = user_confirm(
             f"Did you build CI image {python} with --upgrade-to-newer-dependencies flag set?",
-            timeout=None,
         )
     if given_answer != Answer.YES:
         if run_in_parallel:

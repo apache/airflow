@@ -65,7 +65,6 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.main import main
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
@@ -219,7 +218,6 @@ def build_image(
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
-    set_forced_answer(answer)
     parameters_passed = filter_out_none(**kwargs)
     if build_multiple_images:
         with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
