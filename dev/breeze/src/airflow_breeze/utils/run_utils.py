@@ -24,7 +24,7 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -66,10 +66,7 @@ def run_command(
     workdir: str = str(cwd) if cwd else os.getcwd()
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
-        # if we pass environment variables to execute, then
-        env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
-        if env_to_print:
-            env_to_print += ' '
+        env_to_print = get_environments_to_print(env)
         get_console().print(f"\n[info]Working directory {workdir} [/]\n")
         # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
         get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
@@ -101,6 +98,23 @@ def run_command(
         if check:
             raise
         return ex
+
+
+def get_environments_to_print(env: Optional[Mapping[str, str]]):
+    if not env:
+        return "# No environment variables \\\n"
+    system_env: Dict[str, str] = {}
+    my_env: Dict[str, str] = {}
+    for key, val in env.items():
+        if os.environ.get(key) == val:
+            system_env[key] = val
+        else:
+            my_env[key] = val
+    env_to_print = ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
+    env_to_print += r"""\
+"""
+    env_to_print += ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
+    return env_to_print
 
 
 def assert_pre_commit_installed(verbose: bool):
