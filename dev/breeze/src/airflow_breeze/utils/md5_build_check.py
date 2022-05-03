@@ -98,7 +98,8 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, verbose: bool) -> bo
     modified_files, not_modified_files = calculate_md5_checksum_for_files(md5sum_cache_dir, update=False)
     if len(modified_files) > 0:
         get_console().print(
-            '[warning]The following files are modified since last time image was built: [/]\n\n'
+            f'[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} '
+            f'since last time image was built: [/]\n\n'
         )
         for file in modified_files:
             get_console().print(f" * [info]{file}[/]")
