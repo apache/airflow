@@ -20,22 +20,24 @@
 import { useSearchParams } from 'react-router-dom';
 
 // Params names
-export const BASE_DATE = 'base_date';
-export const NUM_RUNS = 'num_runs';
-export const RUN_TYPE = 'run_type';
-export const RUN_STATE = 'run_state';
-export const TASK_STATE = 'task_state';
+export const BASE_DATE_PARAM = 'base_date';
+export const NUM_RUNS_PARAM = 'num_runs';
+export const RUN_TYPE_PARAM = 'run_type';
+export const RUN_STATE_PARAM = 'run_state';
+export const TASK_STATE_PARAM = 'task_state';
 
 const useFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const baseDate = searchParams.get(BASE_DATE);
-  const numRuns = searchParams.get(NUM_RUNS);
-  const runType = searchParams.get(RUN_TYPE);
-  const runState = searchParams.get(RUN_STATE);
+  const date = new Date();
+  date.setMilliseconds(0);
+  const baseDate = searchParams.get(BASE_DATE_PARAM) || date.toISOString().replace('Z', '');
+  const numRuns = searchParams.get(NUM_RUNS_PARAM) || 25;
+  const runType = searchParams.get(RUN_TYPE_PARAM);
+  const runState = searchParams.get(RUN_STATE_PARAM);
   // taskState is only used to change the opacity of the tasks,
   // it is not send to the api for filtering.
-  const taskState = searchParams.get(TASK_STATE);
+  const taskState = searchParams.get(TASK_STATE_PARAM);
 
   const makeOnChangeFn = (paramName) => (e) => {
     const { value } = e.target;
@@ -47,18 +49,18 @@ const useFilters = () => {
     setSearchParams(params);
   };
 
-  const onBaseDateChange = makeOnChangeFn(BASE_DATE);
-  const onNumRunsChange = makeOnChangeFn(NUM_RUNS);
-  const onRunTypeChange = makeOnChangeFn(RUN_TYPE);
-  const onRunStateChange = makeOnChangeFn(RUN_STATE);
-  const onTaskStateChange = makeOnChangeFn(TASK_STATE);
+  const onBaseDateChange = makeOnChangeFn(BASE_DATE_PARAM);
+  const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
+  const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
+  const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);
+  const onTaskStateChange = makeOnChangeFn(TASK_STATE_PARAM);
 
   const clearFilters = () => {
-    searchParams.delete(BASE_DATE);
-    searchParams.delete(NUM_RUNS);
-    searchParams.delete(RUN_TYPE);
-    searchParams.delete(RUN_STATE);
-    searchParams.delete(TASK_STATE);
+    searchParams.delete(BASE_DATE_PARAM);
+    searchParams.delete(NUM_RUNS_PARAM);
+    searchParams.delete(RUN_TYPE_PARAM);
+    searchParams.delete(RUN_STATE_PARAM);
+    searchParams.delete(TASK_STATE_PARAM);
     setSearchParams(searchParams);
   };
 

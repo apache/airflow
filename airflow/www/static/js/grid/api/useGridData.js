@@ -27,11 +27,13 @@ import { useAutoRefresh } from '../context/autorefresh';
 import { areActiveRuns } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
 import useFilters, {
-  BASE_DATE, NUM_RUNS, RUN_STATE, RUN_TYPE,
+  BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM,
 } from '../utils/useFilters';
 
+const DAG_ID_PARAM = 'dag_id';
+
 // dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue(DAG_ID_PARAM);
 const gridDataUrl = getMetaValue('grid_data_url') || '';
 const urlRoot = getMetaValue('root');
 
@@ -46,12 +48,15 @@ const useGridData = () => {
 
   const { data, isSuccess, ...rest } = useQuery(['useGridData', baseDate, numRuns, runType, runState], async () => {
     try {
-      const rootParam = urlRoot ? `&root=${urlRoot}` : '';
-      const baseDateParam = baseDate ? `&${BASE_DATE}=${baseDate}` : '';
-      const numRunsParam = numRuns ? `&${NUM_RUNS}=${numRuns}` : '';
-      const runTypeParam = runType ? `&${RUN_TYPE}=${runType}` : '';
-      const runStateParam = runState ? `&${RUN_STATE}=${runState}` : '';
-      const newData = await axios.get(`${gridDataUrl}?dag_id=${dagId}${numRunsParam}${rootParam}${baseDateParam}${runTypeParam}${runStateParam}`);
+      const params = {
+        root: urlRoot,
+        [DAG_ID_PARAM]: dagId,
+        [BASE_DATE_PARAM]: baseDate,
+        [NUM_RUNS_PARAM]: numRuns,
+        [RUN_TYPE_PARAM]: runType,
+        [RUN_STATE_PARAM]: runState,
+      };
+      const newData = await axios.get(gridDataUrl, { params });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(newData.dagRuns)) stopRefresh();
       return newData;

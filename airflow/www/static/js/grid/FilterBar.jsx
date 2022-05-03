@@ -22,7 +22,9 @@
 import {
   Box,
   Button,
-  Flex, Input, Select,
+  Flex,
+  Input,
+  Select,
 } from '@chakra-ui/react';
 import React from 'react';
 
@@ -66,10 +68,10 @@ const FilterBar = () => {
       <Box px={2}>
         <Select
           {...inputStyles}
-          placeholder="Dag Run Type"
           value={filters.runType || ''}
           onChange={onRunTypeChange}
         >
+          <option value="" key="all">All Run Types</option>
           {filtersOptions.runTypes.map((value) => (
             <option value={value} key={value}>{value}</option>
           ))}
@@ -79,10 +81,10 @@ const FilterBar = () => {
       <Box px={2}>
         <Select
           {...inputStyles}
-          placeholder="Run State"
           value={filters.runState || ''}
           onChange={onRunStateChange}
         >
+          <option value="" key="all">All Dag States</option>
           {filtersOptions.dagStates.map((value) => (
             <option value={value} key={value}>{value}</option>
           ))}
@@ -91,10 +93,10 @@ const FilterBar = () => {
       <Box px={2}>
         <Select
           {...inputStyles}
-          placeholder="Task State"
           value={filters.taskState || ''}
           onChange={onTaskStateChange}
         >
+          <option value="" key="all">All Task States</option>
           {filtersOptions.taskStates.map((value) => (
             <option value={value} key={value}>{value}</option>
           ))}
