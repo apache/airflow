@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Parameters to build PROD image."""
+import json
 import os
 import re
 import sys
@@ -214,13 +215,20 @@ class BuildProdParams:
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
                 ]
             )
+
+        maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
+        logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
+        readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
         extra_build_flags.extend(
             [
                 "--label",
                 "io.artifacthub.package.license=Apache-2.0",
                 "--label",
-                "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/"
-                "apache/airflow/main/docs/docker-stack/README.md",
+                f"io.artifacthub.package.readme-url={readme_url}",
+                "--label",
+                f"io.artifacthub.package.maintainers={maintainers}",
+                "--label",
+                f"io.artifacthub.package.logo-url={logo_url}",
             ]
         )
         return extra_build_flags
