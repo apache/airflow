@@ -39,12 +39,13 @@ const FilterBar = () => {
     clearFilters,
   } = useFilters();
 
+  const inputStyles = { backgroundColor: 'white', size: 'lg' };
+
   return (
     <Flex backgroundColor="gray.100" mt={0} mb={2} p={4}>
       <Box px={2}>
         <Input
-          backgroundColor="white"
-          size="lg"
+          {...inputStyles}
           type="datetime-local"
           value={filters.baseDate || ''}
           onChange={onBaseDateChange}
@@ -52,8 +53,7 @@ const FilterBar = () => {
       </Box>
       <Box px={2}>
         <Select
-          backgroundColor="white"
-          size="lg"
+          {...inputStyles}
           placeholder="Runs"
           value={filters.numRuns || ''}
           onChange={onNumRunsChange}
@@ -65,8 +65,7 @@ const FilterBar = () => {
       </Box>
       <Box px={2}>
         <Select
-          backgroundColor="white"
-          size="lg"
+          {...inputStyles}
           placeholder="Dag Run Type"
           value={filters.runType || ''}
           onChange={onRunTypeChange}
@@ -79,8 +78,7 @@ const FilterBar = () => {
       <Box />
       <Box px={2}>
         <Select
-          backgroundColor="white"
-          size="lg"
+          {...inputStyles}
           placeholder="Run State"
           value={filters.runState || ''}
           onChange={onRunStateChange}
@@ -92,8 +90,7 @@ const FilterBar = () => {
       </Box>
       <Box px={2}>
         <Select
-          backgroundColor="white"
-          size="lg"
+          {...inputStyles}
           placeholder="Task State"
           value={filters.taskState || ''}
           onChange={onTaskStateChange}

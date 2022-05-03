@@ -20,11 +20,11 @@
 import { useSearchParams } from 'react-router-dom';
 
 // Params names
-const BASE_DATE = 'baseDate';
-const NUM_RUNS = 'numRuns';
-const RUN_TYPE = 'runType';
-const RUN_STATE = 'runState';
-const TASK_STATE = 'taskState';
+export const BASE_DATE = 'base_date';
+export const NUM_RUNS = 'num_runs';
+export const RUN_TYPE = 'run_type';
+export const RUN_STATE = 'run_state';
+export const TASK_STATE = 'task_state';
 
 const useFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
