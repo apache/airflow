@@ -115,14 +115,9 @@ class SubDagOperator(BaseSensorOperator):
                 pool = session.query(Pool).filter(Pool.slots == 1).filter(Pool.pool == self.pool).first()
                 if pool and any(t.pool == self.pool for t in self.subdag.tasks):
                     raise AirflowException(
-                        'SubDagOperator {sd} and subdag task{plural} {t} both '
-                        'use pool {p}, but the pool only has 1 slot. The '
-                        'subdag tasks will never run.'.format(
-                            sd=self.task_id,
-                            plural=len(conflicts) > 1,
-                            t=', '.join(t.task_id for t in conflicts),
-                            p=self.pool,
-                        )
+                        f"SubDagOperator {self.task_id} and subdag task{'s' if len(conflicts) > 1 else ''} "
+                        f"{', '.join(t.task_id for t in conflicts)} both use pool {self.pool}, "
+                        f"but the pool only has 1 slot. The subdag tasks will never run."
                     )
 
     def _get_dagrun(self, execution_date):

@@ -436,19 +436,13 @@ class TestDagBag:
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info(f'validating {dag_id}')
-            assert (
-                dag_id in actual_found_dag_ids
-            ) == should_be_found, 'dag "{}" should {}have been found after processing dag "{}"'.format(
-                dag_id,
-                '' if should_be_found else 'not ',
-                expected_parent_dag.dag_id,
+            assert (dag_id in actual_found_dag_ids) == should_be_found, (
+                f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+                f"have been found after processing dag \"{expected_parent_dag.dag_id}\""
             )
-            assert (
-                dag_id in actual_dagbag.dags
-            ) == should_be_found, 'dag "{}" should {}be in dagbag.dags after processing dag "{}"'.format(
-                dag_id,
-                '' if should_be_found else 'not ',
-                expected_parent_dag.dag_id,
+            assert (dag_id in actual_dagbag.dags) == should_be_found, (
+                f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+                f"be in dagbag.dags after processing dag \"{expected_parent_dag.dag_id}\""
             )
 
     def test_load_subdags(self):
