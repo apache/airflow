@@ -2301,6 +2301,14 @@ class DAG(LoggingMixin):
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
 
+        if run_id and "/" in run_id:
+            warnings.warn(
+                "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
+                "also makes the run impossible to retrieve via Airflow's REST API.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
         logical_date = timezone.coerce_datetime(execution_date)
         if data_interval is None and logical_date is not None:
             warnings.warn(
