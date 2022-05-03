@@ -23,24 +23,38 @@ import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const markSuccessUrl = getMetaValue('dagrun_success_url');
 const csrfToken = getMetaValue('csrf_token');
+const successUrl = getMetaValue('success_url');
 
-export default function useMarkSuccessRun(dagId, runId) {
+export default function useMarkSuccessTask({
+  dagId, runId, taskId,
+}) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunSuccess', dagId, runId],
-    ({ confirmed = false }) => {
+    ['markSuccess', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, mapIndexes = [],
+    }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-      }).toString();
+        task_id: taskId,
+        confirmed: true,
+        past,
+        future,
+        upstream,
+        downstream,
+        map_indexes: mapIndexes,
+      });
 
-      return axios.post(markSuccessUrl, params, {
+      mapIndexes.forEach((mi) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post(successUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -48,7 +62,8 @@ export default function useMarkSuccessRun(dagId, runId) {
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('treeData');
+        queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

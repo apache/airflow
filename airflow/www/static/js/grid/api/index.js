@@ -31,7 +31,7 @@ import useMarkFailedTask from './useMarkFailedTask';
 import useMarkSuccessTask from './useMarkSuccessTask';
 import useExtraLinks from './useExtraLinks';
 import useConfirmMarkTask from './useConfirmMarkTask';
-import useTreeData from './useTreeData';
+import useGridData from './useGridData';
 import useMappedInstances from './useMappedInstances';
 
 axios.interceptors.response.use(
@@ -52,6 +52,6 @@ export {
   useMarkSuccessTask,
   useExtraLinks,
   useConfirmMarkTask,
-  useTreeData,
+  useGridData,
   useMappedInstances,
 };

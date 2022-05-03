@@ -27,7 +27,7 @@ import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
-import Tree from './Tree';
+import Grid from './Grid';
 import { ContainerRefProvider } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
@@ -78,7 +78,7 @@ function App() {
               <TimezoneProvider>
                 <AutoRefreshProvider>
                   <BrowserRouter>
-                    <Tree />
+                    <Grid />
                   </BrowserRouter>
                 </AutoRefreshProvider>
               </TimezoneProvider>
