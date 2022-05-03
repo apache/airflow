@@ -31,7 +31,7 @@ FROM apache/airflow:latest
 """
 
 AIRFLOW_DOCKER = """\
-FROM apache/airflow:{}
+FROM python:3.7
 
 # Upgrade
 RUN pip install "apache-airflow=={}"
@@ -44,11 +44,6 @@ FROM apache/airflow:1.10.15
 # Install upgrade-check
 RUN pip install "apache-airflow-upgrade-check=={}"
 
-"""
-
-DOCKER_CMD = """
-docker build --tag local/airflow .
-docker local/airflow info
 """
 
 AIRFLOW = "AIRFLOW"
@@ -78,7 +73,7 @@ def create_docker(txt: str):
     print(
         """\
         docker build -f Dockerfile.pmc --tag local/airflow .
-        docker run local/airflow info
+        docker run --rm local/airflow airflow info
         """
     )
 
@@ -209,10 +204,7 @@ def main(check_type: str, path: str, version: str):
     if check_type.upper() == AIRFLOW:
         files = os.listdir(os.path.join(path, version))
         missing_files = check_release(files, version)
-
-        base_version = version.split("rc")[0]
-        prev_version = base_version[:-1] + str(int(base_version[-1]) - 1)
-        create_docker(AIRFLOW_DOCKER.format(prev_version, version))
+        create_docker(AIRFLOW_DOCKER.format(version))
         if missing_files:
             warn_of_missing_files(missing_files)
         return
