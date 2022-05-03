@@ -202,13 +202,13 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
-  # TODO: Bump to Python 3.7 when support for Python 3.6 is dropped in Airflow 2.3.
+  # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.32.0
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
-        args: ["--py36-plus"]
+        args: ["--py37-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
