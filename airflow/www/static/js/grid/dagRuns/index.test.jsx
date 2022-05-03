@@ -52,7 +52,7 @@ const dagRuns = [
 
 describe('Test DagRuns', () => {
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
-    global.treeData = JSON.stringify({
+    global.gridData = JSON.stringify({
       groups: {},
       dagRuns,
     });
@@ -68,7 +68,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Top date ticks appear when there are 4 or more runs', () => {
-    global.treeData = JSON.stringify({
+    global.gridData = JSON.stringify({
       groups: {},
       dagRuns: [
         ...dagRuns,
@@ -101,7 +101,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Handles empty data correctly', () => {
-    global.treeData = null;
+    global.gridData = null;
     const { queryByTestId } = render(
       <DagRuns />, { wrapper: TableWrapper },
     );

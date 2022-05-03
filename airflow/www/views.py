@@ -231,7 +231,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
+def task_group_to_grid(task_item_or_group, dag, dag_runs, tis, session):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
@@ -253,7 +253,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     task_group = task_item_or_group
 
     children = [
-        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.topological_sort()
+        task_group_to_grid(child, dag, dag_runs, tis, session) for child in task_group.topological_sort()
     ]
 
     def get_summary(dag_run, children):
@@ -2620,7 +2620,7 @@ class Airflow(AirflowBaseView):
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
         data = {
-            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
+            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, tis, session),
             'dag_runs': encoded_runs,
         }
 
@@ -2628,7 +2628,7 @@ class Airflow(AirflowBaseView):
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
         return self.render_template(
-            'airflow/tree.html',
+            'airflow/grid.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
@@ -3451,15 +3451,15 @@ class Airflow(AirflowBaseView):
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
-    @expose('/object/tree_data')
+    @expose('/object/grid_data')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
-    def tree_data(self):
-        """Returns tree data"""
+    def grid_data(self):
+        """Returns grid data"""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
 
@@ -3495,7 +3495,7 @@ class Airflow(AirflowBaseView):
             min_date = min(dag_run_dates, default=None)
             tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
             data = {
-                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
+                'groups': task_group_to_grid(dag.task_group, dag, dag_runs, tis, session),
                 'dag_runs': encoded_runs,
             }
 
