@@ -53,7 +53,6 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.shell.enter_shell import enter_shell, find_airflow_container
 from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_env_variables_docker_compose_command,
@@ -230,7 +229,6 @@ def shell(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
-    set_forced_answer(answer)
     if verbose or dry_run:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -295,7 +293,6 @@ def start_airflow(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
-    set_forced_answer(answer)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,

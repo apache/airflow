@@ -27,7 +27,7 @@ from airflow_breeze.build_image.ci.build_ci_params import (
 )
 from airflow_breeze.utils.cache import touch_cache_file
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.confirm import Answer, user_confirm
+from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_docker_build_command,
@@ -69,16 +69,20 @@ def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bo
     ):
         return False
     try:
-        answer = user_confirm(message="Do you want to build image?", timeout=5, default_answer=Answer.NO)
+        answer = user_confirm(
+            message="Do you want to build the image?", timeout=STANDARD_TIMEOUT, default_answer=Answer.NO
+        )
         if answer == answer.YES:
             if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
                 return True
             else:
                 get_console().print(
-                    "\n[warning]This might take a lot of time, w" "e think you should rebase first.[/]\n"
+                    "\n[warning]This might take a lot of time, we think you should rebase first.[/]\n"
                 )
                 answer = user_confirm(
-                    "But if you really, really want - you can do it", timeout=5, default_answer=Answer.NO
+                    "But if you really, really want - you can do it. Are you really sure?",
+                    timeout=STANDARD_TIMEOUT,
+                    default_answer=Answer.NO,
                 )
                 if answer == Answer.YES:
                     return True
