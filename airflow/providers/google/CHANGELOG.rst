@@ -18,6 +18,170 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``apache-airflow-providers-google uses deprecated Google Ads API V8 (#22111)``
+
+.. warning:: The underlying google-ads library has been updated
+
+   This drops support for versions v6 and v7 of the Google Ads API, and updates
+   the default version of the Google Ads API from the deprecated v8 to v10.
+
+   For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
+   and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
+
+* ``DataprocJobBaseOperator``: order of parameters has changed
+
+* ``region`` parameter has no default value
+  affected functions/classes:
+  ``DataprocHook.cancel_job``
+  ``DataprocCreateClusterOperator``
+  ``DataprocJobBaseOperator``
+
+* ``DatastoreHook``: Remove ``datastore_conn_id``. Please use ``gcp_conn_id``
+
+* ``CloudBuildCreateBuildOperator``: Remove ``body``. Please use ``build``
+
+* ``BigtableCreateInstanceOperator`` Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``
+
+* ``BigtableHook.create_instance``: Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``
+
+* ``GoogleDisplayVideo360CreateReportOperator``: Remove ``params``. Please use ``parameters``
+
+* ``FacebookAdsReportToGcsOperator``: Remove ``params``. Please use ``parameters``
+
+* ``GoogleDriveToGCSOperator``: Remove ``destination_bucket`` and ``destination_object``. Please use ``bucket_name`` and ``object_name``
+
+* ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``
+
+* ``PubSubCreateTopicOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubCreateSubscriptionOperator``: Remove ``topic_project``. Please use ``project_id``
+
+* ``PubSubCreateSubscriptionOperator``: Remove ``subscription_project``. Please use ``subscription_project_id``
+
+* ``PubSubDeleteTopicOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubDeleteSubscriptionOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubPublishMessageOperator``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubPullSensor``: Remove ``project``. Please use ``project_id``
+
+* ``PubSubPullSensor``: Remove ``return_immediately``
+
+* ``DataprocJobSensor``: Remove ``location``. Please use ``region``
+
+* ``DataprocCreateWorkflowTemplateOperator``: Remove ``location``. Please use ``region``
+
+* ``DataprocCreateClusterOperator``: Remove ``location``. Please use ``region``
+
+* ``DataprocSubmitJobOperator``: Remove ``location``. Please use ``region``
+
+* ``DataprocHook``: Remove ``location`` parameter. Please use ``region``
+  affected functions are:
+  ``cancel_job``
+  ``create_workflow_template``
+  ``get_batch_client``
+  ``get_cluster_client``
+  ``get_job``
+  ``get_job_client``
+  ``get_template_client``
+  ``instantiate_inline_workflow_template``
+  ``instantiate_workflow_template``
+  ``submit_job``
+  ``update_cluster``
+  ``wait_for_job``
+
+* ``DataprocHook``: Order of parameters in ``wait_for_job`` function has changed
+
+* ``DataprocHook``: Remove function ``submit``. Please use ``submit_job``
+
+* ``DataprocSubmitJobOperator``: order of parameters has changed.
+
+* ``CloudDatastoreImportEntitiesOperator``: Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
+* ``CloudDatastoreExportEntitiesOperator``: Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+
+* ``bigquery_conn_id`` is removed. Please use ``gcp_conn_id``.
+  affected classes:
+  ``BigQueryCheckOperator``
+  ``BigQueryCreateEmptyDatasetOperator``
+  ``BigQueryDeleteDatasetOperator``
+  ``BigQueryDeleteTableOperator``
+  ``BigQueryExecuteQueryOperator``
+  ``BigQueryGetDataOperator``
+  ``BigQueryHook``
+  ``BigQueryIntervalCheckOperator``
+  ``BigQueryTableExistenceSensor``
+  ``BigQueryTablePartitionExistenceSensor``
+  ``BigQueryToBigQueryOperator``
+  ``BigQueryToGCSOperator``
+  ``BigQueryUpdateTableSchemaOperator``
+  ``BigQueryUpsertTableOperator``
+  ``BigQueryValueCheckOperator``
+  ``GCSToBigQueryOperator``
+
+* ``google_cloud_storage_conn_id`` is removed. Please use ``gcp_conn_id``.
+  affected classes:
+  ``ADLSToGCSOperator``
+  ``BaseSQLToGCSOperator``
+  ``CassandraToGCSOperator``
+  ``GCSBucketCreateAclEntryOperator``
+  ``GCSCreateBucketOperator``
+  ``GCSDeleteObjectsOperator``
+  ``GCSHook``
+  ``GCSListObjectsOperator``
+  ``GCSObjectCreateAclEntryOperator``
+  ``GCSToBigQueryOperator``
+  ``GCSToGCSOperator``
+  ``GCSToLocalFilesystemOperator``
+  ``LocalFilesystemToGCSOperator``
+
+* ``S3ToGCSOperator``: Remove ``dest_gcs_conn_id``. Please use ``gcp_conn_id``
+
+* ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``
+
+* ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``
+
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add autodetect arg in BQCreateExternalTable Operator (#22710)``
+* ``Add links for BigQuery Data Transfer (#22280)``
+* ``Modify transfer operators to handle more data (#22495)``
+* ``Create Endpoint and Model Service, Batch Prediction and Hyperparameter Tuning Jobs operators for Vertex AI service (#22088)``
+* ``PostgresToGoogleCloudStorageOperator - BigQuery schema type for time zone naive fields (#22536)``
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the docstrings (#22497)``
+* ``Fix 'download_media' url in 'GoogleDisplayVideo360SDFtoGCSOperator' (#22479)``
+* ``Fix to 'CloudBuildRunBuildTriggerOperator' fails to find build id. (#22419)``
+* ``Fail ''LocalFilesystemToGCSOperator'' if src does not exist (#22772)``
+* ``Remove coerce_datetime usage from GCSTimeSpanFileTransformOperator (#22501)``
+
+Misc
+~~~~
+
+* ``Refactor: BigQuery to GCS Operator (#22506)``
+* ``Remove references to deprecated operators/params in PubSub operators (#22519)``
+* ``New design of system tests (#22311)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
 6.7.0
 .....
 

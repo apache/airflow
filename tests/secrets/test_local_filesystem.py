@@ -122,8 +122,9 @@ class TestLoadVariables(unittest.TestCase):
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
-            variables = local_filesystem.load_variables('a.yaml')
-            assert expected_variables == variables
+            vars_yaml = local_filesystem.load_variables('a.yaml')
+            vars_yml = local_filesystem.load_variables('a.yml')
+            assert expected_variables == vars_yaml == vars_yml
 
 
 class TestLoadConnection(unittest.TestCase):
@@ -389,6 +390,21 @@ class TestLoadConnection(unittest.TestCase):
         with mock_local_file(file_content):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.yaml")
+
+    @parameterized.expand(
+        (("conn_a: mysql://hosta"),),
+    )
+    def test_yaml_extension_parsers_return_same_result(self, file_content):
+        with mock_local_file(file_content):
+            conn_uri_by_conn_id_yaml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yaml").items()
+            }
+            conn_uri_by_conn_id_yml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yml").items()
+            }
+            assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
 
 
 class TestLocalFileBackend(unittest.TestCase):

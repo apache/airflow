@@ -25,7 +25,7 @@ import pytest
 from airflow import settings
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -52,7 +52,7 @@ class TestSkipMixin:
         now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
         mock_now.return_value = now
         with dag_maker('dag'):
-            tasks = [DummyOperator(task_id='task')]
+            tasks = [EmptyOperator(task_id='task')]
         dag_run = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=now,
@@ -77,7 +77,7 @@ class TestSkipMixin:
             'dag',
             session=session,
         ):
-            tasks = [DummyOperator(task_id='task')]
+            tasks = [EmptyOperator(task_id='task')]
         dag_maker.create_dagrun(execution_date=now)
         SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
 
@@ -108,9 +108,9 @@ class TestSkipMixin:
         with dag_maker(
             'dag_test_skip_all_except',
         ):
-            task1 = DummyOperator(task_id='task1')
-            task2 = DummyOperator(task_id='task2')
-            task3 = DummyOperator(task_id='task3')
+            task1 = EmptyOperator(task_id='task1')
+            task2 = EmptyOperator(task_id='task2')
+            task3 = EmptyOperator(task_id='task3')
 
             task1 >> [task2, task3]
         dag_maker.create_dagrun()

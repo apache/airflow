@@ -158,7 +158,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | builds it forces rebuild, regardless if it      |
 |                                         |             |              |            | is determined to be needed.                     |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_ANSWER_TO_QUESTIONS``           |             |     yes      |     yes    | This variable determines if answer to questions |
+| ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
 |                                         |             |              |            | during the build process should be              |
 |                                         |             |              |            | automatically given. For local development,     |
 |                                         |             |              |            | the user is occasionally asked to provide       |
@@ -185,13 +185,6 @@ You can use those variables when you try to reproduce the build locally.
 | ``HOST_GROUP_ID``                       |             |              |            | Group id of the host user.                      |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``HOST_OS``                             |             |    Linux     |    Linux   | OS of the Host (Darwin/Linux).                  |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_HOME``                           |             |              |            | Home directory on the host.                     |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                      Version suffix variables                                                       |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_PYPI``             |             |              |            | Version suffix used during provider             |
-|                                         |             |              |            | package preparation for PyPI builds.            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
@@ -680,7 +673,7 @@ cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  ./breeze-legacy --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -707,13 +700,7 @@ In order to add a new version the following operations should be done (example u
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.10
-
-* push image as cache to GitHub:
-
-.. code-block:: bash
-
-  ./breeze push-image --python 3.10
+  breeze build-image --python 3.10
 
 * Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_

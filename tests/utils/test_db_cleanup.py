@@ -208,7 +208,7 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parent.parent.parent
+        proj_root = Path(__file__).parents[2].absolute()
         mods = list(
             f"airflow.models.{name}"
             for _, name, _ in pkgutil.iter_modules([str(proj_root / 'airflow/models')])

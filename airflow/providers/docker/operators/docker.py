@@ -23,10 +23,10 @@ import tarfile
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
-from docker import APIClient, tls
-from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from docker.errors import APIError
-from docker.types import Mount
+from docker import APIClient, tls  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
+from docker.errors import APIError  # type: ignore[attr-defined]
+from docker.types import Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

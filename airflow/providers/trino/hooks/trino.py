@@ -47,11 +47,14 @@ def generate_trino_client_info() -> str:
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
+    # try_number isn't available in context for airflow < 2.2.5
+    # https://github.com/apache/airflow/issues/23059
+    try_number = context_var.get('try_number', '')
     task_info = {
         'dag_id': context_var['dag_id'],
         'task_id': context_var['task_id'],
         'execution_date': context_var['execution_date'],
-        'try_number': context_var['try_number'],
+        'try_number': try_number,
         'dag_run_id': context_var['dag_run_id'],
         'dag_owner': context_var['dag_owner'],
     }
@@ -96,9 +99,9 @@ class TrinoHook(DbApiHook):
         if db.password and extra.get('auth') == 'kerberos':
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
-            auth = trino.auth.BasicAuthentication(db.login, db.password)
+            auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get('auth') == 'kerberos':
-            auth = trino.auth.KerberosAuthentication(
+            auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
                 service_name=extra.get('kerberos__service_name'),
                 mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),

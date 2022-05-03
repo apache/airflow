@@ -18,6 +18,7 @@
 """This module contains Google Cloud Language operators."""
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import enums
 from google.cloud.language_v1.types import Document
@@ -74,7 +75,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -148,7 +149,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -225,7 +226,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -294,7 +295,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         self,
         *,
         document: Union[dict, Document],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",

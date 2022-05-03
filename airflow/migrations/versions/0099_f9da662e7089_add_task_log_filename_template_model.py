@@ -26,6 +26,7 @@ Create Date: 2021-12-09 06:11:21.044940
 from alembic import op
 from sqlalchemy import Column, ForeignKey, Integer, Text
 
+from airflow.migrations.utils import disable_sqlite_fkeys
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # Revision identifiers, used by Alembic.
@@ -50,7 +51,8 @@ def upgrade():
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
     )
-    with op.batch_alter_table("dag_run") as batch_op:
+
+    with disable_sqlite_fkeys(op), op.batch_alter_table("dag_run") as batch_op:
         batch_op.add_column(dag_run_log_filename_id)
 
 

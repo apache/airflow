@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'JenkinsBuildSensor' (#22421)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``extra condition to check returned object not None (#22608)``
+
 2.0.7
 .....
 

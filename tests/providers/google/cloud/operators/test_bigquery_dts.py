@@ -18,6 +18,7 @@
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
 
 from airflow.providers.google.cloud.operators.bigquery_dts import (
@@ -63,7 +64,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
             metadata=(),
             transfer_config=TRANSFER_CONFIG,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         ti.xcom_push.assert_called_with(execution_date=None, key='transfer_config_id', value='1a2b3c')
@@ -80,7 +81,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
             metadata=(),
             transfer_config_id=TRANSFER_CONFIG_ID,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -108,7 +109,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
             requested_time_range=None,
             requested_run_time=None,
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         ti.xcom_push.assert_called_with(execution_date=None, key='run_id', value='123')

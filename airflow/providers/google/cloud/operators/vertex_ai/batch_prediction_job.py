@@ -29,6 +29,7 @@
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform import Model, explain
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
@@ -299,7 +300,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         batch_prediction_job_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -374,7 +375,7 @@ class GetBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         batch_prediction_job: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -467,7 +468,7 @@ class ListBatchPredictionJobsOperator(BaseOperator):
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

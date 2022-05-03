@@ -27,6 +27,7 @@ if sys.version_info >= (3, 8):
 else:
     from cached_property import cached_property
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
 from google.cloud.vision_v1.types import (
@@ -173,7 +174,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_set: Union[dict, ProductSet],
         project_id: str = PROVIDE_PROJECT_ID,
         product_set_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
@@ -208,7 +209,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_set_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
@@ -232,7 +233,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
@@ -258,7 +259,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_set_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -279,7 +280,7 @@ class CloudVisionHook(GoogleBaseHook):
         product: Union[dict, Product],
         project_id: str = PROVIDE_PROJECT_ID,
         product_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -314,7 +315,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -338,7 +339,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: Optional[str] = None,
         product_id: Optional[str] = None,
         update_mask: Optional[Dict[str, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -362,7 +363,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -384,7 +385,7 @@ class CloudVisionHook(GoogleBaseHook):
         reference_image: Union[dict, ReferenceImage],
         project_id: str,
         reference_image_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
@@ -424,7 +425,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_id: str,
         reference_image_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
@@ -455,7 +456,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_id: str,
         project_id: str,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -483,7 +484,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_id: str,
         project_id: str,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -507,7 +508,7 @@ class CloudVisionHook(GoogleBaseHook):
     def annotate_image(
         self,
         request: Union[dict, AnnotateImageRequest],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
     ) -> Dict:
         """
@@ -528,7 +529,7 @@ class CloudVisionHook(GoogleBaseHook):
     def batch_annotate_images(
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
     ) -> dict:
         """
@@ -550,7 +551,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         image: Union[dict, Image],
         max_results: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None,
     ) -> dict:
@@ -580,7 +581,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         image: Union[dict, Image],
         max_results: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         additional_properties: Optional[dict] = None,
     ) -> dict:
@@ -610,7 +611,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         image: Union[dict, Image],
         max_results: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         additional_properties: Optional[dict] = None,
     ) -> dict:
@@ -640,7 +641,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         image: Union[dict, Image],
         max_results: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         additional_properties: Optional[dict] = None,
     ) -> dict:

@@ -34,12 +34,15 @@ class OracleOperator(BaseOperator):
         (templated)
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
-    :param parameters: (optional) the parameters to render the SQL query with.
+    :param parameters: (optional, templated) the parameters to render the SQL query with.
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = (
+        'parameters',
+        'sql',
+    )
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
@@ -73,10 +76,13 @@ class OracleStoredProcedureOperator(BaseOperator):
     :param procedure: name of stored procedure to call (templated)
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
-    :param parameters: (optional) the parameters provided in the call
+    :param parameters: (optional, templated) the parameters provided in the call
     """
 
-    template_fields: Sequence[str] = ('procedure',)
+    template_fields: Sequence[str] = (
+        'parameters',
+        'procedure',
+    )
     ui_color = '#ededed'
 
     def __init__(

@@ -20,7 +20,7 @@ services:
   airflow:
     environment:
       - BACKEND=mssql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+17+for+SQL+Server
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+17+for+SQL+Server
       - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+17+for+SQL+Server
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:

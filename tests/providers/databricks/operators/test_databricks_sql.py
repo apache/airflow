@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 from databricks.sql.types import Row
 
-from airflow import PY310, AirflowException
+from airflow import AirflowException
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksCopyIntoOperator,
     DatabricksSqlOperator,
@@ -53,7 +53,13 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == mock_results
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            http_headers=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
@@ -78,17 +84,17 @@ class TestDatabricksSqlOperator(unittest.TestCase):
 
         assert results == ["id,value", "1,value1"]
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, http_path=None, session_configuration=None, sql_endpoint_name=None
+            DEFAULT_CONN_ID,
+            http_path=None,
+            session_configuration=None,
+            sql_endpoint_name=None,
+            http_headers=None,
+            catalog=None,
+            schema=None,
         )
         db_mock.run.assert_called_once_with(sql, parameters=None)
 
 
-@pytest.mark.skipif(
-    PY310,
-    reason="Databricks SQL tests not run on Python 3.10 because there is direct Iterable import from"
-    " collections in the databricks SQL library, where it should be imported from collections.abc."
-    " This could be removed when https://github.com/apache/airflow/issues/22220 is solved",
-)
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
     def test_copy_with_files(self):
         op = DatabricksCopyIntoOperator(
@@ -145,6 +151,25 @@ COPY_OPTIONS ('force' = 'true')
         assert (
             op._create_sql_query()
             == f"""COPY INTO test
+FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
+FILEFORMAT = CSV
+""".strip()
+        )
+
+    def test_copy_with_target_credential(self):
+        expression = "col1, col2"
+        op = DatabricksCopyIntoOperator(
+            file_location=COPY_FILE_LOCATION,
+            file_format='CSV',
+            table_name='test',
+            task_id=TASK_ID,
+            expression_list=expression,
+            storage_credential='abc',
+            credential={'AZURE_SAS_TOKEN': 'abc'},
+        )
+        assert (
+            op._create_sql_query()
+            == f"""COPY INTO test WITH (CREDENTIAL abc)
 FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
 FILEFORMAT = CSV
 """.strip()

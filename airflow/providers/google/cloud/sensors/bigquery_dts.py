@@ -18,6 +18,7 @@
 """This module contains a Google BigQuery Data Transfer Service sensor."""
 from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
@@ -80,9 +81,10 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         ] = TransferState.SUCCEEDED,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         request_timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
+        location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -96,6 +98,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.location = location
 
     def _normalize_state_list(self, states) -> Set[TransferState]:
         states = {states} if isinstance(states, (str, TransferState, int)) else states
@@ -121,6 +124,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
+            location=self.location,
         )
         run = hook.get_transfer_run(
             run_id=self.run_id,

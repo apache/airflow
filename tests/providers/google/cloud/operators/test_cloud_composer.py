@@ -17,6 +17,7 @@
 from unittest import mock
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_composer import (
@@ -51,7 +52,7 @@ TEST_UPDATED_ENVIRONMENT = {
         "label1": "testing",
     }
 }
-TEST_RETRY = None
+TEST_RETRY = DEFAULT
 TEST_TIMEOUT = None
 TEST_METADATA = [("key", "value")]
 TEST_PARENT = "test-parent"

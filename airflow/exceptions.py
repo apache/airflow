@@ -102,6 +102,13 @@ class UnmappableOperator(AirflowException):
     """Raise when an operator is not implemented to be mappable."""
 
 
+class XComForMappingNotPushed(AirflowException):
+    """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
+
+    def __str__(self) -> str:
+        return "did not push XCom for task mapping"
+
+
 class UnmappableXComTypePushed(AirflowException):
     """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
 

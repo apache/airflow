@@ -1,0 +1,20 @@
+# skip .airflowignore files
+**/.airflowignore
+
+# test wildcard matching using single asterisk
+*_invalid_*      # skip invalid files
+
+# test ignoring files at all levels
+**/*_dont_*                # ignore all python files at all levels with "dont" in their name
+subdir2/**/test_nested*.py # ignore files in subdir2/subdir3
+
+# test matching and ignoring of path separators
+subdir1/         # ignore all of subdir1
+subdir2*test*    # this should not match anything in the subdir2 directory
+subdir2?test*    # this should not match anything in the subdir2 directory
+
+# test character classes
+test_[pr]*       # ignore any file starting "test_p" or "test_r"
+
+# skip this invalid rules
+/                # won't match anything

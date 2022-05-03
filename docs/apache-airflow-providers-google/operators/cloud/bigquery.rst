@@ -193,6 +193,9 @@ Or you may point the operator to a Google Cloud Storage object name where the sc
     :start-after: [START howto_operator_bigquery_create_table_schema_json]
     :end-before: [END howto_operator_bigquery_create_table_schema_json]
 
+To use BigQuery `schema auto-detection <https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources>`__,
+set the ``autodetect`` flag instead of providing explicit schema information.
+
 .. _howto/operator:BigQueryGetDataOperator:
 
 Fetch data from table

@@ -20,7 +20,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -31,8 +31,7 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import commit_sha
+from airflow_breeze.utils.console import get_console
 
 
 @dataclass
@@ -41,17 +40,19 @@ class BuildProdParams:
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    docker_cache: str
+    docker_cache: str = "pulled"
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_docker_context_files: bool = False
     disable_airflow_repo_cache: bool = False
-    install_providers_from_sources: bool = True
-    cleanup_docker_context_files: bool = False
+    install_providers_from_sources: bool = False
+    cleanup_context: bool = False
     prepare_buildx_cache: bool = False
-    disable_pypi: bool = False
-    upgrade_to_newer_dependencies: str = "false"
+    push_image: bool = False
+    empty_image: bool = False
+    airflow_is_in_context: bool = False
+    install_packages_from_context: bool = False
+    upgrade_to_newer_dependencies: bool = False
     airflow_version: str = get_airflow_version()
     python: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
@@ -73,16 +74,18 @@ class BuildProdParams:
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     additional_python_deps: str = ""
-    image_tag: str = ""
+    image_tag: Optional[str] = None
+    extras: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
-    airflow_login_to_github_registry: str = "false"
-    github_username: str = "apache"
+    login_to_github_registry: str = "false"
+    github_username: str = ""
     platform: str = f"linux/{os.uname().machine}"
     airflow_constraints_reference: str = ""
     airflow_constraints_location: str = ""
     installation_method: str = "."
     debian_version: str = "bullseye"
+    answer: Optional[str] = None
 
     @property
     def airflow_branch(self) -> str:
@@ -101,8 +104,7 @@ class BuildProdParams:
 
     @property
     def the_image_type(self) -> str:
-        the_image_type = 'PROD'
-        return the_image_type
+        return 'PROD'
 
     @property
     def args_for_remote_install(self) -> List:
@@ -142,12 +144,14 @@ class BuildProdParams:
             self.airflow_branch_for_pypi_preloading = "v2-1-test"
         elif self.airflow_version == 'v2-2-test':
             self.airflow_branch_for_pypi_preloading = "v2-2-test"
-        elif re.match(r'v?2\.0*', self.airflow_version):
+        elif re.match(r'^2\.0.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-0-stable"
-        elif re.match(r'v?2\.1*', self.airflow_version):
+        elif re.match(r'^2\.1.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-1-stable"
-        elif re.match(r'v?2\.2*', self.airflow_version):
+        elif re.match(r'^2\.2.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-2-stable"
+        elif re.match(r'^2\.3.*$', self.airflow_version):
+            self.airflow_branch_for_pypi_preloading = "v2-3-stable"
         else:
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
         return build_args
@@ -171,10 +175,10 @@ class BuildProdParams:
             self.airflow_version = self.install_airflow_reference
         elif len(self.install_airflow_version) > 0:
             if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
-                console.print(
-                    f'\n[red]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
+                get_console().print(
+                    f'\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
                 )
-                console.print('[red]Only numerical versions allowed for PROD image here !')
+                get_console().print('[error]Only numerical versions allowed for PROD image here !')
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
@@ -203,19 +207,19 @@ class BuildProdParams:
         return extra_build_flags
 
     @property
-    def docker_cache_prod_directive(self) -> List[str]:
-        docker_cache_prod_directive = []
+    def docker_cache_directive(self) -> List[str]:
+        docker_cache_directive = []
 
         if self.docker_cache == "pulled":
-            docker_cache_prod_directive.append(f"--cache-from={self.airflow_image_name}")
+            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
         elif self.docker_cache == "disabled":
-            docker_cache_prod_directive.append("--no-cache")
+            docker_cache_directive.append("--no-cache")
         else:
-            docker_cache_prod_directive = []
+            docker_cache_directive = []
 
         if self.prepare_buildx_cache:
-            docker_cache_prod_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_prod_directive
+            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
+        return docker_cache_directive
 
     @property
     def python_base_image(self):
@@ -234,22 +238,12 @@ class BuildProdParams:
 
     @property
     def airflow_image_readme_url(self):
-        return f"https://raw.githubusercontent.com/apache/airflow/{commit_sha()}/docs/docker-stack/README.md"
-
-    def print_info(self):
-        console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
-
-    @property
-    def install_from_pypi(self) -> str:
-        install_from_pypi = 'true'
-        if self.disable_pypi:
-            install_from_pypi = 'false'
-        return install_from_pypi
+        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
         airflow_pre_cached_pip = 'true'
-        if self.disable_pypi or self.disable_airflow_repo_cache:
+        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
             airflow_pre_cached_pip = 'false'
         return airflow_pre_cached_pip
 
@@ -275,16 +269,15 @@ class BuildProdParams:
         return install_postgres
 
     @property
-    def install_from_docker_context_files(self) -> str:
-        install_from_docker_context_files = 'false'
-        if self.install_docker_context_files:
-            install_from_docker_context_files = 'true'
-        return install_from_docker_context_files
-
-    @property
     def airflow_extras(self):
         return get_airflow_extras()
 
     @property
     def docker_context_files(self) -> str:
         return "docker-context-files"
+
+    @property
+    def airflow_image_name_with_tag(self):
+        """Construct PROD image link"""
+        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
+        return image if self.image_tag is None else image + f":{self.image_tag}"

@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 3.3.0
   - 3.2.0
   - 3.1.1
   - 3.0.0
@@ -189,6 +190,8 @@ integrations:
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
     logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/step_functions.rst
     tags: [aws]
   - integration-name: AWS Database Migration Service
     external-doc-url: https://aws.amazon.com/dms/

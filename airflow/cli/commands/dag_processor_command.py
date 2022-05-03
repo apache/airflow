@@ -71,6 +71,7 @@ def dag_processor(args):
             with ctx:
                 try:
                     manager.register_exit_signals()
+                    manager.start()
                 finally:
                     manager.terminate()
                     manager.end()

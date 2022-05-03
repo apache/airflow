@@ -29,6 +29,8 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform import CustomJob, HyperparameterTuningJob, gapic, hyperparameter_tuning
@@ -57,9 +59,10 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
     def get_job_service_client(self, region: Optional[str] = None) -> JobServiceClient:
         """Returns JobServiceClient."""
-        client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        else:
+            client_options = ClientOptions()
 
         return JobServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -301,7 +304,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         hyperparameter_tuning_job: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> types.HyperparameterTuningJob:
@@ -337,7 +340,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListHyperparameterTuningJobsPager:
@@ -386,7 +389,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         hyperparameter_tuning_job: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:

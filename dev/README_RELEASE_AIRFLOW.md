@@ -28,6 +28,9 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prerequisites](#prerequisites)
+  - [Setting environment with emulation](#setting-environment-with-emulation)
+  - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
@@ -47,9 +50,10 @@
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
+  - [Close the testing status issue](#close-the-testing-status-issue)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
-  - [Update `main` with latest release details](#update-main-with-latest-release-details)
+  - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
@@ -197,15 +201,27 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
+  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+
     ```shell script
     git checkout v${VERSION_BRANCH}-test
     ```
 
-- Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Set your version in `setup.py` (without the RC tag)
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
 - Replace the version in `README.md` and verify that installation instructions work fine.
-- Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
-For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
-- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
+- Build the release notes:
+
+  Preview with:
+
+    ```shell script
+    towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    ```
+
+  Then remove the `--draft` flag to have towncrier build the release notes for real.
+
+  If no significant changes where added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 - PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
@@ -221,10 +237,22 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     ```
 
-- Clean the checkout: the sdist step below will
+- Clean the checkout repo
 
     ```shell script
     git clean -fxd
+    ```
+
+- Restore breeze installation (The breeze's `.egginfo` is cleared by git-clean)
+
+    ```shell script
+    pipx install -e ./dev/breeze --force
+    ```
+
+- Make sure you have the latest CI image
+
+    ```shell script
+    breeze pull-image --python 3.7
     ```
 
 - Tarball the repo
@@ -236,10 +264,12 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
+    Copy the tarball to a location outside of the repo and verify licences.
+
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    ./breeze prepare-airflow-packages --package-format both
+    breeze prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -393,7 +423,7 @@ protected_branches:
    export BRANCH_PREFIX=2-1
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
-   git push origin tag constraints-${BRANCH_PREFIX}
+   git push --set-upstream origin constraints-${BRANCH_PREFIX}
    ```
 
 
@@ -414,7 +444,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    ./breeze prepare-airflow-packages --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -456,14 +486,68 @@ is not supposed to be used by and advertised to the end-users who do not read th
 
 ## Prepare production Docker Image
 
-Production Docker images should be manually prepared and pushed by the release manager.
+Production Docker images should be manually prepared and pushed by the release manager or another committer
+who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
+to have an environment prepared to build multi-platform images. You can achieve it with either emulation
+(very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
+
+## Prerequisites
+
+You need to have buildx plugin installed to run the build. Also you need to have regctl
+installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
+DockerHub. The script to build images will refuse to work if you do not have those two installed.
+
+## Setting environment with emulation
+
+According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
+this can be achieved via:
+
+```shell
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
+
+However, emulation is very slow - more than 10x slower than hardware-backed builds.
+
+## Setting up cache refreshing with hardware ARM/AMD support
+
+If you plan to build  a number of images, probably better solution is to set up a hardware remote builder
+for your ARM or AMD builds (depending which platform you build images on - the "other" platform should be
+remote.
+
+This  can be achieved by settings build as described in
+[this guideline](https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/) and
+adding it to docker buildx `airflow_cache` builder.
+
+This usually can be done with those two commands:
+
+```bash
+docker buildx create --name airflow_cache   # your local builder
+docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
+```
+
+One of the ways to have HOST:PORT is to login to the remote machine via SSH and forward the port to
+the docker engine running on the remote machine.
+
+When everything is fine you should see both local and remote builder configured and reporting status:
+
+```bash
+docker buildx ls
+
+  airflow_cache          docker-container
+       airflow_cache0    unix:///var/run/docker.sock
+       airflow_cache1    tcp://127.0.0.1:2375
+```
+
 
 ```shell script
 ./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
+also performs image verification after pushing the images.
+
 
 ## Prepare issue for testing status of rc
 
@@ -493,8 +577,6 @@ Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
-- Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
-
 - Send out a vote to the dev@airflow.apache.org mailing list:
 
 Subject:
@@ -512,8 +594,8 @@ cat <<EOF
 Hey fellow Airflowers,
 
 I have cut Airflow ${VERSION}. This email is calling a vote on the release,
-which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
-until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
+which will last at least 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+until Monday, October 11, 2021 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
@@ -547,7 +629,7 @@ Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
+Release Notes: https://github.com/apache/airflow/blob/${VERSION}/RELEASE_NOTES.rst
 
 Changes since PREVIOUS_VERSION_OR_RC:
 *Bugs*:
@@ -761,7 +843,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
@@ -917,11 +999,14 @@ At this point we release an official package:
 ## Manually prepare production Docker Image
 
 
+Note that this scripts prepares multi-platform image, so you need to fulfill prerequisites as
+described above in the preparation of RC images.
+
 ```shell script
 ./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
-If you release 'official' (non-rc) version you will be asked if you want to
+Note! When you release the 'final' (non-rc) version you will be asked if you want to
 tag the images as latest - if you are releasing the latest stable branch, you
 should answer y and tags will be created and pushed. If you are releasing a
 patch release from an older branch, you should answer n and creating tags will
@@ -947,7 +1032,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package-filter apache-airflow --package-filter docker-stack --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --for-production
     ```
 
 - Now you can preview the documentation.
@@ -999,8 +1084,8 @@ https://pypi.org/project/apache-airflow/${VERSION}/
 The documentation is available at:
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
-Find the CHANGELOG here for more details:
-https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
+Find the release notes here for more details:
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/release_notes.html
 
 Container images are published at:
 https://hub.docker.com/r/apache/airflow/tags/?page=1&name=${VERSION}
@@ -1024,13 +1109,17 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 
 ## Create release on GitHub
 
-Create a new release on GitHub with the changelog and assets from the release svn.
+Create a new release on GitHub with the release notes and assets from the release svn.
 
 ## Close the milestone
 
 Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
+
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
 
 ## Announce the release on the community slack
 
@@ -1042,7 +1131,7 @@ We’ve just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
-🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
 🐳 Docker Image: “docker pull apache/airflow:$VERSION"
 🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
 
@@ -1060,19 +1149,21 @@ We’ve just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
-🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
 🐳 Docker Image: "docker pull apache/airflow:$VERSION"
 
 Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Update `main` with latest release details
+## Update `main` with the latest release details
 
 This includes:
 
-- Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
-- Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
+- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
+- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
+- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
 

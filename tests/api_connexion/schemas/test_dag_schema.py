@@ -160,6 +160,7 @@ class TestDAGDetailSchema:
             tags=['example1', 'example2'],
         )
         schema = DAGDetailSchema()
+
         expected = {
             'catchup': True,
             'concurrency': 16,
@@ -190,5 +191,10 @@ class TestDAGDetailSchema:
             'timezone': "Timezone('UTC')",
             'max_active_runs': 16,
             'pickle_id': None,
+            "end_date": None,
+            'is_paused_upon_creation': None,
+            'render_template_as_native_obj': False,
         }
-        assert schema.dump(dag) == expected
+        obj = schema.dump(dag)
+        expected.update({'last_parsed': obj['last_parsed']})
+        assert obj == expected

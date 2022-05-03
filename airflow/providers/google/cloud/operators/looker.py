@@ -84,7 +84,7 @@ class LookerStartPdtBuildOperator(BaseOperator):
 
         self.materialization_id = resp.materialization_id
 
-        if self.materialization_id is None:
+        if not self.materialization_id:
             raise AirflowException(
                 f'No `materialization_id` was returned for model: {self.model}, view: {self.view}.'
             )

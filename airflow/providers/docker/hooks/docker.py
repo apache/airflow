@@ -17,9 +17,9 @@
 # under the License.
 from typing import Any, Dict, Optional
 
-from docker import APIClient
-from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from docker.errors import APIError
+from docker import APIClient  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
+from docker.errors import APIError  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

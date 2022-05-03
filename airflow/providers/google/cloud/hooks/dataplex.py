@@ -18,6 +18,8 @@
 """This module contains Google Dataplex hook."""
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.dataplex_v1 import DataplexServiceClient
@@ -64,7 +66,7 @@ class DataplexHook(GoogleBaseHook):
 
     def get_dataplex_client(self) -> DataplexServiceClient:
         """Returns DataplexServiceClient."""
-        client_options = {'api_endpoint': 'dataplex.googleapis.com:443'}
+        client_options = ClientOptions(api_endpoint='dataplex.googleapis.com:443')
 
         return DataplexServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -87,7 +89,7 @@ class DataplexHook(GoogleBaseHook):
         body: Union[Dict[str, Any], Task],
         dataplex_task_id: str,
         validate_only: Optional[bool] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
@@ -129,7 +131,7 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
@@ -169,7 +171,7 @@ class DataplexHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
@@ -217,7 +219,7 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:

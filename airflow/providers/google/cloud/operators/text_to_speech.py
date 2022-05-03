@@ -20,6 +20,7 @@
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
@@ -90,7 +91,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         target_filename: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,

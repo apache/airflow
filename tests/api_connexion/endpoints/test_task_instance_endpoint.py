@@ -1026,6 +1026,26 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
         )
 
+    def test_clear_taskinstance_is_called_with_invalid_task_ids(self, session):
+        """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
+        dag_id = "example_python_operator"
+        tis = self.create_task_instances(session)
+        dagrun = tis[0].get_dagrun()
+        assert dagrun.state == 'running'
+
+        payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
+        self.app.dag_bag.sync_to_db()
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/clearTaskInstances",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        assert response.status_code == 200
+
+        dagrun.refresh_from_db()
+        assert dagrun.state == 'running'
+        assert all(ti.state == 'running' for ti in tis)
+
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
         payload = {

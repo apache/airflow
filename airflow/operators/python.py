@@ -29,7 +29,7 @@ from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Opt
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.context import Context, context_copy_partial, context_merge

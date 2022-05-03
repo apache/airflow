@@ -20,6 +20,7 @@ import unittest
 from typing import Any, Dict
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
@@ -61,7 +62,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entities.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -74,7 +75,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entity_sentiment.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -87,7 +88,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_sentiment.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -100,7 +101,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.analyze_syntax.assert_called_once_with(
-            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=()
+            document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -116,7 +117,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT,
             encoding_type=ENCODING_TYPE,
             features=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -131,5 +132,5 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         assert result == API_RESPONSE
 
         get_conn.return_value.classify_text.assert_called_once_with(
-            document=DOCUMENT, retry=None, timeout=None, metadata=()
+            document=DOCUMENT, retry=DEFAULT, timeout=None, metadata=()
         )

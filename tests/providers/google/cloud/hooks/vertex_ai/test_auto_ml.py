@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -57,7 +59,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -77,7 +79,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -100,7 +102,7 @@ class TestAutoMLWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -126,7 +128,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -146,7 +148,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -169,7 +171,7 @@ class TestAutoMLWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)

@@ -229,6 +229,63 @@ deprecated ``hook-class-names``) in the provider meta-data, you can customize Ai
 
 You can read more about details how to add custom provider packages in the :doc:`apache-airflow-providers:index`
 
+Custom connection fields
+------------------------
+
+It is possible to add custom form fields in the connection add / edit views in the Airflow webserver.
+Custom fields are stored in the ``Connection.extra`` field as JSON.  To add a custom field, implement
+method :meth:`~BaseHook.get_connection_form_widgets`.  This method should return a dictionary. The keys
+should be the string name of the field as it should be stored in the ``extra`` dict.  The values should
+be inheritors of :class:`wtforms.fields.core.Field`.
+
+Here's an example:
+
+.. code-block:: python
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "workspace": StringField(
+                lazy_gettext("Workspace"), widget=BS3TextFieldWidget()
+            ),
+            "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
+        }
+
+.. note:: Custom fields no longer need the ``extra__<conn type>__`` prefix
+
+    Prior to Airflow 2.3, if you wanted a custom field in the UI, you had to prefix it with ``extra__<conn type>__``,
+    and this is how its value would be stored in the ``extra`` dict.  From 2.3 onward, you no longer need to do this.
+
+Method :meth:`~BaseHook.get_ui_field_behaviour` lets you customize behavior of both .  For example you can
+hide or relabel a field (e.g. if it's unused or re-purposed) and you can add placeholder text.
+
+An example:
+
+.. code-block:: python
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["port", "host", "login", "schema"],
+            "relabeling": {},
+            "placeholders": {
+                "password": "Asana personal access token",
+                "extra__my_conn_type__workspace": "My workspace gid",
+                "extra__my_conn_type__project": "My project gid",
+            },
+        }
+
+Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is this is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+
+Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
+and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.
+
 .. note:: Deprecated ``hook-class-names``
 
    Prior to Airflow 2.2.0, the connections in providers have been exposed via ``hook-class-names`` array

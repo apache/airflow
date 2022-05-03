@@ -29,3 +29,4 @@ with DAG(dag_id='test_mapped_taskflow', start_date=days_ago(2)) as dag:
         print(repr(value))
 
     consumer.expand(value=make_list())
+    consumer.expand(value=[1, 2, 3])

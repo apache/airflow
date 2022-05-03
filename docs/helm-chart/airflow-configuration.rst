@@ -42,7 +42,7 @@ configuration prior to installing and deploying the service.
 
 .. note::
 
-  The  ``AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS`` variable is not used by the Chart. Airflow Helm Chart is
+  The  ``AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS`` variable is not used by the Chart. Airflow Helm Chart is
   intended to be used as production deployment and loading default connections is not supposed to be handled
   during Chart installation. The Chart is intended to install and configure the Apache Airflow software
   and create database structure, but not to fill-in the data which should be managed by the users.

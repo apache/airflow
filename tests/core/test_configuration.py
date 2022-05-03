@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import datetime
 import io
 import os
 import re
@@ -125,7 +126,7 @@ class TestConf:
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict['core']['load_examples'][1] == 'airflow.cfg'
-        assert cfg_dict['core']['load_default_connections'][1] == 'airflow.cfg'
+        assert cfg_dict['database']['load_default_connections'][1] == 'airflow.cfg'
         assert cfg_dict['testsection']['testkey'] == ('< hidden >', 'env var')
 
     def test_conf_as_dict_sensitive(self):
@@ -612,8 +613,46 @@ AIRFLOW_HOME = /root/airflow
             test_conf.validate()
             assert (
                 test_conf.get('api', 'auth_backends')
-                == 'airflow.api.auth.backend.basic_auth\nairflow.api.auth.backend.session'
+                == 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
             )
+
+    @pytest.mark.parametrize(
+        "old, new",
+        [
+            (
+                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
+                (
+                    "api",
+                    "auth_backends",
+                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
+                ),
+            ),
+            (
+                ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
+                ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
+            ),
+        ],
+    )
+    def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
+        test_conf = AirflowConfigParser(default_config='')
+        old_section, old_key, old_value = old
+        new_section, new_key, new_value = new
+        old_env_var = test_conf._env_var_name(old_section, old_key)
+        new_env_var = test_conf._env_var_name(new_section, new_key)
+
+        with pytest.warns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', **{old_env_var: old_value}):
+                # Can't start with the new env var existing...
+                os.environ.pop(new_env_var, None)
+
+                test_conf.validate()
+                assert test_conf.get(new_section, new_key) == new_value
+                # We also need to make sure the deprecated env var is removed
+                # so that any subprocesses don't use it in place of our updated
+                # value.
+                assert old_env_var not in os.environ
+                # and make sure we track the old value as well, under the new section/key
+                assert test_conf.upgraded_values[(new_section, new_key)] == old_value
 
     @pytest.mark.parametrize(
         "conf_dict",
@@ -809,12 +848,12 @@ notacommand = OK
         )
 
     def test_as_dict_respects_sensitive_cmds(self):
-        conf_conn = conf['core']['sql_alchemy_conn']
+        conf_conn = conf['database']['sql_alchemy_conn']
         test_conf = copy.deepcopy(conf)
         test_conf.read_string(
             textwrap.dedent(
                 """
-                [core]
+                [database]
                 sql_alchemy_conn_cmd = echo -n my-super-secret-conn
                 """
             )
@@ -823,17 +862,81 @@ notacommand = OK
         conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
 
-        assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
-        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['database']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['database']
 
-        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
-            assert conf_materialize_cmds['core']['sql_alchemy_conn'] == 'my-super-secret-conn'
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert conf_materialize_cmds['database']['sql_alchemy_conn'] == 'my-super-secret-conn'
 
-        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['core']
-        assert conf_maintain_cmds['core']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
+        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['database']
+        assert conf_maintain_cmds['database']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
 
-        if conf_conn == test_conf.airflow_defaults['core']['sql_alchemy_conn']:
-            assert 'sql_alchemy_conn' not in conf_maintain_cmds['core']
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert 'sql_alchemy_conn' not in conf_maintain_cmds['database']
         else:
-            assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
-            assert conf_maintain_cmds['core']['sql_alchemy_conn'] == conf_conn
+            assert 'sql_alchemy_conn' in conf_maintain_cmds['database']
+            assert conf_maintain_cmds['database']['sql_alchemy_conn'] == conf_conn
+
+    def test_gettimedelta(self):
+        test_config = '''
+[invalid]
+# non-integer value
+key1 = str
+
+# fractional value
+key2 = 300.99
+
+# too large value for C int
+key3 = 999999999999999
+
+[valid]
+# negative value
+key4 = -1
+
+# zero
+key5 = 0
+
+# positive value
+key6 = 300
+
+[default]
+# Equals to None
+key7 =
+'''
+        test_conf = AirflowConfigParser(default_config=test_config)
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key1")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key2" key in "invalid" section. '
+                'Current value: "300.99".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key2")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to timedelta in `seconds`. '
+                'Python int too large to convert to C int. '
+                'Please check "key3" key in "invalid" section. Current value: "999999999999999".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key3")
+
+        assert isinstance(test_conf.gettimedelta('valid', 'key4'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key4') == datetime.timedelta(seconds=-1)
+        assert isinstance(test_conf.gettimedelta('valid', 'key5'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key5') == datetime.timedelta(seconds=0)
+        assert isinstance(test_conf.gettimedelta('valid', 'key6'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key6') == datetime.timedelta(seconds=300)
+        assert isinstance(test_conf.gettimedelta('default', 'key7'), type(None))
+        assert test_conf.gettimedelta('default', 'key7') is None

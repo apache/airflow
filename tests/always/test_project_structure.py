@@ -167,7 +167,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         '.CloudDataTransferServiceS3ToGCSOperator',
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceGCSToGCSOperator',
-        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator',
@@ -214,8 +213,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator',
-        'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
-        'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
     }
 
     def test_missing_example_for_operator(self):

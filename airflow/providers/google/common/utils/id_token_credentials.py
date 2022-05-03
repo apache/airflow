@@ -41,7 +41,7 @@ from google.oauth2 import credentials as oauth2_credentials, service_account
 
 
 class IDTokenCredentialsAdapter(google_auth_credentials.Credentials):
-    """Convert Credentials with "openid" scope to IDTokenCredentials."""
+    """Convert Credentials with ``openid`` scope to IDTokenCredentials."""
 
     def __init__(self, credentials: oauth2_credentials.Credentials):
         super().__init__()

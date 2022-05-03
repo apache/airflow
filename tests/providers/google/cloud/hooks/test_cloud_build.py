@@ -25,6 +25,8 @@ functions in CloudBuildHook
 import unittest
 from unittest.mock import MagicMock, patch
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
@@ -74,7 +76,7 @@ class TestCloudBuildHook(unittest.TestCase):
         self.hook.cancel_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.cancel_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
@@ -89,13 +91,13 @@ class TestCloudBuildHook(unittest.TestCase):
         self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.create_build.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
@@ -109,11 +111,11 @@ class TestCloudBuildHook(unittest.TestCase):
         mock_operation = get_conn.return_value.create_build
 
         mock_operation.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
@@ -124,7 +126,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.create_build_trigger.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'trigger': BUILD_TRIGGER},
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -135,7 +137,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.delete_build_trigger.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID},
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -145,7 +147,7 @@ class TestCloudBuildHook(unittest.TestCase):
         self.hook.get_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
@@ -154,7 +156,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.get_build_trigger.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID},
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -165,7 +167,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.list_build_triggers.assert_called_once_with(
             request={'parent': PARENT, 'project_id': PROJECT_ID, 'page_size': None, 'page_token': None},
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -182,7 +184,7 @@ class TestCloudBuildHook(unittest.TestCase):
                 'page_token': None,
                 'filter': None,
             },
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -201,13 +203,13 @@ class TestCloudBuildHook(unittest.TestCase):
         mock_operation = get_conn.return_value.retry_build
 
         mock_operation.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
@@ -221,11 +223,11 @@ class TestCloudBuildHook(unittest.TestCase):
         self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID, wait=False)
 
         get_conn.return_value.retry_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
@@ -249,7 +251,7 @@ class TestCloudBuildHook(unittest.TestCase):
                 'trigger_id': TRIGGER_ID,
                 'source': REPO_SOURCE['repo_source'],
             },
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -257,7 +259,7 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
@@ -278,13 +280,13 @@ class TestCloudBuildHook(unittest.TestCase):
                 'trigger_id': TRIGGER_ID,
                 'source': REPO_SOURCE['repo_source'],
             },
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=()
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
@@ -293,7 +295,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.update_build_trigger.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID, 'trigger': BUILD_TRIGGER},
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

@@ -117,9 +117,9 @@ In the case above, these are the ways you could import the python files:
 
 You can see the ``.airflowignore`` file at the root of your folder. This is a file that you can put in your
 ``dags`` folder to tell Airflow which files from the folder should be ignored when the Airflow
-scheduler looks for DAGs. It should contain regular expressions for the paths that should be ignored. You
-do not need to have that file in any other folder in ``PYTHONPATH`` (and also you can only keep
-shared code in the other folders, not the actual DAGs).
+scheduler looks for DAGs. It should contain either regular expressions (the default) or glob expressions
+for the paths that should be ignored. You do not need to have that file in any other folder in
+``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual DAGs).
 
 In the example above the dags are only in ``my_custom_dags`` folder, the ``common_package`` should not be
 scanned by scheduler when searching for DAGS, so we should ignore ``common_package`` folder. You also
@@ -130,6 +130,13 @@ from. Your ``.airflowignore`` should look then like this:
 
    my_company/common_package/.*
    my_company/my_custom_dags/base_dag\.py
+
+If ``DAG_IGNORE_FILE_SYNTAX`` is set to ``glob``, the equivalent ``.airflowignore`` file would be:
+
+.. code-block:: none
+
+   my_company/common_package/
+   my_company/my_custom_dags/base_dag.py
 
 Built-in ``PYTHONPATH`` entries in Airflow
 ------------------------------------------

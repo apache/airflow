@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make ElasticSearch Provider compatible for Airflow<2.3 (#22814)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
 3.0.2
 .....
 

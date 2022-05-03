@@ -464,7 +464,6 @@ Currently, **officially** using Airflow:
 1. [WiseBanyan](https://wisebanyan.com/)
 1. [Wise](https://wise.com) [[@koszti](https://github.com/koszti)]
 1. [Wisr](https://wisr.com.au/) [[@fsodano](https://github.com/fsodano) & [@vincyf1](https://github.com/vincyf1)]
-1. [WixAnswers](https://www.wixanswers.com/) [[@eladkal](https://github.com/eladkal)]
 1. [Wix](https://www.wix.com/) [[@eladkal](https://github.com/eladkal)]
 1. [Wooga](https://www.wooga.com/)
 1. [WorldRemit](https://www.worldremit.com/) [[@boittega](https://github.com/boittega)]

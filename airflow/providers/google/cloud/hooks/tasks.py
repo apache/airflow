@@ -24,6 +24,7 @@ performing actions to queues or tasks.
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2 import CloudTasksClient
 from google.cloud.tasks_v2.types import Queue, Task
@@ -87,7 +88,7 @@ class CloudTasksHook(GoogleBaseHook):
         task_queue: Union[dict, Queue],
         project_id: str = PROVIDE_PROJECT_ID,
         queue_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
@@ -136,7 +137,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
@@ -186,7 +187,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Queue:
@@ -222,7 +223,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
@@ -260,7 +261,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -294,7 +295,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
@@ -329,7 +330,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
@@ -364,7 +365,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Queue]:
@@ -402,7 +403,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         task_name: Optional[str] = None,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:
@@ -455,7 +456,7 @@ class CloudTasksHook(GoogleBaseHook):
         task_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:
@@ -495,7 +496,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         response_view: Optional[Task.View] = None,
         page_size: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Task]:
@@ -535,7 +536,7 @@ class CloudTasksHook(GoogleBaseHook):
         queue_name: str,
         task_name: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -572,7 +573,7 @@ class CloudTasksHook(GoogleBaseHook):
         task_name: str,
         project_id: str,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Task:

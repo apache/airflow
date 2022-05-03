@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Trino-Client-Info in trino hook (#22535)``
+
 2.1.2
 .....
 

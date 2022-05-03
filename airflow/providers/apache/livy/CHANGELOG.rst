@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add extra headers to all livy API requests instead of only to post_batch (#22510)``
+
 2.2.2
 .....
 

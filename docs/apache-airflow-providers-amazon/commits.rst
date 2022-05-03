@@ -28,6 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2022-04-06
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`de84eaf1b0 <https://github.com/apache/airflow/commit/de84eaf1b042304dd966219da22c7c529afbb662>`_  2022-04-06   ``Pass custom headers through in SES email backend (#22667)``
+`e7650b85a3 <https://github.com/apache/airflow/commit/e7650b85a3d49da545e579d75ad4c01b88a3864a>`_  2022-03-31   ``Add doc and sample dag for SqlToS3Operator (#22603)``
+`898d31e9c2 <https://github.com/apache/airflow/commit/898d31e9c2111553d4ef445ee146501de8c54b74>`_  2022-03-31   ``Adds HiveToDynamoDB Transfer Sample DAG and Docs (#22517)``
+`616a5dd4d7 <https://github.com/apache/airflow/commit/616a5dd4d71793026076e926ed71ab87ec1c2839>`_  2022-03-31   ``Add doc and sample dag for MongoToS3Operator (#22575)``
+`55ee62e28a <https://github.com/apache/airflow/commit/55ee62e28a0209349bf3e49a25565e7719324500>`_  2022-03-31   ``Add doc for LocalFilesystemToS3Operator (#22574)``
+`02526b3f64 <https://github.com/apache/airflow/commit/02526b3f64d090e812ebaf3c37a23da2a3e3084e>`_  2022-03-27   ``Add doc and example dag for AWS CloudFormation Operators (#22533)``
+`df473d7e89 <https://github.com/apache/airflow/commit/df473d7e8923bad5d76066cad2d32cafb1e0c4b3>`_  2022-03-27   ``GoogleApiToS3Operator: update sample dag and doc (#22507)``
+`d91b8334f0 <https://github.com/apache/airflow/commit/d91b8334f038a04c1c7b2bef61e8f2baead72870>`_  2022-03-27   ``SalesforceToS3Operator: update sample dag and doc (#22489)``
+`8ade99f97d <https://github.com/apache/airflow/commit/8ade99f97dddb115500ff7de71b8d4fb02bbf982>`_  2022-03-27   ``Add doc and sample dag for S3ToFTPOperator and FTPToS3Operator (#22534)``
+`7ab45d41d6 <https://github.com/apache/airflow/commit/7ab45d41d6c4de322dc8afe8a74b712d0bae4ee7>`_  2022-03-24   ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+=================================================================================================  ===========  ==================================================================================
+
 3.2.0
 .....
 
@@ -36,6 +56,7 @@ Latest change: 2022-03-22
 =================================================================================================  ===========  ================================================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
 `4de9d6622c <https://github.com/apache/airflow/commit/4de9d6622c0cb5899a286f4ec8f131b625eb1d44>`_  2022-03-22   ``ImapAttachmentToS3Operator: fix it, update sample dag and update doc (#22351)``
 `e972b6a48d <https://github.com/apache/airflow/commit/e972b6a48d45581e30424a43e612d70dae55f8b7>`_  2022-03-21   ``Add docs and example dag for AWS Glue (#22295)``
 `dd0cbaad3f <https://github.com/apache/airflow/commit/dd0cbaad3f91922860bebb0c4ff6e2065893e9d1>`_  2022-03-21   ``Update doc and sample dag for S3ToSFTPOperator and SFTPToS3Operator (#22313)``

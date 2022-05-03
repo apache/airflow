@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.model_service import ModelServiceHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -56,7 +58,7 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.model_path.assert_called_once_with(
@@ -80,7 +82,7 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
                 output_config=TEST_OUTPUT_CONFIG,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.model_path.assert_called_once_with(
@@ -104,7 +106,7 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -119,7 +121,7 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
                 model=TEST_MODEL,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -145,7 +147,7 @@ class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.model_path.assert_called_once_with(
@@ -169,7 +171,7 @@ class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
                 output_config=TEST_OUTPUT_CONFIG,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.model_path.assert_called_once_with(
@@ -193,7 +195,7 @@ class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -208,7 +210,7 @@ class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
                 model=TEST_MODEL,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)

@@ -19,7 +19,7 @@
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 
 with DAG(
@@ -29,7 +29,7 @@ with DAG(
     dagrun_timeout=timedelta(minutes=60),
     tags=["example"],
 ) as dag:
-    run_this_last = DummyOperator(
+    run_this_last = EmptyOperator(
         task_id="test_task",
         owner="John",
     )

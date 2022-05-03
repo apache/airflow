@@ -138,7 +138,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 all_tags = [x.name for x in repo.get_tags()]
                 result = self.tag_name in all_tags
 
-        except GithubException as github_error:
+        except GithubException as github_error:  # type: ignore[misc]
             raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
         except Exception as e:
             raise AirflowException(f"Github operator error: {str(e)}")

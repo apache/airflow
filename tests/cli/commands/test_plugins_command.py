@@ -95,6 +95,7 @@ class TestPluginsCommand(unittest.TestCase):
                         'label': 'The Apache Software Foundation',
                     },
                 ],
+                'ti_deps': ['<TIDep(CustomTestTriggerRule)>'],
             }
         ]
         get_listener_manager().clear()
