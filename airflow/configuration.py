@@ -141,7 +141,7 @@ class AirflowConfigParser(ConfigParser):
         ('smtp', 'smtp_password'),
         ('webserver', 'secret_key'),
         # The following options are deprecated
-        ('core', 'sql_alchemy_conn')
+        ('core', 'sql_alchemy_conn'),
     }
 
     # A mapping of (new section, new option) -> (old section, old option, since_version).
