@@ -74,6 +74,3 @@ def run_docker_compose_tests(
         check=False,
     )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
-
-
-
