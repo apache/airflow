@@ -1157,7 +1157,7 @@ Breeze session. They are usually expensive to run.
 .. code-block:: bash
 
     breeze stop
-    breeze --python 3.6 --db-reset --forward-credentials
+    breeze --python 3.7 --db-reset --forward-credentials
 
 2. Run create action in helper (to create slowly created resources):
 
