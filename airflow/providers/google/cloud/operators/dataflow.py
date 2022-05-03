@@ -319,7 +319,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                "labels": {"foo": "bar"},
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     """
@@ -563,7 +563,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
                "outputFile": "gs://bucket/output/my_output.txt",
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
