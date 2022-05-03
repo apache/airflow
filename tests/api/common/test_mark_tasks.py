@@ -61,7 +61,7 @@ class TestMarkTasks:
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
         cls.dag4 = dagbag.get_dag('test_mapped_classic')
-        cls.execution_dates = [datetime.datetime(2022, 1, 1), datetime.datetime(2022, 1, 2)]
+        cls.execution_dates = [timezone.datetime(2022, 1, 1), timezone.datetime(2022, 1, 2)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
             start_date3,
@@ -482,9 +482,9 @@ class TestMarkDAGRun:
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
         cls.execution_dates = [
-            datetime.datetime(2022, 1, 1),
-            datetime.datetime(2022, 1, 1),
-            datetime.datetime(2022, 1, 1),
+            timezone.datetime(2022, 1, 1),
+            timezone.datetime(2022, 1, 2),
+            timezone.datetime(2022, 1, 3),
         ]
 
     def setup_method(self):

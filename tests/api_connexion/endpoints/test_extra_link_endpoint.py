@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import datetime
 import os
 from urllib.parse import quote_plus
 
@@ -29,6 +28,7 @@ from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 from airflow.security import permissions
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
@@ -61,7 +61,7 @@ def configured_app(minimal_app_for_api):
 class TestGetExtraLinks:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, session) -> None:
-        self.default_time = datetime.datetime(2020, 1, 1)
+        self.default_time = timezone.datetime(2020, 1, 1)
 
         clear_db_runs()
         clear_db_xcom()
