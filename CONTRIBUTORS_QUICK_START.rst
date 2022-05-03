@@ -127,6 +127,7 @@ Docker Compose
 
 Pyenv and setting up virtual-env
 --------------------------------
+    Note: You might have issues with pyenv if you have a Mac with an M1 chip. Consider using virtualenv as an alternative.
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
@@ -345,8 +346,8 @@ Using Breeze
       Use CI image.
 
    Branch name:            main
-   Docker image:           apache/airflow:main-python3.8-ci
-   Airflow source version: 2.0.0b2
+   Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -354,17 +355,21 @@ Using Breeze
    Port forwarding:
 
    Ports are forwarded to the running docker containers for webserver and database
+     * 12322 -> forwarded to Airflow ssh server -> airflow:22
      * 28080 -> forwarded to Airflow webserver -> airflow:8080
      * 25555 -> forwarded to Flower dashboard -> airflow:5555
      * 25433 -> forwarded to Postgres database -> postgres:5432
      * 23306 -> forwarded to MySQL database  -> mysql:3306
+     * 21433 -> forwarded to MSSQL database  -> mssql:1443
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+     * MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
      * Redis:     redis://127.0.0.1:26379/0
 
 
@@ -1157,8 +1162,8 @@ Using Breeze
       Use CI image.
 
    Branch name:            main
-   Docker image:           apache/airflow:main-python3.8-ci
-   Airflow source version: 2.0.0b2
+   Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1166,17 +1171,21 @@ Using Breeze
    Port forwarding:
 
    Ports are forwarded to the running docker containers for webserver and database
+     * 12322 -> forwarded to Airflow ssh server -> airflow:22
      * 28080 -> forwarded to Airflow webserver -> airflow:8080
      * 25555 -> forwarded to Flower dashboard -> airflow:5555
      * 25433 -> forwarded to Postgres database -> postgres:5432
      * 23306 -> forwarded to MySQL database  -> mysql:3306
+     * 21433 -> forwarded to MSSQL database  -> mssql:1443
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+     * MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
      * Redis:     redis://127.0.0.1:26379/0
 
 
@@ -1905,7 +1914,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1927,7 +1936,9 @@ Using Breeze
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+     * MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
      * Redis:     redis://127.0.0.1:26379/0
+
 
 .. raw:: html
 

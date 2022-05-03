@@ -617,6 +617,44 @@ AIRFLOW_HOME = /root/airflow
             )
 
     @pytest.mark.parametrize(
+        "old, new",
+        [
+            (
+                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
+                (
+                    "api",
+                    "auth_backends",
+                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
+                ),
+            ),
+            (
+                ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
+                ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
+            ),
+        ],
+    )
+    def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
+        test_conf = AirflowConfigParser(default_config='')
+        old_section, old_key, old_value = old
+        new_section, new_key, new_value = new
+        old_env_var = test_conf._env_var_name(old_section, old_key)
+        new_env_var = test_conf._env_var_name(new_section, new_key)
+
+        with pytest.warns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', **{old_env_var: old_value}):
+                # Can't start with the new env var existing...
+                os.environ.pop(new_env_var, None)
+
+                test_conf.validate()
+                assert test_conf.get(new_section, new_key) == new_value
+                # We also need to make sure the deprecated env var is removed
+                # so that any subprocesses don't use it in place of our updated
+                # value.
+                assert old_env_var not in os.environ
+                # and make sure we track the old value as well, under the new section/key
+                assert test_conf.upgraded_values[(new_section, new_key)] == old_value
+
+    @pytest.mark.parametrize(
         "conf_dict",
         [
             {},  # Even if the section is absent from config file, environ still needs replacing.

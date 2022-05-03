@@ -32,13 +32,6 @@ fi
 LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
 export LD_PRELOAD
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    if [[ ${BACKEND} == "mysql" || ${BACKEND} == "mssql" ]]; then
-        echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
-        exit 1
-    fi
-fi
-
 # Add "other" and "group" write permission to the tmp folder
 # Note that it will also change permissions in the /tmp folder on the host
 # but this is necessary to enable some of our CLI tools to work without errors
@@ -46,13 +39,20 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.7}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
+
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        if [[ ${BACKEND:=} == "mysql" || ${BACKEND} == "mssql" ]]; then
+            echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
+            exit 1
+        fi
+    fi
 
     echo
     echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"

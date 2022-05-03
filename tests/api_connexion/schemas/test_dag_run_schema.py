@@ -74,6 +74,10 @@ class TestDAGRunSchema(TestDAGRunBase):
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {"start": "stop"},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
         }
 
     @parameterized.expand(
@@ -162,6 +166,10 @@ class TestDagRunCollection(TestDAGRunBase):
                     "state": "running",
                     "start_date": self.default_time,
                     "conf": {"start": "stop"},
+                    "data_interval_end": None,
+                    "data_interval_start": None,
+                    "last_scheduling_decision": None,
+                    "run_type": "manual",
                 },
                 {
                     "dag_id": "my-dag-run",
@@ -173,6 +181,10 @@ class TestDagRunCollection(TestDAGRunBase):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "data_interval_end": None,
+                    "data_interval_start": None,
+                    "last_scheduling_decision": None,
+                    "run_type": "manual",
                 },
             ],
             "total_entries": 2,

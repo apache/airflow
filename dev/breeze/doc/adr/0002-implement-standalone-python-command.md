@@ -138,7 +138,7 @@ There are a few properties of Breeze/CI scripts that should be maintained though
   run a command and get everything done with the least number of prerequisites
 
 * The prerequisites for Breeze and CI are:
-   * Python 3.7+ (Python 3.6 end of life is December 2021)
+   * Python 3.7+ (Python 3.7 end of life is Jun 2023)
    * Docker (TBD which minimum version supported)
    * Docker Compose (TBD which minimum version supported)
    * No other tools and CLI commands should be needed

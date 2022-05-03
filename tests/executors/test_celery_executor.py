@@ -225,19 +225,19 @@ class TestCeleryExecutor:
 
             # Test that when heartbeat is called again, task is published again to Celery Queue
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 2}
+            assert dict(executor.task_publish_retries) == {key: 1}
             assert 1 == len(executor.queued_tasks), "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 1 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 3}
+            assert dict(executor.task_publish_retries) == {key: 2}
             assert 1 == len(executor.queued_tasks), "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 2 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
-            assert dict(executor.task_publish_retries) == {key: 4}
+            assert dict(executor.task_publish_retries) == {key: 3}
             assert 1 == len(executor.queued_tasks), "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 3 of 3] Task Timeout Error for Task: ({key})." in caplog.text

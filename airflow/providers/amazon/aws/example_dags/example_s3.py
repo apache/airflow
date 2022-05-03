@@ -28,18 +28,21 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
     S3DeleteBucketTaggingOperator,
     S3DeleteObjectsOperator,
+    S3FileTransformOperator,
     S3GetBucketTaggingOperator,
     S3PutBucketTaggingOperator,
 )
-from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
 BUCKET_NAME_2 = os.environ.get('BUCKET_NAME_2', 'test-airflow-123456')
 KEY = os.environ.get('KEY', 'key')
 KEY_2 = os.environ.get('KEY_2', 'key2')
+# Empty string prefix refers to the bucket root
+# See what prefix is here https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html
+PREFIX = os.environ.get('PREFIX', '')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
-KEY = os.environ.get('KEY', 'key')
 DATA = os.environ.get(
     'DATA',
     '''
@@ -140,6 +143,15 @@ with DAG(
     )
     # [END howto_sensor_s3_key_function]
 
+    # [START howto_sensor_s3_keys_unchanged]
+    s3_sensor_keys_unchanged = S3KeysUnchangedSensor(
+        task_id="s3_sensor_one_key_size",
+        bucket_name=BUCKET_NAME_2,
+        prefix=PREFIX,
+        inactivity_period=10,
+    )
+    # [END howto_sensor_s3_keys_unchanged]
+
     # [START howto_operator_s3_copy_object]
     s3_copy_object = S3CopyObjectOperator(
         task_id="s3_copy_object",
@@ -149,6 +161,17 @@ with DAG(
         dest_bucket_key=KEY_2,
     )
     # [END howto_operator_s3_copy_object]
+
+    # [START howto_operator_s3_file_transform]
+    s3_file_transform = S3FileTransformOperator(
+        task_id="s3_file_transform",
+        source_s3_key=f's3://{BUCKET_NAME}/{KEY}',
+        dest_s3_key=f's3://{BUCKET_NAME_2}/{KEY_2}',
+        # Use `cp` command as transform script as an example
+        transform_script='cp',
+        replace=True,
+    )
+    # [END howto_operator_s3_file_transform]
 
     # [START howto_operator_s3_delete_objects]
     s3_delete_objects = S3DeleteObjectsOperator(
@@ -172,6 +195,7 @@ with DAG(
         s3_create_object,
         [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
         s3_copy_object,
+        s3_sensor_keys_unchanged,
         s3_delete_objects,
         delete_bucket,
     )

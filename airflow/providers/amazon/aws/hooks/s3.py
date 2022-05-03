@@ -649,7 +649,7 @@ class S3Hook(AwsBaseHook):
         """
         Loads bytes to S3
 
-        This is provided as a convenience to drop a string in S3. It uses the
+        This is provided as a convenience to drop bytes data into S3. It uses the
         boto infrastructure to ship a file to s3.
 
         :param bytes_data: bytes to set as content for the key.

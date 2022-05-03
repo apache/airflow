@@ -31,12 +31,11 @@ def init_xframe_protection(app):
     See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     """
     x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
-    if not x_frame_enabled:
+    if x_frame_enabled:
         return
 
     def apply_caching(response):
-        if not x_frame_enabled:
-            response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "DENY"
         return response
 
     app.after_request(apply_caching)

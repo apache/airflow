@@ -42,7 +42,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 filename='data/customers/export.json',
                 schema_filename='schemas/export.json',
                 mssql_conn_id='mssql_default',
-                google_cloud_storage_conn_id='google_cloud_default',
+                gcp_conn_id='google_cloud_default',
                 dag=dag
             )
 
