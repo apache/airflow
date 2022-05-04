@@ -714,7 +714,6 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
         mock_xcom.assert_has_calls(
             [
                 mock.call(context=None, key='execution_id', value=function_call_response['executionId']),
-                mock.call(context=None, key='function_response', value=function_call_response['result']),
-            ],
-            any_order=True
+                mock.call(context=None, key='function_response', value=function_call_response['result'])
+            ]
         )
