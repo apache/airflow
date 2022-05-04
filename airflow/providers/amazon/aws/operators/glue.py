@@ -104,7 +104,9 @@ class GlueJobOperator(BaseOperator):
 
         :return: the id of the current glue job.
         """
-        if not self.script_location.startswith(self.s3_protocol):
+        if self.script_location is None:
+            s3_script_location = None
+        elif not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(

@@ -16,12 +16,13 @@
 # under the License.
 """Command to build PROD image."""
 import contextlib
+import os
 import sys
 from typing import Tuple
 
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_docker_build_command,
     construct_empty_docker_build_command,
@@ -75,7 +76,7 @@ def clean_docker_context_files(verbose: bool, dry_run: bool):
     Cleans up docker context files folder - leaving only .README.md there.
     """
     if verbose or dry_run:
-        console.print("[bright_blue]Cleaning docker-context-files[/]")
+        get_console().print("[info]Cleaning docker-context-files[/]")
     if dry_run:
         return
     with contextlib.suppress(FileNotFoundError):
@@ -100,20 +101,20 @@ def check_docker_context_files(install_packages_from_context: bool):
     )
     if number_of_context_files == 0:
         if install_packages_from_context:
-            console.print('[bright_yellow]\nERROR! You want to install packages from docker-context-files')
-            console.print('[bright_yellow]\n but there are no packages to install in this folder.')
+            get_console().print('[warning]\nERROR! You want to install packages from docker-context-files')
+            get_console().print('[warning]\n but there are no packages to install in this folder.')
             sys.exit(1)
     else:
         if not install_packages_from_context:
-            console.print(
-                '[bright_yellow]\n ERROR! There are some extra files in docker-context-files except README.md'
+            get_console().print(
+                '[warning]\n ERROR! There are some extra files in docker-context-files except README.md'
             )
-            console.print('[bright_yellow]\nAnd you did not choose --install-packages-from-context flag')
-            console.print(
-                '[bright_yellow]\nThis might result in unnecessary cache invalidation and long build times'
+            get_console().print('[warning]\nAnd you did not choose --install-packages-from-context flag')
+            get_console().print(
+                '[warning]\nThis might result in unnecessary cache invalidation and long build times'
             )
-            console.print(
-                '[bright_yellow]\nExiting now \
+            get_console().print(
+                '[warning]\nExiting now \
                     - please restart the command with --cleanup-context switch'
             )
             sys.exit(1)
@@ -142,10 +143,10 @@ def build_production_image(
     :param with_ci_group: whether to wrap the build in CI logging group
     :param prod_image_params: PROD image parameters
     """
-    fix_group_permissions()
+    fix_group_permissions(verbose=verbose)
     if verbose or dry_run:
-        console.print(
-            f"\n[bright_blue]Building PROD image of airflow from {AIRFLOW_SOURCES_ROOT} "
+        get_console().print(
+            f"\n[info]Building PROD image of airflow from {AIRFLOW_SOURCES_ROOT} "
             f"python version: {prod_image_params.python}[/]\n"
         )
     with ci_group(
@@ -153,7 +154,6 @@ def build_production_image(
         f"with tag: {prod_image_params.image_tag}",
         enabled=with_ci_group,
     ):
-        prod_image_params.print_info()
         if prod_image_params.cleanup_context:
             clean_docker_context_files(verbose=verbose, dry_run=dry_run)
         check_docker_context_files(prod_image_params.install_packages_from_context)
@@ -167,9 +167,11 @@ def build_production_image(
             text=True,
             check=False,
         )
-        console.print(f"\n[blue]Building PROD Image for Python {prod_image_params.python}\n")
+        get_console().print(f"\n[info]Building PROD Image for Python {prod_image_params.python}\n")
         if prod_image_params.empty_image:
-            console.print(f"\n[blue]Building empty PROD Image for Python {prod_image_params.python}\n")
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
+            get_console().print(f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n")
             cmd = construct_empty_docker_build_command(image_params=prod_image_params)
             build_command_result = run_command(
                 cmd,
@@ -179,6 +181,7 @@ def build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
+                env=env,
             )
         else:
             cmd = construct_docker_build_command(

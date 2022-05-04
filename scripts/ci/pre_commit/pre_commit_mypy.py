@@ -28,11 +28,16 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
+
 AIRFLOW_SOURCES = Path(__file__).parents[3].absolute()
 GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
-AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/main/ci/python3.7"
 
 if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).parents[3].absolute() / "dev" / "breeze" / "src"))
+    from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+
+    AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/{AIRFLOW_BRANCH}/ci/python3.7"
+
     if subprocess.call(args=["docker", "inspect", AIRFLOW_CI_IMAGE], stdout=subprocess.DEVNULL) != 0:
         print(f'[red]The image {AIRFLOW_CI_IMAGE} is not available.[/]\n')
         print("\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python 3.7\n\n")

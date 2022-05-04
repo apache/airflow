@@ -456,7 +456,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self,
         *,
         cluster_name: str,
-        region: Optional[str] = None,
+        region: str,
         project_id: Optional[str] = None,
         cluster_config: Optional[Union[Dict, Cluster]] = None,
         virtual_cluster_config: Optional[Dict] = None,
@@ -471,13 +471,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            warnings.warn(
-                "Default region value `global` will be deprecated. Please, provide region value.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = 'global'
 
         # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
@@ -839,6 +832,7 @@ class DataprocJobBaseOperator(BaseOperator):
     """
     The base class for operators that launch job on DataProc.
 
+    :param region: The specified region where the dataproc cluster is created.
     :param job_name: The job name used in the DataProc cluster. This name by default
         is the task_id appended with the execution data, but can be templated. The
         name will always be appended with a random number to avoid name clashes.
@@ -856,7 +850,6 @@ class DataprocJobBaseOperator(BaseOperator):
     :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
         and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
         characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
-    :param region: The specified region where the dataproc cluster is created.
     :param job_error_states: Job states that should be considered error states.
         Any states in this set will result in an error being raised and failure of the
         task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
@@ -889,6 +882,7 @@ class DataprocJobBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
+        region: str,
         job_name: str = '{{task.task_id}}_{{ds_nodash}}',
         cluster_name: str = "cluster-1",
         project_id: Optional[str] = None,
@@ -897,7 +891,6 @@ class DataprocJobBaseOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
-        region: Optional[str] = None,
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
@@ -911,14 +904,6 @@ class DataprocJobBaseOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
         self.dataproc_jars = dataproc_jars
-
-        if region is None:
-            warnings.warn(
-                "Default region value `global` will be deprecated. Please, provide region value.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = 'global'
         self.region = region
 
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}

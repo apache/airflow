@@ -30,7 +30,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.commands.main import main
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 
 TESTING_COMMANDS = {
@@ -83,7 +83,7 @@ def docker_compose_tests(
             python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
-    console.print(f"[bright_blue]Running docker-compose with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         verbose=verbose,

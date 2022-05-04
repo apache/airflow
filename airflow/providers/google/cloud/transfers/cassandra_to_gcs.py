@@ -21,7 +21,6 @@ data from Cassandra to Google Cloud Storage in JSON format.
 """
 
 import json
-import warnings
 from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
@@ -66,8 +65,6 @@ class CassandraToGCSOperator(BaseOperator):
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
     :param gzip: Option to compress file for upload
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -105,22 +102,12 @@ class CassandraToGCSOperator(BaseOperator):
         gzip: bool = False,
         cassandra_conn_id: str = 'cassandra_default',
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         query_timeout: Union[float, None, NotSetType] = NOT_SET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.cql = cql
         self.bucket = bucket

@@ -40,8 +40,8 @@ from airflow_breeze.commands.main import main
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
-from airflow_breeze.utils.confirm import Answer, set_forced_answer, user_confirm
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     construct_env_variables_docker_compose_command,
@@ -109,6 +109,7 @@ CONFIGURATION_AND_MAINTENANCE_PARAMETERS = {
                 "--backend",
                 "--cheatsheet",
                 "--asciiart",
+                "--colour",
             ],
         },
     ],
@@ -129,14 +130,13 @@ CONFIGURATION_AND_MAINTENANCE_PARAMETERS = {
 @option_dry_run
 @option_github_repository
 def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: Optional[str]):
-    set_forced_answer(answer)
     if all:
-        console.print(
-            "\n[bright_yellow]Removing cache of parameters, clean up docker cache "
+        get_console().print(
+            "\n[info]Removing cache of parameters, clean up docker cache "
             "and remove locally downloaded images[/]"
         )
     else:
-        console.print("\n[bright_yellow]Removing cache of parameters, and cleans up docker cache[/]")
+        get_console().print("[info]Removing cache of parameters, and cleans up docker cache[/]")
     if all:
         docker_images_command_to_execute = [
             'docker',
@@ -151,32 +151,32 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         )
         images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
         if images:
-            console.print("[light_blue]Removing images:[/]")
+            get_console().print("[light_blue]Removing images:[/]")
             for image in images:
-                console.print(f"[light_blue] * {image}[/]")
-            console.print()
+                get_console().print(f"[light_blue] * {image}[/]")
+            get_console().print()
             docker_rmi_command_to_execute = [
                 'docker',
                 'rmi',
                 '--force',
             ]
             docker_rmi_command_to_execute.extend(images)
-            given_answer = user_confirm("Are you sure?", timeout=None)
+            given_answer = user_confirm("Are you sure with the removal?")
             if given_answer == Answer.YES:
                 run_command(docker_rmi_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
             elif given_answer == Answer.QUIT:
                 sys.exit(0)
         else:
-            console.print("[light_blue]No locally downloaded images to remove[/]\n")
-    console.print("Pruning docker images")
-    given_answer = user_confirm("Are you sure?", timeout=None)
+            get_console().print("[light_blue]No locally downloaded images to remove[/]\n")
+    get_console().print("Pruning docker images")
+    given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
         run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    console.print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
-    given_answer = user_confirm("Are you sure?", timeout=None)
+    get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not dry_run:
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
@@ -214,7 +214,7 @@ def self_upgrade(force: bool, use_current_airflow_sources: bool):
         if force:
             reinstall_breeze(breeze_sources)
         else:
-            ask_to_reinstall_breeze(breeze_sources)
+            ask_to_reinstall_breeze(breeze_sources, timeout=None)
     else:
         warn_non_editable()
         sys.exit(1)
@@ -234,20 +234,21 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
     """
     Enables autocompletion of breeze commands.
     """
-    set_forced_answer(answer)
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get('SHELL')
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
     if detected_shell not in ['bash', 'zsh', 'fish']:
-        console.print(f"\n[red] The shell {detected_shell} is not supported for autocomplete![/]\n")
+        get_console().print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
         sys.exit(1)
-    console.print(f"Installing {detected_shell} completion for local user")
+    get_console().print(f"Installing {detected_shell} completion for local user")
     autocomplete_path = (
         AIRFLOW_SOURCES_ROOT / "dev" / "breeze" / "autocomplete" / f"{NAME}-complete-{detected_shell}.sh"
     )
-    console.print(f"[bright_blue]Activation command script is available here: {autocomplete_path}[/]\n")
-    console.print(f"[bright_yellow]We need to add above script to your {detected_shell} profile.[/]\n")
-    given_answer = user_confirm("Should we proceed ?", default_answer=Answer.NO, timeout=3)
+    get_console().print(f"[info]Activation command script is available here: {autocomplete_path}[/]\n")
+    get_console().print(f"[warning]We need to add above script to your {detected_shell} profile.[/]\n")
+    given_answer = user_confirm(
+        "Should we proceed with modifying the script?", default_answer=Answer.NO, timeout=STANDARD_TIMEOUT
+    )
     if given_answer == Answer.YES:
         if detected_shell == 'bash':
             script_path = str(Path('~').expanduser() / '.bash_completion')
@@ -261,8 +262,8 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
             # Include steps for fish shell
             script_path = str(Path('~').expanduser() / f'.config/fish/completions/{NAME}.fish')
             if os.path.exists(script_path) and not force:
-                console.print(
-                    "\n[bright_yellow]Autocompletion is already setup. Skipping. "
+                get_console().print(
+                    "\n[warning]Autocompletion is already setup. Skipping. "
                     "You can force autocomplete installation by adding --force/]\n"
                 )
             else:
@@ -278,7 +279,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
             command_to_execute = f". {autocomplete_path}"
             write_to_shell(command_to_execute, dry_run, script_path, force)
     elif given_answer == Answer.NO:
-        console.print(
+        get_console().print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
             "to setup autocompletion for breeze manually if you want to use it.\n"
         )
@@ -290,20 +291,21 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
 @main.command()
 def version(verbose: bool, python: str):
     """Print information about version of apache-airflow-breeze."""
-    console.print(ASCIIART, style=ASCIIART_STYLE)
-    console.print(f"\n[bright_blue]Breeze version: {VERSION}[/]")
-    console.print(f"[bright_blue]Breeze installed from: {get_installation_airflow_sources()}[/]")
-    console.print(f"[bright_blue]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
+
+    get_console().print(ASCIIART, style=ASCIIART_STYLE)
+    get_console().print(f"\n[info]Breeze version: {VERSION}[/]")
+    get_console().print(f"[info]Breeze installed from: {get_installation_airflow_sources()}[/]")
+    get_console().print(f"[info]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
     if verbose:
-        console.print(
-            f"[bright_blue]Installation sources config hash : "
+        get_console().print(
+            f"[info]Installation sources config hash : "
             f"{get_installation_sources_config_metadata_hash()}[/]"
         )
-        console.print(
-            f"[bright_blue]Used sources config hash         : " f"{get_used_sources_setup_metadata_hash()}[/]"
+        get_console().print(
+            f"[info]Used sources config hash         : " f"{get_used_sources_setup_metadata_hash()}[/]"
         )
-        console.print(
-            f"[bright_blue]Package config hash              : " f"{(get_package_setup_metadata_hash())}[/]\n"
+        get_console().print(
+            f"[info]Package config hash              : " f"{(get_package_setup_metadata_hash())}[/]\n"
         )
 
 
@@ -315,6 +317,12 @@ def version(verbose: bool, python: str):
 @option_mssql_version
 @click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
 @click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
+@click.option(
+    '-B/-b',
+    '--colour/--no-colour',
+    help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
+    default=None,
+)
 def change_config(
     python: str,
     backend: str,
@@ -323,44 +331,56 @@ def change_config(
     mssql_version: str,
     cheatsheet: bool,
     asciiart: bool,
+    colour: bool,
 ):
     """
     Show/update configuration (Python, Backend, Cheatsheet, ASCIIART).
     """
     asciiart_file = "suppress_asciiart"
     cheatsheet_file = "suppress_cheatsheet"
+    colour_file = "suppress_colour"
 
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
-            console.print('[bright_blue]Enable ASCIIART![/]')
+            get_console().print('[info]Enable ASCIIART![/]')
         else:
             touch_cache_file(asciiart_file)
-            console.print('[bright_blue]Disable ASCIIART![/]')
+            get_console().print('[info]Disable ASCIIART![/]')
     if cheatsheet is not None:
         if cheatsheet:
             delete_cache(cheatsheet_file)
-            console.print('[bright_blue]Enable Cheatsheet[/]')
+            get_console().print('[info]Enable Cheatsheet[/]')
         elif cheatsheet is not None:
             touch_cache_file(cheatsheet_file)
-            console.print('[bright_blue]Disable Cheatsheet[/]')
+            get_console().print('[info]Disable Cheatsheet[/]')
+    if colour is not None:
+        if colour:
+            delete_cache(colour_file)
+            get_console().print('[info]Enable Colour[/]')
+        elif colour is not None:
+            touch_cache_file(colour_file)
+            get_console().print('[info]Disable Colour[/]')
 
     def get_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
 
-    console.print()
-    console.print("[bright_blue]Current configuration:[/]")
-    console.print()
-    console.print(f"[bright_blue]* Python: {python}[/]")
-    console.print(f"[bright_blue]* Backend: {backend}[/]")
-    console.print()
-    console.print(f"[bright_blue]* Postgres version: {postgres_version}[/]")
-    console.print(f"[bright_blue]* MySQL version: {mysql_version}[/]")
-    console.print(f"[bright_blue]* MsSQL version: {mssql_version}[/]")
-    console.print()
-    console.print(f"[bright_blue]* ASCIIART: {get_status(asciiart_file)}[/]")
-    console.print(f"[bright_blue]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
-    console.print()
+    get_console().print()
+    get_console().print("[info]Current configuration:[/]")
+    get_console().print()
+    get_console().print(f"[info]* Python: {python}[/]")
+    get_console().print(f"[info]* Backend: {backend}[/]")
+    get_console().print()
+    get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
+    get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
+    get_console().print(f"[info]* MsSQL version: {mssql_version}[/]")
+    get_console().print()
+    get_console().print(f"[info]* ASCIIART: {get_status(asciiart_file)}[/]")
+    get_console().print(f"[info]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
+    get_console().print()
+    get_console().print()
+    get_console().print(f"[info]* Colour: {get_status(colour_file)}[/]")
+    get_console().print()
 
 
 @main.command(name="free-space", help="Free space for jobs run in CI.")
@@ -368,8 +388,7 @@ def change_config(
 @option_dry_run
 @option_answer
 def free_space(verbose: bool, dry_run: bool, answer: str):
-    set_forced_answer(answer)
-    if user_confirm("Are you sure to run free-space and perform cleanup?", timeout=None) == Answer.YES:
+    if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
         run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
@@ -385,7 +404,7 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
 @option_dry_run
 def resource_check(verbose: bool, dry_run: bool):
     shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(verbose, shell_params.airflow_image_name, dry_run=dry_run)
+    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 
 
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
@@ -426,8 +445,8 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
     if not skip_check:
         if BREEZE_COMMENT in script_path_file.read_text():
             if not force_setup:
-                console.print(
-                    "\n[bright_yellow]Autocompletion is already setup. Skipping. "
+                get_console().print(
+                    "\n[warning]Autocompletion is already setup. Skipping. "
                     "You can force autocomplete installation by adding --force[/]\n"
                 )
                 return False
@@ -436,13 +455,13 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
                 remove_autogenerated_code(script_path)
     text = ''
     if script_path_file.exists():
-        console.print(f"\nModifying the {script_path} file!\n")
-        console.print(f"\nCopy of the original file is held in {script_path}.bak !\n")
+        get_console().print(f"\nModifying the {script_path} file!\n")
+        get_console().print(f"\nCopy of the original file is held in {script_path}.bak !\n")
         if not dry_run:
             backup(script_path_file)
             text = script_path_file.read_text()
     else:
-        console.print(f"\nCreating the {script_path} file!\n")
+        get_console().print(f"\nCreating the {script_path} file!\n")
     if not dry_run:
         script_path_file.write_text(
             text
@@ -453,10 +472,9 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
             + END_LINE
         )
     else:
-        console.print(f"[bright_blue]The autocomplete script would be added to {script_path}[/]")
-    console.print(
-        f"\n[bright_yellow]IMPORTANT!!!! Please exit and re-enter your shell or run:[/]"
-        f"\n\n   source {script_path}\n"
+        get_console().print(f"[info]The autocomplete script would be added to {script_path}[/]")
+    get_console().print(
+        f"\n[warning]Please exit and re-enter your shell or run:[/]" f"\n\n   source {script_path}\n"
     )
     return True
 

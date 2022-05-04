@@ -19,7 +19,12 @@ import multiprocessing as mp
 
 import click
 
-from airflow_breeze.commands.custom_param_types import BetterChoice, CacheableChoice, CacheableDefault
+from airflow_breeze.commands.custom_param_types import (
+    AnswerChoice,
+    BetterChoice,
+    CacheableChoice,
+    CacheableDefault,
+)
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
@@ -50,7 +55,7 @@ option_dry_run = click.option(
 option_answer = click.option(
     "-a",
     "--answer",
-    type=BetterChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    type=AnswerChoice(choices=['y', 'n', 'q', 'yes', 'no', 'quit']),
     help="Force answer to questions.",
     envvar='ANSWER',
 )
@@ -197,9 +202,8 @@ option_debian_version = click.option(
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     '--upgrade-to-newer-dependencies',
-    default="false",
-    show_default=True,
-    help='When other than "false", upgrade all PIP packages to latest.',
+    is_flag=True,
+    help='When set, upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
 option_additional_extras = click.option(
@@ -295,7 +299,8 @@ option_wait_for_image = click.option(
 )
 option_tag_as_latest = click.option(
     '--tag-as-latest',
-    help='Tags the image as latest after pulling.',
+    help='Tags the image as latest and update checksum of all files after pulling. '
+    'Used in CI to pull the image built in another job.',
     is_flag=True,
     envvar='TAG_AS_LATEST',
 )

@@ -60,9 +60,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
         """Configure Sentry SDK."""
 
         SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "execution_date"))
-        SCOPE_TASK_TAGS = frozenset(("operator",))
         SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
-        SCOPE_TAGS = SCOPE_DAG_RUN_TAGS | SCOPE_TASK_TAGS | SCOPE_TASK_INSTANCE_TAGS
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
         UNSUPPORTED_SENTRY_OPTIONS = frozenset(
@@ -168,8 +166,6 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
                 with sentry_sdk.push_scope():
                     try:
-                        return func(_self, *args, **kwargs)
-                    except Exception as e:
                         # Is a LocalTaskJob get the task instance
                         if hasattr(_self, 'task_instance'):
                             task_instance = _self.task_instance
@@ -178,6 +174,8 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
                         self.add_tagging(task_instance)
                         self.add_breadcrumbs(task_instance, session=session)
+                        return func(_self, *args, **kwargs)
+                    except Exception as e:
                         sentry_sdk.capture_exception(e)
                         raise
 

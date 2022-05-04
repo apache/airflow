@@ -20,7 +20,7 @@ from typing import Tuple, Union
 
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -36,10 +36,10 @@ def login_to_docker_registry(
     """
     if os.environ.get("CI"):
         if len(image_params.github_token) == 0:
-            console.print("\n[bright_blue]Skip logging in to GitHub Registry. No Token available!")
+            get_console().print("\n[info]Skip logging in to GitHub Registry. No Token available!")
         elif image_params.login_to_github_registry != "true":
-            console.print(
-                "\n[bright_blue]Skip logging in to GitHub Registry.\
+            get_console().print(
+                "\n[info]Skip logging in to GitHub Registry.\
                     LOGIN_TO_GITHUB_REGISTRY is set as false"
             )
         elif len(image_params.github_token) > 0:
@@ -60,5 +60,5 @@ def login_to_docker_registry(
             )
             return command_result.returncode, "Docker login"
         else:
-            console.print('\n[bright_blue]Skip Login to GitHub Container Registry as token is missing')
+            get_console().print('\n[info]Skip Login to GitHub Container Registry as token is missing')
     return 0, "Docker login skipped"

@@ -127,6 +127,7 @@ Docker Compose
 
 Pyenv and setting up virtual-env
 --------------------------------
+    Note: You might have issues with pyenv if you have a Mac with an M1 chip. Consider using virtualenv as an alternative.
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
@@ -346,7 +347,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1162,7 +1163,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 
@@ -1913,7 +1914,7 @@ Using Breeze
 
    Branch name:            main
    Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
-   Airflow source version: 2.3.0.dev0
+   Airflow source version: 2.4.0.dev0
    Python version:         3.8
    Backend:                mysql 5.7
 

@@ -311,10 +311,16 @@ Those are all available flags of ``setup-autocomplete`` command:
 
 Customize your environment
 --------------------------
+
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
+``files/airflow-breeze-config/variables.env``.
+a
+You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
+when you enter Breeze. For example you can add ``pip install`` commands if you want to install
+custom dependencies - but there are no limits to add your own customizations.
+
+The ``files`` folder from your local sources is automatically mounted to the container under
+``/files`` path and you can put there any files you want to make available for the Breeze container.
 
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
@@ -377,6 +383,17 @@ default settings.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
+
+Another part of configuration is enabling/disabling cheatsheet, asciiart. The cheatsheet and asciiart can
+be disabled - they are "nice looking" and cheatsheet
+contains useful information for first time users but eventually you might want to disable both if you
+find it repetitive and annoying.
+
+With the config setting colour-blind-friendly communication for Breeze messages. By default we communicate
+with the users about information/errors/warnings/successes via colour-coded messages, but we can switch
+it off by passing ``--no-colour`` to config in which case the messages to the user printed by Breeze
+will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
+rather than colours.
 
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command but it is very similar to current ``breeze`` command):
@@ -461,7 +478,14 @@ Those are commands mostly used by contributors:
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``./breeze-legacy tests`` command
-* Join running interactive shell with ``./breeze-legacy exec`` command
+* Build CI docker image with ``breeze build-image`` command
+* Cleanup breeze with ``breeze cleanup`` command
+* Run static checks with autocomplete support ``breeze static-checks`` command
+* Run test specified with ``./breeze-legacy tests`` command
+
+Additional management tasks:
+
+* Join running interactive shell with ``breeze exec`` command
 * Stop running interactive environment with ``breeze stop`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
 
@@ -569,8 +593,7 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -584,12 +607,11 @@ command but it is very similar to current ``breeze`` command):
 
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``./breeze-legacy exec`` while you already started the
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -600,6 +622,12 @@ command and it is not yet available in the current ``breeze`` command):
       </a>
     </div>
 
+
+Those are all available flags of ``exec`` command:
+
+.. image:: ./images/breeze/output-exec.svg
+  :width: 100%
+  :alt: Breeze exec
 
 Additional tools
 ----------------

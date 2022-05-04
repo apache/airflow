@@ -76,8 +76,9 @@ class HiveStatsCollectionOperator(BaseOperator):
     ) -> None:
         if 'col_blacklist' in kwargs:
             warnings.warn(
-                'col_blacklist kwarg passed to {c} (task_id: {t}) is deprecated, please rename it to '
-                'excluded_columns instead'.format(c=self.__class__.__name__, t=kwargs.get('task_id')),
+                f"col_blacklist kwarg passed to {self.__class__.__name__} "
+                f"(task_id: {kwargs.get('task_id')}) is deprecated, "
+                f"please rename it to excluded_columns instead",
                 category=FutureWarning,
                 stacklevel=2,
             )

@@ -19,6 +19,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_db_reset,
+    option_debian_version,
     option_dry_run,
     option_force_build,
     option_forward_credentials,
@@ -45,6 +46,7 @@ from airflow_breeze.utils.path_utils import create_directories
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
+@option_debian_version
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version

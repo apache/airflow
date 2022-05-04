@@ -409,6 +409,7 @@ class EcsOperator(BaseOperator):
         )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
+            self.ecs_task_id = self.arn.split("/")[-1]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
@@ -466,9 +467,8 @@ class EcsOperator(BaseOperator):
             # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
             if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.', task.get('stoppedReason', '')):
                 raise AirflowException(
-                    'The task was stopped because the host instance terminated: {}'.format(
-                        task.get('stoppedReason', '')
-                    )
+                    f"The task was stopped because the host instance terminated:"
+                    f" {task.get('stoppedReason', '')}"
                 )
             containers = task['containers']
             for container in containers:
@@ -487,9 +487,8 @@ class EcsOperator(BaseOperator):
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():
                     raise AirflowException(
-                        'This containers encounter an error during launching : {}'.format(
-                            container.get('reason', '').lower()
-                        )
+                        f"This containers encounter an error during launching: "
+                        f"{container.get('reason', '').lower()}"
                     )
 
     def get_hook(self) -> AwsBaseHook:

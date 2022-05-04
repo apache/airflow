@@ -22,6 +22,7 @@ from typing import Optional, Tuple
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -31,7 +32,7 @@ from airflow_breeze.global_constants import (
     MOUNT_SELECTED,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR, SCRIPTS_CI_DIR
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -51,6 +52,7 @@ class ShellParams:
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     backend: str = ALLOWED_BACKENDS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     dry_run: bool = False
     load_example_dags: bool = False
     load_default_connections: bool = False
@@ -143,19 +145,25 @@ class ShellParams:
         return sqlite_url
 
     def print_badge_info(self):
-        console.print(f'Use {self.the_image_type} image')
-        console.print(f'Branch Name: {self.airflow_branch}')
-        console.print(f'Docker Image: {self.airflow_image_name_with_tag}')
-        console.print(f'Airflow source version:{self.airflow_version}')
-        console.print(f'Python Version: {self.python}')
-        console.print(f'Backend: {self.backend} {self.backend_version}')
-        console.print(f'Airflow used at runtime: {self.use_airflow_version}')
+        if self.verbose:
+            get_console().print(f'[info]Use {self.the_image_type} image[/]')
+            get_console().print(f'[info]Branch Name: {self.airflow_branch}[/]')
+            get_console().print(f'[info]Docker Image: {self.airflow_image_name_with_tag}[/]')
+            get_console().print(f'[info]Airflow source version:{self.airflow_version}[/]')
+            get_console().print(f'[info]Python Version: {self.python}[/]')
+            get_console().print(f'[info]Backend: {self.backend} {self.backend_version}[/]')
+            get_console().print(f'[info]Airflow used at runtime: {self.use_airflow_version}[/]')
 
     @property
     def compose_files(self):
         compose_ci_file = []
         main_ci_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/base.yml"
-        backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}.yml"
+        if self.backend == "mssql":
+            backend_docker_compose_file = (
+                f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-{self.debian_version}.yml"
+            )
+        else:
+            backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}.yml"
         backend_port_docker_compose_file = (
             f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-port.yml"
         )

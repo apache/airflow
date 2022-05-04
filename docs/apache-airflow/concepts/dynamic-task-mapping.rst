@@ -62,6 +62,8 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
 .. image:: /img/mapping-simple-grid.png
 
+.. note:: Only keyword arguments are allowed to be passed to ``expand()``.
+
 .. note:: Values passed from the mapped task is a lazy proxy
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
@@ -174,6 +176,8 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
     BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
         bash_command=["echo 1", "echo 2"]
     )
+
+.. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 
 Mapping over result of classic operators
 ----------------------------------------
