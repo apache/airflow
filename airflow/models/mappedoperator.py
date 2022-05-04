@@ -795,7 +795,10 @@ class MappedOperator(AbstractOperator):
             if not isinstance(value, MAPPABLE_LITERAL_TYPES):
                 # None literal type encountered, so give up
                 return None
-            total += len(value)
+            if total == 0:
+                total = len(value)
+            else:
+                total *= len(value)
         return total
 
     @cache
