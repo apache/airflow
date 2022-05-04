@@ -42,12 +42,16 @@ const ToggleGroups = ({ groups }) => {
   const storageKey = `${dagId}-open-groups`;
   const allGroupIds = getGroupIds(groups.children);
   const openGroupIds = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+  // Default to expand all if at least one group is closed
   const [shouldExpand, setShouldExpand] = useState(allGroupIds.length > openGroupIds.length);
+
   // Don't show button if the DAG has no task groups
   const hasGroups = groups.children.find((c) => !!c.children);
   if (!hasGroups) return null;
 
   const onToggle = () => {
+    // Dispatch an event to expand/collapse so the respective task component can update
     if (shouldExpand) {
       const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: true } });
       document.dispatchEvent(closeEvent);
