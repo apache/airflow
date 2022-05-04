@@ -383,9 +383,9 @@ class PodManager(LoggingMixin):
                 res = None
                 if resp.peek_stdout():
                     res = resp.read_stdout()
-                if extract_full_content:
-                    while resp.peek_stdout():
-                        res = res + resp.read_stdout()
+                    if extract_full_content:
+                        while resp.peek_stdout():
+                            res = res + resp.read_stdout()
                     return res
                 if resp.peek_stderr():
                     self.log.info("stderr from command: %s", resp.read_stderr())
