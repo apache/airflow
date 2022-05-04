@@ -44,7 +44,7 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: 'white', size: 'lg' };
 
   return (
-    <Flex backgroundColor="gray.100" mt={0} mb={2} p={4}>
+    <Flex backgroundColor="#f0f0f0" mt={0} mb={2} p={4}>
       <Box px={2}>
         <Input
           {...inputStyles}
@@ -84,7 +84,7 @@ const FilterBar = () => {
           value={filters.runState || ''}
           onChange={onRunStateChange}
         >
-          <option value="" key="all">All Dag States</option>
+          <option value="" key="all">All Run States</option>
           {filtersOptions.dagStates.map((value) => (
             <option value={value} key={value}>{value}</option>
           ))}
