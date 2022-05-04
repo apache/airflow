@@ -35,6 +35,7 @@ const TaskName = ({
     mr={4}
     width="100%"
     alignItems="center"
+    fontWeight={isGroup || isMapped ? 'bold' : 'normal'}
   >
     <Text
       display="inline"
