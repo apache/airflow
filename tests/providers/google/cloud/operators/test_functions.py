@@ -681,8 +681,8 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.functions.BaseOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_execute(self, mock_gcf_hook, mock_xcom):
-        exec_id = 'exec_id'
-        mock_gcf_hook.return_value.call_function.return_value = {'executionId': exec_id}
+        function_call_response = {'executionId': 'exec_id', 'result': 'Hello World!'}
+        mock_gcf_hook.return_value.call_function.return_value = function_call_response
 
         function_id = "test_function"
         payload = {'key': 'value'}
@@ -711,4 +711,10 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
             function_id=function_id, input_data=payload, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_xcom.assert_called_once_with(context=None, key='execution_id', value=exec_id)
+        mock_xcom.assert_has_calls(
+            [
+                mock.call(context=None, key='execution_id', value=function_call_response['executionId']),
+                mock.call(context=None, key='function_response', value=function_call_response['result']),
+            ],
+            any_order=True
+        )
