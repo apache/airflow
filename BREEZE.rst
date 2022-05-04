@@ -477,7 +477,7 @@ Those are commands mostly used by contributors:
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze tests`` command
+* Run test specified with ``breeze tests`` command
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 

@@ -42,7 +42,7 @@ Airflow Unit Tests
 All tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
 
 Writing Unit Tests
-------------------
+-----------------
 
 Follow the guidelines when writing unit tests:
 
@@ -168,19 +168,19 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
+     breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze tests --db-reset
+    breeze tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests --db-reset tests/core/test_core.py::TestCore
+    breeze tests --db-reset tests/core/test_core.py::TestCore
 
 
 Running Tests of a specified type from the Host
