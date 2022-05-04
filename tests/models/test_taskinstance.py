@@ -2725,6 +2725,7 @@ class TestMappedTaskInstanceReceiveValue:
                 TaskInstance.task_id == 'show',
                 TaskInstance.run_id == dag_run.run_id,
             )
+            .order_by(TaskInstance.map_index)
             .all()
         )
         for ti in tis:
