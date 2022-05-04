@@ -232,7 +232,7 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
     :param source: Display name of the request source
     """
 
-    template_fields: Sequence[str] = 'identifier'
+    template_fields: Sequence[str] = ('identifier',)
 
     def __init__(
         self,
