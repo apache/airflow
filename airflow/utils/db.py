@@ -998,7 +998,7 @@ def check_run_id_null(session: Session) -> Iterable[str]:
 
         bind = session.get_bind()
         dialect_name = bind.dialect.name
-        _create_table_as(
+        _create_table_as_or_insert(
             dialect_name=dialect_name,
             source_query=dagrun_table.select(invalid_dagrun_filter),
             target_table_name=dagrun_dangling_table_name,
@@ -1009,13 +1009,14 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         session.execute(delete)
 
 
-def _create_table_as(
+def _create_table_as_or_insert(
     *,
     session,
     dialect_name: str,
     source_query: "Query",
     target_table_name: str,
     source_table_name: str,
+    create=True,
 ):
     """
     Create a new table with rows from query.
@@ -1023,45 +1024,59 @@ def _create_table_as(
     """
     from sqlalchemy import column, select, table
 
+    command_list = []
     if dialect_name == "mssql":
-        cte = source_query.cte("source")
-        moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
+        if create:
+            cte = source_query.cte("source")
+            moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
+            ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
 
-        stmt = ins.compile(bind=session.get_bind())
-        cte_sql = stmt.ctes[cte]
-
-        session.execute(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
+            stmt = ins.compile(bind=session.get_bind())
+            cte_sql = stmt.ctes[cte]
+            command_list.append(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
+        else:
+            command_list.append(
+                f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
+            )
     elif dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table_name}")
-        session.execute(
+        if create:
+            command_list.append(f"CREATE TABLE {target_table_name} LIKE {source_table_name}")
+        command_list.append(
             f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
-        session.execute(
-            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
-        )
+        command = f"CREATE TABLE {target_table_name} AS" if create else f"INSERT INTO {target_table_name}"
+        command += f" {source_query.selectable.compile(bind=session.get_bind())}"
+        command_list.append(command)
+
+    log.debug("running commands %s", command_list)
+    for cmd in command_list:
+        session.execute(cmd)
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
+    session,
+    source_table: "Table",
+    source_query: "Query",
+    exists_subquery,
+    target_table_name: str,
+    append=False,
 ):
 
     bind = session.get_bind()
     dialect_name = bind.dialect.name
 
-    # First: Create moved rows from new table
-    _create_table_as(
+    _create_table_as_or_insert(
         dialect_name=dialect_name,
         source_query=source_query,
         target_table_name=target_table_name,
         source_table_name=source_table.name,
         session=session,
+        create=not append,
     )
-
     delete = source_table.delete().where(~exists_subquery.exists())
     session.execute(delete)
 
@@ -1148,7 +1163,7 @@ def _move_duplicate_data_to_new_table(
         .join(subquery, and_(*[getattr(source_table.c, x) == getattr(subquery.c, x) for x in uniqueness]))
     )
 
-    _create_table_as(
+    _create_table_as_or_insert(
         session=session,
         dialect_name=dialect_name,
         source_query=query,
@@ -1223,7 +1238,6 @@ def check_bad_references(session: Session) -> Iterable[str]:
         return
 
     existing_table_names = set(inspect(session.get_bind()).get_table_names())
-    errored = False
 
     for model, change_version, bad_ref_cfg in models_list:
         # We can't use the model here since it may differ from the db state due to
@@ -1240,31 +1254,22 @@ def check_bad_references(session: Session) -> Iterable[str]:
         bad_rows_subquery = bad_ref_cfg.exists_func(session, source_table, **exists_func_kwargs)
         select_list = [x.label(x.name) for x in source_table.c]
         invalid_rows_query = session.query(*select_list).filter(~bad_rows_subquery.exists())
-        invalid_row_count = invalid_rows_query.count()
-        if invalid_row_count <= 0:
-            continue
-
+        log.debug("invalid rows query \n%s", invalid_rows_query.selectable.compile())
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, 'dangling')
-        if dangling_table_name in existing_table_names:
-            yield _format_dangling_error(
-                source_table=source_table.name,
-                target_table=dangling_table_name,
-                invalid_count=invalid_row_count,
-                reason=f"without a corresponding {bad_ref_cfg.ref_table} row",
+        append = dangling_table_name in existing_table_names
+        if append:
+            log.warning(
+                "Internal table %s already exists; appending any remaining dangling rows.",
+                dangling_table_name,
             )
-            errored = True
-            continue
         _move_dangling_data_to_new_table(
             session,
             source_table,
             invalid_rows_query,
             bad_rows_subquery,
             dangling_table_name,
+            append=append,
         )
-
-    if errored:
-        session.rollback()
-    else:
         session.commit()
 
 
