@@ -238,7 +238,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             docs[0],
         )
 
-    def test_affinity_tolerations_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
         """When given both global and webserver affinity etc, webserver affinity etc is used"""
         expected_affinity = {
             "nodeAffinity": {
@@ -253,7 +253,12 @@ class WebserverDeploymentTest(unittest.TestCase):
                 }
             }
         }
-
+        expected_topology_spread_constraints = {
+            "maxSkew": 1,
+            "topologyKey": "foo",
+            "whenUnsatisfiable": "ScheduleAnyway",
+            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+        }
         docs = render_chart(
             values={
                 "webserver": {
@@ -261,6 +266,7 @@ class WebserverDeploymentTest(unittest.TestCase):
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
+                    "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
                 },
                 "affinity": {
@@ -280,6 +286,14 @@ class WebserverDeploymentTest(unittest.TestCase):
                 "tolerations": [
                     {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ],
                 "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -293,6 +307,9 @@ class WebserverDeploymentTest(unittest.TestCase):
         tolerations = jmespath.search("spec.template.spec.tolerations", docs[0])
         assert 1 == len(tolerations)
         assert "dynamic-pods" == tolerations[0]["key"]
+        assert expected_topology_spread_constraints == jmespath.search(
+            "spec.template.spec.topologySpreadConstraints[0]", docs[0]
+        )
 
     @parameterized.expand(
         [

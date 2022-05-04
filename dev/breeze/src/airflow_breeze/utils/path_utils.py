@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from airflow_breeze import NAME
+from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import (
     ask_to_reinstall_breeze,
@@ -120,6 +121,16 @@ def get_used_sources_setup_metadata_hash() -> str:
     return get_sources_setup_metadata_hash(get_used_airflow_sources())
 
 
+def set_forced_answer_for_upgrade_check():
+    """When we run upgrade check --answer is not parsed yet, so we need to guess it."""
+    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("n"):
+        set_forced_answer("no")
+    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("y"):
+        set_forced_answer("yes")
+    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("q"):
+        set_forced_answer("quit")
+
+
 def print_warning_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
@@ -132,7 +143,9 @@ def print_warning_if_setup_changed() -> bool:
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
+            set_forced_answer_for_upgrade_check()
             ask_to_reinstall_breeze(breeze_sources)
+            set_forced_answer(None)
         return True
     return False
 

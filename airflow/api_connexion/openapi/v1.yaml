@@ -2392,6 +2392,28 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_scheduling_decision:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        run_type:
+          type: string
+          readOnly: true
+          enum:
+            - backfill
+            - manual
+            - scheduled
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true

@@ -424,7 +424,6 @@ protected_branches:
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
    git push --set-upstream origin constraints-${BRANCH_PREFIX}
-   git push origin tag constraints-${BRANCH_PREFIX}
    ```
 
 
@@ -832,7 +831,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.7.txt"`
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -1162,6 +1161,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version

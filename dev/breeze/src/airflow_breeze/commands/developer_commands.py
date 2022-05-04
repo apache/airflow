@@ -53,13 +53,13 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.shell.enter_shell import enter_shell, find_airflow_container
 from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_env_variables_docker_compose_command,
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.rebuild_image_if_needed import rebuild_ci_image_if_needed
 from airflow_breeze.utils.run_utils import assert_pre_commit_installed, run_command
 
 DEVELOPER_COMMANDS = {
@@ -229,7 +229,6 @@ def shell(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
-    set_forced_answer(answer)
     if verbose or dry_run:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -294,7 +293,6 @@ def start_airflow(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
-    set_forced_answer(answer)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -348,6 +346,7 @@ def build_docs(
 ):
     """Build documentation in the container."""
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
