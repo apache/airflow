@@ -349,7 +349,7 @@ class PodTemplateFileTest(unittest.TestCase):
             docs[0],
         )
 
-    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+    def test_should_create_valid_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -369,6 +369,14 @@ class PodTemplateFileTest(unittest.TestCase):
                     },
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 },
@@ -394,8 +402,12 @@ class PodTemplateFileTest(unittest.TestCase):
             "spec.tolerations[0].key",
             docs[0],
         )
+        assert "foo" == jmespath.search(
+            "spec.topologySpreadConstraints[0].topologyKey",
+            docs[0],
+        )
 
-    def test_affinity_tolerations_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
         """When given both global and worker affinity etc, worker affinity etc is used"""
         expected_affinity = {
             "nodeAffinity": {
@@ -410,6 +422,12 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             }
         }
+        expected_topology_spread_constraints = {
+            "maxSkew": 1,
+            "topologyKey": "foo",
+            "whenUnsatisfiable": "ScheduleAnyway",
+            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+        }
         docs = render_chart(
             values={
                 "workers": {
@@ -417,6 +435,7 @@ class PodTemplateFileTest(unittest.TestCase):
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
+                    "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
                 },
                 "affinity": {
@@ -436,6 +455,14 @@ class PodTemplateFileTest(unittest.TestCase):
                 "tolerations": [
                     {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                 ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ],
                 "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -450,6 +477,9 @@ class PodTemplateFileTest(unittest.TestCase):
         tolerations = jmespath.search("spec.tolerations", docs[0])
         assert 1 == len(tolerations)
         assert "dynamic-pods" == tolerations[0]["key"]
+        assert expected_topology_spread_constraints == jmespath.search(
+            "spec.topologySpreadConstraints[0]", docs[0]
+        )
 
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)

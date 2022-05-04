@@ -18,9 +18,10 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.confirm import Answer, user_confirm
+from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 
 
@@ -41,15 +42,17 @@ def reinstall_breeze(breeze_sources: Path):
     sys.exit(0)
 
 
-def ask_to_reinstall_breeze(breeze_sources: Path):
+def ask_to_reinstall_breeze(breeze_sources: Path, timeout: Optional[int] = STANDARD_TIMEOUT):
     """
     Ask the user to reinstall Breeze (and do so if confirmed).
     :param breeze_sources: breeze sources to reinstall Breeze from.
+    :param timeout to answer - if set (when upgrade is auxiliary) then default answer is no,
+         otherwise it is yes
     """
     answer = user_confirm(
         f"Do you want to reinstall Breeze from {breeze_sources.parent.parent}?",
-        timeout=3,
-        default_answer=Answer.NO,
+        default_answer=Answer.NO if timeout else Answer.YES,
+        timeout=timeout,
     )
     if answer == Answer.YES:
         reinstall_breeze(breeze_sources)

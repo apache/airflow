@@ -27,7 +27,7 @@ from airflow_breeze.build_image.ci.build_ci_params import (
 )
 from airflow_breeze.utils.cache import touch_cache_file
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.confirm import Answer, user_confirm
+from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     construct_docker_build_command,
@@ -49,7 +49,7 @@ from airflow_breeze.utils.run_utils import (
 )
 
 
-def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
+def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bool:
     """
     Check if we should run the build based on what files have been modified since last build and answer from
     the user.
@@ -59,23 +59,30 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     * Builds Image/Skips/Quits depending on the answer
 
     :param build_ci_params: parameters for the build
+    :param verbose: should we get verbose information
     """
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
+    if not md5sum_check_if_build_is_needed(
+        md5sum_cache_dir=build_ci_params.md5sum_cache_dir, verbose=verbose
+    ):
         return False
     try:
-        answer = user_confirm(message="Do you want to build image?", timeout=5, default_answer=Answer.NO)
+        answer = user_confirm(
+            message="Do you want to build the image?", timeout=STANDARD_TIMEOUT, default_answer=Answer.NO
+        )
         if answer == answer.YES:
             if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
                 return True
             else:
                 get_console().print(
-                    "\n[warning]This might take a lot of time, w" "e think you should rebase first.[/]\n"
+                    "\n[warning]This might take a lot of time, we think you should rebase first.[/]\n"
                 )
                 answer = user_confirm(
-                    "But if you really, really want - you can do it", timeout=5, default_answer=Answer.NO
+                    "But if you really, really want - you can do it. Are you really sure?",
+                    timeout=STANDARD_TIMEOUT,
+                    default_answer=Answer.NO,
                 )
                 if answer == Answer.YES:
                     return True
@@ -123,7 +130,7 @@ def build_ci_image(
     :param with_ci_group: whether to wrap the build in CI logging group
     :param ci_image_params: CI image parameters
     """
-    fix_group_permissions()
+    fix_group_permissions(verbose=verbose)
     if verbose or dry_run:
         get_console().print(
             f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
@@ -133,9 +140,8 @@ def build_ci_image(
         f"Build CI image for Python {ci_image_params.python} " f"with tag: {ci_image_params.image_tag}",
         enabled=with_ci_group,
     ):
-        ci_image_params.print_info()
         if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-            if not should_we_run_the_build(build_ci_params=ci_image_params):
+            if not should_we_run_the_build(build_ci_params=ci_image_params, verbose=verbose):
                 return 0, f"Image build: {ci_image_params.python}"
         run_command(
             ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_image_name],
@@ -175,10 +181,7 @@ def build_ci_image(
             )
         if not dry_run:
             if build_result.returncode == 0:
-                ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
-                ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
-                touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
-                calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
+                mark_image_as_refreshed(ci_image_params)
             else:
                 get_console().print("[error]Error when building image![/]")
                 return (
@@ -190,6 +193,13 @@ def build_ci_image(
         if ci_image_params.push_image:
             return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
         return build_result.returncode, f"Image build: {ci_image_params.python}"
+
+
+def mark_image_as_refreshed(ci_image_params: BuildCiParams):
+    ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
+    ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
+    touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
+    calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
 
 
 def build_ci_image_in_parallel(

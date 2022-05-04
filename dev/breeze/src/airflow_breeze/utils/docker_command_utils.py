@@ -111,7 +111,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
 
 
 def check_docker_resources(
-    verbose: bool, airflow_image_name: str, dry_run: bool
+    airflow_image_name: str, verbose: bool, dry_run: bool
 ) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
@@ -440,6 +440,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     :param env: environment variables to update with missing values if not set.
     """
     set_value_to_default_if_not_set(env, 'ANSWER', "")
+    set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
@@ -475,9 +476,9 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
     set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
     set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
-    set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE_COMMANDS', "false")
+    set_value_to_default_if_not_set(env, 'VERSION_SUFFIX_FOR_PYPI', "")
     set_value_to_default_if_not_set(env, 'WHEEL_VERSION', "0.36.2")
 
 

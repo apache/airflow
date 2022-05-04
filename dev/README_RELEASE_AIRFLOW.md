@@ -28,6 +28,7 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prerequisites](#prerequisites)
   - [Setting environment with emulation](#setting-environment-with-emulation)
   - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -49,6 +50,7 @@
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
+  - [Close the testing status issue](#close-the-testing-status-issue)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
@@ -422,7 +424,6 @@ protected_branches:
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
    git push --set-upstream origin constraints-${BRANCH_PREFIX}
-   git push origin tag constraints-${BRANCH_PREFIX}
    ```
 
 
@@ -489,6 +490,12 @@ Production Docker images should be manually prepared and pushed by the release m
 who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
 to have an environment prepared to build multi-platform images. You can achieve it with either emulation
 (very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
+
+## Prerequisites
+
+You need to have buildx plugin installed to run the build. Also you need to have regctl
+installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
+DockerHub. The script to build images will refuse to work if you do not have those two installed.
 
 ## Setting environment with emulation
 
@@ -824,7 +831,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.7.txt"`
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -1110,6 +1117,10 @@ Close the milestone on GitHub. Create the next one if it hasn't been already (it
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
 ## Announce the release on the community slack
 
 Post this in the #announce channel:
@@ -1150,6 +1161,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version

@@ -1318,7 +1318,7 @@ def get_all_changes_for_package(
         changes = subprocess.check_output(
             get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
             cwd=source_provider_package_path,
-            universal_newlines=True,
+            text=True,
         )
         if changes:
             provider_details = get_provider_details(provider_package_id)
@@ -1332,7 +1332,7 @@ def get_all_changes_for_package(
                     changes_since_last_doc_only_check = subprocess.check_output(
                         get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
                         cwd=source_provider_package_path,
-                        universal_newlines=True,
+                        text=True,
                     )
                     if not changes_since_last_doc_only_check:
                         console.print()
@@ -1385,7 +1385,7 @@ def get_all_changes_for_package(
         changes = subprocess.check_output(
             get_git_log_command(verbose, next_version_tag, version_tag),
             cwd=source_provider_package_path,
-            universal_newlines=True,
+            text=True,
         )
         changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
             current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1397,7 +1397,7 @@ def get_all_changes_for_package(
     changes = subprocess.check_output(
         get_git_log_command(verbose, next_version_tag),
         cwd=source_provider_package_path,
-        universal_newlines=True,
+        text=True,
     )
     changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
         current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1460,7 +1460,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    python_requires = "~=3.6"
+    python_requires = "~=3.7"
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
     context: Dict[str, Any] = {
@@ -2233,6 +2233,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
     "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
+    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
 }
 
 

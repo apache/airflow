@@ -166,7 +166,7 @@ def get_changes(
             verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
         ),
         cwd=SOURCE_DIR_PATH,
-        universal_newlines=True,
+        text=True,
     )
     return [get_change_from_line(line) for line in change_strings.split("\n")]
 

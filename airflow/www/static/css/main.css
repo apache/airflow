@@ -422,7 +422,7 @@ label[for="timezone-other"],
 }
 
 .refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
+  margin: 0 10px;
 }
 
 .loading-dots.refresh-loading {
