@@ -1240,19 +1240,20 @@ def check_bad_references(session: Session) -> Iterable[str]:
         bad_rows_subquery = bad_ref_cfg.exists_func(session, source_table, **exists_func_kwargs)
         select_list = [x.label(x.name) for x in source_table.c]
         invalid_rows_query = session.query(*select_list).filter(~bad_rows_subquery.exists())
-        invalid_row_count = invalid_rows_query.count()
-        if invalid_row_count <= 0:
-            continue
 
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, 'dangling')
         if dangling_table_name in existing_table_names:
-            yield _format_dangling_error(
-                source_table=source_table.name,
-                target_table=dangling_table_name,
-                invalid_count=invalid_row_count,
-                reason=f"without a corresponding {bad_ref_cfg.ref_table} row",
-            )
-            errored = True
+            invalid_row_count = invalid_rows_query.count()
+            if invalid_row_count <= 0:
+                continue
+            else:
+                yield _format_dangling_error(
+                    source_table=source_table.name,
+                    target_table=dangling_table_name,
+                    invalid_count=invalid_row_count,
+                    reason=f"without a corresponding {bad_ref_cfg.ref_table} row",
+                )
+                errored = True
             continue
         _move_dangling_data_to_new_table(
             session,
