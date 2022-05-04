@@ -212,7 +212,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
 
 class OpsgenieDeleteAlertOperator(BaseOperator):
     """
-    This operator allows you to Delete alerts to Opsgenie.
+    This operator allows you to delete alerts in Opsgenie.
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This operator sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -232,6 +232,8 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
     :param source: Display name of the request source
     """
 
+    template_fields: Sequence[str] = 'identifier'
+
     def __init__(
         self,
         *,
@@ -249,12 +251,11 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
         self.identifier_type = identifier_type
         self.user = user
         self.source = source
-        self.hook: Optional[OpsgenieAlertHook] = None
 
     def execute(self, context: 'Context') -> None:
         """Call the OpsgenieAlertHook to delete alert"""
-        self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
-        self.hook.delete_alert(
+        hook = OpsgenieAlertHook(self.opsgenie_conn_id)
+        hook.delete_alert(
             identifier=self.identifier,
             identifier_type=self.identifier_type,
             user=self.user,

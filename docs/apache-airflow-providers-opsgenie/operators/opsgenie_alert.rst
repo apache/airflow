@@ -63,5 +63,6 @@ Delete alert in Opsgenie.
 
 .. exampleinclude:: /../../airflow/providers/opsgenie/example_dags/example_opsgenie_alert.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_opsgenie_delete_alert_operator]
     :end-before: [END howto_opsgenie_delete_alert_operator]
