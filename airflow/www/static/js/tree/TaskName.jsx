@@ -30,7 +30,6 @@ const TaskName = ({
   <Flex
     as={isGroup ? 'button' : 'div'}
     onClick={onToggle}
-    color={level > 4 && 'white'}
     aria-label={taskName}
     title={taskName}
     mr={4}
