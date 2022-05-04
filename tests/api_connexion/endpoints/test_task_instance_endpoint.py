@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime as dt
+import json
 from unittest import mock
 
 import pytest
 from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models import DagRun, SlaMiss, TaskInstance
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
@@ -1491,3 +1493,90 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
         assert response.json['detail'] == expected
+
+
+class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
+    def heartbeat(self):
+        return True
+
+
+@mock.patch(
+    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+    return_value=_ForceHeartbeatCeleryExecutor(),
+)
+class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
+    def test_task_instance_run_return_200(self, executor, session):
+        self.ti_init["state"] = State.NONE
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        run_id = "TEST_DAG_RUN_ID"
+        task_id = "print_the_context"
+
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
+                "ignore_ti_state": True,
+                "ignore_task_deps": True,
+                "ignore_all_deps": True,
+                "map_index": -1,
+            },
+        )
+
+        msg = (
+            f"Sent <TaskInstance: {dag_id}.{task_id} {run_id} [None]> "
+            "to the message queue, it should start any moment now."
+        )
+        assert response.status_code == 200
+        assert response.json == {"success": msg}
+
+    def test_task_instance_run_required_fields(self, executor, session):
+        self.ti_init["state"] = State.NONE
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        run_id = "TEST_DAG_RUN_ID"
+        task_id = "print_the_context"
+
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+
+        required_fields_error_message = {
+            'ignore_ti_state': ['Missing data for required field.'],
+            'ignore_task_deps': ['Missing data for required field.'],
+            'ignore_all_deps': ['Missing data for required field.'],
+            'map_index': ['Missing data for required field.'],
+        }
+        assert response.status_code == 400
+        error_message = json.loads(response.json['detail'].replace("'", '"'))
+        assert error_message == required_fields_error_message
+
+    @pytest.mark.parametrize(
+        "dag_id, run_id, task_id, error",
+        [
+            ["example_python_operator", "TEST_DAG_RUN_ID", "invalid_task", "Task ID invalid_task not found"],
+            [
+                "example_python_operator",
+                "invalid_dagrun_id",
+                "print_the_context",
+                "DagRun ID invalid_dagrun_id not found",
+            ],
+            ["invalid_dag", "TEST_DAG_RUN_ID", "print_the_context", "Dag ID invalid_dag not found"],
+        ],
+    )
+    def test_should_raise_404_not_found(self, executor, dag_id, run_id, task_id, error):
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
+                "ignore_ti_state": True,
+                "ignore_task_deps": True,
+                "ignore_all_deps": True,
+                "map_index": -1,
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json["title"] == error

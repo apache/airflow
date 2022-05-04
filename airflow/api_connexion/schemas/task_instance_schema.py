@@ -150,6 +150,15 @@ class SetTaskInstanceStateFormSchema(Schema):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
+class RunTaskInstanceFormSchema(Schema):
+    """Schema for handling the request of running a task instance of a DAG"""
+
+    ignore_all_deps = fields.Boolean(required=True)
+    ignore_task_deps = fields.Boolean(required=True)
+    ignore_ti_state = fields.Boolean(required=True)
+    map_index = fields.Integer(required=True)
+
+
 class TaskInstanceReferenceSchema(Schema):
     """Schema for the task instance reference schema"""
 
@@ -176,5 +185,6 @@ task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
+run_task_instance_form = RunTaskInstanceFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()

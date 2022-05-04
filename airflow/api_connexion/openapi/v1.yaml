@@ -1190,6 +1190,41 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/run:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+
+    post:
+      summary: Run task instance
+      description: |
+        Run task instance.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: run_task_instance
+      tags: [TaskInstance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunTaskInstanceForm'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/~/dagRuns/~/taskInstances/list:
     post:
       summary: List task instances (batch)
@@ -3628,6 +3663,26 @@ components:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
+
+    RunTaskInstanceForm:
+      type: object
+      properties:
+        ignore_all_deps:
+          type: boolean
+          description: |
+            Ignore task instance dependencies state during execution.
+        ignore_task_deps:
+          type: boolean
+          description: |
+            Ignore task instance dependencies state during execution.
+        ignore_ti_state:
+          type: boolean
+          description: |
+            Ignore task instance state during execution.
+        map_index:
+          type: integer
+          description: |
+            Index of the mapped task to run. -1 if the task is not mapped.
 
     # Common data type
     ScheduleInterval:

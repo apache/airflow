@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
+    run_task_instance_form,
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
@@ -38,10 +39,14 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.types import APIResponse
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import RUNNING_DEPS
+from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State
 
@@ -512,3 +517,82 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         session=session,
     )
     return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def run_task_instance(
+    *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Set a state of task instances."""
+    body = request.get_json()
+    try:
+        data = run_task_instance_form.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    ignore_all_deps = data.get('ignore_all_deps')
+    ignore_task_deps = data.get('ignore_task_deps')
+    ignore_ti_state = data.get('ignore_ti_state')
+    map_index = data.get('map_index')
+
+    executor = ExecutorLoader.get_default_executor()
+    if not getattr(executor, "supports_ad_hoc_ti_run", False):
+        error_message = "Only works with the Celery, CeleryKubernetes or Kubernetes executors"
+        raise BadRequest(detail=error_message)
+
+    error_message = f"Dag ID {dag_id} not found"
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound(error_message)
+
+    error_message = f"Task ID {task_id} not found"
+    task = dag.task_dict.get(task_id)
+    if not task:
+        raise NotFound(error_message)
+
+    dag_run = dag.get_dagrun(run_id=dag_run_id)
+    error_message = f"DagRun ID {dag_run_id} not found"
+    if not dag_run:
+        raise NotFound(error_message)
+
+    ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
+    ti.refresh_from_task(task)
+    if not ti:
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
+        raise NotFound(detail=error_message)
+
+    dep_context = DepContext(
+        deps=RUNNING_DEPS,
+        ignore_all_deps=ignore_all_deps,
+        ignore_task_deps=ignore_task_deps,
+        ignore_ti_state=ignore_ti_state,
+    )
+
+    failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
+    if failed_deps:
+        failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
+        error_message = (
+            f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
+        )
+        raise BadRequest(detail=error_message)
+
+    executor.job_id = "manual"
+    executor.start()
+    executor.queue_task_instance(
+        ti,
+        ignore_all_deps=ignore_all_deps,
+        ignore_task_deps=ignore_task_deps,
+        ignore_ti_state=ignore_ti_state,
+    )
+    executor.heartbeat()
+    ti.queued_dttm = timezone.utcnow()
+    session.merge(ti)
+    msg = f"Sent {ti} to the message queue, it should start any moment now."
+    return {"success": msg}
