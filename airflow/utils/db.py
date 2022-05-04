@@ -1047,7 +1047,7 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
+    session, source_table: "Table", source_query: "Query", target_table_name: str
 ):
 
     bind = session.get_bind()
@@ -1061,15 +1061,19 @@ def _move_dangling_data_to_new_table(
         source_table_name=source_table.name,
         session=session,
     )
-    target_table = table(target_table_name)
+    target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
+
     moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
     if not first_moved_row:
         # no bad rows were found; drop moved rows table.
-        session.execute(f"DROP TABLE {target_table.name}")
+        target_table.drop(bind=session.execute)
     else:
         # purge the bad rows
-        delete = source_table.delete().where(~exists_subquery.exists())
+        delete = source_table.delete().where(
+            and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+        )
+
         session.execute(delete)
 
 
@@ -1266,7 +1270,6 @@ def check_bad_references(session: Session) -> Iterable[str]:
             session,
             source_table,
             invalid_rows_query,
-            bad_rows_subquery,
             dangling_table_name,
         )
 
