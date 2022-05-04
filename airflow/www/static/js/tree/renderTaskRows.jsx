@@ -132,7 +132,7 @@ const Row = (props) => {
       <Tr
         bg={isSelected && 'blue.100'}
         borderBottomWidth={isFullyOpen ? 1 : 0}
-        borderBottomColor="gray.200"
+        borderBottomColor={isGroup && isOpen ? 'gray.400' : 'gray.200'}
         role="group"
         _hover={!isSelected && { bg: hoverBlue }}
         transition="background-color 0.2s"
