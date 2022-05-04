@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
 
-from sqlalchemy import Table, and_, column, exc, func, inspect, or_, table, text
+from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text
 from sqlalchemy.orm.session import Session
 
 import airflow
@@ -1061,9 +1061,16 @@ def _move_dangling_data_to_new_table(
         source_table_name=source_table.name,
         session=session,
     )
-
-    delete = source_table.delete().where(~exists_subquery.exists())
-    session.execute(delete)
+    target_table = table(target_table_name)
+    moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
+    first_moved_row = session.execute(moved_rows_exist_query).all()
+    if not first_moved_row:
+        # bad rows were found; drop moved rows table.
+        session.execute(f"DROP TABLE {target_table.name}")
+    else:
+        # purge the bad rows
+        delete = source_table.delete().where(~exists_subquery.exists())
+        session.execute(delete)
 
 
 def _dag_run_exists(session, source_table, dag_run):
