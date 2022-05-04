@@ -59,9 +59,11 @@ const TaskInstance = ({ taskId, runId }) => {
   const { data: { groups, dagRuns } } = useGridData();
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
-  const { executionDate } = run;
   const { data: { tasks } } = useTasks(dagId);
-  if (!group) return null;
+
+  if (!group || !run) return null;
+
+  const { executionDate } = run;
   const task = tasks.find((t) => t.taskId === taskId);
   const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
 

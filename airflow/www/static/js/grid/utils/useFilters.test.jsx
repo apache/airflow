@@ -31,7 +31,9 @@ const Wrapper = ({ children }) => (
   </MemoryRouter>
 );
 
-jest.useFakeTimers().setSystemTime(new Date('2020-01-01'));
+const date = new Date();
+date.setMilliseconds(0);
+jest.useFakeTimers().setSystemTime(date);
 
 describe('Test useFilters hook', () => {
   test('Initial values when url does not have query params', async () => {
@@ -46,7 +48,7 @@ describe('Test useFilters hook', () => {
       },
     } = result.current;
 
-    expect(baseDate).toBe(new Date('2020-01-01').toISOString().replace('Z', ''));
+    expect(baseDate).toBe(date.toISOString().replace('Z', ''));
     expect(numRuns).toBe(25);
     expect(runType).toBeNull();
     expect(runState).toBeNull();
@@ -74,7 +76,7 @@ describe('Test useFilters hook', () => {
     });
 
     if (paramName === 'baseDate') {
-      expect(result.current.filters[paramName]).toBe(new Date('2020-01-01').toISOString().replace('Z', ''));
+      expect(result.current.filters[paramName]).toBe(date.toISOString().replace('Z', ''));
     } else if (paramName === 'numRuns') {
       expect(result.current.filters[paramName]).toBe(25);
     } else {

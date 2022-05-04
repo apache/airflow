@@ -26,12 +26,15 @@ export const RUN_TYPE_PARAM = 'run_type';
 export const RUN_STATE_PARAM = 'run_state';
 export const TASK_STATE_PARAM = 'task_state';
 
+const date = new Date();
+date.setMilliseconds(0);
+
+export const now = date.toISOString().replace('Z', '');
+
 const useFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const date = new Date();
-  date.setMilliseconds(0);
-  const baseDate = searchParams.get(BASE_DATE_PARAM) || date.toISOString().replace('Z', '');
+  const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
   const numRuns = searchParams.get(NUM_RUNS_PARAM) || 25;
   const runType = searchParams.get(RUN_TYPE_PARAM);
   const runState = searchParams.get(RUN_STATE_PARAM);

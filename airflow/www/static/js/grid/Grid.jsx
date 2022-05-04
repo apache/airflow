@@ -52,7 +52,7 @@ const Grid = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
 
-  const { data: { groups, dagRuns }, isSuccess } = useGridData();
+  const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
@@ -123,38 +123,32 @@ const Grid = () => {
           Details Panel
         </Button>
       </Flex>
-      {isSuccess ? (
-        <Flex flexDirection="row" justifyContent="space-between">
-          <Box
-            position="relative"
-            mt={2}
-            m="12px"
-            overflow="auto"
-            ref={scrollRef}
-            flexGrow={1}
-            minWidth={isOpen && '300px'}
-          >
-            <Table>
-              <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-                <DagRuns />
-              </Thead>
-              {/* TODO: remove hardcoded values. 665px is roughly the total header+footer height */}
-              <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
-                {renderTaskRows({
-                  task: groups, dagRunIds,
-                })}
-              </Tbody>
-            </Table>
-          </Box>
-          {isOpen && (
+      <Flex flexDirection="row" justifyContent="space-between">
+        <Box
+          position="relative"
+          mt={2}
+          m="12px"
+          overflow="auto"
+          ref={scrollRef}
+          flexGrow={1}
+          minWidth={isOpen && '300px'}
+        >
+          <Table>
+            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+              <DagRuns />
+            </Thead>
+            {/* TODO: remove hardcoded values. 665px is roughly the total header+footer height */}
+            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
+              {renderTaskRows({
+                task: groups, dagRunIds,
+              })}
+            </Tbody>
+          </Table>
+        </Box>
+        {isOpen && (
           <Details />
-          )}
-        </Flex>
-      ) : (
-        <Flex justifyContent="center" pt={10}>
-          <Spinner color="gray.300" width="8em" height="8em" />
-        </Flex>
-      ) }
+        )}
+      </Flex>
     </Box>
   );
 };
