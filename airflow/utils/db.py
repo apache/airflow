@@ -21,8 +21,10 @@ import logging
 import os
 import sys
 import time
+import types
 import warnings
 from dataclasses import dataclass
+from inspect import isgeneratorfunction
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
 
@@ -1016,11 +1018,18 @@ def _create_table_as_or_insert(
     source_query: "Query",
     target_table_name: str,
     source_table_name: str,
-    create=True,
+    create: bool = True,
 ):
     """
     Create a new table with rows from query.
     We have to handle CTAS differently for different dialects.
+
+    :param session: SQLAlchemy session
+    :param dialect_name: e.g. postgres or sqlite
+    :param source_query: query for rows to move
+    :param target_table_name: where to move to
+    :param source_table_name: table selecting from
+    :param create: whether new table should be created, or whether we should append to existing
     """
     from sqlalchemy import column, select, table
 
@@ -1065,7 +1074,17 @@ def _move_dangling_data_to_new_table(
     target_table_name: str,
     append=False,
 ):
+    """
+    Used in check for bad references. Is run prior to adding FKs or other constraints.
 
+    :param session: SQLAlchemy session
+    :param source_table: table object moving rows from
+    :param source_query: query to return all bad rows
+    :param exists_subquery: the ``exists`` portion of the bad rows query,
+        used to delete bad rows after moving
+    :param target_table_name: where to move the rows
+    :param append: whether we should CTAS or append
+    """
     bind = session.get_bind()
     dialect_name = bind.dialect.name
 
@@ -1287,7 +1306,10 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         check_bad_references,
     )
     for check_fn in check_functions:
-        yield from check_fn(session=session)
+        if isgeneratorfunction(check_fn):
+            yield from check_fn(session=session)
+        else:
+            check_fn(session=session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
 
