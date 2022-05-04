@@ -1237,14 +1237,14 @@ def check_bad_references(session: Session) -> Iterable[str]:
         if "run_id" in source_table.columns:
             continue
 
-        log.info("checking for bad references in table %s", source_table.name)
+        log.info("Checking for bad references in table %s", source_table.name)
 
         bad_rows_subquery = bad_ref_cfg.exists_func(session, source_table, **exists_func_kwargs)
         select_list = [x.label(x.name) for x in source_table.c]
         invalid_rows_query = session.query(*select_list).filter(~bad_rows_subquery.exists())
         invalid_row_count = invalid_rows_query.count()
         if invalid_row_count <= 0:
-            log.info("no bad references in table %s", source_table.name)
+            log.info("No bad references in table %s", source_table.name)
             continue
 
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, 'dangling')
@@ -1258,7 +1258,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
             errored = True
             continue
 
-        log.info("moving bad references from table %s", source_table.name)
+        log.info("Moving bad references from table %s", source_table.name)
         _move_dangling_data_to_new_table(
             session,
             source_table,
