@@ -26,6 +26,7 @@ import socket
 import sys
 import traceback
 import warnings
+from bisect import insort_left
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
@@ -2628,6 +2629,13 @@ class Airflow(AirflowBaseView):
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
+        default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
+
+        num_runs_options = [5, 25, 50, 100, 365]
+
+        if default_dag_run_display_number not in num_runs_options:
+            insort_left(num_runs_options, default_dag_run_display_number)
+
         return self.render_template(
             'airflow/grid.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
@@ -2641,12 +2649,14 @@ class Airflow(AirflowBaseView):
             external_log_name=external_log_name,
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            default_dag_run_display_number=default_dag_run_display_number,
+            task_instances=tis,
             filters_drop_down_values=htmlsafe_json_dumps(
                 {
                     "taskStates": [state.value for state in TaskInstanceState],
                     "dagStates": [state.value for state in State.dag_states],
                     "runTypes": [run_type.value for run_type in DagRunType],
-                    "numRuns": [5, 25, 50, 100, 365],
+                    "numRuns": num_runs_options,
                 }
             ),
         )

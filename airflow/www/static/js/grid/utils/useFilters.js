@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global defaultDagRunDisplayNumber */
+
 import { useSearchParams } from 'react-router-dom';
 
 // Params names
@@ -35,7 +37,7 @@ const useFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
-  const numRuns = searchParams.get(NUM_RUNS_PARAM) || 25;
+  const numRuns = searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber;
   const runType = searchParams.get(RUN_TYPE_PARAM);
   const runState = searchParams.get(RUN_STATE_PARAM);
   // taskState is only used to change the opacity of the tasks,

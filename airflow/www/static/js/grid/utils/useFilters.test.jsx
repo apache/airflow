@@ -49,7 +49,7 @@ describe('Test useFilters hook', () => {
     } = result.current;
 
     expect(baseDate).toBe(date.toISOString().replace('Z', ''));
-    expect(numRuns).toBe(25);
+    expect(numRuns).toBe(global.defaultDagRunDisplayNumber);
     expect(runType).toBeNull();
     expect(runState).toBeNull();
     expect(taskState).toBeNull();
@@ -78,7 +78,7 @@ describe('Test useFilters hook', () => {
     if (paramName === 'baseDate') {
       expect(result.current.filters[paramName]).toBe(date.toISOString().replace('Z', ''));
     } else if (paramName === 'numRuns') {
-      expect(result.current.filters[paramName]).toBe(25);
+      expect(result.current.filters[paramName]).toBe(global.defaultDagRunDisplayNumber);
     } else {
       expect(result.current.filters[paramName]).toBeNull();
     }
