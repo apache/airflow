@@ -1287,7 +1287,6 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         check_bad_references,
     )
     for check_fn in check_functions:
-        log.info("running pre-migration check %s", check_fn.__name__)
         yield from check_fn(session=session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
