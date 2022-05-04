@@ -912,6 +912,7 @@ extra-links:
   - airflow.providers.google.cloud.links.bigtable.BigtableClusterLink
   - airflow.providers.google.cloud.links.bigtable.BigtableTablesLink
   - airflow.providers.google.common.links.storage.StorageLink
+  - airflow.providers.google.common.links.storage.FileDetailsLink
 
 additional-extras:
   apache.beam: apache-beam[gcp]
