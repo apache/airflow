@@ -298,7 +298,7 @@ class CloudTasksHook(GoogleBaseHook):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[Queue]:
+    ) -> Queue:
         """
         Purges a queue by deleting all of its tasks from Cloud Tasks.
 
@@ -333,7 +333,7 @@ class CloudTasksHook(GoogleBaseHook):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[Queue]:
+    ) -> Queue:
         """
         Pauses a queue in Cloud Tasks.
 
@@ -368,7 +368,7 @@ class CloudTasksHook(GoogleBaseHook):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[Queue]:
+    ) -> Queue:
         """
         Resumes a queue in Cloud Tasks.
 

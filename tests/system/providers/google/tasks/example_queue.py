@@ -18,18 +18,17 @@
 
 """
 Example Airflow DAG that creates, gets, lists, updates, purges, pauses, resumes
-and deletes Queues and creates, gets, lists, runs and deletes Tasks in the Google
-Cloud Tasks service in the Google Cloud.
+and deletes Queues in the Google Cloud Tasks service in the Google Cloud.
 """
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
-from google.protobuf import timestamp_pb2
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.tasks import (
@@ -41,44 +40,43 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueResumeOperator,
     CloudTasksQueuesListOperator,
     CloudTasksQueueUpdateOperator,
-    CloudTasksTaskCreateOperator,
-    CloudTasksTaskDeleteOperator,
-    CloudTasksTaskGetOperator,
-    CloudTasksTaskRunOperator,
-    CloudTasksTasksListOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-timestamp = timestamp_pb2.Timestamp()
-timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "cloud_tasks_queue"
 
-LOCATION = "europe-west1"
-QUEUE_ID = os.environ.get('GCP_TASKS_QUEUE_ID', "cloud-tasks-queue")
-TASK_NAME = "task-to-run"
+LOCATION = "europe-central2"
+QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 
-
-TASK = {
-    "app_engine_http_request": {  # Specify the type of request.
-        "http_method": "POST",
-        "relative_uri": "/example_task_handler",
-        "body": b"Hello",
-    },
-    "schedule_time": timestamp,
-}
 
 with models.DAG(
-    "example_gcp_tasks",
-    schedule_interval='@once',  # Override to match your needs
+    dag_id=DAG_ID,
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=['example', "tasks"],
 ) as dag:
 
-    # Queue operations
+    @task(task_id="random_string")
+    def generate_random_string():
+        """
+        Generate random string for queue and task names.
+        Queue name cannot be repeated in preceding 7 days and
+        task name in the last 1 hour.
+        """
+        import random
+        import string
+
+        return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+    random_string = generate_random_string()
+
     # [START create_queue]
     create_queue = CloudTasksQueueCreateOperator(
         location=LOCATION,
         task_queue=Queue(stackdriver_logging_config=dict(sampling_ratio=0.5)),
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id="create_queue",
@@ -88,15 +86,16 @@ with models.DAG(
     # [START delete_queue]
     delete_queue = CloudTasksQueueDeleteOperator(
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_id="delete_queue",
     )
     # [END delete_queue]
+    delete_queue.trigger_rule = TriggerRule.ALL_DONE
 
     # [START resume_queue]
     resume_queue = CloudTasksQueueResumeOperator(
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_id="resume_queue",
     )
     # [END resume_queue]
@@ -104,7 +103,7 @@ with models.DAG(
     # [START pause_queue]
     pause_queue = CloudTasksQueuePauseOperator(
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_id="pause_queue",
     )
     # [END pause_queue]
@@ -112,7 +111,7 @@ with models.DAG(
     # [START purge_queue]
     purge_queue = CloudTasksQueuePurgeOperator(
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_id="purge_queue",
     )
     # [END purge_queue]
@@ -120,7 +119,7 @@ with models.DAG(
     # [START get_queue]
     get_queue = CloudTasksQueueGetOperator(
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_id="get_queue",
     )
 
@@ -130,13 +129,11 @@ with models.DAG(
     )
     # [END get_queue]
 
-    get_queue >> get_queue_result
-
     # [START update_queue]
     update_queue = CloudTasksQueueUpdateOperator(
         task_queue=Queue(stackdriver_logging_config=dict(sampling_ratio=1)),
         location=LOCATION,
-        queue_name=QUEUE_ID,
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         update_mask=FieldMask(paths=["stackdriver_logging_config.sampling_ratio"]),
         task_id="update_queue",
     )
@@ -147,55 +144,26 @@ with models.DAG(
     # [END list_queue]
 
     chain(
+        random_string,
         create_queue,
         update_queue,
         pause_queue,
         resume_queue,
         purge_queue,
         get_queue,
+        get_queue_result,
         list_queue,
         delete_queue,
     )
 
-    # Tasks operations
-    # [START create_task]
-    create_task = CloudTasksTaskCreateOperator(
-        location=LOCATION,
-        queue_name=QUEUE_ID,
-        task=TASK,
-        task_name=TASK_NAME,
-        retry=Retry(maximum=10.0),
-        timeout=5,
-        task_id="create_task_to_run",
-    )
-    # [END create_task]
+    from tests.system.utils.watcher import watcher
 
-    # [START tasks_get]
-    tasks_get = CloudTasksTaskGetOperator(
-        location=LOCATION,
-        queue_name=QUEUE_ID,
-        task_name=TASK_NAME,
-        task_id="tasks_get",
-    )
-    # [END tasks_get]
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
-    # [START run_task]
-    run_task = CloudTasksTaskRunOperator(
-        location=LOCATION,
-        queue_name=QUEUE_ID,
-        task_name=TASK_NAME,
-        task_id="run_task",
-    )
-    # [END run_task]
 
-    # [START list_tasks]
-    list_tasks = CloudTasksTasksListOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="list_tasks")
-    # [END list_tasks]
+from tests.system.utils import get_test_run  # noqa: E402
 
-    # [START delete_task]
-    delete_task = CloudTasksTaskDeleteOperator(
-        location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="delete_task"
-    )
-    # [END delete_task]
-
-    chain(purge_queue, create_task, tasks_get, list_tasks, run_task, delete_task, delete_queue)
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

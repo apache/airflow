@@ -56,7 +56,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
         mock_hook.return_value.create_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueueCreateOperator(location=LOCATION, task_queue=TEST_QUEUE, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -80,7 +80,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
         mock_hook.return_value.update_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueueUpdateOperator(task_queue=Queue(name=FULL_QUEUE_PATH), task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -105,7 +105,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
         mock_hook.return_value.get_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueueGetOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -128,7 +128,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
         mock_hook.return_value.list_queues.return_value = [TEST_QUEUE]
         operator = CloudTasksQueuesListOperator(location=LOCATION, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert [{'name': FULL_QUEUE_PATH, 'state': 0}] == result
         mock_hook.assert_called_once_with(
@@ -152,7 +152,7 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
         mock_hook.return_value.delete_queue.return_value = None
         operator = CloudTasksQueueDeleteOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        operator.execute(context=None)
+        operator.execute(context=mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -174,7 +174,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
         mock_hook.return_value.purge_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueuePurgeOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -197,7 +197,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
         mock_hook.return_value.pause_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueuePauseOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -220,7 +220,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
         mock_hook.return_value.resume_queue.return_value = TEST_QUEUE
         operator = CloudTasksQueueResumeOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {'name': FULL_QUEUE_PATH, 'state': 0} == result
         mock_hook.assert_called_once_with(
@@ -245,7 +245,7 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task=Task(), task_id="id"
         )
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {
             'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
@@ -279,7 +279,7 @@ class TestCloudTasksTaskGet(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {
             'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
@@ -310,7 +310,7 @@ class TestCloudTasksTasksList(unittest.TestCase):
         mock_hook.return_value.list_tasks.return_value = [TEST_TASK]
         operator = CloudTasksTasksListOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert [
             {
@@ -350,7 +350,7 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
 
-        operator.execute(context=None)
+        operator.execute(context=mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -375,7 +375,7 @@ class TestCloudTasksTaskRun(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
 
-        result = operator.execute(context=None)
+        result = operator.execute(context=mock.MagicMock())
 
         assert {
             'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
