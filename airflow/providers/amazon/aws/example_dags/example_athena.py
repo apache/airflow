@@ -86,7 +86,7 @@ with DAG(
 
     # [START howto_athena_operator]
     read_table = AthenaOperator(
-        task_id='query_table',
+        task_id='read_table',
         query=QUERY_READ_TABLE,
         database=ATHENA_DATABASE,
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',

@@ -47,6 +47,7 @@ see the `Sample DAG <https://github.com/apache/airflow/blob/main/airflow/provide
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
     :language: python
     :start-after: [START howto_athena_operator]
+    :dedent: 4
     :end-before: [END howto_athena_operator]
 
 .. _howto/operator:AthenaSensor:
@@ -60,6 +61,7 @@ to wait for the results of a query in Amazon Athena.
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
     :language: python
     :start-after: [START howto_athena_sensor]
+    :dedent: 4
     :end-before: [END howto_athena_sensor]
 
 
