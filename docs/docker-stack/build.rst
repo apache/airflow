@@ -550,16 +550,16 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.6`` with latest PyPI-released Airflow,
-with default set of Airflow extras and dependencies. The ``2.0.2`` constraints are used automatically.
+The following example builds the production image in version ``3.7`` with latest PyPI-released Airflow,
+with default set of Airflow extras and dependencies. The latest PyPI-released Airflow constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.7`` with default extras from ``2.0.2`` PyPI
-package. The ``2.0.2`` constraints are used automatically.
+The following example builds the production image in version ``3.7`` with default extras from ``2.3.0`` Airflow
+package. The ``2.3.0`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
     :language: bash
@@ -567,7 +567,7 @@ package. The ``2.0.2`` constraints are used automatically.
     :end-before: [END build]
 
 The following example builds the production image in version ``3.8`` with additional airflow extras
-(``mssql,hdfs``) from ``2.0.2`` PyPI package, and additional dependency (``oauth2client``).
+(``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
     :language: bash
@@ -593,7 +593,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example the production image in version ``3.6`` with additional airflow extras from ``2.0.2``
+The following example the production image in version ``3.7`` with additional airflow extras from ``2.0.2``
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
