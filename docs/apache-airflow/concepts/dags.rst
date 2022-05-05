@@ -41,21 +41,21 @@ which will add the DAG to anything inside it implicitly::
         "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule_interval="@daily", catchup=False
     ) as dag:
-        op = DummyOperator(task_id="task")
+        op = EmptyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
     my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                  schedule_interval="@daily", catchup=False)
-    op = DummyOperator(task_id="task", dag=my_dag)
+    op = EmptyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
     @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
          schedule_interval="@daily", catchup=False)
     def generate_dag():
-        op = DummyOperator(task_id="task")
+        op = EmptyOperator(task_id="task")
 
     dag = generate_dag()
 
@@ -94,7 +94,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
 
@@ -309,8 +309,8 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         dag=dag,
     )
 
-    continue_op = DummyOperator(task_id="continue_task", dag=dag)
-    stop_op = DummyOperator(task_id="stop_task", dag=dag)
+    continue_op = EmptyOperator(task_id="continue_task", dag=dag)
+    stop_op = EmptyOperator(task_id="stop_task", dag=dag)
 
     start_op >> branch_op >> [continue_op, stop_op]
 
@@ -403,7 +403,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         import pendulum
 
         from airflow.models import DAG
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
         from airflow.operators.python import BranchPythonOperator
 
         dag = DAG(
@@ -412,17 +412,17 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
-        run_this_first = DummyOperator(task_id="run_this_first", dag=dag)
+        run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
         branching = BranchPythonOperator(
             task_id="branching", dag=dag, python_callable=lambda: "branch_a"
         )
 
-        branch_a = DummyOperator(task_id="branch_a", dag=dag)
-        follow_branch_a = DummyOperator(task_id="follow_branch_a", dag=dag)
+        branch_a = EmptyOperator(task_id="branch_a", dag=dag)
+        follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)
 
-        branch_false = DummyOperator(task_id="branch_false", dag=dag)
+        branch_false = EmptyOperator(task_id="branch_false", dag=dag)
 
-        join = DummyOperator(task_id="join", dag=dag)
+        join = EmptyOperator(task_id="join", dag=dag)
 
         run_this_first >> branching
         branching >> branch_a >> follow_branch_a >> join
@@ -446,12 +446,12 @@ For example, here is a DAG that uses a ``for`` loop to define some Tasks::
 
     with DAG("loop_example") as dag:
 
-        first = DummyOperator(task_id="first")
-        last = DummyOperator(task_id="last")
+        first = EmptyOperator(task_id="first")
+        last = EmptyOperator(task_id="last")
 
         options = ["branch_a", "branch_b", "branch_c", "branch_d"]
         for option in options:
-            t = DummyOperator(task_id=option)
+            t = EmptyOperator(task_id=option)
             first >> t >> last
 
 In general, we advise you to try and keep the *topology* (the layout) of your DAG tasks relatively stable; dynamic DAGs are usually better used for dynamically loading configuration options or changing operator options.
@@ -484,10 +484,10 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``::
 
     with TaskGroup("group1") as group1:
-        task1 = DummyOperator(task_id="task1")
-        task2 = DummyOperator(task_id="task2")
+        task1 = EmptyOperator(task_id="task1")
+        task2 = EmptyOperator(task_id="task2")
 
-    task3 = DummyOperator(task_id="task3")
+    task3 = EmptyOperator(task_id="task3")
 
     group1 >> task3
 
@@ -503,7 +503,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
         default_args={'retries': 1},
     ):
         with TaskGroup('group1', default_args={'retries': 3}):
-            task1 = DummyOperator(task_id='task1')
+            task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
             print(task2.retries) # 2
