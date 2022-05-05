@@ -20,7 +20,8 @@
 /* global localStorage, CustomEvent, document */
 
 import React, { useState } from 'react';
-import { Button } from '@chakra-ui/react';
+import { Flex, IconButton } from '@chakra-ui/react';
+import { MdExpand, MdCompress } from 'react-icons/md';
 
 import { getMetaValue } from '../utils';
 
@@ -39,43 +40,52 @@ const getGroupIds = (groups) => {
 };
 
 const ToggleGroups = ({ groups }) => {
-  const storageKey = `${dagId}-open-groups`;
+  const openGroupsKey = `${dagId}-open-groups`;
   const allGroupIds = getGroupIds(groups.children);
-  const openGroupIds = JSON.parse(localStorage.getItem(storageKey)) || [];
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
-  // Default to expand all if at least one group is closed
-  const [shouldExpand, setShouldExpand] = useState(allGroupIds.length > openGroupIds.length);
+  const isExpandDisabled = allGroupIds.length === openGroupIds.length;
+  const isCollapseDisabled = !openGroupIds.length;
 
   // Don't show button if the DAG has no task groups
   const hasGroups = groups.children.find((c) => !!c.children);
   if (!hasGroups) return null;
 
-  const onToggle = () => {
-    // Dispatch an event to expand/collapse so the respective task component can update
-    if (shouldExpand) {
-      const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: true } });
-      document.dispatchEvent(closeEvent);
-      localStorage.setItem(storageKey, JSON.stringify(allGroupIds));
-    } else {
-      const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, closeGroups: true } });
-      document.dispatchEvent(closeEvent);
-      localStorage.removeItem(storageKey);
-    }
-    setShouldExpand(!shouldExpand);
+  const onExpand = () => {
+    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: true } });
+    document.dispatchEvent(closeEvent);
+    localStorage.setItem(openGroupsKey, JSON.stringify(allGroupIds));
+    setOpenGroupIds(allGroupIds);
   };
 
-  const action = shouldExpand ? 'Expand' : 'Collapse';
+  const onCollapse = () => {
+    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, closeGroups: true } });
+    document.dispatchEvent(closeEvent);
+    localStorage.removeItem(openGroupsKey);
+    setOpenGroupIds([]);
+  };
 
   return (
-    <Button
-      onClick={onToggle}
-      mr={2}
-      title={`${action} all task groups`}
-      aria-label={`${action} all task groups`}
-    >
-      {action}
-      {' all'}
-    </Button>
+    <Flex>
+      <IconButton
+        fontSize="2xl"
+        onClick={onExpand}
+        title="Expand all task groups"
+        aria-label="Expand all task groups"
+        icon={<MdExpand />}
+        isDisabled={isExpandDisabled}
+        mr={2}
+      />
+      <IconButton
+        fontSize="2xl"
+        onClick={onCollapse}
+        title="Collapse all task groups"
+        aria-label="Collapse all task groups"
+        isDisabled={isCollapseDisabled}
+        icon={<MdCompress />}
+      />
+    </Flex>
   );
 };
 

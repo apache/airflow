@@ -111,28 +111,34 @@ const mockGridData = {
   ],
 };
 
+const EXPAND = 'Expand all task groups';
+const COLLAPSE = 'Collapse all task groups';
+
 describe('Test ToggleGroups', () => {
-  test('Button text changes on click', () => {
-    const { getByText } = render(
+  test('Buttons are disabled if all groups are expanded or collapsed', () => {
+    const { getByTitle } = render(
       <ToggleGroups groups={mockGridData.groups} />,
       { wrapper: Wrapper },
     );
 
-    const toggleButton = getByText('Expand all');
+    const expandButton = getByTitle(EXPAND);
+    const collapseButton = getByTitle(COLLAPSE);
 
-    expect(toggleButton).toBeInTheDocument();
+    expect(expandButton).toBeEnabled();
+    expect(collapseButton).toBeDisabled();
 
-    fireEvent.click(toggleButton);
+    fireEvent.click(expandButton);
 
-    expect(getByText('Collapse all')).toBeInTheDocument();
+    expect(collapseButton).toBeEnabled();
+    expect(expandButton).toBeDisabled();
   });
 
-  test('Toggle button opens and closes nested groups', async () => {
+  test('Expand/collapse buttons toggle nested groups', async () => {
     global.gridData = mockGridData;
     const dagRunIds = mockGridData.dagRuns.map((dr) => dr.runId);
     const task = mockGridData.groups;
 
-    const { getByText, queryAllByTestId } = render(
+    const { getByText, queryAllByTestId, getByTitle } = render(
       <Flex>
         <ToggleGroups groups={task} />
         <Table>
@@ -144,7 +150,8 @@ describe('Test ToggleGroups', () => {
       { wrapper: Wrapper },
     );
 
-    const toggleButton = getByText('Collapse all');
+    const expandButton = getByTitle(EXPAND);
+    const collapseButton = getByTitle(COLLAPSE);
 
     const groupName = getByText('group_1');
 
@@ -154,14 +161,14 @@ describe('Test ToggleGroups', () => {
     expect(queryAllByTestId('open-group')).toHaveLength(2);
     expect(queryAllByTestId('closed-group')).toHaveLength(0);
 
-    fireEvent.click(toggleButton);
+    fireEvent.click(collapseButton);
 
     await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(1));
     expect(queryAllByTestId('open-group')).toHaveLength(0);
     // Since the groups are nested, only the parent row is rendered
     expect(queryAllByTestId('closed-group')).toHaveLength(1);
 
-    fireEvent.click(toggleButton);
+    fireEvent.click(expandButton);
 
     await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(3));
     expect(queryAllByTestId('open-group')).toHaveLength(2);
