@@ -491,6 +491,11 @@ Tests
 -----
 
 * Run docker-compose tests with ``breeze docker-compose-tests`` command.
+* Run test specified with ``breeze tests`` command.
+
+.. image:: ./images/breeze/output-tests.svg
+  :width: 100%
+  :alt: Breeze tests
 
 Kubernetes tests
 ----------------

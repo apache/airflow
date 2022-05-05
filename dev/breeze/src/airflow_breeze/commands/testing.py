@@ -44,9 +44,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 TESTING_COMMANDS = {
     "name": "Testing",
-    "commands": [
-        "docker-compose-tests",
-    ],
+    "commands": ["docker-compose-tests", "tests"],
 }
 
 TESTING_PARAMETERS = {
@@ -57,6 +55,16 @@ TESTING_PARAMETERS = {
                 "--image-name",
                 "--python",
                 "--image-tag",
+            ],
+        }
+    ],
+    "breeze tests": [
+        {
+            "name": "Basic flag for tests command",
+            "options": [
+                "--integration",
+                "--test-type",
+                "--db-reset",
             ],
         }
     ],
@@ -104,15 +112,11 @@ def docker_compose_tests(
 
 @main.command(
     name='tests',
-    help="""
-    Run the specified unit test target. There might be multiple
-      targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-      as additional options passed to pytest. Running breeze tests without any arguments
-      will run all tests. For example:
-
-      'breeze tests tests/core/test_core.py'
-      'breeze tests
-""",
+    help="Run the specified unit test targets. Multiple targets may be specified separated by spaces.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
 )
 @option_dry_run
 @option_verbose
