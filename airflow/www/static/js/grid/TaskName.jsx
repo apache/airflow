@@ -25,13 +25,13 @@ import {
 import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
 const TaskName = ({
-  isGroup = false, isMapped = false, onToggle, isOpen, level, taskName,
+  isGroup = false, isMapped = false, onToggle, isOpen, level, label,
 }) => (
   <Flex
     as={isGroup ? 'button' : 'div'}
     onClick={onToggle}
-    aria-label={taskName}
-    title={taskName}
+    aria-label={label}
+    title={label}
     mr={4}
     width="100%"
     alignItems="center"
@@ -42,7 +42,7 @@ const TaskName = ({
       ml={level * 4 + 4}
       isTruncated
     >
-      {taskName}
+      {label}
       {isMapped && (
         ' [ ]'
       )}

@@ -17,9 +17,9 @@
  * under the License.
  */
 
-/* global localStorage */
+/* global localStorage, document */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   Tr,
   Td,
@@ -51,7 +51,6 @@ const renderTaskRows = ({
     key={t.id}
     task={t}
     level={level}
-    prevTaskId={task.id}
   />
 ));
 
@@ -88,11 +87,12 @@ const TaskInstances = ({
   </Flex>
 );
 
+const openGroupsKey = `${dagId}/open-groups`;
+
 const Row = (props) => {
   const {
     task,
     level,
-    prevTaskId,
     isParentOpen = true,
     dagRunIds,
   } = props;
@@ -103,23 +103,43 @@ const Row = (props) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const taskName = prevTaskId ? task.id.replace(`${prevTaskId}.`, '') : task.id;
+  const openGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+  const defaultIsOpen = openGroups.some((g) => g === task.label);
 
-  const storageKey = `${dagId}-open-groups`;
-  const openGroups = JSON.parse(localStorage.getItem(storageKey)) || [];
-  const isGroupId = openGroups.some((g) => g === taskName);
-  const onOpen = () => {
-    localStorage.setItem(storageKey, JSON.stringify([...openGroups, taskName]));
-  };
-  const onClose = () => {
-    localStorage.setItem(storageKey, JSON.stringify(openGroups.filter((g) => g !== taskName)));
-  };
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
+  const {
+    isOpen, onToggle, onOpen, onClose,
+  } = useDisclosure({ defaultIsOpen });
+
+  // Listen to changes from ToggleGroups
+  useEffect(() => {
+    const handleChange = ({ detail }) => {
+      if (detail.dagId === dagId) {
+        if (detail.closeGroups) onClose();
+        else if (detail.openGroups) onOpen();
+      }
+    };
+    if (isGroup) document.addEventListener('toggleGroups', handleChange);
+    return () => {
+      if (isGroup) document.removeEventListener('toggleGroups', handleChange);
+    };
+  });
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
-    () => isGroup && onToggle(),
-    [onToggle, isGroup],
+    () => {
+      if (isGroup) {
+        if (!isOpen) {
+          localStorage.setItem(openGroupsKey, JSON.stringify([...openGroups, task.label]));
+        } else {
+          localStorage.setItem(
+            openGroupsKey,
+            JSON.stringify(openGroups.filter((g) => g !== task.label)),
+          );
+        }
+        onToggle();
+      }
+    },
+    [onToggle, isGroup, isOpen, openGroups, task.label],
   );
 
   const parentTasks = task.id.split('.');
@@ -154,7 +174,7 @@ const Row = (props) => {
               onToggle={memoizedToggle}
               isGroup={isGroup}
               isMapped={task.isMapped}
-              taskName={taskName}
+              label={task.label}
               isOpen={isOpen}
               level={level}
             />

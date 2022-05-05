@@ -41,6 +41,7 @@ import DagRuns from './dagRuns';
 import Details from './details';
 import useSelection from './utils/useSelection';
 import { useAutoRefresh } from './context/autorefresh';
+import ToggleGroups from './ToggleGroups';
 
 const sidePanelKey = 'hideSidePanel';
 
@@ -86,22 +87,25 @@ const Grid = () => {
 
   return (
     <Box>
-      <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
-        <ResetRoot />
-        <FormControl display="flex" width="auto" mr={2}>
-          {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-          <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
-            Auto-refresh
-          </FormLabel>
-          <Switch
-            id="auto-refresh"
-            onChange={() => toggleRefresh(true)}
-            isDisabled={isPaused}
-            isChecked={isRefreshOn}
-            size="lg"
-            title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
-          />
-        </FormControl>
+      <Flex flexGrow={1} justifyContent="space-between" alignItems="center">
+        <Flex alignItems="center">
+          <FormControl display="flex" width="auto" mr={2}>
+            {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
+            <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
+              Auto-refresh
+            </FormLabel>
+            <Switch
+              id="auto-refresh"
+              onChange={() => toggleRefresh(true)}
+              isDisabled={isPaused}
+              isChecked={isRefreshOn}
+              size="lg"
+              title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+            />
+          </FormControl>
+          <ToggleGroups groups={groups} />
+          <ResetRoot />
+        </Flex>
         <Button
           onClick={toggleSidePanel}
           aria-label={isOpen ? 'Show Details' : 'Hide Details'}
