@@ -38,13 +38,21 @@ from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverUpsertAlertOperator,
     StackdriverUpsertNotificationChannelOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+DAG_ID = "stackdriver"
+
+ALERT_1_NAME = f"alert_{ENV_ID}_1"
+ALERT_2_NAME = f"alert_{ENV_ID}_2"
+CHANNEL_1_NAME = f"channel_{ENV_ID}_1"
+CHANNEL_2_NAME = f"channel_{ENV_ID}_2"
 
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
     "enabled": True,
-    "display_name": "test alert 1",
+    "display_name": ALERT_1_NAME,
     "conditions": [
         {
             "condition_threshold": {
@@ -66,7 +74,7 @@ TEST_ALERT_POLICY_1 = {
                     }
                 ],
             },
-            "display_name": "test_alert_policy_1",
+            "display_name": f"{ALERT_1_NAME}_policy_1",
         }
     ],
 }
@@ -74,7 +82,7 @@ TEST_ALERT_POLICY_1 = {
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
     "enabled": False,
-    "display_name": "test alert 2",
+    "display_name": ALERT_2_NAME,
     "conditions": [
         {
             "condition_threshold": {
@@ -96,31 +104,31 @@ TEST_ALERT_POLICY_2 = {
                     }
                 ],
             },
-            "display_name": "test_alert_policy_2",
+            "display_name": f"{ALERT_2_NAME}_policy_2",
         }
     ],
 }
 
 TEST_NOTIFICATION_CHANNEL_1 = {
-    "display_name": "channel1",
+    "display_name": CHANNEL_1_NAME,
     "enabled": True,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
     "type_": "slack",
 }
 
 TEST_NOTIFICATION_CHANNEL_2 = {
-    "display_name": "channel2",
+    "display_name": CHANNEL_2_NAME,
     "enabled": False,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
     "type_": "slack",
 }
 
 with models.DAG(
-    'example_stackdriver',
-    schedule_interval='@once',  # Override to match your needs
+    dag_id=DAG_ID,
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=['example', "stackdriver"],
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
     create_notification_channel = StackdriverUpsertNotificationChannelOperator(
@@ -137,7 +145,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_disable_notification_channel]
     disable_notification_channel = StackdriverDisableNotificationChannelsOperator(
-        task_id='disable-notification-channel', filter_='displayName="channel1"'
+        task_id='disable-notification-channel', filter_=f'displayName="{CHANNEL_1_NAME}"'
     )
     # [END howto_operator_gcp_stackdriver_disable_notification_channel]
 
@@ -157,14 +165,14 @@ with models.DAG(
     # [START howto_operator_gcp_stackdriver_enable_alert_policy]
     enable_alert_policy = StackdriverEnableAlertPoliciesOperator(
         task_id='enable-alert-policies',
-        filter_='(displayName="test alert 1" OR displayName="test alert 2")',
+        filter_=f'(displayName="{ALERT_1_NAME}" OR displayName="{ALERT_2_NAME}")',
     )
     # [END howto_operator_gcp_stackdriver_enable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_disable_alert_policy]
     disable_alert_policy = StackdriverDisableAlertPoliciesOperator(
         task_id='disable-alert-policies',
-        filter_='displayName="test alert 1"',
+        filter_=f'displayName="{ALERT_1_NAME}"',
     )
     # [END howto_operator_gcp_stackdriver_disable_alert_policy]
 
@@ -180,10 +188,12 @@ with models.DAG(
         name="{{ task_instance.xcom_pull('list-notification-channel')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_notification_channel]
+    delete_notification_channel.trigger_rule = TriggerRule.ALL_DONE
 
     delete_notification_channel_2 = StackdriverDeleteNotificationChannelOperator(
         task_id='delete-notification-channel-2',
         name="{{ task_instance.xcom_pull('list-notification-channel')[1]['name'] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
@@ -192,10 +202,12 @@ with models.DAG(
         name="{{ task_instance.xcom_pull('list-alert-policies')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
+    delete_alert_policy.trigger_rule = TriggerRule.ALL_DONE
 
     delete_alert_policy_2 = StackdriverDeleteAlertOperator(
         task_id='delete-alert-policy-2',
         name="{{ task_instance.xcom_pull('list-alert-policies')[1]['name'] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
@@ -212,3 +224,14 @@ with models.DAG(
         delete_alert_policy,
         delete_alert_policy_2,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

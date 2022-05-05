@@ -19,6 +19,7 @@ from unittest import mock
 
 from parameterized import parameterized
 
+from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
@@ -213,3 +214,12 @@ class TestCeleryKubernetesExecutor:
         job_id = 'this-job-id'
         cel_k8s_exec.job_id = job_id
         assert cel_exec.job_id == k8s_exec.job_id == cel_k8s_exec.job_id == job_id
+
+    def test_kubernetes_executor_knows_its_queue(self):
+        celery_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+
+        assert k8s_executor_mock.kubernetes_queue == conf.get(
+            'celery_kubernetes_executor', 'kubernetes_queue'
+        )
