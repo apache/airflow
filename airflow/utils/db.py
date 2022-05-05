@@ -1067,7 +1067,7 @@ def _move_dangling_data_to_new_table(
     first_moved_row = session.execute(moved_rows_exist_query).all()
     if not first_moved_row:
         # no bad rows were found; drop moved rows table.
-        target_table.drop(bind=session.execute)
+        target_table.drop(bind=settings.engine)
     else:
         # purge the bad rows
         delete = source_table.delete().where(
