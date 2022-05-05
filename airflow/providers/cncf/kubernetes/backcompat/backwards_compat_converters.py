@@ -16,7 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from kubernetes.client import ApiClient, models as k8s
 
@@ -149,7 +149,9 @@ def convert_secret(secret) -> k8s.V1EnvFromSource:
     return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret))
 
 
-def convert_configmap_to_volume(configmap_info: Dict[str, str]) -> ([k8s.V1Volume], [k8s.V1VolumeMount]):
+def convert_configmap_to_volume(
+    configmap_info: Dict[str, str]
+) -> Tuple[List[k8s.V1Volume], List[k8s.V1VolumeMount]]:
     """
     Converts a dictionary of config_map_name and mounth_path into k8s.V1VolumeMount and k8s.V1Volume
 

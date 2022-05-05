@@ -37,7 +37,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 
 
@@ -108,7 +107,6 @@ class SparkKubernetesOperator(BaseOperator):
     template_ext = ('yaml', 'yml', 'json')
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -121,8 +119,8 @@ class SparkKubernetesOperator(BaseOperator):
         api_plural: str = 'sparkapplications',
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
-        labels: dict = None,
-        resources: dict = None,
+        labels: Optional[dict] = None,
+        resources: Optional[dict] = None,
         number_workers: int = 1,
         env_vars: Optional[Union[List[k8s.V1EnvVar], Dict]] = None,
         env_from: Optional[List[k8s.V1EnvFromSource]] = None,
@@ -138,12 +136,12 @@ class SparkKubernetesOperator(BaseOperator):
         image_pull_secrets: Optional[Union[List[k8s.V1LocalObjectReference], str]] = None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
-        restart_policy: [dict] = None,
+        restart_policy: Optional[dict] = None,
         spark_version: str = '3.0.0',
         success_run_history_limit: int = 1,
         is_delete_operator_pod: bool = False,
         dynamic_allocation: bool = False,
-        dynamic_alloc_max_executors: int = None,
+        dynamic_alloc_max_executors: Optional[int] = None,
         dynamic_alloc_initial_executors: int = 1,
         dynamic_alloc_min_executors: int = 1,
         image_pull_policy: str = 'Always',
@@ -180,7 +178,9 @@ class SparkKubernetesOperator(BaseOperator):
         self.application_file = application_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.do_xcom_push = do_xcom_push
-        self.name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
+        self.name = PodGenerator.make_unique_pod_id(self.task_id)
+        if self.name:
+            self.name = self.name[:MAX_LABEL_LEN]
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.namespace = namespace
@@ -218,7 +218,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.spark_obj_spec = None
         self.restart_policy = restart_policy or {'type': 'Never'}
         self.hadoop_config = hadoop_config
-        self.resources = SparkResources(**resources) if resources else SparkResources()
+        self.job_resources = SparkResources(**resources) if resources else SparkResources()
 
     def get_kube_client(self):
         if self.in_cluster is not None:
@@ -314,8 +314,8 @@ class SparkKubernetesOperator(BaseOperator):
             dynamic_alloc_initial_executors=self.dynamic_alloc_initial_executors,
             dynamic_alloc_max_executors=self.dynamic_alloc_max_executors,
             dynamic_alloc_min_executors=self.dynamic_alloc_min_executors,
-            driver_resource=self.resources.driver_resources,
-            executor_resource=self.resources.executor_resources,
+            driver_resource=self.job_resources.driver_resources,
+            executor_resource=self.job_resources.executor_resources,
             number_workers=self.number_workers,
             hadoop_config=self.hadoop_config,
             image_pull_secrets=self.image_pull_secrets,
