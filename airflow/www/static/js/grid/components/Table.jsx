@@ -194,7 +194,7 @@ const Table = ({
           onClick={handlePrevious}
           disabled={!canPreviousPage}
           aria-label="Previous Page"
-          data-testid="previous"
+          title="Previous Page"
           icon={<MdKeyboardArrowLeft />}
         />
         <IconButton
@@ -202,7 +202,7 @@ const Table = ({
           onClick={handleNext}
           disabled={!canNextPage}
           aria-label="Next Page"
-          data-testid="next"
+          title="Next Page"
           icon={<MdKeyboardArrowRight />}
         />
         <Text>

@@ -52,7 +52,7 @@ const columns = [
 
 describe('Test Table', () => {
   test('Displays correct data', async () => {
-    const { getAllByRole, getByText, queryByTestId } = render(
+    const { getAllByRole, getByText, queryByTitle } = render(
       <Table data={data} columns={columns} />,
       { wrapper: ChakraWrapper },
     );
@@ -63,8 +63,8 @@ describe('Test Table', () => {
     const name3 = getByText(data[2].firstName);
     const name4 = getByText(data[3].firstName);
     const name5 = getByText(data[4].firstName);
-    const previous = queryByTestId(/previous/i);
-    const next = queryByTestId(/next/i);
+    const previous = queryByTitle('Previous Page');
+    const next = queryByTitle('Next Page');
 
     // table header is a row so add 1 to expected amount
     expect(rows).toHaveLength(6);
@@ -94,7 +94,7 @@ describe('Test Table', () => {
   });
 
   test('With pagination', async () => {
-    const { getAllByRole, queryByText, getByTestId } = render(
+    const { getAllByRole, queryByText, getByTitle } = render(
       <Table data={data} columns={columns} pageSize={2} />,
       { wrapper: ChakraWrapper },
     );
@@ -104,8 +104,8 @@ describe('Test Table', () => {
     const name3 = data[2].firstName;
     const name4 = data[3].firstName;
     const name5 = data[4].firstName;
-    const previous = getByTestId(/previous/i);
-    const next = getByTestId(/next/i);
+    const previous = getByTitle('Previous Page');
+    const next = getByTitle('Next Page');
 
     /// // PAGE ONE // ///
     // table header is a row so add 1 to expected amount

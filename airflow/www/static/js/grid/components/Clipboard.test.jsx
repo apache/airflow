@@ -27,12 +27,13 @@ import { ClipboardButton } from './Clipboard';
 
 describe('ClipboardButton', () => {
   test('Loads button', async () => {
+    const { prompt } = window;
     window.prompt = jest.fn();
-
     const { getByText } = render(<ClipboardButton value="lorem ipsum" />);
 
     const button = getByText(/copy/i);
     fireEvent.click(button);
     expect(window.prompt).toHaveBeenCalledWith('Copy to clipboard: Ctrl+C, Enter', 'lorem ipsum');
+    window.prompt = prompt;
   });
 });
