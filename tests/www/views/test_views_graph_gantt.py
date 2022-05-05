@@ -16,14 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import timedelta
-import pytest
 from urllib.parse import quote
+
+import pytest
 
 from airflow.configuration import conf
 from airflow.models import DAG
 from airflow.utils import timezone
-from airflow.utils.state import State
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 DAG_ID = "dag_for_testing_dt_nr_dr_form"
 DEFAULT_DATE = timezone.datetime(2017, 9, 1)
@@ -225,13 +226,15 @@ def very_close_dagruns(dag, session):
     dag_runs = []
     for idx, (run_id, _) in enumerate(RUNS_DATA):
         execution_date = VERY_CLOSE_RUNS_DATE.replace(microsecond=idx)
-        dag_runs.append(dag.create_dagrun(
-            run_id=run_id+'_close',
-            execution_date=execution_date,
-            data_interval=(execution_date, execution_date),
-            state=State.SUCCESS,
-            external_trigger=True,
-        ))
+        dag_runs.append(
+            dag.create_dagrun(
+                run_id=run_id + '_close',
+                execution_date=execution_date,
+                data_interval=(execution_date, execution_date),
+                state=State.SUCCESS,
+                external_trigger=True,
+            )
+        )
     yield dag_runs
     for dag_run in dag_runs:
         session.delete(dag_run)
@@ -257,7 +260,9 @@ def test_rounds_base_date_but_queries_with_execution_date(admin_client, very_clo
 
 
 @pytest.mark.parametrize("endpoint", ENDPOINTS)
-def test_uses_execution_date_on_filter_application_if_base_date_hasnt_changed(admin_client, very_close_dagruns, endpoint):
+def test_uses_execution_date_on_filter_application_if_base_date_hasnt_changed(
+    admin_client, very_close_dagruns, endpoint
+):
     base_date = quote((VERY_CLOSE_RUNS_DATE + timedelta(seconds=1)).isoformat())
     exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
     response = admin_client.get(

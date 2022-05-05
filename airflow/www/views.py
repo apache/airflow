@@ -203,7 +203,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
     # When base_date has been rounded up because of the DateTimeField widget, we want
     # to use the execution_date as the starting point for our query just to ensure a
-    # link targetting a specific dag run actually loads that dag run.  If there are
+    # link targeting a specific dag run actually loads that dag run.  If there are
     # more than num_runs dag runs in the "rounded period" then those dagruns would get
     # loaded and the actual requested run would be excluded by the limit().  Once
     # the user has changed base date to be anything else we want to use that instead.
