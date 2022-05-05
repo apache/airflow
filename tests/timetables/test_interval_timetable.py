@@ -153,3 +153,8 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
     with pytest.raises(AirflowTimetableInvalid) as ctx:
         timetable.validate()
     assert str(ctx.value) == error_message
+
+
+def test_cron_interval_timezone_from_string():
+    timetable = CronDataIntervalTimetable("@hourly", "UTC")
+    assert timetable.serialize()['timezone'] == 'UTC'
