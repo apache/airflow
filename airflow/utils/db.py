@@ -1070,7 +1070,7 @@ def _move_dangling_data_to_new_table(
     first_moved_row = session.execute(moved_rows_exist_query).all()
     if not first_moved_row:
         log.debug("no rows moved; dropping %s", target_table_name)
-        target_table.drop(bind=settings.engine, checkfirst=True)
+        target_table.drop(bind=session.get_bind(), checkfirst=True)
     else:
         log.debug("rows moved; purging from %s", source_table.name)
         delete = source_table.delete().where(
