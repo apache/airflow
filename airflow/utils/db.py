@@ -1054,6 +1054,7 @@ def _move_dangling_data_to_new_table(
     dialect_name = bind.dialect.name
 
     # First: Create moved rows from new table
+    log.debug("running CTAS for table %s", target_table_name)
     _create_table_as(
         dialect_name=dialect_name,
         source_query=source_query,
@@ -1061,20 +1062,23 @@ def _move_dangling_data_to_new_table(
         source_table_name=source_table.name,
         session=session,
     )
-    target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
+    session.commit()  # required at least for MS Sql Server; otherwise, when no data, drop fails;
 
+    target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
+    log.debug("checking whether rows were moved for table %s", target_table_name)
     moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
     if not first_moved_row:
-        # no bad rows were found; drop moved rows table.
+        log.debug("no rows moved; dropping %s", target_table_name)
         target_table.drop(bind=settings.engine, checkfirst=True)
     else:
-        # purge the bad rows
+        log.debug("rows moved; purging from %s", source_table.name)
         delete = source_table.delete().where(
             and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
         )
-
         session.execute(delete)
+
+    log.debug("exiting move function")
 
 
 def _dag_run_exists(session, source_table, dag_run):
@@ -1237,6 +1241,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
     errored = False
 
     for model, change_version, bad_ref_cfg in models_list:
+        log.debug("checking model %s", model.__tablename__)
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
         exists_func_kwargs = {x: metadata.tables[x] for x in bad_ref_cfg.join_tables}
@@ -1266,6 +1271,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
                 )
                 errored = True
             continue
+
+        log.debug("moving data for table %s", source_table.name)
         _move_dangling_data_to_new_table(
             session,
             source_table,
@@ -1293,6 +1300,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         check_bad_references,
     )
     for check_fn in check_functions:
+        log.debug("running check function %s", check_fn.__name__)
         yield from check_fn(session=session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
         session.commit()
