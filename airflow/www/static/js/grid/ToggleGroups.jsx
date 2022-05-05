@@ -40,7 +40,7 @@ const getGroupIds = (groups) => {
 };
 
 const ToggleGroups = ({ groups }) => {
-  const openGroupsKey = `${dagId}-open-groups`;
+  const openGroupsKey = `${dagId}/open-groups`;
   const allGroupIds = getGroupIds(groups.children);
   const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
   const [openGroupIds, setOpenGroupIds] = useState(storedGroups);

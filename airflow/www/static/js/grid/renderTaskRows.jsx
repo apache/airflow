@@ -87,7 +87,7 @@ const TaskInstances = ({
   </Flex>
 );
 
-const storageKey = `${dagId}-open-groups`;
+const openGroupsKey = `${dagId}/open-groups`;
 
 const Row = (props) => {
   const {
@@ -103,7 +103,7 @@ const Row = (props) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const openGroups = JSON.parse(localStorage.getItem(storageKey)) || [];
+  const openGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
   const defaultIsOpen = openGroups.some((g) => g === task.label);
 
   const {
@@ -129,10 +129,10 @@ const Row = (props) => {
     () => {
       if (isGroup) {
         if (!isOpen) {
-          localStorage.setItem(storageKey, JSON.stringify([...openGroups, task.label]));
+          localStorage.setItem(openGroupsKey, JSON.stringify([...openGroups, task.label]));
         } else {
           localStorage.setItem(
-            storageKey,
+            openGroupsKey,
             JSON.stringify(openGroups.filter((g) => g !== task.label)),
           );
         }
