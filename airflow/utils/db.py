@@ -1047,7 +1047,7 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", target_table_name: str
+    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
 ):
 
     bind = session.get_bind()
@@ -1075,9 +1075,13 @@ def _move_dangling_data_to_new_table(
         target_table.drop(bind=session.get_bind(), checkfirst=True)
     else:
         log.debug("rows moved; purging from %s", source_table.name)
-        delete = source_table.delete().where(
-            and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
-        )
+        if dialect_name == 'sqlite':
+            delete = source_table.delete().where(~exists_subquery.exists())
+        else:
+            delete = source_table.delete().where(
+                and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+            )
+        log.debug(delete.compile())
         session.execute(delete)
 
     log.debug("exiting move function")
@@ -1279,6 +1283,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
             session,
             source_table,
             invalid_rows_query,
+            bad_rows_subquery,
             dangling_table_name,
         )
 
