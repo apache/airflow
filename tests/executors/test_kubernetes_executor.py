@@ -866,7 +866,7 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         )
         self.events = []
 
-    def _run(self):
+    def _run(self, assert_resource_version=True):
         with mock.patch('airflow.executors.kubernetes_executor.watch') as mock_watch:
             mock_watch.Watch.return_value.stream.return_value = self.events
             latest_resource_version = self.watcher._run(
@@ -875,7 +875,9 @@ class TestKubernetesJobWatcher(unittest.TestCase):
                 self.watcher.scheduler_job_id,
                 self.watcher.kube_config,
             )
-            assert self.pod.metadata.resource_version == latest_resource_version
+            if assert_resource_version:
+                assert self.pod.metadata.resource_version == latest_resource_version
+            return latest_resource_version
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
@@ -957,3 +959,29 @@ class TestKubernetesJobWatcher(unittest.TestCase):
             f"Kubernetes failure for {raw_object['reason']} "
             f"with code {raw_object['code']} and message: {raw_object['message']}"
         )
+
+    def test_last_resource_version_even_if_watch_unsorted(self):
+        pod1 = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="pod1",
+                annotations={"airflow-worker": "bar", **self.core_annotations},
+                namespace="airflow",
+                resource_version="900",
+            ),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
+        self.events.append({"type": 'MODIFIED', "object": pod1})
+
+        pod2 = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="pod2",
+                annotations={"airflow-worker": "bar", **self.core_annotations},
+                namespace="airflow",
+                resource_version="800",
+            ),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
+        self.events.append({"type": 'MODIFIED', "object": pod2})
+
+        resource_version = self._run(False)
+        assert resource_version == "900"

@@ -133,7 +133,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             for key, value in kube_config.kube_client_request_args.items():
                 kwargs[key] = value
 
-        last_resource_version: Optional[str] = None
+        last_resource_version: str = "0"
         if self.multi_namespace_mode:
             list_worker_pods = functools.partial(
                 watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
@@ -167,7 +167,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 resource_version=task.metadata.resource_version,
                 event=event,
             )
-            last_resource_version = task.metadata.resource_version
+            task_resource_version = task.metadata.resource_version
+            if task_resource_version:
+                last_resource_version = str(max(int(last_resource_version), int(task_resource_version)))
 
         return last_resource_version
 
