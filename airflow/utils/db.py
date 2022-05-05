@@ -1062,12 +1062,14 @@ def _move_dangling_data_to_new_table(
         source_table_name=source_table.name,
         session=session,
     )
-    session.commit()  # required at least for MS Sql Server; otherwise, when no data, drop fails;
+    session.commit()
 
     target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
     log.debug("checking whether rows were moved for table %s", target_table_name)
     moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
+    session.commit()
+
     if not first_moved_row:
         log.debug("no rows moved; dropping %s", target_table_name)
         target_table.drop(bind=session.get_bind(), checkfirst=True)
