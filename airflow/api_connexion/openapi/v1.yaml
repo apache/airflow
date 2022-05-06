@@ -1183,6 +1183,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
