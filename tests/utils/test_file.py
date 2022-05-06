@@ -80,6 +80,7 @@ class TestOpenMaybeZipped(unittest.TestCase):
 class TestListPyFilesPath(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.test_dir = tempfile.mkdtemp(prefix="onotole")
         source = os.path.join(self.test_dir, "folder")
         target = os.path.join(self.test_dir, "symlink")
@@ -97,6 +98,7 @@ class TestListPyFilesPath(unittest.TestCase):
     def tearDown(self):
         if self.test_dir:
             import shutil
+
             shutil.rmtree(self.test_dir)
 
     def test_find_path_from_directory_regex_ignore(self):
