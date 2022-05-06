@@ -19,6 +19,7 @@ import json
 from unittest import mock
 
 import pytest
+from freezegun import freeze_time
 from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
@@ -1505,6 +1506,7 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
     return_value=_ForceHeartbeatCeleryExecutor(),
 )
 class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
+    @freeze_time("2021-01-01T11:11:11.243929")
     def test_task_instance_run_return_200(self, executor, session):
         self.ti_init["state"] = State.NONE
         self.create_task_instances(session)
@@ -1523,12 +1525,34 @@ class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
             },
         )
 
-        msg = (
-            f"Sent <TaskInstance: {dag_id}.{task_id} {run_id} [None]> "
-            "to the message queue, it should start any moment now."
-        )
+        expected = {
+            "dag_id": "example_python_operator",
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": DEFAULT_DATETIME_STR_1,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 6,
+            "queue": "default",
+            "queued_when": "2021-01-01T11:11:11.243929+00:00",
+            "rendered_fields": {},
+            "sla_miss": None,
+            "start_date": DEFAULT_DATETIME_STR_2,
+            "state": None,
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getuser(),
+        }
+
         assert response.status_code == 200
-        assert response.json == {"success": msg}
+        assert response.json == expected
 
     def test_task_instance_run_required_fields(self, executor, session):
         self.ti_init["state"] = State.NONE

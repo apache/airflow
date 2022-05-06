@@ -562,9 +562,9 @@ def run_task_instance(
     if not dag_run:
         raise NotFound(error_message)
 
-    ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
-    ti.refresh_from_task(task)
-    if not ti:
+    task_instance = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
+    task_instance.refresh_from_task(task)
+    if not task_instance:
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
         raise NotFound(detail=error_message)
 
@@ -575,7 +575,7 @@ def run_task_instance(
         ignore_ti_state=ignore_ti_state,
     )
 
-    failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
+    failed_deps = list(task_instance.get_failed_dep_statuses(dep_context=dep_context))
     if failed_deps:
         failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
         error_message = (
@@ -586,13 +586,12 @@ def run_task_instance(
     executor.job_id = "manual"
     executor.start()
     executor.queue_task_instance(
-        ti,
+        task_instance,
         ignore_all_deps=ignore_all_deps,
         ignore_task_deps=ignore_task_deps,
         ignore_ti_state=ignore_ti_state,
     )
     executor.heartbeat()
-    ti.queued_dttm = timezone.utcnow()
-    session.merge(ti)
-    msg = f"Sent {ti} to the message queue, it should start any moment now."
-    return {"success": msg}
+    task_instance.queued_dttm = timezone.utcnow()
+    session.merge(task_instance)
+    return task_instance_schema.dump([task_instance, None])
