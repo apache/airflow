@@ -645,27 +645,6 @@ All Tests are inside ./tests directory.
 
    $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
 
-
-- Running specific test in container using shell scripts. Testing in container scripts are located in
-  ``./scripts/in_container`` directory.
-
-.. code-block:: bash
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/
-      bin/                                        run_flake8.sh*
-      check_environment.sh*                       run_generate_constraints.sh*
-      entrypoint_ci.sh*                           run_init_script.sh*
-      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
-      _in_container_script_init.sh*               run_mypy.sh*
-      prod/                                       run_prepare_provider_packages.sh*
-      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
-      run_clear_tmp.sh*                           run_system_tests.sh*
-      run_docs_build.sh*                          run_tmux_welcome.sh*
-      run_extract_tests.sh*                       stop_tmux_airflow.sh*
-      run_fix_ownership.sh*                       update_quarantined_test_status.py*
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
-
 - Running specific type of test
 
   - Types of tests
@@ -834,32 +813,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 
 
-
-7. Running specific checks in container using shell scripts. Scripts are located in ``./scripts/in_container``
-   directory.
-
-.. code-block:: bash
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/
-      bin/                                        run_flake8.sh*
-      check_environment.sh*                       run_generate_constraints.sh*
-      entrypoint_ci.sh*                           run_init_script.sh*
-      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
-      _in_container_script_init.sh*               run_mypy.sh*
-      prod/                                       run_prepare_provider_packages.sh*
-      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
-      run_clear_tmp.sh*                           run_system_tests.sh*
-      run_docs_build.sh*                          run_tmux_welcome.sh*
-      run_extract_tests.sh*                       stop_tmux_airflow.sh*
-      run_fix_ownership.sh*                       update_quarantined_test_status.py*
-
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
-
-
-
-
-8. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
+7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
 
 .. code-block:: bash
 
@@ -867,7 +821,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
   $ pre-commit install
   $ git commit -m "Added xyz"
 
-9. To disable Pre-commit
+8. To disable Pre-commit
 
 .. code-block:: bash
 
@@ -1456,26 +1410,6 @@ All Tests are inside ./tests directory.
    $ ./breeze-legacy --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
 
 
-- Running specific test in container using shell scripts. Testing in container scripts are located in
-  ``./scripts/in_container`` directory.
-
-.. code-block:: bash
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/
-      bin/                                        run_flake8.sh*
-      check_environment.sh*                       run_generate_constraints.sh*
-      entrypoint_ci.sh*                           run_init_script.sh*
-      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
-      _in_container_script_init.sh*               run_mypy.sh*
-      prod/                                       run_prepare_provider_packages.sh*
-      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
-      run_clear_tmp.sh*                           run_system_tests.sh*
-      run_docs_build.sh*                          run_tmux_welcome.sh*
-      run_extract_tests.sh*                       stop_tmux_airflow.sh*
-      run_fix_ownership.sh*                       update_quarantined_test_status.py*
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
-
 - Running specific type of test
 
   - Types of tests
@@ -1642,31 +1576,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     Run flake8..........................................................Passed
 
 
-7. Running specific checks in container using shell scripts. Scripts are located in ``./scripts/in_container``
-   directory.
-
-.. code-block:: bash
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/
-      bin/                                        run_flake8.sh*
-      check_environment.sh*                       run_generate_constraints.sh*
-      entrypoint_ci.sh*                           run_init_script.sh*
-      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
-      _in_container_script_init.sh*               run_mypy.sh*
-      prod/                                       run_prepare_provider_packages.sh*
-      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
-      run_clear_tmp.sh*                           run_system_tests.sh*
-      run_docs_build.sh*                          run_tmux_welcome.sh*
-      run_extract_tests.sh*                       stop_tmux_airflow.sh*
-      run_fix_ownership.sh*                       update_quarantined_test_status.py*
-
-
-   root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
-
-
-
-
-8. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
+7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
 
 .. code-block:: bash
 
@@ -1674,7 +1584,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
   $ pre-commit install
   $ git commit -m "Added xyz"
 
-9. To disable Pre-commit
+8. To disable Pre-commit
 
 .. code-block:: bash
 
@@ -1704,10 +1614,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
    <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
-
-
-
-
 
 Contribution guide
 ~~~~~~~~~~~~~~~~~~

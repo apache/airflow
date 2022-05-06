@@ -312,14 +312,23 @@ Those are all available flags of ``setup-autocomplete`` command:
 Customize your environment
 --------------------------
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
+``files/airflow-breeze-config/variables.env``.
+
+You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
+when you enter Breeze. For example you can add ``pip install`` commands if you want to install
+custom dependencies - but there are no limits to add your own customizations.
+
+The ``files`` folder from your local sources is automatically mounted to the container under
+``/files`` path and you can put there any files you want to make available for the Breeze container.
+
+You can also copy any .whl or .sdist packages to dist and when you pass ``--use-packages-from-dist`` flag
+as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
+when you enter Breeze.
 
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
 
-there is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
+There is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
 so you can change it at any place, and run
 
 .. code-block:: bash
@@ -540,6 +549,8 @@ do not need or have no access to run). Those are usually connected with releasin
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
 * Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
 * Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
+* Verify providers: ``breeze verify-provider-packages`` (when releasing provider packages) - including importing
+  the providers in an earlier airflow version.
 * Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
   ``breeze prepare-provider-packages`` (when releasing provider packages)
 * Finding the updated dependencies since the last successful build when we have conflict with
@@ -744,6 +755,27 @@ Those are all available flags of ``verify-image`` command:
   :width: 100%
   :alt: Breeze verify-image
 
+Verifying providers
+-------------------
+
+Breeze can also be used to verify if provider classes are importable and if they are following the
+right naming conventions. This happens automatically on CI but you can also run it manually.
+
+.. code-block:: bash
+
+     breeze verify-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze verify-provider-packages --use-airflow-version 2.1.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output-verify-provider-packages.svg
+  :width: 100%
+  :alt: Breeze verify-provider-packages
 
 Preparing packages
 ------------------

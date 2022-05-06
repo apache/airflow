@@ -80,10 +80,12 @@ ALLOWED_TEST_TYPES = [
     'Quarantined',
 ]
 ALLOWED_PACKAGE_FORMATS = ['wheel', 'sdist', 'both']
+ALLOWED_INSTALLATION_PACKAGE_FORMATS = ['wheel', 'sdist']
 ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
 ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
 ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
 ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
+ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
 PARAM_NAME_DESCRIPTION = {
     "BACKEND": "backend",
@@ -233,7 +235,7 @@ DEFAULT_HELM_VERSIONS = CURRENT_HELM_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
-USE_AIRFLOW_VERSION = ""
+USE_AIRFLOW_VERSION = None
 GITHUB_ACTIONS = ""
 
 ISSUE_ID = ""

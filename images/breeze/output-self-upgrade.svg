@@ -1,135 +1,64 @@
-<svg width="1720.0" height="626" viewBox="0 0 1720.0 626"
-     xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1544 408.8" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
     <style>
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Regular"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
-            font-style: normal;
-            font-weight: 400;
-        }
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Bold"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
-            font-style: bold;
-            font-weight: 700;
-        }
-        .rich-svg-4041262352-terminal-wrapper span {
-            display: inline-block;
-            white-space: pre;
-            vertical-align: top;
-            font-size: 18px;
-            font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
-        }
-        .rich-svg-4041262352-terminal-wrapper a {
-            text-decoration: none;
-            color: inherit;
-        }
-        .rich-svg-4041262352-terminal-body .blink {
-           animation: rich-svg-4041262352-blinker 1s infinite;
-        }
-        @keyframes rich-svg-4041262352-blinker {
-            from { opacity: 1.0; }
-            50% { opacity: 0.3; }
-            to { opacity: 1.0; }
-        }
-        .rich-svg-4041262352-terminal-wrapper {
-            padding: 140px;
-            padding-top: 100px;
-        }
-        .rich-svg-4041262352-terminal {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #0c0c0c;
-            border-radius: 14px;
-            box-shadow: 0 0 0 1px #484848;
-        }
-        .rich-svg-4041262352-terminal:after {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            content: '';
-            border-radius: 14px;
-            background: rgb(71,77,102);
-            background: linear-gradient(90deg, #804D69 0%, #4E4B89 100%);
-            transform: rotate(-4.5deg);
-            z-index: -1;
-        }
-        .rich-svg-4041262352-terminal-header {
-            position: relative;
-            width: 100%;
-            background-color: #2e2e2e;
-            margin-bottom: 12px;
-            font-weight: bold;
-            border-radius: 14px 14px 0 0;
-            color: #f2f2f2;
-            font-size: 18px;
-            box-shadow: inset 0px -1px 0px 0px #4e4e4e,
-                        inset 0px -4px 8px 0px #1a1a1a;
-        }
-        .rich-svg-4041262352-terminal-title-tab {
-            display: inline-block;
-            margin-top: 14px;
-            margin-left: 124px;
-            font-family: sans-serif;
-            padding: 14px 28px;
-            border-radius: 6px 6px 0 0;
-            background-color: #0c0c0c;
-            box-shadow: inset 0px 1px 0px 0px #4e4e4e,
-                        0px -4px 4px 0px #1e1e1e,
-                        inset 1px 0px 0px 0px #4e4e4e,
-                        inset -1px 0px 0px 0px #4e4e4e;
-        }
-        .rich-svg-4041262352-terminal-traffic-lights {
-            position: absolute;
-            top: 24px;
-            left: 20px;
-        }
-        .rich-svg-4041262352-terminal-body {
-            line-height: 22px;
-            padding: 14px;
-        }
-        .rich-svg-4041262352-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.rich-svg-4041262352-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-4041262352-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-4041262352-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-4041262352-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-4041262352-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-3684385563-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 26.400000000000002px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-3684385563-title {
+        font-size: 18px;
+
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-3684385563-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-3684385563-r2 { fill: #c5c8c6 }
+.terminal-3684385563-r3 { fill: #d0b344;font-weight: bold }
+.terminal-3684385563-r4 { fill: #868887 }
+.terminal-3684385563-r5 { fill: #68a0b3;font-weight: bold }
+.terminal-3684385563-r6 { fill: #98a84b;font-weight: bold }
     </style>
-    <foreignObject x="0" y="0" width="100%" height="100%">
-        <body xmlns="http://www.w3.org/1999/xhtml">
-            <div class="rich-svg-4041262352-terminal-wrapper">
-                <div class="rich-svg-4041262352-terminal">
-                    <div class="rich-svg-4041262352-terminal-header">
-                        <svg class="rich-svg-4041262352-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="14" cy="8" r="8" fill="#ff6159"/>
-                            <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
-                            <circle cx="62" cy="8" r="8" fill="#28c941"/>
-                        </svg>
-                        <div class="rich-svg-4041262352-terminal-title-tab">Command: self-upgrade</div>
-                    </div>
-                    <div class="rich-svg-4041262352-terminal-body">
-                        <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze self-upgrade [OPTIONS]                                                                                   </span></div>
-<div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Self upgrade Breeze.                                                                                                  </span><span class="r1"> </span></div>
-<div><span class="r1">                                                                                                                        </span></div>
-<div><span class="r4">╭─ Self-upgrade flags ─────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-current-airflow-sources</span><span class="r1">  </span><span class="r6">-a</span><span class="r1">  </span><span class="r1">Use current workdir Airflow sources for upgrade.                               </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--force</span><span class="r1">                        </span><span class="r6">-f</span><span class="r1">  </span><span class="r1">Force upgrade without asking question to the user.                             </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">  </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                                           </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
-                    </div>
-                </div>
-            </div>
-        </body>
-    </foreignObject>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="16" y="20" width="1512" height="368.8" rx="12"/><text class="terminal-3684385563-title" fill="#c5c8c6" text-anchor="middle" x="756" y="46">Command: self-upgrade</text>
+            <circle cx="40" cy="40" r="7" fill="#ff5f57"/>
+            <circle cx="62" cy="40" r="7" fill="#febc2e"/>
+            <circle cx="84" cy="40" r="7" fill="#28c840"/>
+
+    <g transform="translate(28, 60)">
+
+    <text alignment-baseline="baseline" class="terminal-3684385563-matrix" font-variant="east-asian-width-values"><tspan class="terminal-3684385563-r1" x="0" y="20" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1488" y="20" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r1" x="0" y="46.4" textLength="12.4">&#160;</tspan><tspan class="terminal-3684385563-r3" x="12.4" y="46.4" textLength="86.8">Usage:&#160;</tspan><tspan class="terminal-3684385563-r1" x="99.2" y="46.4" textLength="1388.8">breeze&#160;self-upgrade&#160;[OPTIONS]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1488" y="46.4" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r1" x="0" y="72.8" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1488" y="72.8" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r2" x="0" y="99.2" textLength="12.4">&#160;</tspan><tspan class="terminal-3684385563-r2" x="12.4" y="99.2" textLength="1463.2">Self&#160;upgrade&#160;Breeze.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1475.6" y="99.2" textLength="12.4">&#160;</tspan><tspan class="terminal-3684385563-r2" x="1488" y="99.2" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r2" x="0" y="125.6" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1488" y="125.6" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="152" textLength="1488">╭─&#160;Self-upgrade&#160;flags&#160;─────────────────────────────────────────────────────────────────────────────────────────────────╮</tspan><tspan class="terminal-3684385563-r2" x="1488" y="152" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="178.4" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="12.4" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r5" x="37.2" y="178.4" textLength="359.6">--use-current-airflow-sources</tspan><tspan class="terminal-3684385563-r2" x="396.8" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r6" x="421.6" y="178.4" textLength="24.8">-a</tspan><tspan class="terminal-3684385563-r2" x="446.4" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="471.2" y="178.4" textLength="979.6">Use&#160;current&#160;workdir&#160;Airflow&#160;sources&#160;for&#160;upgrade.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1450.8" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r4" x="1475.6" y="178.4" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="1488" y="178.4" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="204.8" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="12.4" y="204.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r5" x="37.2" y="204.8" textLength="86.8">--force</tspan><tspan class="terminal-3684385563-r2" x="124" y="204.8" textLength="297.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r6" x="421.6" y="204.8" textLength="24.8">-f</tspan><tspan class="terminal-3684385563-r2" x="446.4" y="204.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="471.2" y="204.8" textLength="979.6">Force&#160;upgrade&#160;without&#160;asking&#160;question&#160;to&#160;the&#160;user.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1450.8" y="204.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r4" x="1475.6" y="204.8" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="1488" y="204.8" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="231.2" textLength="1488">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</tspan><tspan class="terminal-3684385563-r2" x="1488" y="231.2" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="257.6" textLength="1488">╭─&#160;Options&#160;────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</tspan><tspan class="terminal-3684385563-r2" x="1488" y="257.6" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="284" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="12.4" y="284" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r5" x="37.2" y="284" textLength="74.4">--help</tspan><tspan class="terminal-3684385563-r2" x="111.6" y="284" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r6" x="136.4" y="284" textLength="24.8">-h</tspan><tspan class="terminal-3684385563-r2" x="161.2" y="284" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="186" y="284" textLength="1264.8">Show&#160;this&#160;message&#160;and&#160;exit.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-3684385563-r2" x="1450.8" y="284" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-3684385563-r4" x="1475.6" y="284" textLength="12.4">│</tspan><tspan class="terminal-3684385563-r2" x="1488" y="284" textLength="12.4">
+</tspan><tspan class="terminal-3684385563-r4" x="0" y="310.4" textLength="1488">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</tspan><tspan class="terminal-3684385563-r2" x="1488" y="310.4" textLength="12.4">
+</tspan></text>
+    </g>
 </svg>
