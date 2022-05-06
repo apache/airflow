@@ -135,6 +135,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--image-tag",
                 "--python",
+                "--github-token",
                 "--verify-image",
                 "--wait-for-image",
                 "--tag-as-latest",
@@ -233,6 +234,7 @@ def build_image(
 @option_run_in_parallel
 @option_parallelism
 @option_python_versions
+@option_github_token
 @option_verify_image
 @option_wait_for_image
 @option_tag_as_latest
@@ -245,6 +247,7 @@ def pull_image(
     github_repository: str,
     run_in_parallel: bool,
     python_versions: str,
+    github_token: str,
     parallelism: int,
     image_tag: Optional[str],
     wait_for_image: bool,
@@ -256,7 +259,12 @@ def pull_image(
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
-            BuildCiParams(image_tag=image_tag, python=python, github_repository=github_repository)
+            BuildCiParams(
+                image_tag=image_tag,
+                python=python,
+                github_repository=github_repository,
+                github_token=github_token,
+            )
             for python in python_version_list
         ]
         run_pull_in_parallel(
@@ -271,7 +279,9 @@ def pull_image(
             extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
         )
     else:
-        image_params = BuildCiParams(image_tag=image_tag, python=python, github_repository=github_repository)
+        image_params = BuildCiParams(
+            image_tag=image_tag, python=python, github_repository=github_repository, github_token=github_token
+        )
         return_code, info = run_pull_image(
             image_params=image_params,
             dry_run=dry_run,
