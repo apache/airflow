@@ -65,7 +65,7 @@ class _RegexpIgnoreRule(NamedTuple):
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
+        test_path: Path = path.absolute()
         for rule in rules:
             if not isinstance(rule, _RegexpIgnoreRule):
                 raise ValueError(f"_RegexpIgnoreRule cannot match rules of type: {type(rule)}")
@@ -102,7 +102,7 @@ class _GlobIgnoreRule(NamedTuple):
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
+        test_path: Path = path.absolute()
         matched = False
         for r in rules:
             if not isinstance(r, _GlobIgnoreRule):
