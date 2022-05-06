@@ -18,7 +18,8 @@
 version: "3.7"
 services:
   cassandra:
-    image: cassandra:3.0
+    # TODO: fix cassandra to 3.0.25 as latest 3.0 (3.0.26) does not start cleanly
+    image: cassandra:3.0.25
     environment:
       HEAP_NEWSIZE: 128M
       MAX_HEAP_SIZE: 256M
