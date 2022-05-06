@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow_breeze.commands.configure_rich_click import click  # noqa
-from airflow_breeze.commands.main import main
+from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
+from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.path_utils import find_airflow_sources_root_to_operate_on
 
 find_airflow_sources_root_to_operate_on()

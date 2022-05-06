@@ -19,10 +19,10 @@ import multiprocessing as mp
 import time
 from typing import List, Tuple, Union
 
-from airflow_breeze.build_image.ci.build_ci_image import mark_image_as_refreshed
-from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
-from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.registry import login_to_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
