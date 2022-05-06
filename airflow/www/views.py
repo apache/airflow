@@ -231,7 +231,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
+def task_group_to_grid(task_item_or_group, dag, dag_runs, tis, session):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
@@ -253,7 +253,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis, session):
     task_group = task_item_or_group
 
     children = [
-        task_group_to_tree(child, dag, dag_runs, tis, session) for child in task_group.topological_sort()
+        task_group_to_grid(child, dag, dag_runs, tis, session) for child in task_group.topological_sort()
     ]
 
     def get_summary(dag_run, children):
@@ -881,6 +881,7 @@ class Airflow(AirflowBaseView):
             tags_filter=arg_tags_filter,
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
+            auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -1916,6 +1917,14 @@ class Airflow(AirflowBaseView):
             flash(f"The run_id {dr.run_id} already exists", "error")
             return redirect(origin)
 
+        # Flash a warning when slash is used, but still allow it to continue on.
+        if run_id and "/" in run_id:
+            flash(
+                "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
+                "also makes the run impossible to retrieve via Airflow's REST API.",
+                "warning",
+            )
+
         run_conf = {}
         if request_conf:
             try:
@@ -2612,7 +2621,7 @@ class Airflow(AirflowBaseView):
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
         data = {
-            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
+            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, tis, session),
             'dag_runs': encoded_runs,
         }
 
@@ -2620,7 +2629,7 @@ class Airflow(AirflowBaseView):
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
         return self.render_template(
-            'airflow/tree.html',
+            'airflow/grid.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
@@ -3443,15 +3452,15 @@ class Airflow(AirflowBaseView):
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
-    @expose('/object/tree_data')
+    @expose('/object/grid_data')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
-    def tree_data(self):
-        """Returns tree data"""
+    def grid_data(self):
+        """Returns grid data"""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
 
@@ -3487,7 +3496,7 @@ class Airflow(AirflowBaseView):
             min_date = min(dag_run_dates, default=None)
             tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
             data = {
-                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis, session),
+                'groups': task_group_to_grid(dag.task_group, dag, dag_runs, tis, session),
                 'dag_runs': encoded_runs,
             }
 
@@ -3759,8 +3768,8 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id']
-    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'map_index']
+    search_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'execution_date']
+    list_columns = ['key', 'value', 'timestamp', 'dag_id', 'task_id', 'run_id', 'map_index', 'execution_date']
     base_order = ('dag_run_id', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -3770,6 +3779,7 @@ class XComModelView(AirflowModelView):
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
         'map_index': wwwutils.format_map_index,
+        'execution_date': wwwutils.datetime_f('execution_date'),
     }
 
     @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
@@ -5150,7 +5160,6 @@ class DagDependenciesView(AirflowBaseView):
             nodes.append(self._node_dict(dag_node_id, dag, "dag"))
 
             for dep in dependencies:
-
                 nodes.append(self._node_dict(dep.node_id, dep.dependency_id, dep.dependency_type))
                 edges.extend(
                     [

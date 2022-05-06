@@ -311,10 +311,16 @@ Those are all available flags of ``setup-autocomplete`` command:
 
 Customize your environment
 --------------------------
+
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
+``files/airflow-breeze-config/variables.env``.
+a
+You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
+when you enter Breeze. For example you can add ``pip install`` commands if you want to install
+custom dependencies - but there are no limits to add your own customizations.
+
+The ``files`` folder from your local sources is automatically mounted to the container under
+``/files`` path and you can put there any files you want to make available for the Breeze container.
 
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
@@ -471,11 +477,9 @@ Those are commands mostly used by contributors:
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze-legacy tests`` command
+* Run test specified with ``breeze tests`` command
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
-* Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze-legacy tests`` command
 
 Additional management tasks:
 
@@ -487,6 +491,11 @@ Tests
 -----
 
 * Run docker-compose tests with ``breeze docker-compose-tests`` command.
+* Run test specified with ``breeze tests`` command.
+
+.. image:: ./images/breeze/output-tests.svg
+  :width: 100%
+  :alt: Breeze tests
 
 Kubernetes tests
 ----------------

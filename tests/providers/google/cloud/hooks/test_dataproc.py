@@ -372,15 +372,6 @@ class TestDataprocHook(unittest.TestCase):
         with pytest.raises(TypeError):
             self.hook.submit_job(job=JOB, project_id=GCP_PROJECT)
 
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.wait_for_job"))
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.submit_job"))
-    def test_submit(self, mock_submit_job, mock_wait_for_job):
-        mock_submit_job.return_value.reference.job_id = JOB_ID
-        with pytest.warns(DeprecationWarning):
-            self.hook.submit(project_id=GCP_PROJECT, job=JOB, region=GCP_LOCATION)
-        mock_submit_job.assert_called_once_with(region=GCP_LOCATION, project_id=GCP_PROJECT, job=JOB)
-        mock_wait_for_job.assert_called_once_with(region=GCP_LOCATION, project_id=GCP_PROJECT, job_id=JOB_ID)
-
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
     def test_cancel_job(self, mock_client):
         self.hook.cancel_job(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)

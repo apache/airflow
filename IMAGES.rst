@@ -136,7 +136,7 @@ This will build the image using command similar to:
 
     pip install \
       apache-airflow[async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 
 .. note::
 
@@ -158,7 +158,7 @@ HEAD of development for constraints):
 .. code-block:: bash
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 You can also skip installing airflow and install it from locally provided files by using
 ``--install-packages-from-context`` parameter to Breeze:
@@ -365,7 +365,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +==========================================+==========================================+==========================================+
 | ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-bullseye``             | Base Python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
+| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.7``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
@@ -485,7 +485,7 @@ This builds the CI image in version 3.7 with default extras ("all").
      --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "gcp" extra only.
+This builds the CI image in version 3.7 with "gcp" extra only.
 
 .. code-block:: bash
 
@@ -495,7 +495,7 @@ This builds the CI image in version 3.6 with "gcp" extra only.
     --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "apache-beam" extra added.
+This builds the CI image in version 3.7 with "apache-beam" extra added.
 
 .. code-block:: bash
 
@@ -504,7 +504,7 @@ This builds the CI image in version 3.6 with "apache-beam" extra added.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "mssql" additional package added.
+This builds the CI image in version 3.7 with "mssql" additional package added.
 
 .. code-block:: bash
 
@@ -513,7 +513,7 @@ This builds the CI image in version 3.6 with "mssql" additional package added.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
+This builds the CI image in version 3.7 with "gcc" and "g++" additional apt dev dependencies added.
 
 .. code-block::
 
@@ -522,7 +522,7 @@ This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev 
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
+This builds the CI image in version 3.7 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
 
 .. code-block::
 

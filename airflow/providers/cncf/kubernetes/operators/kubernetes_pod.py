@@ -103,7 +103,8 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
+        during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
@@ -290,7 +291,12 @@ class KubernetesPodOperator(BaseOperator):
         ti = context['ti']
         run_id = context['run_id']
 
-        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
+        labels = {
+            'dag_id': ti.dag_id,
+            'task_id': ti.task_id,
+            'run_id': run_id,
+            'kubernetes_pod_operator': 'True',
+        }
 
         # If running on Airflow 2.3+:
         map_index = getattr(ti, 'map_index', -1)
@@ -433,7 +439,7 @@ class KubernetesPodOperator(BaseOperator):
     def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True'
+        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True,!airflow-worker'
 
     def _set_name(self, name):
         if name is None:
@@ -541,7 +547,6 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_pod_operator': 'True',
             }
         )
         pod_mutation_hook(pod)

@@ -52,6 +52,9 @@ configure the secret name:
 
 .. _production-guide:pgbouncer:
 
+.. warning::
+  If you use ``CeleryExecutor``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme.
+
 PgBouncer
 ---------
 

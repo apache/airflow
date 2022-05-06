@@ -137,6 +137,7 @@ def _get_ti(
     exec_date_or_run_id: str,
     map_index: int,
     *,
+    pool: Optional[str] = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> Tuple[TaskInstance, bool]:
@@ -165,7 +166,7 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task)
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
@@ -361,7 +362,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()

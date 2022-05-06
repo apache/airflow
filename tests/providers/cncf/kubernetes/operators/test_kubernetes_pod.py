@@ -228,7 +228,10 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         self.client_mock.return_value.list_namespaced_pod.assert_called_once()
         _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
-        assert kwargs['label_selector'] == 'dag_id=dag,run_id=test,task_id=task,already_checked!=True'
+        assert kwargs['label_selector'] == (
+            'dag_id=dag,kubernetes_pod_operator=True,run_id=test,task_id=task,'
+            'already_checked!=True,!airflow-worker'
+        )
 
     def test_image_pull_secrets_correctly_set(self):
         fake_pull_secrets = "fakeSecret"

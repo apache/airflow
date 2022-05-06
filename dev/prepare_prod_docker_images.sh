@@ -42,6 +42,17 @@ fi
 
 airflow_version="${1}"
 
+if ! docker buildx version; then
+   >&2 echo "The buildx plugin must be installed!"
+   exit 1
+fi
+
+if ! regctl version; then
+   >&2 echo "The regctl must be installed and in the PATH!"
+   exit 1
+fi
+
+
 for python_version in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
 do
   image_name="apache/airflow:${airflow_version}-python${python_version}"
@@ -52,8 +63,7 @@ do
   docker pull "${image_name}"
   breeze verify-prod-image --image-name "${image_name}"
   if [[ ${python_version} == "3.7" ]]; then
-      docker tag "${image_name}" "apache/airflow:${airflow_version}"
-      docker push "apache/airflow:${airflow_version}"
+      regctl image copy "${image_name}" "apache/airflow:${airflow_version}"
   fi
 done
 
@@ -76,10 +86,8 @@ fi
 
 for python_version in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
 do
-    docker tag "apache/airflow:${airflow_version}-python${python_version}" \
+    regctl image copy "apache/airflow:${airflow_version}-python${python_version}" \
         "apache/airflow:latest-python${python_version}"
-    docker push "apache/airflow:latest-python${python_version}"
 done
 
-docker tag "apache/airflow:${airflow_version}" "apache/airflow:latest"
-docker push "apache/airflow:latest"
+regctl image copy "apache/airflow:${airflow_version}" "apache/airflow:latest"

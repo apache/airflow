@@ -18,6 +18,7 @@
 import os
 import re
 import subprocess
+import sys
 from random import randint
 from typing import Dict, List, Tuple, Union
 
@@ -111,7 +112,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
 
 
 def check_docker_resources(
-    verbose: bool, airflow_image_name: str, dry_run: bool
+    airflow_image_name: str, verbose: bool, dry_run: bool
 ) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
@@ -174,11 +175,10 @@ def compare_version(current_version: str, min_version: str) -> bool:
     return version.parse(current_version) >= version.parse(min_version)
 
 
-def check_docker_is_running(verbose: bool) -> bool:
+def check_docker_is_running(verbose: bool):
     """
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
     :param verbose: print commands when running
-    :return: False if docker is not running.
     """
     response = run_command(
         ["docker", "info"],
@@ -190,8 +190,11 @@ def check_docker_is_running(verbose: bool) -> bool:
         check=False,
     )
     if response.returncode != 0:
-        return False
-    return True
+        get_console().print(
+            '[error]Docker is not running.[/]\n'
+            '[warning]Please make sure Docker is installed and running.[/]'
+        )
+        sys.exit(1)
 
 
 def check_docker_version(verbose: bool):

@@ -52,8 +52,9 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
     def failure_message_from_response(response):
         change_reason = response['SomeKey'].get('StateChangeReason')
         if change_reason:
-            return 'for code: {} with message {}'.format(
-                change_reason.get('Code', EMPTY_CODE), change_reason.get('Message', 'Unknown')
+            return (
+                f"for code: {change_reason.get('Code', EMPTY_CODE)} "
+                f"with message {change_reason.get('Message', 'Unknown')}"
             )
         return None
 

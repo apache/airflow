@@ -37,7 +37,7 @@ Typical command to install airflow from PyPI looks like below:
 
 .. code-block::
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
 
 This is an example, see further for more explanation.
 
@@ -142,7 +142,7 @@ in specific version.
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --constraint "${CONSTRAINT_URL}"
 
@@ -151,7 +151,7 @@ You can also upgrade the providers to latest versions (you need to use main vers
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --upgrade --constraint "${CONSTRAINT_URL}"
 
@@ -166,9 +166,9 @@ If you don't want to install any extra providers, initially you can use the comm
 
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.7.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
