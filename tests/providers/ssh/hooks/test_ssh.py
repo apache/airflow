@@ -741,7 +741,7 @@ class TestSSHHook(unittest.TestCase):
             session.commit()
 
     def test_oneline_key(self):
-        with pytest.raises(Exception) as e_info:
+        with pytest.raises(Exception):
             TEST_ONELINE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----asdfg-----END OPENSSH PRIVATE KEY-----"
             session = settings.Session()
             try:
@@ -753,7 +753,7 @@ class TestSSHHook(unittest.TestCase):
                 )
                 session.add(conn)
                 session.flush()
-                hook = SSHHook(ssh_conn_id=conn.conn_id)
+                SSHHook(ssh_conn_id=conn.conn_id)
             finally:
                 session.delete(conn)
                 session.commit()
