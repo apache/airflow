@@ -592,7 +592,8 @@ def test_access_control_with_invalid_permission(app, security_manager):
         for action in invalid_actions:
             with pytest.raises(AirflowException) as ctx:
                 security_manager.sync_perm_for_dag(
-                    'access_control_test', access_control={rolename: {action}},
+                    'access_control_test',
+                    access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
 

@@ -200,6 +200,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
+    def _is_subdag(self, dag_id):
+        dm = (
+            self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
+            .filter(DagModel.dag_id == dag_id)
+            .first()
+        )
+        return dm.is_subdag if dm else False
+
     def init_role(self, role_name, perms):
         """
         Initialize the role with actions and related resources.
@@ -340,14 +348,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
-            is_subdag = False
-            dm = (
-                self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
-                .filter(DagModel.dag_id == dag_id)
-                .first()
-            )
-            if dm:
-                is_subdag = dm.is_subdag
+            is_subdag = self._is_subdag(dag_id)
             return self.has_access(action, permissions.resource_name_for_dag(dag_id, is_subdag))
 
         user = g.user
@@ -357,40 +358,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
-        is_subdag = False
-        dm = (
-            self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
-            .filter(DagModel.dag_id == dag_id)
-            .first()
-        )
-        if dm:
-            is_subdag = dm.is_subdag
+        is_subdag = self._is_subdag(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
         return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
-        is_subdag = False
-        dm = (
-            self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
-            .filter(DagModel.dag_id == dag_id)
-            .first()
-        )
-        if dm:
-            is_subdag = dm.is_subdag
+        is_subdag = self._is_subdag(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
         return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
 
     def can_delete_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG delete access."""
-        is_subdag = False
-        dm = (
-            self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
-            .filter(DagModel.dag_id == dag_id)
-            .first()
-        )
-        if dm:
-            is_subdag = dm.is_subdag
+        is_subdag = self._is_subdag(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
 
@@ -402,14 +382,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        is_subdag = False
-        dm = (
-            self.get_session.query(DagModel.dag_id, DagModel.is_subdag)
-            .filter(DagModel.dag_id == dag_id)
-            .first()
-        )
-        if dm:
-            is_subdag = dm.is_subdag
+        is_subdag = self._is_subdag(dag_id)
         return permissions.resource_name_for_dag(dag_id, is_subdag)
 
     def is_dag_resource(self, resource_name):
