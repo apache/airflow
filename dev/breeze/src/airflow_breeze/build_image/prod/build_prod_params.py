@@ -20,7 +20,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -45,9 +45,9 @@ class BuildProdParams:
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_docker_context_files: bool = False
+    install_from_docker_context_files: bool = False
     disable_airflow_repo_cache: bool = False
-    install_providers_from_sources: bool = True
+    install_providers_from_sources: bool = False
     cleanup_docker_context_files: bool = False
     prepare_buildx_cache: bool = False
     push_image: bool = False
@@ -75,7 +75,8 @@ class BuildProdParams:
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     additional_python_deps: str = ""
-    image_tag: str = ""
+    image_tag: Optional[str] = None
+    extras: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
     login_to_github_registry: str = "false"
@@ -85,6 +86,7 @@ class BuildProdParams:
     airflow_constraints_location: str = ""
     installation_method: str = "."
     debian_version: str = "bullseye"
+    answer: Optional[str] = None
 
     @property
     def airflow_branch(self) -> str:
@@ -103,8 +105,7 @@ class BuildProdParams:
 
     @property
     def the_image_type(self) -> str:
-        the_image_type = 'PROD'
-        return the_image_type
+        return 'PROD'
 
     @property
     def args_for_remote_install(self) -> List:
@@ -277,13 +278,6 @@ class BuildProdParams:
         return install_postgres
 
     @property
-    def install_from_docker_context_files(self) -> str:
-        install_from_docker_context_files = 'false'
-        if self.install_docker_context_files:
-            install_from_docker_context_files = 'true'
-        return install_from_docker_context_files
-
-    @property
     def airflow_extras(self):
         return get_airflow_extras()
 
@@ -295,4 +289,4 @@ class BuildProdParams:
     def airflow_image_name_with_tag(self):
         """Construct PROD image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
-        return image if not self.image_tag else image + f":{self.image_tag}"
+        return image if self.image_tag is None else image + f":{self.image_tag}"

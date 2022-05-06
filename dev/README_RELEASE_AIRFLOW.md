@@ -49,7 +49,7 @@
   - [Close the milestone](#close-the-milestone)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
-  - [Update `main` with latest release details](#update-main-with-latest-release-details)
+  - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
@@ -248,7 +248,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    ./breeze-legacy prepare-airflow-packages --package-format both
+    breeze prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -423,7 +423,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    ./breeze-legacy prepare-airflow-packages --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -1076,11 +1076,11 @@ Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Update `main` with latest release details
+## Update `main` with the latest release details
 
 This includes:
 
-- Modify `./scripts/ci/pre-commit/supported_versions.py` and let pre-commit do the job
+- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version

@@ -18,7 +18,6 @@
 """This module contains a Dataproc Job sensor."""
 # pylint: disable=C0302
 import time
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from google.api_core.exceptions import ServerError
@@ -40,7 +39,6 @@ class DataprocJobSensor(BaseSensorOperator):
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :param wait_timeout: How many seconds wait for job to be ready.
     """
@@ -52,24 +50,12 @@ class DataprocJobSensor(BaseSensorOperator):
         self,
         *,
         dataproc_job_id: str,
-        region: Optional[str] = None,
+        region: str,
         project_id: Optional[str] = None,
-        location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id

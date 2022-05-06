@@ -2020,8 +2020,10 @@ class TestTaskInstance:
         ti._run_raw_task()
         ti.refresh_from_db()
         stats_mock.assert_called_with(f'ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}')
+        for state in State.task_states:
+            assert call(f'ti.finish.{ti.dag_id}.{ti.task_id}.{state}', count=0) in stats_mock.mock_calls
         assert call(f'ti.start.{ti.dag_id}.{ti.task_id}') in stats_mock.mock_calls
-        assert stats_mock.call_count == 4
+        assert stats_mock.call_count == 19
 
     def test_command_as_list(self, create_task_instance):
         ti = create_task_instance()

@@ -271,7 +271,7 @@ class AirflowConfigParser(ConfigParser):
         if default_config is not None:
             self.airflow_defaults.read_string(default_config)
             # Set the upgrade value based on the current loaded default
-            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None, raw=True)
+            default = self.airflow_defaults.get('logging', 'log_filename_template', fallback=None)
             if default:
                 replacement = self.deprecated_values['logging']['log_filename_template']
                 self.deprecated_values['logging']['log_filename_template'] = (
@@ -290,9 +290,7 @@ class AirflowConfigParser(ConfigParser):
         self.is_validated = False
 
     def validate(self):
-
         self._validate_config_dependencies()
-
         self._validate_enums()
 
         for section, replacement in self.deprecated_values.items():
@@ -327,6 +325,13 @@ class AirflowConfigParser(ConfigParser):
         elif old_value.find('airflow.api.auth.backend.session') == -1:
             new_value = old_value + ",airflow.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
+            self.upgraded_values[("api", "auth_backends")] = old_value
+
+            # if the old value is set via env var, we need to wipe it
+            # otherwise, it'll "win" over our adjusted value
+            old_env_var = self._env_var_name("api", "auth_backend")
+            os.environ.pop(old_env_var, None)
+
             warnings.warn(
                 'The auth_backends setting in [api] has had airflow.api.auth.backend.session added '
                 'in the running config, which is needed by the UI. Please update your config before '
@@ -351,7 +356,11 @@ class AirflowConfigParser(ConfigParser):
             self.upgraded_values[(section, key)] = old_value
             new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
-            self.set(section=section, option=key, value=new_value)
+
+            # if the old value is set via env var, we need to wipe it
+            # otherwise, it'll "win" over our adjusted value
+            old_env_var = self._env_var_name("core", key)
+            os.environ.pop(old_env_var, None)
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
@@ -395,13 +404,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _update_env_var(self, section, name, new_value):
         env_var = self._env_var_name(section, name)
-        # If the config comes from environment, set it there so that any subprocesses keep the same override!
-        if env_var in os.environ:
-            os.environ[env_var] = new_value
-            return
-        if not self.has_section(section):
-            self.add_section(section)
-        self.set(section, name, new_value)
+        # Set it as an env var so that any subprocesses keep the same override!
+        os.environ[env_var] = new_value
 
     @staticmethod
     def _create_future_warning(name, section, current_value, new_value, version):

@@ -44,7 +44,6 @@ function run_prepare_documentation() {
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
-            "${OPTIONAL_NON_INTERACTIVE_FLAG[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
@@ -54,6 +53,11 @@ function run_prepare_documentation() {
         fi
         if [[ ${res} == "65" ]]; then
             echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
+            exit 1
+        fi
+        if [[ ${res} == "128" ]]; then
+            echo "${COLOR_RED}Exiting as there wes a serious error during processing '${provider_package}'${COLOR_RESET}"
+            error_documentation+=("${provider_package}")
             exit 1
         fi
         if [[ ${res} == "66" ]]; then
@@ -144,21 +148,21 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 install_supported_pip_version
 
-group_start "Importing all classes"
-python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
-group_end
-
-verify_provider_packages_named_properly
+if [[ ${SKIP_PACKAGE_VERIFICATION=} == "true" ||  ${SKIP_PACKAGE_VERIFICATION} == "True" ]]; then
+    echo
+    echo "${COLOR_YELLOW}Skipping package verification!${COLOR_RESET}"
+    echo
+else
+    group_start "Importing all classes"
+    python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
+    group_end
+    verify_provider_packages_named_properly
+fi
 
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()
 if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; then
     OPTIONAL_RELEASE_VERSION_ARGUMENT+=("--release-version" "${1}")
     shift
-fi
-
-OPTIONAL_NON_INTERACTIVE_FLAG=()
-if [[ ${NON_INTERACTIVE=} == "true" || ${NON_INTERACTIVE} == "True" ]]; then
-    OPTIONAL_NON_INTERACTIVE_FLAG+=("--non-interactive")
 fi
 
 
