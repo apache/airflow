@@ -109,6 +109,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 time.sleep(1)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
+                ResourceVersion().resource_version = "0"
                 raise
             else:
                 self.log.warning(
