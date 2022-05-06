@@ -315,7 +315,6 @@ class TestPostgresHook(unittest.TestCase):
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
-    @pytest.mark.xfail
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
@@ -330,9 +329,11 @@ class TestPostgresHook(unittest.TestCase):
             ),
         ]
         fields = ("id", "value")
-        self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
+        with pytest.raises(ValueError) as ctx:
+            self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
 
-    @pytest.mark.xfail
+        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
+
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
@@ -347,7 +348,10 @@ class TestPostgresHook(unittest.TestCase):
             ),
         ]
         fields = ("id", "value")
-        self.db_hook.insert_rows(table, rows, fields, replace=True)
+        with pytest.raises(ValueError) as ctx:
+            self.db_hook.insert_rows(table, rows, fields, replace=True)
+
+        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     @pytest.mark.backend("postgres")
     def test_rowcount(self):
