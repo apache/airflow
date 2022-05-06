@@ -19,7 +19,7 @@
 
 /* global localStorage, CustomEvent, document */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flex, IconButton } from '@chakra-ui/react';
 import { MdExpand, MdCompress } from 'react-icons/md';
 
@@ -48,19 +48,32 @@ const ToggleGroups = ({ groups }) => {
   const isExpandDisabled = allGroupIds.length === openGroupIds.length;
   const isCollapseDisabled = !openGroupIds.length;
 
+  // Listen to changes from ToggleGroups
+  useEffect(() => {
+    const handleChange = ({ detail }) => {
+      if (detail.dagId === dagId) {
+        setOpenGroupIds(detail.openGroups);
+      }
+    };
+    document.addEventListener('toggleGroup', handleChange);
+    return () => {
+      document.removeEventListener('toggleGroup', handleChange);
+    };
+  });
+
   // Don't show button if the DAG has no task groups
   const hasGroups = groups.children.find((c) => !!c.children);
   if (!hasGroups) return null;
 
   const onExpand = () => {
-    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: true } });
-    document.dispatchEvent(closeEvent);
+    const openEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: allGroupIds } });
+    document.dispatchEvent(openEvent);
     localStorage.setItem(openGroupsKey, JSON.stringify(allGroupIds));
     setOpenGroupIds(allGroupIds);
   };
 
   const onCollapse = () => {
-    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, closeGroups: true } });
+    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: [] } });
     document.dispatchEvent(closeEvent);
     localStorage.removeItem(openGroupsKey);
     setOpenGroupIds([]);

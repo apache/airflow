@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global localStorage, document */
+/* global localStorage, document, CustomEvent */
 
 import React, { useCallback, useEffect } from 'react';
 import {
@@ -110,11 +110,16 @@ const Row = (props) => {
     isOpen, onToggle, onOpen, onClose,
   } = useDisclosure({ defaultIsOpen });
 
+  const parentTasks = task.id.split('.');
+  parentTasks.splice(-1);
+
+  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroups.some((g) => g === p));
+
   // Listen to changes from ToggleGroups
   useEffect(() => {
     const handleChange = ({ detail }) => {
       if (detail.dagId === dagId) {
-        if (detail.closeGroups) onClose();
+        if (!detail.openGroups.length) onClose();
         else if (detail.openGroups) onOpen();
       }
     };
@@ -128,24 +133,23 @@ const Row = (props) => {
   const memoizedToggle = useCallback(
     () => {
       if (isGroup) {
+        const openGroudIds = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
         if (!isOpen) {
-          localStorage.setItem(openGroupsKey, JSON.stringify([...openGroups, task.label]));
+          const newGroupIds = [...openGroudIds, task.label];
+          localStorage.setItem(openGroupsKey, JSON.stringify(newGroupIds));
+          const openEvent = new CustomEvent('toggleGroup', { detail: { dagId, openGroups: newGroupIds } });
+          document.dispatchEvent(openEvent);
         } else {
-          localStorage.setItem(
-            openGroupsKey,
-            JSON.stringify(openGroups.filter((g) => g !== task.label)),
-          );
+          const newGroupIds = openGroudIds.filter((g) => g !== task.label);
+          const closeEvent = new CustomEvent('toggleGroup', { detail: { dagId, openGroups: newGroupIds } });
+          document.dispatchEvent(closeEvent);
+          localStorage.setItem(openGroupsKey, newGroupIds);
         }
         onToggle();
       }
     },
-    [onToggle, isGroup, isOpen, openGroups, task.label],
+    [onToggle, isGroup, isOpen, task.label],
   );
-
-  const parentTasks = task.id.split('.');
-  parentTasks.splice(-1);
-
-  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroups.some((g) => g === p));
 
   return (
     <>
